@@ -306,14 +306,15 @@ The earlier sequential-greedy E0 result is legacy invalid evidence from an obsol
 
 Purpose: answer:
 
-> How much decision time does each coordination architecture spend on real wireless communication when there is no packet loss?
+> How much decision time does each coordination architecture spend on trace-driven wireless communication when there is no packet loss?
 
 Conditions:
 
 - packet loss = 0
 - fixed Hungarian optimizer
-- empirical ROS 2 Wi-Fi latency sampled from the Rady et al. dataset
-- paired scenarios and paired latency traces
+- empirical ROS 2 Wi-Fi application delay sampled from the pinned Rady et al. dataset
+- broadcast-corrected transport semantics
+- 100 paired seeds per condition
 
 Compare:
 
@@ -324,20 +325,16 @@ Compare:
 
 Primary outputs:
 
-- \(T_{communication}\)
-- total decision latency
+- actionable decision time
+- global agreement time
 - cost-exchange time
-- quorum time
-- commit time
-- local compute time
+- local Hungarian compute time
 - message count
-- bytes
-
-This is the experiment that quantifies the time spent on communication.
+- logical payload bytes
 
 ### E1 result record
 
-Status: **BROADCAST-CORRECTED IMPLEMENTATION — AWAITING FORMAL RERUN**
+Status: **FORMAL TRACE-DRIVEN RUN COMPLETE**
 
 Pinned empirical profile:
 
@@ -354,33 +351,64 @@ Pinned empirical profile:
 - P99: **159.419021 ms**
 - maximum: **531.535123 ms**
 
-The trace has a substantial latency tail; E1 therefore uses the full empirical sample distribution rather than a constant or Gaussian delay.
+Corrected local raw output:
 
-Run:
+`results/e1_latency/raw/e1_20261009T144026Z.csv`
 
-```bash
-git pull
-python3 -m unittest discover -s tests -v
-python3 -m scripts.prepare_rady_wifi_dataset
-python3 -m experiments.run_e1 --seeds 100
-```
+Corrected local audit events:
 
-Raw: `results/e1_latency/raw/`  
-Audit event logs: `results/e1_latency/events/*.csv.gz`  
-Summary: `results/e1_latency/summary.csv`
+`results/e1_latency/events/e1_events_20261009T144026Z.csv.gz`
 
-Per-message event logs are stored for designated audit seeds (default seed 0) to avoid multi-million-row duplication; all 100 seeds retain per-run aggregate metrics.
+Corrected local summary:
 
-The first local E1 run on 2026-10-09 is retained only as a **diagnostic pilot** because that implementation incorrectly expanded each cost/commit announcement into \(N-1\) unicasts. It must not be used as a paper result.
+`results/e1_latency/summary.csv`
 
-The corrected implementation now counts:
+These generated result files remain pending user-side git commit.
 
-- one cost-row broadcast per robot;
-- direct unicast task votes;
-- one commit broadcast per committed task;
-- one leader assignment broadcast for Leader-Hungarian.
+| Robots | Tasks | Method | Actionable mean | Global mean | P95 global | Messages | Payload bytes |
+|---:|---:|---|---:|---:|---:|---:|---:|
+| 10 | 5 | Leader | 157.162 ms | 157.162 ms | 551.821 ms | 10 | 560 |
+| 10 | 5 | Full-View | 142.228 ms | 142.228 ms | 531.535 ms | 10 | 560 |
+| 10 | 5 | Democracy | 168.375 ms | 247.598 ms | 605.326 ms | 60 | 2,140 |
+| 25 | 10 | Leader | 268.586 ms | 268.586 ms | 568.001 ms | 25 | 2,400 |
+| 25 | 10 | Full-View | 236.312 ms | 236.312 ms | 531.535 ms | 25 | 2,400 |
+| 25 | 10 | Democracy | 260.792 ms | 391.655 ms | 1,068.761 ms | 275 | 10,360 |
+| 50 | 30 | Leader | 370.827 ms | 370.827 ms | 580.675 ms | 50 | 12,800 |
+| 50 | 30 | Full-View | 336.090 ms | 336.090 ms | 531.535 ms | 50 | 12,800 |
+| 50 | 30 | Democracy | 362.120 ms | 659.889 ms | 1,083.071 ms | 1,550 | 60,680 |
+| 100 | 50 | Leader | 477.409 ms | 477.409 ms | 581.239 ms | 100 | 41,600 |
+| 100 | 50 | Full-View | 452.627 ms | 452.627 ms | 531.535 ms | 100 | 41,600 |
+| 100 | 50 | Democracy | 477.742 ms | 796.165 ms | 1,084.052 ms | 5,100 | 201,400 |
+| 100 | 100 | Leader | 477.409 ms | 477.409 ms | 581.239 ms | 100 | 81,600 |
+| 100 | 100 | Full-View | 452.627 ms | 452.627 ms | 531.535 ms | 100 | 81,600 |
+| 100 | 100 | Democracy | 478.327 ms | 918.551 ms | 1,084.184 ms | 10,100 | 401,200 |
 
-**Paper result:** pending corrected local rerun.
+### E1 interpretation
+
+The fixed Hungarian computation is negligible relative to communication. At 100R/100T the measured local Hungarian wall-clock mean is only **0.752068 ms**, while trace-driven communication reaches hundreds of milliseconds.
+
+The most important timing result is the distinction between **actionable decision** and **global agreement**:
+
+- Democracy adds only about **25–26 ms** to the Full-View actionable time across the larger conditions.
+- At 100R/50T, Democracy actionable time is **477.742 ms**, essentially identical to Leader-Hungarian at **477.409 ms**.
+- At 100R/100T, Democracy actionable time is **478.327 ms**, also essentially identical to Leader-Hungarian at **477.409 ms**.
+- Democracy global-agreement time is much larger because every task winner still broadcasts a commit and the experiment reports the final commit arrival across all tasks.
+
+The communication-volume trade-off is substantial:
+
+- 100R/100T Leader: **100** logical transmissions, **81.6 kB** payload.
+- 100R/100T Full-View: **100** logical transmissions, **81.6 kB** payload.
+- 100R/100T Democracy: **10,100** logical transmissions, **401.2 kB** payload.
+
+Therefore E1 supports a precise trade-off statement: **leaderless democratic quorum adds little actionable latency after full information is available, but it incurs substantially higher message count and global commit dissemination cost.**
+
+### E1 claim boundary
+
+E1 is a **trace-driven application-delay model**, not a full 802.11 shared-medium contention simulator.
+
+It preserves the measured application-delay distribution from the cited robotic Wi-Fi experiment, but it does not add new fleet-size-dependent CSMA/CA contention caused by thousands of protocol transmissions. Message-count and payload results must therefore be reported alongside latency, and later scalability experiments must not interpret E1 latency as a complete on-air saturation model.
+
+The earlier pre-broadcast E1 run is retained only as diagnostic pilot evidence and must not be cited.
 
 ---
 
@@ -599,7 +627,7 @@ Each formal result must preserve:
 # 8. Implementation order
 
 - [x] E0 — corrected formal run passed
-- [x] E1 — implementation complete; formal local run pending
+- [x] E1 — formal trace-driven latency run complete
 - [ ] E2 — Bernoulli packet loss
 - [ ] E3 — robot scalability
 - [ ] E4 — task-load saturation
