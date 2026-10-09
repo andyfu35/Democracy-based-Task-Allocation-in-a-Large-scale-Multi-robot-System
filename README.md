@@ -418,9 +418,7 @@ Purpose: measure how each coordination architecture degrades when **cost informa
 
 Loss sweep:
 
-[
-p_{loss}\in\{0,0.1,0.3,0.5,0.7,0.9\}.
-]
+`p_loss ∈ {0, 0.1, 0.3, 0.5, 0.7, 0.9}`
 
 Canonical E2 scope:
 
@@ -457,11 +455,9 @@ Status: **IMPLEMENTED — AWAITING LOCAL FORMAL RUN**
 
 The E2 communication phase timeout is pinned to the maximum E1 empirical delay:
 
-[
-T_{phase}=531.535123\text{ ms}.
-]
+`T_phase = 531.535123 ms`
 
-This means (p_{loss}=0) must reduce to the E1 zero-loss behavior instead of introducing a new arbitrary deadline.
+This means `p_loss = 0` must reduce to the E1 zero-loss behavior instead of introducing a new arbitrary deadline.
 
 Run:
 
@@ -479,7 +475,7 @@ Formal outputs:
 
 Required sanity checks before accepting the formal result:
 
-- at (p=0): task commit = 1, full success = 1, optimal rate = 1, successful gap = 0 for every method;
+- at `p = 0`: task commit = 1, full success = 1, optimal rate = 1, successful gap = 0 for every method;
 - Democracy safety failures = 0 at every loss level;
 - Full-View should degrade rapidly because it explicitly requires complete information;
 - no missing cost may be silently filled from the global matrix.
