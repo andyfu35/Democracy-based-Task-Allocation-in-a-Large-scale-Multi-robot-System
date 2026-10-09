@@ -157,10 +157,11 @@ Checks:
 
 ### E0 result record
 
-Status: **PLANNED**
+Status: **IMPLEMENTED — AWAITING LOCAL FORMAL RUN**
 
-Commit: `TBD`  
-Date: `TBD`  
+Implementation state through: `7082518a798c840e6c76d785035379864dd1f97b`  
+Formal-result commit: `TBD after local run`  
+Date: `2026-10-09 implementation; formal run TBD`  
 Raw data: `results/e0_protocol_correctness/raw/`  
 Summary: `results/e0_protocol_correctness/summary.csv`  
 Figures: `results/e0_protocol_correctness/figures/`
@@ -476,7 +477,7 @@ The tables in this README are the **paper-facing experiment ledger**. Formal res
 
 # 6. Planned implementation order
 
-- [ ] E0 — protocol correctness
+- [x] E0 — protocol correctness implementation (formal 100-seed run pending)
 - [ ] E1 — nominal comparison
 - [ ] E2 — Bernoulli packet-loss robustness
 - [ ] E3 — loss-source analysis
@@ -515,4 +516,26 @@ A literature note and exact implementation assumptions will be added before each
 
 Repository initialized for the RA-L experimental campaign.
 
-**Next:** implement and locally run **E0 — Protocol Correctness Preflight**.
+**E0 implementation is complete.** The formal 100-seed result has intentionally not been filled in before a local run.
+
+Local run sequence:
+
+```bash
+git pull
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m unittest discover -s tests -v
+python -m experiments.run_e0 --seeds 100
+```
+
+On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1`.
+
+After the run, preserve:
+
+- `results/e0_protocol_correctness/raw/e0_<timestamp>.csv`
+- `results/e0_protocol_correctness/summary.csv`
+
+and copy the formal summary into the E0 result record above.
+
+**Next after E0 passes locally:** E1 — Nominal Performance.
