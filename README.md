@@ -453,7 +453,7 @@ Primary outputs:
 
 ### E2 result record
 
-Status: **CER-INSTRUMENTED — FORMAL RERUN REQUIRED**
+Status: **CER RERUN COMPLETED — VOTE-LEVEL AUDIT PENDING**
 
 The E2 communication phase timeout is pinned to the maximum E1 empirical delay:
 
@@ -491,9 +491,17 @@ Pilot observations include:
 - Democracy retains high task commit rate around 10% loss for non-saturated loads while its fully successful assignments remain near the complete-information optimum;
 - Leader-Hungarian often retains high assignment completion while its optimality gap grows sharply as rows disappear.
 
-The CER-instrumented rerun is required before making the formal quality/robustness claim.
+The CER-instrumented 100-seed rerun was completed locally on 2026-10-09 with **30/30 tests passing**. At 100R/50T and cost/vote loss both 30%, it reported mean visible rows 70.285, task commit rate 15.22%, CER 15.06%, and conditional correctness 98.706%.
 
-**Paper result:** pending CER-instrumented rerun.
+These totals are **not** sufficient to verify raw voter correctness or rule out a ledger accounting error. The experiment now has an opt-in, read-only forensic vote audit. Before treating E2 as paper evidence, run:
+
+```bash
+python3 -m experiments.audit_e2_votes --robots 100 --tasks 50 --p-loss 0.3 --seeds 100
+```
+
+This independently checks each local view against cost deliveries, each ballot against vote transport, and reconstructed ballots against the actual counted protocol ledger. It emits per-voter, per-task, and per-candidate CSVs without changing allocation behavior.
+
+**Paper result:** pending vote-level audit acceptance.
 
 ---
 
