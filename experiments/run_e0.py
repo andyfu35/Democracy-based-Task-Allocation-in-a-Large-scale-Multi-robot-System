@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import argparse
 import csv
-from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 import statistics
 
 from democracy_mrta.metrics import evaluate_e0
+from democracy_mrta.optimizer import solve_hungarian_assignment
 from democracy_mrta.protocol import run_zero_loss_allocation_epoch
 from democracy_mrta.scenario import generate_e0_scenario
 
@@ -37,11 +37,20 @@ def run_one_seed(seed: int, num_robots: int, num_tasks: int) -> dict[str, object
     scenario = generate_e0_scenario(seed, num_robots, num_tasks)
     allocation = run_zero_loss_allocation_epoch(scenario.cost_matrix)
     metrics = evaluate_e0(cost_matrix=scenario.cost_matrix, allocation=allocation)
+    oracle = solve_hungarian_assignment(scenario.cost_matrix)
 
     replay_scenario = generate_e0_scenario(seed, num_robots, num_tasks)
     replay_allocation = run_zero_loss_allocation_epoch(replay_scenario.cost_matrix)
+
     deterministic_replay_failure = int(
         scenario != replay_scenario or allocation != replay_allocation
+    )
+    oracle_assignment_mismatch = int(
+        allocation.assigned_pairs != oracle.assigned_pairs
+    )
+    nonunanimous_task_count = sum(
+        int(decision.counted_votes != decision.eligible_count)
+        for decision in allocation.decisions
     )
 
     return {
@@ -52,6 +61,8 @@ def run_one_seed(seed: int, num_robots: int, num_tasks: int) -> dict[str, object
         "oracle_cost": metrics.oracle_cost,
         "optimality_gap_percent": metrics.optimality_gap_percent,
         "assignment_success_rate": metrics.assignment_success_rate,
+        "oracle_assignment_mismatch": oracle_assignment_mismatch,
+        "nonunanimous_task_count": nonunanimous_task_count,
         "multiple_winner_failures": allocation.multiple_winner_failures,
         "duplicate_execution_failures": allocation.duplicate_execution_failures,
         "duplicate_vote_counted_failures": allocation.duplicate_vote_counted_failures,
@@ -71,10 +82,16 @@ def write_csv(path: Path, rows: list[dict[str, object]]) -> None:
 def build_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     conditions = sorted({(int(row["robots"]), int(row["tasks"])) for row in rows})
     summary_rows: list[dict[str, object]] = []
+
     for robots, tasks in conditions:
-        selected = [row for row in rows if row["robots"] == robots and row["tasks"] == tasks]
+        selected = [
+            row
+            for row in rows
+            if row["robots"] == robots and row["tasks"] == tasks
+        ]
         gaps = [float(row["optimality_gap_percent"]) for row in selected]
         gap_mean, gap_ci = mean_ci95(gaps)
+
         summary_rows.append(
             {
                 "robots": robots,
@@ -84,6 +101,12 @@ def build_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 "ci95_halfwidth_optimality_gap_percent": gap_ci,
                 "mean_assignment_success_rate": statistics.fmean(
                     float(row["assignment_success_rate"]) for row in selected
+                ),
+                "oracle_assignment_mismatches": sum(
+                    int(row["oracle_assignment_mismatch"]) for row in selected
+                ),
+                "nonunanimous_task_count": sum(
+                    int(row["nonunanimous_task_count"]) for row in selected
                 ),
                 "multiple_winner_failures": sum(
                     int(row["multiple_winner_failures"]) for row in selected
@@ -102,11 +125,14 @@ def build_summary(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 ),
             }
         )
+
     return summary_rows
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run E0 Protocol Correctness Preflight")
+    parser = argparse.ArgumentParser(
+        description="Run corrected E0 Perfect-Information Hungarian Correctness"
+    )
     parser.add_argument("--seeds", type=int, default=100)
     parser.add_argument(
         "--conditions",
@@ -130,7 +156,7 @@ def main() -> None:
             raw_rows.append(run_one_seed(seed, num_robots, num_tasks))
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    raw_path = args.output_root / "raw" / f"e0_{timestamp}.csv"
+    raw_path = args.output_root / "raw" / f"e0_corrected_{timestamp}.csv"
     summary_path = args.output_root / "summary.csv"
 
     write_csv(raw_path, raw_rows)
@@ -139,15 +165,23 @@ def main() -> None:
 
     print(f"E0_RAW={raw_path}")
     print(f"E0_SUMMARY={summary_path}")
+
     for row in summary_rows:
+        safety_failures = (
+            int(row["multiple_winner_failures"])
+            + int(row["duplicate_execution_failures"])
+            + int(row["duplicate_vote_counted_failures"])
+            + int(row["stale_vote_accepted_failures"])
+        )
         print(
             "E0_RESULT "
             f"robots={row['robots']} tasks={row['tasks']} seeds={row['seeds']} "
-            f"gap_mean={float(row['mean_optimality_gap_percent']):.6f}% "
-            f"gap_ci95=+/-{float(row['ci95_halfwidth_optimality_gap_percent']):.6f}% "
+            f"gap_mean={float(row['mean_optimality_gap_percent']):.12f}% "
+            f"gap_ci95=+/-{float(row['ci95_halfwidth_optimality_gap_percent']):.12f}% "
             f"asr={float(row['mean_assignment_success_rate']):.6f} "
-            f"safety_failures="
-            f"{int(row['multiple_winner_failures']) + int(row['duplicate_execution_failures']) + int(row['duplicate_vote_counted_failures']) + int(row['stale_vote_accepted_failures'])} "
+            f"oracle_mismatch={row['oracle_assignment_mismatches']} "
+            f"nonunanimous_tasks={row['nonunanimous_task_count']} "
+            f"safety_failures={safety_failures} "
             f"replay_failures={row['deterministic_replay_failures']}"
         )
 
