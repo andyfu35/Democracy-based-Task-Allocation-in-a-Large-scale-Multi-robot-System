@@ -32,3 +32,17 @@ Outputs:
 - `summary.csv`
 
 The network simulator uses concurrent event arrival times. It does not multiply message count by mean latency.
+
+
+## Broadcast transport correction
+
+The first E1 local run performed on 2026-10-09 used an obsolete transport interpretation in which cost announcements and commits were expanded into peer-to-peer unicasts. Those results are diagnostic only.
+
+The canonical E1 transport is now:
+
+- cost exchange: one logical broadcast per robot;
+- votes: direct unicasts to proposed executors;
+- commit: one logical broadcast per committed task;
+- leader result: one logical assignment broadcast.
+
+Rerun E1 after pulling the broadcast correction. Only corrected outputs are paper-eligible.
