@@ -7,11 +7,17 @@ import unittest
 
 from democracy_mrta.network import (
     EmpiricalLatencySampler,
+    build_verified_https_context,
     load_rady_latency_profile,
 )
 
 
 class NetworkTests(unittest.TestCase):
+    def test_verified_https_context_keeps_certificate_verification_enabled(self) -> None:
+        context = build_verified_https_context()
+        self.assertTrue(context.check_hostname)
+        self.assertNotEqual(context.verify_mode, 0)
+
     def test_profile_filters_to_steady_window(self) -> None:
         fake = {
             "2": {
