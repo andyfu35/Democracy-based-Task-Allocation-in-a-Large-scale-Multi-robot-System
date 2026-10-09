@@ -1,0 +1,31 @@
+# E1 — Realistic Wi-Fi Communication-Time Cost
+
+E1 uses the pinned Rady et al. ROS 2 application-delay dataset.
+
+Primary profile:
+
+- location 2 — Medium range LoS (60 m)
+- configuration `ax_160mhz_6ghz` — Wi-Fi 6E ax/6/160
+- steady-state window: 120–181 s
+- source repository commit: `1996e5bb69b9ba4d25060cbc14838ddedf65cff2`
+- source JSON Git blob SHA: `11e70e685229cc26458f272b0c954487c87d7953`
+
+Prepare source data:
+
+```bash
+python3 -m scripts.prepare_rady_wifi_dataset
+```
+
+Run formal E1:
+
+```bash
+python3 -m experiments.run_e1 --seeds 100
+```
+
+Outputs:
+
+- `raw/e1_<UTC timestamp>.csv`
+- `events/e1_events_<UTC timestamp>.csv`
+- `summary.csv`
+
+The network simulator uses concurrent event arrival times. It does not multiply message count by mean latency.
