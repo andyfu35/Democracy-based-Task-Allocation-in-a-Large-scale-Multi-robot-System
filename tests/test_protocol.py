@@ -5,6 +5,7 @@ import unittest
 from democracy_mrta.optimizer import solve_hungarian_assignment
 from democracy_mrta.protocol import (
     Vote,
+    find_unique_majority,
     quorum_size,
     record_vote,
     run_zero_loss_allocation_epoch,
@@ -100,6 +101,15 @@ class ProtocolTests(unittest.TestCase):
             run_zero_loss_allocation_epoch(first.cost_matrix),
             run_zero_loss_allocation_epoch(second.cost_matrix),
         )
+
+    def test_find_unique_majority_returns_none_when_quorum_missing(self) -> None:
+        result = find_unique_majority(
+            ledgers_by_candidate={1: {0, 1}},
+            quorum=3,
+            task_id=4,
+            round_id=0,
+        )
+        self.assertIsNone(result)
 
 
 if __name__ == "__main__":
