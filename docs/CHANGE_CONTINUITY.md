@@ -447,3 +447,65 @@ On the user's Mac: pull, install updated requirements, rerun the full test suite
 - certifi dependency: `e61c110446a72218361cb367d0640ffcf829e0e9`
 - network test: `73b51e739ae63e6e25a2f102ac56b6cc86a46d20`
 - E1 setup documentation: `7690a8ea9985ed703ada0ec36bea2018f936852d`
+
+
+## 2026-10-09 — E1 transport correction: broadcast announcements
+
+### Purpose
+Correct the E1 communication topology after the first local pilot revealed that cost announcements and commit announcements were modeled as \(N-1\) unicasts rather than the protocol's intended logical wireless broadcasts.
+
+### Pilot evidence
+The user's first E1 run completed successfully with 18/18 unit tests and the pinned 121-sample Rady profile. The generated timing data are retained as diagnostic evidence only. In that obsolete model, 100R/100T Democracy reported 29,700 messages and Full-View 9,900 messages because broadcasts were expanded to per-peer unicasts.
+
+### Files
+- `democracy_mrta/coordination.py`
+- `tests/test_coordination.py`
+- `docs/EXPERIMENT_PROTOCOL.md`
+- `README.md`
+- `results/e1_latency/README.md`
+- `docs/CHANGE_CONTINUITY.md`
+
+### Functions / owners
+- `coordination._broadcast_event`: owns one logical wireless broadcast transmission.
+- `coordination._unicast_event`: owns direct point-to-point transmission.
+- `coordination._broadcast_cost_exchange`: owns one-broadcast-per-robot cost dissemination and local matrix-ready times.
+- `coordination.simulate_leader_hungarian`: now uses cost unicasts plus one assignment broadcast.
+- `coordination.simulate_full_view_hungarian`: now uses one cost broadcast per robot.
+- `coordination.simulate_democracy_hungarian`: now uses cost broadcasts, direct vote unicasts, and one commit broadcast per task.
+
+### Responsibility movement
+No owner movement. The correction is inside the existing `coordination` transport/timing owner.
+
+### Preserved behavior
+- Same Hungarian optimizer.
+- Same Rady latency profile.
+- Same zero-loss E1 scope.
+- Same strict-majority quorum.
+- Same direct vote-to-candidate semantics.
+- Same event-driven timing.
+
+### Intentionally changed behavior
+- A logical broadcast is now one attempted transmission/payload copy, not \(N-1\) unicast messages.
+- Zero-loss E1 assigns one trace-derived latency sample to each logical broadcast and exposes that arrival to all peers simultaneously.
+- Cost-row exchange message count changes from \(N(N-1)\) to \(N\).
+- Democracy commit message count changes from \(N_T(N-1)\) to \(N_T\).
+- Leader assignment dissemination changes from \(N-1\) unicasts to one broadcast.
+- The 2026-10-09 first E1 timing run is explicitly non-paper pilot evidence and must be rerun.
+
+### Diagnostic contract
+No new error category or code. Broadcast/unicast mode is explicit in the event owner via `receiver_id == BROADCAST_RECEIVER_ID`.
+
+### Open risks
+- One-broadcast/one-latency E1 is a protocol-level model, not a receiver-specific Wi-Fi PHY/MAC broadcast experiment.
+- E2 must explicitly define per-receiver delivery/loss behavior for a single broadcast transmission.
+- Fleet-size-dependent shared-channel contention remains outside E1.
+
+### Next step
+Pull the broadcast correction, rerun the full tests, then rerun `python3 -m experiments.run_e1 --seeds 100`. Only that corrected E1 result should be entered as the formal paper result.
+
+### Commit SHA
+- coordination broadcast correction: `c7c8f0d4f9450544865c09f583155d5902944804`
+- coordination tests: `019deefb18f03529789179bf041ee298f15f5e78`
+- canonical protocol: `e29053177fb61cc62a4126ae1b131f689a50886f`
+- README: `237f888fccc2aaf7f542eefd221891b5e3fe6f2c`
+- E1 result ledger: `8b84cb31daa3c885b9b90d879e33e6339246e68a`
