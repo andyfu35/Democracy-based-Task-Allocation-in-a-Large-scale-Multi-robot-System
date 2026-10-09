@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .diagnostics import Diagnostic, ProtocolError
-from .optimizer import solve_hungarian_assignment
+from .optimizer import AssignmentSolution, solve_hungarian_assignment
 from .protocol import AllocationResult
 
 
@@ -65,4 +65,101 @@ def evaluate_e0(
             oracle.total_cost,
         ),
         assignment_success_rate=success_rate,
+    )
+
+
+
+@dataclass(frozen=True)
+class AssignmentCorrectnessMetrics:
+    total_tasks: int
+    committed_tasks: int
+    correct_committed_tasks: int
+    incorrect_committed_tasks: int
+    correct_executor_rate: float
+    correctness_among_committed: float
+
+
+def evaluate_assignment_correctness(
+    *,
+    assigned_pairs: tuple[tuple[int, int], ...],
+    oracle_assignment: AssignmentSolution,
+    total_tasks: int,
+) -> AssignmentCorrectnessMetrics:
+    if total_tasks <= 0:
+        raise ProtocolError(
+            Diagnostic(
+                owner="metrics",
+                function="evaluate_assignment_correctness",
+                category="data",
+                code="INVALID_TOTAL_TASKS",
+                expected="positive total_tasks",
+                actual=total_tasks,
+            )
+        )
+
+    oracle_by_task = {
+        task_id: robot_id
+        for robot_id, task_id in oracle_assignment.assigned_pairs
+    }
+    if len(oracle_by_task) != total_tasks:
+        raise ProtocolError(
+            Diagnostic(
+                owner="metrics",
+                function="evaluate_assignment_correctness",
+                category="contract",
+                code="ORACLE_ASSIGNMENT_INCOMPLETE",
+                expected=total_tasks,
+                actual=len(oracle_by_task),
+            )
+        )
+
+    assigned_task_ids = [task_id for _robot_id, task_id in assigned_pairs]
+    if len(assigned_task_ids) != len(set(assigned_task_ids)):
+        raise ProtocolError(
+            Diagnostic(
+                owner="metrics",
+                function="evaluate_assignment_correctness",
+                category="contract",
+                code="DUPLICATE_TASK_IN_EVALUATED_ASSIGNMENT",
+                expected="unique committed task ids",
+                actual=tuple(assigned_pairs),
+            )
+        )
+
+    unknown_tasks = tuple(
+        task_id
+        for task_id in assigned_task_ids
+        if task_id not in oracle_by_task
+    )
+    if unknown_tasks:
+        raise ProtocolError(
+            Diagnostic(
+                owner="metrics",
+                function="evaluate_assignment_correctness",
+                category="data",
+                code="COMMITTED_TASK_OUT_OF_ORACLE_RANGE",
+                expected=tuple(sorted(oracle_by_task)),
+                actual=unknown_tasks,
+            )
+        )
+
+    correct = sum(
+        int(oracle_by_task[task_id] == robot_id)
+        for robot_id, task_id in assigned_pairs
+    )
+    committed = len(assigned_pairs)
+    incorrect = committed - correct
+    conditional = (
+        correct / committed
+        if committed > 0
+        else float("nan")
+    )
+
+    return AssignmentCorrectnessMetrics(
+        total_tasks=total_tasks,
+        committed_tasks=committed,
+        correct_committed_tasks=correct,
+        incorrect_committed_tasks=incorrect,
+        correct_executor_rate=correct / total_tasks,
+        correctness_among_committed=conditional,
     )
