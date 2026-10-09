@@ -85,6 +85,35 @@ def record_vote(
     return "ACCEPTED"
 
 
+def find_unique_majority(
+    *,
+    ledgers_by_candidate: dict[int, set[int]],
+    quorum: int,
+    task_id: int,
+    round_id: int,
+) -> tuple[int, int] | None:
+    winners = [
+        (candidate_id, len(voters))
+        for candidate_id, voters in ledgers_by_candidate.items()
+        if len(voters) >= quorum
+    ]
+    if len(winners) > 1:
+        raise ProtocolError(
+            Diagnostic(
+                owner="protocol",
+                function="find_unique_majority",
+                category="safety",
+                code="MULTIPLE_QUORUM_WINNERS",
+                expected="at most one strict-majority winner",
+                actual=len(winners),
+                details=f"task_id={task_id}, round_id={round_id}, quorum={quorum}",
+            )
+        )
+    if not winners:
+        return None
+    return winners[0]
+
+
 def resolve_unique_majority(
     *,
     ledgers_by_candidate: dict[int, set[int]],
@@ -92,24 +121,57 @@ def resolve_unique_majority(
     task_id: int,
     round_id: int,
 ) -> tuple[int, int]:
-    winners = [
-        (candidate_id, len(voters))
-        for candidate_id, voters in ledgers_by_candidate.items()
-        if len(voters) >= quorum
-    ]
-    if len(winners) != 1:
+    winner = find_unique_majority(
+        ledgers_by_candidate=ledgers_by_candidate,
+        quorum=quorum,
+        task_id=task_id,
+        round_id=round_id,
+    )
+    if winner is None:
         raise ProtocolError(
             Diagnostic(
                 owner="protocol",
                 function="resolve_unique_majority",
-                category="safety" if len(winners) > 1 else "state",
-                code="MULTIPLE_QUORUM_WINNERS" if len(winners) > 1 else "NO_QUORUM",
+                category="state",
+                code="NO_QUORUM",
                 expected=1,
-                actual=len(winners),
+                actual=0,
                 details=f"task_id={task_id}, round_id={round_id}, quorum={quorum}",
             )
         )
-    return winners[0]
+    return winner
+
+
+def validate_one_to_one_commits(
+    assigned_pairs: tuple[tuple[int, int], ...] | list[tuple[int, int]],
+) -> None:
+    pairs = tuple(assigned_pairs)
+    robot_ids = [robot_id for robot_id, _task_id in pairs]
+    task_ids = [task_id for _robot_id, task_id in pairs]
+
+    if len(robot_ids) != len(set(robot_ids)):
+        raise ProtocolError(
+            Diagnostic(
+                owner="protocol",
+                function="validate_one_to_one_commits",
+                category="safety",
+                code="DUPLICATE_ROBOT_COMMIT",
+                expected="at most one committed task per robot",
+                actual=pairs,
+            )
+        )
+
+    if len(task_ids) != len(set(task_ids)):
+        raise ProtocolError(
+            Diagnostic(
+                owner="protocol",
+                function="validate_one_to_one_commits",
+                category="safety",
+                code="DUPLICATE_TASK_COMMIT",
+                expected="at most one committed robot per task",
+                actual=pairs,
+            )
+        )
 
 
 def compute_zero_loss_local_proposals(
@@ -238,18 +300,7 @@ def resolve_zero_loss_epoch(
         )
         assigned_pairs.append((winner_id, task_id))
 
-    winner_ids = [robot_id for robot_id, _task_id in assigned_pairs]
-    if len(winner_ids) != len(set(winner_ids)):
-        raise ProtocolError(
-            Diagnostic(
-                owner="protocol",
-                function="resolve_zero_loss_epoch",
-                category="safety",
-                code="DUPLICATE_EXECUTION",
-                expected="one robot per task and at most one task per robot",
-                actual=tuple(assigned_pairs),
-            )
-        )
+    validate_one_to_one_commits(assigned_pairs)
 
     total_cost = float(
         sum(cost_matrix[robot_id][task_id] for robot_id, task_id in assigned_pairs)
