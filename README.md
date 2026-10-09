@@ -4,545 +4,542 @@ This repository contains the reproducible benchmark and experimental record for 
 
 Target venue: **IEEE Robotics and Automation Letters (RA-L)**.
 
-> Claim boundary: the **task-allocation decision process** is fully decentralized and leaderless. Task dissemination is assumed reliable in the primary protocol. Executor selection does not use a central solver, central vote counter, auctioneer, or permanent leader.
+> Claim boundary: the paper contribution is the **communication / agreement protocol**, not a new optimization algorithm.
 
 ---
 
-## 1. Protocol studied in this repository
+# 1. Canonical paper architecture
 
-For each allocation epoch, let the eligible robot set be \(\mathcal R\) with \(|\mathcal R|=N\).
+The system is intentionally separated into two layers.
 
-1. **Reliable task dissemination**  
-   Every eligible robot receives the same task announcement.
+## 1.1 Fixed optimization layer
 
-2. **Local cost computation**  
-   Robot \(i\) independently computes its own cost \(c_{ij}\) for task \(j\).
+Every evaluated coordination method uses the **same deterministic Hungarian optimizer**.
 
-3. **Peer cost announcement**  
-   Each robot announces its cost to peers. Peer-to-peer cost messages may be lost.
+For one static allocation epoch with robot set \(R\), task set \(T\), and fixed cost matrix \(C=[c_{ij}]\):
 
-4. **Independent local candidate selection**  
-   Each robot selects the lowest-cost candidate visible in its own local view.
-
-5. **Direct voting**  
-   Each robot sends at most one vote per task per round directly to its selected candidate. Vote messages may be lost.
-
-6. **Strict-majority quorum**  
-   The quorum is fixed from the common eligible set:
-   \[
-   Q=\left\lfloor\frac{N}{2}\right\rfloor+1.
-   \]
-   A robot may commit only after receiving at least \(Q\) distinct votes for the same task and round.
-
-7. **Winner announcement / commit**  
-   The winner announces its commit to peers. Commit delivery may be made lossy in experiments that explicitly test commit loss.
-
-8. **Timeout and reallocation**  
-   If no valid commit is established before the deadline, the task returns to allocation in a new round.
-
-### Protocol invariants
-
-- One robot casts at most one vote per `(task_id, round_id)`.
-- Duplicate/retransmitted votes from the same voter count once.
-- Votes from stale rounds are rejected.
-- Every robot uses the same fixed eligible set and therefore the same quorum.
-- Strict majority implies at most one valid quorum winner per task/round.
-- The primary assignment benchmark uses one-to-one allocation per epoch:
-  \[
-  \sum_j x_{ij}\le1,\qquad \sum_i x_{ij}\le1.
-  \]
-
----
-
-## 2. Experimental principles
-
-All algorithms must be evaluated on the **same paired scenarios**.
-
-For seed \(s\), the benchmark generates one immutable scenario:
 \[
-S_s=(\text{robot states},\text{task states},\text{ground-truth costs},\text{network trace}).
+X^*=\arg\min_X\sum_i\sum_j c_{ij}x_{ij}
 \]
 
-Every algorithm receives the same scenario and, where applicable, the same communication trace.
+subject to the one-to-one assignment constraints
 
-Primary statistical protocol:
+\[
+\sum_j x_{ij}\le1,\qquad
+\sum_i x_{ij}=1.
+\]
 
-- **100 paired seeds per condition** unless an experiment explicitly says otherwise.
-- Store raw per-seed records; never keep only aggregated means.
-- Report **mean and 95% confidence interval** for approximately symmetric metrics.
-- Report **median and IQR** for strongly skewed latency distributions when appropriate.
-- Prefer paired differences against CoopMind/Democracy-based allocation when comparing methods.
-- Randomness must be seed-addressable and reproducible.
-- Baselines must not generate their own easier or different scenarios.
+The Hungarian algorithm is used because it returns a global optimum for this linear assignment problem.
+
+The optimizer is **not** the contribution being compared.
+
+## 1.2 Communication / agreement layer
+
+Each robot computes its own cost row and communicates cost information according to the evaluated coordination protocol.
+
+For Democracy-based allocation:
+
+1. a task set / allocation epoch is reliably announced;
+2. robot \(i\) computes its own cost row;
+3. cost rows are exchanged peer-to-peer;
+4. every robot builds its local cost matrix \(\hat C_i\);
+5. every robot runs the same deterministic Hungarian implementation on \(\hat C_i\);
+6. its local assignment proposal is converted into one vote per task;
+7. each vote is sent directly to the robot proposed for that task;
+8. a robot commits a task only after a strict-majority quorum;
+9. a commit is announced;
+10. if quorum is not reached before timeout, the allocation round fails and is retried.
+
+Strict-majority quorum for an eligible voter set of size \(N\):
+
+\[
+Q=\left\lfloor\frac{N}{2}\right\rfloor+1.
+\]
+
+### Required invariants
+
+- one voter casts at most one vote per task per round;
+- duplicate/retransmitted votes count once;
+- stale-round votes are rejected;
+- every robot uses the same voter set and quorum denominator;
+- deterministic matrix ordering and tie handling are identical on every robot;
+- with complete identical information, every robot must produce the same Hungarian optimum;
+- strict majority prevents two different robots from both obtaining a valid majority for the same task/round.
 
 ---
 
-## 3. Common metrics
+# 2. Controlled coordination baselines
 
-### Assignment success rate
+The main paper experiments hold the Hungarian optimizer fixed. They compare **coordination architectures**, not optimization algorithms.
+
+| Method | Optimizer | Decision owner | Information strategy | Leaderless |
+|---|---|---|---|---:|
+| **Ideal Full Information** | Hungarian | reference only | complete matrix, no network impairment | n/a |
+| **Leader-Hungarian** | Hungarian | one coordinator | robots send costs to leader; leader solves and broadcasts | No |
+| **Flooding/Full-View Hungarian** | Hungarian | every robot | repeat/disseminate cost information until full view or timeout | Yes |
+| **Democracy-Hungarian (Ours)** | Hungarian | majority quorum | local incomplete views -> local Hungarian proposals -> direct votes | **Yes** |
+
+CBAA / ACBBA / DHBA remain important **Related Work** and may be reproduced later as a separate cross-method reference. They are not the primary controlled comparison because their allocation mechanism is coupled to their coordination protocol and therefore does not hold the optimizer fixed.
+
+---
+
+# 3. Realistic communication-time model
+
+## 3.1 Primary empirical source
+
+Primary latency reference:
+
+**M. Rady, O. Iova, H. Rivano, A. Deligianni, and L. Drikos,  
+“How does Wi-Fi 6 fare? An industrial outdoor robotic scenario,”  
+Ad Hoc Networks, vol. 156, 103418, 2024.  
+DOI: 10.1016/j.adhoc.2024.103418.**
+
+Why this source is used:
+
+- real industrial robotic environment;
+- ROS 2 application-level control messages;
+- real Wi-Fi 4 / 5 / 6 links;
+- short/medium/long and LoS/NLoS conditions;
+- application-level delay, not only nominal PHY bitrate;
+- public source data are provided by the authors.
+
+The authors' public dataset contains per-message fields including:
+
+- `control_delay_ms`
+- `control_loss`
+
+and multiple locations / PHY configurations.
+
+Source repository:
+
+`minarady1/wifi_for_industrial_robotics`
+
+Primary paper experiments will use an explicitly pinned Wi-Fi 6 trace/profile from this dataset.
+
+## 3.2 Empirical bootstrap rule
+
+Do **not** replace real communication with a single fixed delay.
+
+For each successfully transmitted simulated protocol message \(m\):
+
 \[
-ASR=\frac{N_{\text{successfully assigned tasks}}}{N_{\text{tasks}}}.
+L_m \sim \text{EmpiricalBootstrap}(D_{WiFi6}),
 \]
 
-### Optimality gap
-Let \(J^*\) be the centralized Hungarian oracle cost and \(J\) the evaluated method:
+where \(D_{WiFi6}\) is the selected paper-derived array of measured ROS application delays.
+
+Then:
+
+\[
+t_{arrival}(m)=t_{send}(m)+L_m.
+\]
+
+Packet loss is applied separately in experiments that sweep a controlled loss probability. This isolates the effect of packet loss from the empirical latency distribution.
+
+A later trace-replay experiment will use both the paper-derived latency and loss observations together.
+
+## 3.3 Communication time is event time, not message count times mean delay
+
+Messages sent concurrently are not charged as
+
+\[
+N_{messages}\times E[L].
+\]
+
+The simulator is event-driven.
+
+Examples:
+
+- a quorum phase completes when the **Q-th valid vote arrives**;
+- a full-information phase completes when all required information arrives or timeout occurs;
+- retries add their actual timeout and subsequent communication events.
+
+Per run, record:
+
+\[
+T_{total}=T_{compute}+T_{communication}+T_{retry}.
+\]
+
+The main quantity for the communication-cost claim is:
+
+\[
+T_{communication}.
+\]
+
+Also record message count and bytes so latency improvements cannot be hidden by excessive network traffic.
+
+---
+
+# 4. Common metrics
+
+## Assignment quality
+
+Central complete-information Hungarian optimum:
+
+\[
+J^*.
+\]
+
+Evaluated final assignment:
+
+\[
+J.
+\]
+
+Optimality gap:
+
 \[
 Gap=\frac{J-J^*}{J^*}\times100\%.
 \]
 
-### Optimal solution rate
-A run is counted as optimal when \(|J-J^*|<\epsilon\).
+At zero packet loss with complete information, the canonical implementation must satisfy:
 
-### Decision latency
 \[
-T_{decision}=T_{commit}-T_{task\ announcement}.
+Gap=0.
 \]
 
-### Computation time
-Measured separately from simulated network delay.
+## Agreement / success
 
-### Communication overhead
-Record all of:
+- assignment success rate
+- full assignment commit rate
+- task-level commit rate
+- timeout rate
+- mean retry rounds
+
+## Timing
+
+- local Hungarian computation time
+- cost-exchange communication time
+- voting/quorum communication time
+- commit communication time
+- retry/timeout time
+- total decision latency
+
+## Communication overhead
 
 - attempted messages
-- received messages
+- delivered messages
+- dropped messages
 - attempted bytes
-- received bytes
-- message count by type: cost / vote / commit
+- delivered bytes
+- counts by message type
 
-### Retry and timeout behavior
+## Safety diagnostics
 
-- mean allocation rounds per task
-- timeout rate
-- tasks unresolved at experiment horizon
+These must remain zero:
 
-### Safety diagnostics
-
-These are correctness failures, not ordinary performance metrics:
-
-- multiple valid winners
-- duplicate execution
+- multiple valid winners for one task/round
+- duplicate execution in a one-to-one epoch
 - duplicate vote counted
 - stale-round vote accepted
 - inconsistent quorum denominator
 
-All safety failures must include the first failing **owner / function / category / code**.
-
 ---
 
-# 4. Paper experiment roadmap
+# 5. Formal experiment roadmap
 
-The roadmap is intentionally ordered. We complete and validate one experiment before implementing the next.
+All formal conditions use **100 paired seeds** unless explicitly documented otherwise.
 
-## E0 — Protocol Correctness Preflight
+## E0 — Perfect-Information Correctness
 
-**Purpose:** prove that the implementation matches the protocol before comparing algorithms.
+Purpose: validate the canonical algorithm before adding network impairment.
 
-Primary condition:
+Conditions:
 
-- packet loss = 0%
-- multiple robot/task sizes
-- 100 paired seeds per size
+- packet loss = 0
+- network latency = 0 for the correctness oracle run
+- every robot receives the complete cost matrix
+- every robot runs the same deterministic Hungarian optimizer
 
-Checks:
+Required result:
 
-- zero multiple-winner events
-- zero duplicate execution
-- zero duplicate-vote counting
-- zero stale-round acceptance
-- deterministic replay from the same seed
-- initial optimality gap against centralized Hungarian oracle
+\[
+X_1=X_2=\cdots=X_N=X^*
+\]
 
-**Paper role:** engineering validation / supplementary unless a protocol property becomes a main result.
+and
+
+\[
+Gap=0,\quad ASR=1,\quad SafetyFailures=0.
+\]
+
+The previous sequential-greedy E0 implementation/results are retained only as **legacy invalid evidence from an obsolete problem definition** and must not be cited as the paper algorithm.
 
 ### E0 result record
 
-Status: **LOCAL FORMAL RUN COMPLETE — RAW DATA PENDING GIT COMMIT**
+Status: **REIMPLEMENTATION REQUIRED**
 
-Implementation state through: `7082518a798c840e6c76d785035379864dd1f97b`  
-README result record: `pending current commit`  
-Date: `2026-10-09`  
-Local raw data: `results/e0_protocol_correctness/raw/e0_20261009T130507Z.csv`  
-Local summary: `results/e0_protocol_correctness/summary.csv`  
-Figures: `results/e0_protocol_correctness/figures/`
+Raw/summary location for the corrected E0:
 
-Local verification:
+`results/e0_protocol_correctness/`
 
-- unit tests: **5/5 passed**
-- total scenarios: **500**
-- assignment success rate: **1.000000 in every tested condition**
-- safety failures: **0**
-- deterministic replay failures: **0**
-
-| Robots | Tasks | Seeds | Mean optimality gap | 95% CI half-width | ASR | Safety failures | Replay failures |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| 10 | 5 | 100 | 4.097006% | +/-1.252083% | 1.000000 | 0 | 0 |
-| 25 | 10 | 100 | 5.062453% | +/-1.086419% | 1.000000 | 0 | 0 |
-| 50 | 30 | 100 | 11.313390% | +/-1.436862% | 1.000000 | 0 | 0 |
-| 100 | 50 | 100 | 8.626984% | +/-0.849275% | 1.000000 | 0 | 0 |
-| 100 | 100 | 100 | **35.119499%** | +/-1.524564% | 1.000000 | 0 | 0 |
-
-**Interpretation / notes:**  
-E0 passes the protocol-correctness objective: every tested task was assigned, no recorded safety invariant failed, and deterministic replay passed. However, the current deterministic task-order sequential allocation is **not near-optimal at high assignment saturation**. The 100-robot / 100-task condition is 35.12% above the centralized Hungarian oracle on average even with 0% packet loss. This is therefore an algorithmic-quality finding, not a packet-loss or protocol-safety failure.
-
-Before claiming near-optimality in the paper, the allocation proposal stage must be reconsidered or the paper claim must explicitly accept this nominal-quality trade-off. The canonical protocol is **not changed by this result record**.
+**Paper result:** TBD.
 
 ---
 
-## E1 — Nominal Performance, 0% Packet Loss
+## E1 — Realistic Wi-Fi Communication-Time Cost
 
-**Purpose:** measure assignment quality and cost when communication is ideal.
+Purpose: answer:
 
-Methods:
+> How much decision time does each coordination architecture spend on real wireless communication when there is no packet loss?
 
-- Centralized Hungarian — oracle/reference
-- Greedy — simple reference
-- CBAA — classical decentralized auction
-- ACBBA — asynchronous consensus/bundle baseline
-- DHBA — decentralized Hungarian-based baseline
-- Democracy-based allocation — ours
+Conditions:
 
-Primary measurements:
+- packet loss = 0
+- fixed Hungarian optimizer
+- empirical ROS 2 Wi-Fi latency sampled from the Rady et al. dataset
+- paired scenarios and paired latency traces
 
-- optimality gap
-- optimal solution rate
-- decision latency
-- computation time
-- messages and bytes
+Compare:
+
+- Ideal Full Information
+- Leader-Hungarian
+- Flooding/Full-View Hungarian
+- Democracy-Hungarian
+
+Primary outputs:
+
+- \(T_{communication}\)
+- total decision latency
+- cost-exchange time
+- quorum time
+- commit time
+- local compute time
+- message count
+- bytes
+
+This is the experiment that quantifies the time spent on communication.
 
 ### E1 result record
 
 Status: **PLANNED**
 
-Commit: `TBD`  
-Raw data: `results/e1_nominal/raw/`  
-Summary: `results/e1_nominal/summary.csv`
-
-| Method | Gap (%) | Optimal rate | Decision latency | Messages | Bytes |
-|---|---:|---:|---:|---:|---:|
-| Hungarian | TBD | TBD | TBD | TBD | TBD |
-| Greedy | TBD | TBD | TBD | TBD | TBD |
-| CBAA | TBD | TBD | TBD | TBD | TBD |
-| ACBBA | TBD | TBD | TBD | TBD | TBD |
-| DHBA | TBD | TBD | TBD | TBD | TBD |
-| Ours | TBD | TBD | TBD | TBD | TBD |
-
-**Interpretation / notes:**  
-_TBD._
+Raw: `results/e1_latency/raw/`  
+Summary: `results/e1_latency/summary.csv`
 
 ---
 
-## E2 — Bernoulli Packet-Loss Robustness — Main Experiment
+## E2 — Bernoulli Packet-Loss Robustness
 
-**Purpose:** test the primary claim that performance degrades gracefully as unreliable peer communication increases.
+Purpose: test graceful degradation under independently lost messages.
 
-Packet-loss sweep:
+Loss sweep:
+
 \[
 p_{loss}\in\{0,0.1,0.3,0.5,0.7,0.9\}.
 \]
 
-Primary decentralized methods:
+Every delivered message still receives an empirical Wi-Fi latency sample.
 
-- CBAA
-- ACBBA
-- DHBA
-- Democracy-based allocation
+Compare the same coordination methods as E1.
 
-Hungarian is retained as a centralized oracle/reference, not treated as a lossy distributed protocol.
+Primary outputs:
 
-Primary plots:
-
-- packet loss vs assignment success rate
-- packet loss vs optimality gap
-- packet loss vs decision latency
-- packet loss vs transmitted bytes
-- packet loss vs retries / timeout rate
+- assignment success
+- optimality gap
+- decision latency
+- retries
+- timeout rate
+- messages / bytes
 
 ### E2 result record
 
 Status: **PLANNED**
 
-Commit: `TBD`  
-Raw data: `results/e2_packet_loss/raw/`  
+Raw: `results/e2_packet_loss/raw/`  
 Summary: `results/e2_packet_loss/summary.csv`
-
-| Loss | CBAA ASR | ACBBA ASR | DHBA ASR | Ours ASR |
-|---:|---:|---:|---:|---:|
-| 0% | TBD | TBD | TBD | TBD |
-| 10% | TBD | TBD | TBD | TBD |
-| 30% | TBD | TBD | TBD | TBD |
-| 50% | TBD | TBD | TBD | TBD |
-| 70% | TBD | TBD | TBD | TBD |
-| 90% | TBD | TBD | TBD | TBD |
-
-**Interpretation / notes:**  
-_TBD._
 
 ---
 
-## E3 — Loss-Source Analysis
+## E3 — Robot Scalability
 
-**Purpose:** separate the effect of losing different protocol messages.
+Purpose: measure how communication and decision cost scale with fleet size.
 
-Conditions:
+Primary sweep:
 
-1. cost-message loss only
-2. vote-message loss only
-3. commit-message loss only
-4. all peer messages lossy
+\[
+N_R\in\{10,25,50,100,200\}.
+\]
 
-Measure:
+Primary network setting:
 
-- assignment success rate
+- empirical Wi-Fi latency
+- Bernoulli packet loss = 30%
+
+Hold task/robot load ratio fixed.
+
+Primary outputs:
+
+- communication time
+- total decision latency
+- messages / bytes
+- success rate
 - optimality gap
-- retry count
-- timeout rate
-- safety diagnostics
-
-This experiment replaces a large artificial “remove voting” ablation. The research question is **which communication failure damages which protocol property**.
 
 ### E3 result record
 
 Status: **PLANNED**
 
-Commit: `TBD`  
-Raw data: `results/e3_loss_source/raw/`  
-Summary: `results/e3_loss_source/summary.csv`
-
-| Loss source | ASR | Gap (%) | Retries | Timeout rate | Safety failures |
-|---|---:|---:|---:|---:|---:|
-| Cost only | TBD | TBD | TBD | TBD | TBD |
-| Vote only | TBD | TBD | TBD | TBD | TBD |
-| Commit only | TBD | TBD | TBD | TBD | TBD |
-| All peer messages | TBD | TBD | TBD | TBD | TBD |
-
-**Interpretation / notes:**  
-_TBD._
+Raw: `results/e3_robot_scalability/raw/`  
+Summary: `results/e3_robot_scalability/summary.csv`
 
 ---
 
-## E4 — Robot Scalability
+## E4 — Task-Load / Saturation
 
-**Purpose:** support or reject the scalability claim.
+Purpose: determine how close to full one-to-one assignment the protocol can operate before communication loss makes consensus difficult.
 
-Primary sweep:
+Primary fleet:
+
 \[
-N_R\in\{10,25,50,100,200\}.
+N_R=100.
 \]
 
-Primary network condition:
+Task sweep:
 
+\[
+N_T\in\{5,10,20,30,50,75,100\}.
+\]
+
+Primary network setting:
+
+- empirical Wi-Fi latency
 - Bernoulli packet loss = 30%
 
-Use a controlled task/robot ratio defined in the experiment config.
+Primary outputs:
 
-Compare:
-
-- CBAA
-- ACBBA
-- DHBA
-- Democracy-based allocation
-
-Measure:
-
-- decision latency
-- computation time
-- messages / bytes
+- success rate
 - optimality gap
-- assignment success rate
+- quorum failures
+- communication time
+- retry count
 
 ### E4 result record
 
 Status: **PLANNED**
 
-Commit: `TBD`  
-Raw data: `results/e4_robot_scalability/raw/`  
-Summary: `results/e4_robot_scalability/summary.csv`
-
-| Robots | Method | Gap (%) | ASR | Decision latency | Bytes |
-|---:|---|---:|---:|---:|---:|
-| 10 | TBD | TBD | TBD | TBD | TBD |
-| 25 | TBD | TBD | TBD | TBD | TBD |
-| 50 | TBD | TBD | TBD | TBD | TBD |
-| 100 | TBD | TBD | TBD | TBD | TBD |
-| 200 | TBD | TBD | TBD | TBD | TBD |
-
-**Interpretation / notes:**  
-_TBD._
+Raw: `results/e4_task_load/raw/`  
+Summary: `results/e4_task_load/summary.csv`
 
 ---
 
-## E5 — Task-Load Scalability
+## E5 — Bursty Packet Loss
 
-**Purpose:** measure performance as task workload increases with fleet size fixed.
+Purpose: determine whether conclusions from independent Bernoulli loss survive correlated outages.
 
-Primary condition:
+Network model:
 
-- robots = 100
-- Bernoulli packet loss = 30%
+- Gilbert-Elliott Good / Bad channel state
+- empirical Wi-Fi latency for delivered packets
 
-Task sweep:
-\[
-N_T\in\{5,10,20,30,50,75,100\}.
-\]
-
-Compare the same decentralized methods as E4.
+Primary outputs are identical to E2.
 
 ### E5 result record
 
 Status: **PLANNED**
 
-Commit: `TBD`  
-Raw data: `results/e5_task_load/raw/`  
-Summary: `results/e5_task_load/summary.csv`
-
-| Tasks | Method | Gap (%) | ASR | Decision latency | Bytes |
-|---:|---|---:|---:|---:|---:|
-| 5 | TBD | TBD | TBD | TBD | TBD |
-| 10 | TBD | TBD | TBD | TBD | TBD |
-| 20 | TBD | TBD | TBD | TBD | TBD |
-| 30 | TBD | TBD | TBD | TBD | TBD |
-| 50 | TBD | TBD | TBD | TBD | TBD |
-| 75 | TBD | TBD | TBD | TBD | TBD |
-| 100 | TBD | TBD | TBD | TBD | TBD |
-
-**Interpretation / notes:**  
-_TBD._
+Raw: `results/e5_burst_loss/raw/`  
+Summary: `results/e5_burst_loss/summary.csv`
 
 ---
 
-## E6 — Bursty Communication Loss
+## E6 — Message-Type Failure Localization
 
-**Purpose:** test whether conclusions from independent Bernoulli loss remain valid under bursty communication failures.
+Purpose: identify which communication stage causes failure.
 
-Primary model:
+Conditions:
 
-- Gilbert-Elliott two-state channel
-- Good and Bad states with experiment-controlled transition probabilities and loss rates
+1. cost-message loss only;
+2. vote-message loss only;
+3. commit-message loss only;
+4. all peer message types lossy.
 
-Compare the strongest decentralized baselines from E2 against Democracy-based allocation.
+Measure:
 
-Measure the same core metrics as E2.
+- success rate
+- optimality gap
+- communication time
+- timeout rate
+- retries
+- safety failures
 
 ### E6 result record
 
 Status: **PLANNED**
 
-Commit: `TBD`  
-Raw data: `results/e6_burst_loss/raw/`  
-Summary: `results/e6_burst_loss/summary.csv`
-
-| Method | Channel config | ASR | Gap (%) | Latency | Bytes |
-|---|---|---:|---:|---:|---:|
-| TBD | TBD | TBD | TBD | TBD | TBD |
-
-**Interpretation / notes:**  
-_TBD._
+Raw: `results/e6_loss_source/raw/`  
+Summary: `results/e6_loss_source/summary.csv`
 
 ---
 
-# 5. Result-storage policy
+## E7 — Published Wi-Fi Trace Replay
 
-Raw experimental evidence is never overwritten.
+Purpose: final realism check without independently synthesizing latency and loss.
 
-Recommended layout:
+Replay measured application-level Wi-Fi observations from the published Rady et al. dataset, using matched trace segments across coordination methods.
+
+This experiment answers whether conclusions from the controlled sweeps survive an externally measured real wireless trace.
+
+### E7 result record
+
+Status: **PLANNED**
+
+Raw: `results/e7_trace_replay/raw/`  
+Summary: `results/e7_trace_replay/summary.csv`
+
+---
+
+# 6. Statistical protocol
+
+For each formal condition:
+
+- 100 paired seeds unless otherwise stated;
+- same cost scenario for every coordination method;
+- same network trace / sampled latency stream for every compared method where causally possible;
+- raw per-seed evidence is retained;
+- report mean and 95% CI for approximately symmetric metrics;
+- report median / IQR and tail percentiles for latency;
+- additionally report P90 / P95 / P99 decision latency because wireless delay is tail-sensitive.
+
+---
+
+# 7. Result-storage policy
 
 ```text
 results/
   e0_protocol_correctness/
-    raw/
-    summary.csv
-    figures/
-  e1_nominal/
-    raw/
-    summary.csv
-    figures/
+  e1_latency/
   e2_packet_loss/
-    raw/
-    summary.csv
-    figures/
-  e3_loss_source/
-  e4_robot_scalability/
-  e5_task_load/
-  e6_burst_loss/
+  e3_robot_scalability/
+  e4_task_load/
+  e5_burst_loss/
+  e6_loss_source/
+  e7_trace_replay/
 ```
 
-Each formal run should save:
+Each formal result must preserve:
 
 - git commit SHA
-- experiment configuration
+- scenario config
+- network-profile identifier
+- source dataset commit / provenance
 - seed list
-- algorithm/version identifier
-- per-seed raw metrics
-- aggregated summary
-- environment information
-- runtime timestamp
-
-The tables in this README are the **paper-facing experiment ledger**. Formal results should be copied here only from committed raw/summary data.
+- raw per-message network events
+- raw per-seed algorithm metrics
+- summary CSV
+- environment/runtime metadata
 
 ---
 
-# 6. Planned implementation order
+# 8. Implementation order
 
-- [x] E0 — protocol correctness implementation and local 100-seed run (raw data git commit pending)
-- [ ] E1 — nominal comparison
-- [ ] E2 — Bernoulli packet-loss robustness
-- [ ] E3 — loss-source analysis
-- [ ] E4 — robot scalability
-- [ ] E5 — task-load scalability
-- [ ] E6 — burst-loss robustness
+- [ ] E0 — corrected full-information Hungarian correctness
+- [ ] E1 — empirical Wi-Fi latency / communication-time cost
+- [ ] E2 — Bernoulli packet loss
+- [ ] E3 — robot scalability
+- [ ] E4 — task-load saturation
+- [ ] E5 — burst loss
+- [ ] E6 — message-type failure localization
+- [ ] E7 — published trace replay
 
-Do not start the next experiment until the previous experiment has:
-
-1. reproducible code,
-2. tests,
-3. raw output,
-4. summary output,
-5. README result update,
-6. continuity record.
-
----
-
-# 7. Baseline literature to reproduce faithfully
-
-External algorithms must be implemented from their canonical publications rather than from ad-hoc approximations.
-
-Priority baselines:
-
-1. **CBAA / CBBA family** — consensus-based decentralized auctions.
-2. **ACBBA** — asynchronous consensus-based bundle allocation.
-3. **DHBA** — decentralized Hungarian-based task allocation.
-4. **Centralized Hungarian** — oracle/reference.
-5. **Greedy** — transparent simple baseline.
-
-A literature note and exact implementation assumptions will be added before each external baseline is coded.
-
----
-
-# 8. Current status
-
-Repository initialized for the RA-L experimental campaign.
-
-**E0 implementation and local 100-seed run are complete.** The locally generated raw CSV and summary still need to be committed from the machine that ran the experiment.
-
-Local run sequence:
-
-```bash
-git pull
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-python -m unittest discover -s tests -v
-python -m experiments.run_e0 --seeds 100
-```
-
-On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1`.
-
-After the run, preserve:
-
-- `results/e0_protocol_correctness/raw/e0_<timestamp>.csv`
-- `results/e0_protocol_correctness/summary.csv`
-
-and copy the formal summary into the E0 result record above.
-
-**Decision gate before E1:** E0 revealed a 35.12% nominal optimality gap at 100 robots / 100 tasks. Do not silently change the canonical protocol. Decide whether to preserve sequential per-task voting as the paper algorithm or redesign the proposal stage to account for the complete multi-task assignment before implementing external baselines.
+No later experiment begins until the current one has code, tests, raw output, summary output, README result record, and continuity entry.
