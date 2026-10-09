@@ -41,13 +41,13 @@ For Democracy-based allocation:
 
 1. a task set / allocation epoch is reliably announced;
 2. robot \(i\) computes its own cost row;
-3. cost rows are exchanged peer-to-peer;
+3. each robot broadcasts its cost row once to peers;
 4. every robot builds its local cost matrix \(\hat C_i\);
 5. every robot runs the same deterministic Hungarian implementation on \(\hat C_i\);
 6. its local assignment proposal is converted into one vote per task;
-7. each vote is sent directly to the robot proposed for that task;
+7. each vote is sent directly as a unicast to the robot proposed for that task;
 8. a robot commits a task only after a strict-majority quorum;
-9. a commit is announced;
+9. the winner broadcasts one commit announcement for that task;
 10. if quorum is not reached before timeout, the allocation round fails and is retried.
 
 Strict-majority quorum for an eligible voter set of size \(N\):
@@ -75,9 +75,9 @@ The main paper experiments hold the Hungarian optimizer fixed. They compare **co
 | Method | Optimizer | Decision owner | Information strategy | Leaderless |
 |---|---|---|---|---:|
 | **Ideal Full Information** | Hungarian | reference only | complete matrix, no network impairment | n/a |
-| **Leader-Hungarian** | Hungarian | one coordinator | robots send costs to leader; leader solves and broadcasts | No |
-| **Flooding/Full-View Hungarian** | Hungarian | every robot | repeat/disseminate cost information until full view or timeout | Yes |
-| **Democracy-Hungarian (Ours)** | Hungarian | majority quorum | local incomplete views -> local Hungarian proposals -> direct votes | **Yes** |
+| **Leader-Hungarian** | Hungarian | one coordinator | robots unicast costs to leader; leader emits one assignment broadcast | No |
+| **Flooding/Full-View Hungarian** | Hungarian | every robot | one cost-row broadcast per robot until full view or timeout | Yes |
+| **Democracy-Hungarian (Ours)** | Hungarian | majority quorum | cost-row broadcasts -> local Hungarian proposals -> direct votes -> commit broadcast | **Yes** |
 
 CBAA / ACBBA / DHBA remain important **Related Work** and may be reproduced later as a separate cross-method reference. They are not the primary controlled comparison because their allocation mechanism is coupled to their coordination protocol and therefore does not hold the optimizer fixed.
 
@@ -337,7 +337,7 @@ This is the experiment that quantifies the time spent on communication.
 
 ### E1 result record
 
-Status: **IMPLEMENTED — AWAITING LOCAL FORMAL RUN**
+Status: **BROADCAST-CORRECTED IMPLEMENTATION — AWAITING FORMAL RERUN**
 
 Pinned empirical profile:
 
@@ -371,7 +371,16 @@ Summary: `results/e1_latency/summary.csv`
 
 Per-message event logs are stored for designated audit seeds (default seed 0) to avoid multi-million-row duplication; all 100 seeds retain per-run aggregate metrics.
 
-**Paper result:** pending local run.
+The first local E1 run on 2026-10-09 is retained only as a **diagnostic pilot** because that implementation incorrectly expanded each cost/commit announcement into \(N-1\) unicasts. It must not be used as a paper result.
+
+The corrected implementation now counts:
+
+- one cost-row broadcast per robot;
+- direct unicast task votes;
+- one commit broadcast per committed task;
+- one leader assignment broadcast for Leader-Hungarian.
+
+**Paper result:** pending corrected local rerun.
 
 ---
 
