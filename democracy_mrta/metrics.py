@@ -174,6 +174,7 @@ class E2VoteAuditReport:
     voters: tuple[dict[str, float | int], ...]
     tasks: tuple[dict[str, float | int], ...]
     candidates: tuple[dict[str, float | int], ...]
+    ballots: tuple[dict[str, float | int], ...]
 
 
 def require_e2_vote_audit(
@@ -322,6 +323,7 @@ def evaluate_e2_vote_audit(
     after = Counter()
     received_by_candidate: dict[tuple[int, int], set[int]] = {}
     voter_rows: list[dict[str, float | int]] = []
+    ballot_rows: list[dict[str, float | int]] = []
     remote_attempts = remote_delivered = self_votes = 0
 
     for voter_id, proposal in enumerate(result.audit_proposals_by_voter):
@@ -373,6 +375,17 @@ def evaluate_e2_vote_audit(
                 remote_delivered += int(delivered)
                 voter_remote_delivered += int(delivered)
 
+            ballot_rows.append({
+                "voter_id": voter_id,
+                "task_id": task_id,
+                "candidate_id": candidate_id,
+                "oracle_robot": oracle_by_task[task_id],
+                "oracle_match": int(is_correct),
+                "local_visible_rows": len(result.audit_visible_rows_by_voter[voter_id]),
+                "is_self_vote": int(candidate_id == voter_id),
+                "transport_delivered": int(delivered),
+                "transport_dropped": int(not delivered),
+            })
             if delivered:
                 after[(task_id, candidate_id)] += 1
                 received_by_candidate.setdefault((task_id, candidate_id), set()).add(
@@ -510,4 +523,5 @@ def evaluate_e2_vote_audit(
         voters=tuple(voter_rows),
         tasks=tuple(task_rows),
         candidates=tuple(candidate_rows),
+        ballots=tuple(ballot_rows),
     )
