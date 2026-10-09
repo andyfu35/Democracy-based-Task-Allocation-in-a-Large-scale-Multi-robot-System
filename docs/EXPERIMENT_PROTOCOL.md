@@ -333,3 +333,42 @@ C_{commit}
 If no task is committed, (C_{commit}) is undefined and is reported as NaN.
 
 These metrics are required for E2 because full-assignment success alone can hide assignment-quality degradation. A method may assign every task while selecting executors that differ substantially from the complete-information Hungarian oracle.
+
+
+## 12.9 E2 vote provenance and forensic acceptance gate
+
+The formal 100-seed E2 result is **under audit**, not yet paper-accepted.
+The observed 100R/50T at p_cost=p_vote=0.30 has:
+- mean visible cost rows = 70.285 of 100;
+- task commit rate = 0.1522;
+- correct executor rate = 0.1506;
+- correctness among committed = 0.98706.
+
+These aggregate values do not determine the fraction of raw ballots matching the full-information Hungarian oracle, or whether quorum failure was caused by proposal disagreement versus vote transport loss.
+
+The forensic audit must reuse **the same coordination state machine and same keyed network samplers**, not an independently reimplemented vote collector. It captures read-only:
+- local visible robot rows by voter;
+- actual local Hungarian proposal by voter, including non-network self-votes;
+- final counted task/candidate vote ledger.
+
+The audit checks that:
+1. each voter local view equals its delivered cost rows plus its own row;
+2. each proposed non-self vote has exactly one unicast delivery observation;
+3. reconstructed delivered+self-votes equal the actual protocol counted ledgers;
+4. majority reconstruction equals committed task winners;
+5. audit capture does not alter protocol events, decisions, or timing.
+
+Required outputs:
+- per-voter visible-row count and raw/delivered oracle-matching ballots;
+- per-task raw oracle support and raw top-candidate support;
+- per-task delivered oracle support and delivered top-candidate support;
+- per-task candidate raw/delivered vote counts;
+- rates for (a) no majority before vote loss, (b) majority lost during vote transport, and (c) majority actually committed.
+
+The independent Bernoulli cost/vote losses are unchanged. Cost loss of 30% does NOT imply exactly 30% incorrect local Hungarian proposals.
+
+Audit command:
+
+    python3 -m experiments.audit_e2_votes --robots 100 --tasks 50 --p-loss 0.3 --seeds 100
+
+The change is instrumentation-only. Until the audit and its regression tests pass, E2's 30%-loss robustness claim is not considered validated.
