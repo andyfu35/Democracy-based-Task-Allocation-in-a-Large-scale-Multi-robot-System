@@ -267,42 +267,38 @@ The previous sequential-greedy E0 implementation/results are retained only as **
 
 ### E0 result record
 
-Status: **CORRECTED IMPLEMENTATION COMPLETE — AWAITING LOCAL FORMAL RUN**
+Status: **FORMAL LOCAL RUN PASSED**
 
-Corrected implementation behavior:
+Date: `2026-10-09`
 
-- every robot receives the same complete matrix;
-- every robot runs the same Hungarian owner;
-- every robot produces the same assignment proposal;
-- every proposed task executor must receive all votes in the zero-loss E0;
-- any nonzero optimality gap raises `contract/ZERO_LOSS_OPTIMALITY_MISMATCH`.
+Formal corrected E0:
 
-Raw/summary location:
+- unit tests: **12/12 passed**
+- conditions: 10R/5T, 25R/10T, 50R/30T, 100R/50T, 100R/100T
+- 100 seeds per condition
+- 500 scenarios total
 
-`results/e0_protocol_correctness/`
+| Robots | Tasks | Seeds | Gap | ASR | Oracle mismatch | Non-unanimous tasks | Safety failures | Replay failures |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 10 | 5 | 100 | 0.000000000000% | 1.000000 | 0 | 0 | 0 | 0 |
+| 25 | 10 | 100 | 0.000000000000% | 1.000000 | 0 | 0 | 0 | 0 |
+| 50 | 30 | 100 | 0.000000000000% | 1.000000 | 0 | 0 | 0 | 0 |
+| 100 | 50 | 100 | 0.000000000000% | 1.000000 | 0 | 0 | 0 | 0 |
+| 100 | 100 | 100 | 0.000000000000% | 1.000000 | 0 | 0 | 0 | 0 |
 
-Run:
+Corrected local raw file:
 
-```bash
-git pull
-python3 -m unittest discover -s tests -v
-python3 -m experiments.run_e0 --seeds 100
-```
+`results/e0_protocol_correctness/raw/e0_corrected_20261009T141508Z.csv`
 
-A formal E0 result is accepted only if every reported condition has:
+Corrected local summary:
 
-[
-Gap=0,quad ASR=1
-]
+`results/e0_protocol_correctness/summary.csv`
 
-and:
+These generated files must still be committed from the machine that executed the formal run.
 
-- `oracle_mismatch=0`
-- `nonunanimous_tasks=0`
-- `safety_failures=0`
-- `replay_failures=0`
+**Conclusion:** under complete identical information, every robot produces the same Hungarian assignment, every task vote is unanimous, and Democracy-Hungarian exactly matches the global Hungarian optimum.
 
-**Paper result:** pending local rerun.
+The earlier sequential-greedy E0 result is legacy invalid evidence from an obsolete implementation and must not be cited as the paper algorithm.
 
 ---
 
@@ -341,10 +337,41 @@ This is the experiment that quantifies the time spent on communication.
 
 ### E1 result record
 
-Status: **PLANNED**
+Status: **IMPLEMENTED — AWAITING LOCAL FORMAL RUN**
+
+Pinned empirical profile:
+
+- source repository: `minarady1/wifi_for_industrial_robotics`
+- source commit: `1996e5bb69b9ba4d25060cbc14838ddedf65cff2`
+- source JSON Git blob: `11e70e685229cc26458f272b0c954487c87d7953`
+- location: **Medium range LoS (60 m)**
+- PHY: **Wi-Fi 6E ax/6/160**
+- steady-state window: **120–181 s**
+- ROS delay samples: **121**
+- empirical mean: **33.593687 ms**
+- P50: **19.962509 ms**
+- P95: **64.149866 ms**
+- P99: **159.419021 ms**
+- maximum: **531.535123 ms**
+
+The trace has a substantial latency tail; E1 therefore uses the full empirical sample distribution rather than a constant or Gaussian delay.
+
+Run:
+
+```bash
+git pull
+python3 -m unittest discover -s tests -v
+python3 -m scripts.prepare_rady_wifi_dataset
+python3 -m experiments.run_e1 --seeds 100
+```
 
 Raw: `results/e1_latency/raw/`  
+Audit event logs: `results/e1_latency/events/*.csv.gz`  
 Summary: `results/e1_latency/summary.csv`
+
+Per-message event logs are stored for designated audit seeds (default seed 0) to avoid multi-million-row duplication; all 100 seeds retain per-run aggregate metrics.
+
+**Paper result:** pending local run.
 
 ---
 
@@ -562,8 +589,8 @@ Each formal result must preserve:
 
 # 8. Implementation order
 
-- [x] E0 — corrected implementation complete; formal local rerun pending
-- [ ] E1 — empirical Wi-Fi latency / communication-time cost
+- [x] E0 — corrected formal run passed
+- [x] E1 — implementation complete; formal local run pending
 - [ ] E2 — Bernoulli packet loss
 - [ ] E3 — robot scalability
 - [ ] E4 — task-load saturation
