@@ -356,6 +356,9 @@ class LossyCoordinationResult:
     mean_visible_robot_rows: float
     events: tuple[CommunicationEvent, ...]
     deliveries: tuple[DeliveryObservation, ...]
+    audit_visible_rows_by_voter: tuple[frozenset[int], ...] = ()
+    audit_proposals_by_voter: tuple[AssignmentSolution, ...] = ()
+    audit_counted_vote_ledgers: tuple[tuple[int, int, tuple[int, ...]], ...] = ()
 
     @property
     def committed_tasks(self) -> int:
@@ -436,6 +439,9 @@ def _summarize_lossy_result(
     visible_counts: list[int] | tuple[int, ...],
     events: list[CommunicationEvent],
     deliveries: list[DeliveryObservation],
+    audit_visible_rows_by_voter: tuple[frozenset[int], ...] = (),
+    audit_proposals_by_voter: tuple[AssignmentSolution, ...] = (),
+    audit_counted_vote_ledgers: tuple[tuple[int, int, tuple[int, ...]], ...] = (),
 ) -> LossyCoordinationResult:
     pairs = tuple(sorted(tuple(assigned_pairs), key=lambda pair: (pair[1], pair[0])))
     validate_one_to_one_commits(pairs)
@@ -467,6 +473,19 @@ def _summarize_lossy_result(
         mean_visible_robot_rows=mean_visible,
         events=tuple(events),
         deliveries=tuple(deliveries),
+        audit_visible_rows_by_voter=audit_visible_rows_by_voter,
+        audit_proposals_by_voter=audit_proposals_by_voter,
+        audit_counted_vote_ledgers=audit_counted_vote_ledgers,
+    )
+
+
+def snapshot_counted_vote_ledgers(
+    ledgers_by_task: dict[int, dict[int, set[int]]],
+) -> tuple[tuple[int, int, tuple[int, ...]], ...]:
+    return tuple(
+        (task_id, candidate_id, tuple(sorted(voters)))
+        for task_id, by_candidate in sorted(ledgers_by_task.items())
+        for candidate_id, voters in sorted(by_candidate.items())
     )
 
 
@@ -676,6 +695,7 @@ def simulate_democracy_hungarian_lossy(
     p_loss: float,
     phase_timeout_ms: float,
     round_id: int = 0,
+    capture_vote_audit: bool = False,
 ) -> LossyCoordinationResult:
     num_robots = len(cost_matrix)
     num_tasks = len(cost_matrix[0])
@@ -818,4 +838,10 @@ def simulate_democracy_hungarian_lossy(
         visible_counts=[len(rows) for rows in visible],
         events=events,
         deliveries=deliveries,
+        audit_visible_rows_by_voter=visible if capture_vote_audit else (),
+        audit_proposals_by_voter=proposals if capture_vote_audit else (),
+        audit_counted_vote_ledgers=(
+            snapshot_counted_vote_ledgers(ledgers_by_task)
+            if capture_vote_audit else ()
+        ),
     )
