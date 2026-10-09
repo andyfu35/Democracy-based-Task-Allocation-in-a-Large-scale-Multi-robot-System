@@ -393,3 +393,57 @@ Run the complete test suite, prepare/verify the Rady dataset, and run E1 with 10
 - scripts package: `fedb4ed71fb6d753b25dab51939cc6dccd3459d0`
 - README result/status update: `35f24cd8c80939d5b5fbb2cc569011b985ac26b6`
 - canonical E1 semantics: `c703d27bacd2b07294fa0a230e2a157b730b3e45`
+
+
+## 2026-10-09 — Portable verified HTTPS for Rady dataset download
+
+### Purpose
+Fix E1 external-dataset preparation on Python installations whose system/OpenSSL CA store cannot validate `raw.githubusercontent.com`, while preserving TLS certificate verification.
+
+### Files
+- `democracy_mrta/network.py`
+- `requirements.txt`
+- `tests/test_network.py`
+- `results/e1_latency/README.md`
+- `docs/CHANGE_CONTINUITY.md`
+
+### Functions / owners
+- `network.build_verified_https_context`: owns construction of the verified HTTPS SSL context using the certifi CA bundle.
+- `network.ensure_rady_dataset`: continues to own the external dataset download and now uses the verified context from the dedicated SSL-context owner.
+
+### Responsibility movement
+HTTPS trust-store construction is separated from dataset acquisition. Dataset provenance and Git blob verification remain owned by the existing network data-integrity functions.
+
+### Preserved behavior
+- HTTPS certificate verification remains enabled.
+- The pinned Rady source URL, repository commit, and Git blob SHA are unchanged.
+- Downloaded bytes still must pass `verify_rady_dataset_bytes` before being stored.
+- No experiment, latency model, or protocol semantics changed.
+
+### Intentionally changed behavior
+- HTTPS verification now uses the `certifi` CA bundle instead of relying solely on the host Python/system CA store.
+- `certifi>=2024.2.2` is now a declared runtime dependency.
+
+### Diagnostic contract
+New dependency failure:
+- `network.build_verified_https_context / dependency / CERTIFI_NOT_INSTALLED`
+
+Existing download failure remains:
+- `network.ensure_rady_dataset / dependency / RADY_DATASET_DOWNLOAD_FAILED`
+
+No insecure TLS fallback is permitted.
+
+### Verification status
+A unit test now requires the generated SSL context to keep hostname checking and certificate verification enabled. Local execution is pending the user's pull/install/rerun.
+
+### Open risks
+Corporate TLS interception or a custom private CA not present in certifi can still fail verification; such environments must explicitly install their trusted CA rather than disabling certificate checks.
+
+### Next step
+On the user's Mac: pull, install updated requirements, rerun the full test suite, then rerun `python3 -m scripts.prepare_rady_wifi_dataset`. If successful, proceed with E1.
+
+### Commit SHA
+- verified HTTPS context: `28051494a49d2096e068cd6f9776bbe093f7a609`
+- certifi dependency: `e61c110446a72218361cb367d0640ffcf829e0e9`
+- network test: `73b51e739ae63e6e25a2f102ac56b6cc86a46d20`
+- E1 setup documentation: `7690a8ea9985ed703ada0ec36bea2018f936852d`
