@@ -72,6 +72,17 @@ M. Rady et al., “How does Wi-Fi 6 fare? An industrial outdoor robotic scenario
 
 The authors publish real ROS 2 application-delay observations. Their processed dataset exposes `control_delay_ms` and `control_loss` across locations and PHY configurations.
 
+E1 pins the external evidence to:
+
+- repository: `minarady1/wifi_for_industrial_robotics`
+- commit: `1996e5bb69b9ba4d25060cbc14838ddedf65cff2`
+- JSON Git blob: `11e70e685229cc26458f272b0c954487c87d7953`
+- location 2: Medium range LoS (60 m)
+- configuration: `ax_160mhz_6ghz` (Wi-Fi 6E ax/6/160)
+- steady-state interval: 120–181 s
+
+This pinned profile contains 121 finite ROS control-delay samples in the steady-state interval. The verified descriptive values are mean 33.593687 ms, P50 19.962509 ms, P95 64.149866 ms, P99 159.419021 ms, and maximum 531.535123 ms.
+
 For controlled latency experiments, each successfully delivered protocol message receives an empirical latency sample:
 
 \[
@@ -150,6 +161,34 @@ Every formal run stores:
 - selected location / PHY profile;
 - scenario seed;
 - network sampling/replay seed;
-- raw per-message network event log;
-- per-seed metrics;
-- aggregate summary.
+- per-seed aggregate metrics;
+- aggregate summary;
+- raw per-message network event logs for designated audit seeds.
+
+The full event stream is deterministic from the network seed and message key. Formal E1 defaults to preserving audit event logs for seed 0 while retaining aggregate metrics for all 100 seeds.
+
+
+## 11. E1 zero-loss coordination timing semantics
+
+E1 isolates latency cost; packet loss is disabled.
+
+Primary methods:
+
+1. **Ideal Full Information**: no network communication; reference only.
+2. **Leader-Hungarian**: every non-leader sends one cost-row message to robot 0; the leader solves Hungarian and sends the assignment to every peer.
+3. **Full-View Hungarian**: every robot sends its cost row directly to every other robot; a robot has a full view after its final required row arrives.
+4. **Democracy-Hungarian**: uses the same all-to-all cost-row exchange as Full-View in E1, then each robot independently forms the identical Hungarian proposal, sends one task vote directly to the proposed executor, and each task winner broadcasts commit after strict-majority quorum.
+
+All network messages are concurrent discrete events. A phase completes from actual simulated arrival events, never from message count multiplied by mean latency.
+
+For Democracy-Hungarian:
+
+- voter \(i\) may send votes as soon as its own complete local matrix is ready;
+- a self-vote is a zero-latency local event and is not counted as a network message;
+- task quorum time is the arrival time of the \(Q\)-th valid vote;
+- actionable decision time is the maximum task quorum time;
+- global agreement time is the final required commit arrival.
+
+E1 reports hardware-dependent Hungarian wall-clock time separately from trace-driven network waiting time; it does not serialize the computation of different robots, because robots are physically separate compute nodes.
+
+The E1 empirical model does not claim to simulate additional fleet-size-dependent 802.11 MAC contention. That limitation must remain explicit. E3 may add a separately justified contention sensitivity model; no contention penalty may be invented silently.
