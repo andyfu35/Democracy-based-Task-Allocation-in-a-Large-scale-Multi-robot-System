@@ -106,3 +106,46 @@ Implementation sequence is represented by:
 - tests: `441232a96529f6b2cc40fc74d9cf8e795080a270`
 - repository state through result-directory setup: `7082518a798c840e6c76d785035379864dd1f97b`
 - README run-instruction update: `57af1134d9c59e6889898199546b0fbd1f2c2cb9`
+
+
+## 2026-10-09 — E0 local formal result record
+
+### Purpose
+Record the first 100-seed-per-condition local E0 execution without changing protocol behavior.
+
+### Files
+- `README.md`
+
+### Functions
+No code functions changed.
+
+### Responsibility movement
+None.
+
+### Preserved behavior
+The canonical sequential per-task voting protocol remains unchanged.
+
+### Intentionally changed behavior
+None. This change records experimental evidence only.
+
+### Verification result
+- Unit tests: 5/5 passed.
+- Conditions: 10R/5T, 25R/10T, 50R/30T, 100R/50T, 100R/100T.
+- Seeds: 100 per condition; 500 scenarios total.
+- ASR: 1.0 for every condition.
+- Safety failures: 0.
+- Replay failures: 0.
+- Mean optimality gaps: 4.097006%, 5.062453%, 11.313390%, 8.626984%, 35.119499% respectively.
+- Largest observed condition-level mean gap: 35.119499% at 100R/100T.
+
+### Diagnostic contract
+No diagnostic failures were emitted in the local run.
+
+### Open risks
+The 35.12% zero-loss mean gap at 100R/100T shows that sequential task-order assignment can materially sacrifice global assignment quality under saturated load. This must be resolved as a paper-design decision before claiming near-optimality. The local raw file `results/e0_protocol_correctness/raw/e0_20261009T130507Z.csv` and generated `summary.csv` have not yet been confirmed committed to GitHub.
+
+### Next step
+Commit the local E0 raw/summary files. Then make an explicit architecture decision: preserve sequential per-task voting and present its quality/robustness trade-off, or revise the proposal stage to optimize the multi-task assignment before proceeding to E1 external baselines.
+
+### Commit SHA
+README result update: `d89c8006c0bf408616bb5f0f8bf4677977a17101`.
