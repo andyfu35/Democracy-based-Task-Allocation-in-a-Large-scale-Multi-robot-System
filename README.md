@@ -414,33 +414,77 @@ The earlier pre-broadcast E1 run is retained only as diagnostic pilot evidence a
 
 ## E2 — Bernoulli Packet-Loss Robustness
 
-Purpose: test graceful degradation under independently lost messages.
+Purpose: measure how each coordination architecture degrades when **cost information and decision votes are independently lost**.
 
 Loss sweep:
 
-\[
+[
 p_{loss}\in\{0,0.1,0.3,0.5,0.7,0.9\}.
-\]
+]
 
-Every delivered message still receives an empirical Wi-Fi latency sample.
+Canonical E2 scope:
 
-Compare the same coordination methods as E1.
+- same fixed Hungarian optimizer as E0/E1;
+- same pinned Rady empirical latency profile as E1;
+- one round only — no retry in E2;
+- cost broadcast delivery is Bernoulli per receiver;
+- each robot always retains its own cost row;
+- hidden rows stay hidden;
+- Democracy and Leader run Hungarian only over rows locally available;
+- partial local Hungarian assignments are allowed;
+- a Democracy voter abstains on tasks absent from its partial assignment;
+- vote unicasts use the same Bernoulli loss probability;
+- quorum denominator remains the full eligible robot count;
+- commit broadcast is reliable;
+- Full-View succeeds only when every robot has a complete matrix.
 
 Primary outputs:
 
-- assignment success
-- optimality gap
-- decision latency
-- retries
-- timeout rate
-- messages / bytes
+- task commit rate;
+- full-assignment success rate;
+- optimal-solution rate;
+- optimality gap among full successful assignments;
+- task timeout rate;
+- decision/global completion time;
+- logical messages and payload bytes;
+- delivery drops;
+- mean visible robot rows;
+- safety failures.
 
 ### E2 result record
 
-Status: **PLANNED**
+Status: **IMPLEMENTED — AWAITING LOCAL FORMAL RUN**
 
-Raw: `results/e2_packet_loss/raw/`  
-Summary: `results/e2_packet_loss/summary.csv`
+The E2 communication phase timeout is pinned to the maximum E1 empirical delay:
+
+[
+T_{phase}=531.535123\text{ ms}.
+]
+
+This means (p_{loss}=0) must reduce to the E1 zero-loss behavior instead of introducing a new arbitrary deadline.
+
+Run:
+
+```bash
+git pull
+python3 -m unittest discover -s tests -v
+python3 -m experiments.run_e2 --seeds 100
+```
+
+Formal outputs:
+
+- `results/e2_packet_loss/raw/e2_<timestamp>.csv`
+- `results/e2_packet_loss/events/e2_events_<timestamp>.csv.gz`
+- `results/e2_packet_loss/summary.csv`
+
+Required sanity checks before accepting the formal result:
+
+- at (p=0): task commit = 1, full success = 1, optimal rate = 1, successful gap = 0 for every method;
+- Democracy safety failures = 0 at every loss level;
+- Full-View should degrade rapidly because it explicitly requires complete information;
+- no missing cost may be silently filled from the global matrix.
+
+**Paper result:** pending local run.
 
 ---
 
@@ -628,7 +672,7 @@ Each formal result must preserve:
 
 - [x] E0 — corrected formal run passed
 - [x] E1 — formal trace-driven latency run complete
-- [ ] E2 — Bernoulli packet loss
+- [x] E2 — implementation complete; formal local run pending
 - [ ] E3 — robot scalability
 - [ ] E4 — task-load saturation
 - [ ] E5 — burst loss
