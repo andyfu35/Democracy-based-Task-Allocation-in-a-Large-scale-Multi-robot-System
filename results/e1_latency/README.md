@@ -10,11 +10,14 @@ Primary profile:
 - source repository commit: `1996e5bb69b9ba4d25060cbc14838ddedf65cff2`
 - source JSON Git blob SHA: `11e70e685229cc26458f272b0c954487c87d7953`
 
-Prepare source data:
+Prepare dependencies and source data:
 
 ```bash
+python3 -m pip install -r requirements.txt
 python3 -m scripts.prepare_rady_wifi_dataset
 ```
+
+HTTPS certificate verification remains enabled. The downloader uses the `certifi` CA bundle for portability across Python installations.
 
 Run formal E1:
 
