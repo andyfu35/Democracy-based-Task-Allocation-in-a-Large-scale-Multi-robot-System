@@ -299,3 +299,32 @@ class EmpiricalLatencySampler:
         ).digest()
         index = int.from_bytes(digest[:8], "big") % len(self._samples)
         return self._samples[index]
+
+
+def validate_packet_loss_probability(p_loss: float) -> float:
+    value = float(p_loss)
+    if not math.isfinite(value) or value < 0.0 or value > 1.0:
+        raise ProtocolError(
+            Diagnostic(
+                owner="network",
+                function="validate_packet_loss_probability",
+                category="data",
+                code="INVALID_PACKET_LOSS_PROBABILITY",
+                expected="finite probability within [0, 1]",
+                actual=p_loss,
+            )
+        )
+    return value
+
+
+class BernoulliLossSampler:
+    def __init__(self, seed: int):
+        self._seed = int(seed)
+
+    def is_delivered(self, key: str, p_loss: float) -> bool:
+        probability = validate_packet_loss_probability(p_loss)
+        digest = hashlib.sha256(
+            f"{self._seed}|loss|{key}".encode("utf-8")
+        ).digest()
+        unit = int.from_bytes(digest[:8], "big") / float(1 << 64)
+        return unit >= probability
