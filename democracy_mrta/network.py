@@ -5,6 +5,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import ssl
 import urllib.error
 import urllib.request
 
@@ -67,6 +68,25 @@ def verify_rady_dataset_bytes(data: bytes) -> None:
         )
 
 
+def build_verified_https_context() -> ssl.SSLContext:
+    try:
+        import certifi
+    except ImportError as exc:
+        raise ProtocolError(
+            Diagnostic(
+                owner="network",
+                function="build_verified_https_context",
+                category="dependency",
+                code="CERTIFI_NOT_INSTALLED",
+                expected="certifi installed from requirements.txt",
+                actual="missing",
+                details="run: python3 -m pip install -r requirements.txt",
+            )
+        ) from exc
+
+    return ssl.create_default_context(cafile=certifi.where())
+
+
 def ensure_rady_dataset(
     destination: Path,
     *,
@@ -91,8 +111,13 @@ def ensure_rady_dataset(
         )
 
     destination.parent.mkdir(parents=True, exist_ok=True)
+    ssl_context = build_verified_https_context()
     try:
-        with urllib.request.urlopen(RADY_SOURCE_URL, timeout=120) as response:
+        with urllib.request.urlopen(
+            RADY_SOURCE_URL,
+            timeout=120,
+            context=ssl_context,
+        ) as response:
             data = response.read()
     except (OSError, urllib.error.URLError) as exc:
         raise ProtocolError(
