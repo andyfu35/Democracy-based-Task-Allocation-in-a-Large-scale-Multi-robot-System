@@ -267,13 +267,42 @@ The previous sequential-greedy E0 implementation/results are retained only as **
 
 ### E0 result record
 
-Status: **REIMPLEMENTATION REQUIRED**
+Status: **CORRECTED IMPLEMENTATION COMPLETE — AWAITING LOCAL FORMAL RUN**
 
-Raw/summary location for the corrected E0:
+Corrected implementation behavior:
+
+- every robot receives the same complete matrix;
+- every robot runs the same Hungarian owner;
+- every robot produces the same assignment proposal;
+- every proposed task executor must receive all votes in the zero-loss E0;
+- any nonzero optimality gap raises `contract/ZERO_LOSS_OPTIMALITY_MISMATCH`.
+
+Raw/summary location:
 
 `results/e0_protocol_correctness/`
 
-**Paper result:** TBD.
+Run:
+
+```bash
+git pull
+python3 -m unittest discover -s tests -v
+python3 -m experiments.run_e0 --seeds 100
+```
+
+A formal E0 result is accepted only if every reported condition has:
+
+[
+Gap=0,quad ASR=1
+]
+
+and:
+
+- `oracle_mismatch=0`
+- `nonunanimous_tasks=0`
+- `safety_failures=0`
+- `replay_failures=0`
+
+**Paper result:** pending local rerun.
 
 ---
 
@@ -533,7 +562,7 @@ Each formal result must preserve:
 
 # 8. Implementation order
 
-- [ ] E0 — corrected full-information Hungarian correctness
+- [x] E0 — corrected implementation complete; formal local rerun pending
 - [ ] E1 — empirical Wi-Fi latency / communication-time cost
 - [ ] E2 — Bernoulli packet loss
 - [ ] E3 — robot scalability
