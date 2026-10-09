@@ -439,6 +439,8 @@ Canonical E2 scope:
 Primary outputs:
 
 - task commit rate;
+- **correct executor rate (CER)**;
+- **correctness among committed tasks**;
 - full-assignment success rate;
 - optimal-solution rate;
 - optimality gap among full successful assignments;
@@ -451,7 +453,7 @@ Primary outputs:
 
 ### E2 result record
 
-Status: **IMPLEMENTED — AWAITING LOCAL FORMAL RUN**
+Status: **CER-INSTRUMENTED — FORMAL RERUN REQUIRED**
 
 The E2 communication phase timeout is pinned to the maximum E1 empirical delay:
 
@@ -480,7 +482,18 @@ Required sanity checks before accepting the formal result:
 - Full-View should degrade rapidly because it explicitly requires complete information;
 - no missing cost may be silently filled from the global matrix.
 
-**Paper result:** pending local run.
+A first 100-seed E2 run on 2026-10-09 passed all safety/correctness preflights and exposed a strong availability-versus-quality trade-off, but it did not record task-level correct-executor metrics. That run is retained as **diagnostic pilot evidence**, not the final paper E2.
+
+Pilot observations include:
+
+- all (p=0) conditions exactly reproduce the zero-loss correctness boundary;
+- Full-View collapses under any nonzero loss because this E2 baseline requires every robot to receive a complete matrix in one round;
+- Democracy retains high task commit rate around 10% loss for non-saturated loads while its fully successful assignments remain near the complete-information optimum;
+- Leader-Hungarian often retains high assignment completion while its optimality gap grows sharply as rows disappear.
+
+The CER-instrumented rerun is required before making the formal quality/robustness claim.
+
+**Paper result:** pending CER-instrumented rerun.
 
 ---
 
