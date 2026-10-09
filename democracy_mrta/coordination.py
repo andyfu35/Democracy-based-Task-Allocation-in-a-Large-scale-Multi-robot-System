@@ -10,6 +10,8 @@ APP_HEADER_BYTES = 16
 FLOAT64_BYTES = 8
 ID_BYTES = 4
 
+BROADCAST_RECEIVER_ID = -1
+
 VOTE_PAYLOAD_BYTES = APP_HEADER_BYTES + 4 * ID_BYTES
 COMMIT_PAYLOAD_BYTES = APP_HEADER_BYTES + 3 * ID_BYTES
 
@@ -24,6 +26,10 @@ class CommunicationEvent:
     arrival_time_ms: float
     payload_bytes: int
     task_id: int | None = None
+
+    @property
+    def is_broadcast(self) -> bool:
+        return self.receiver_id == BROADCAST_RECEIVER_ID
 
 
 @dataclass(frozen=True)
@@ -49,7 +55,7 @@ def assignment_payload_bytes(num_tasks: int) -> int:
     return APP_HEADER_BYTES + num_tasks * 2 * ID_BYTES
 
 
-def _network_event(
+def _unicast_event(
     *,
     phase: str,
     sender_id: int,
@@ -59,12 +65,41 @@ def _network_event(
     sampler,
     task_id: int | None = None,
 ) -> CommunicationEvent:
-    key = f"{phase}|{sender_id}|{receiver_id}|{task_id if task_id is not None else '-'}"
+    key = (
+        f"unicast|{phase}|{sender_id}|{receiver_id}|"
+        f"{task_id if task_id is not None else '-'}"
+    )
     latency_ms = float(sampler.sample_ms(key))
     return CommunicationEvent(
         phase=phase,
         sender_id=sender_id,
         receiver_id=receiver_id,
+        send_time_ms=send_time_ms,
+        latency_ms=latency_ms,
+        arrival_time_ms=send_time_ms + latency_ms,
+        payload_bytes=payload_bytes,
+        task_id=task_id,
+    )
+
+
+def _broadcast_event(
+    *,
+    phase: str,
+    sender_id: int,
+    send_time_ms: float,
+    payload_bytes: int,
+    sampler,
+    task_id: int | None = None,
+) -> CommunicationEvent:
+    key = (
+        f"broadcast|{phase}|{sender_id}|"
+        f"{task_id if task_id is not None else '-'}"
+    )
+    latency_ms = float(sampler.sample_ms(key))
+    return CommunicationEvent(
+        phase=phase,
+        sender_id=sender_id,
+        receiver_id=BROADCAST_RECEIVER_ID,
         send_time_ms=send_time_ms,
         latency_ms=latency_ms,
         arrival_time_ms=send_time_ms + latency_ms,
@@ -118,7 +153,7 @@ def simulate_leader_hungarian(
     for sender_id in range(num_robots):
         if sender_id == leader_id:
             continue
-        event = _network_event(
+        event = _unicast_event(
             phase="cost",
             sender_id=sender_id,
             receiver_id=leader_id,
@@ -134,68 +169,54 @@ def simulate_leader_hungarian(
         default=0.0,
     )
 
-    assignment_bytes = assignment_payload_bytes(num_tasks)
-    outbound: list[CommunicationEvent] = []
-    for receiver_id in range(num_robots):
-        if receiver_id == leader_id:
-            continue
-        event = _network_event(
-            phase="leader_assignment",
-            sender_id=leader_id,
-            receiver_id=receiver_id,
-            send_time_ms=cost_end,
-            payload_bytes=assignment_bytes,
-            sampler=sampler,
-        )
-        events.append(event)
-        outbound.append(event)
-
-    agreement_end = max(
-        (event.arrival_time_ms for event in outbound),
-        default=cost_end,
+    assignment_event = _broadcast_event(
+        phase="leader_assignment",
+        sender_id=leader_id,
+        send_time_ms=cost_end,
+        payload_bytes=assignment_payload_bytes(num_tasks),
+        sampler=sampler,
     )
+    events.append(assignment_event)
 
     return _summarize_events(
         method="leader_hungarian",
         cost_exchange_completion_ms=cost_end,
-        actionable_decision_ms=agreement_end,
-        global_agreement_ms=agreement_end,
+        actionable_decision_ms=assignment_event.arrival_time_ms,
+        global_agreement_ms=assignment_event.arrival_time_ms,
         events=events,
     )
 
 
-def _all_to_all_cost_exchange(
+def _broadcast_cost_exchange(
     *,
     num_robots: int,
     num_tasks: int,
     sampler,
 ) -> tuple[list[CommunicationEvent], tuple[float, ...]]:
     events: list[CommunicationEvent] = []
-    inbound_by_receiver: dict[int, list[float]] = {
-        robot_id: [] for robot_id in range(num_robots)
-    }
     row_bytes = cost_row_payload_bytes(num_tasks)
 
     for sender_id in range(num_robots):
-        for receiver_id in range(num_robots):
-            if sender_id == receiver_id:
-                continue
-            event = _network_event(
+        events.append(
+            _broadcast_event(
                 phase="cost",
                 sender_id=sender_id,
-                receiver_id=receiver_id,
                 send_time_ms=0.0,
                 payload_bytes=row_bytes,
                 sampler=sampler,
             )
-            events.append(event)
-            inbound_by_receiver[receiver_id].append(event.arrival_time_ms)
+        )
 
-    ready_times = tuple(
-        max(inbound_by_receiver[robot_id], default=0.0)
-        for robot_id in range(num_robots)
-    )
-    return events, ready_times
+    ready_times: list[float] = []
+    for receiver_id in range(num_robots):
+        required_arrivals = [
+            event.arrival_time_ms
+            for event in events
+            if event.sender_id != receiver_id
+        ]
+        ready_times.append(max(required_arrivals, default=0.0))
+
+    return events, tuple(ready_times)
 
 
 def simulate_full_view_hungarian(
@@ -204,7 +225,7 @@ def simulate_full_view_hungarian(
     num_tasks: int,
     sampler,
 ) -> CoordinationTimingResult:
-    events, ready_times = _all_to_all_cost_exchange(
+    events, ready_times = _broadcast_cost_exchange(
         num_robots=num_robots,
         num_tasks=num_tasks,
         sampler=sampler,
@@ -227,7 +248,7 @@ def simulate_democracy_hungarian(
     assignment: AssignmentSolution,
     sampler,
 ) -> CoordinationTimingResult:
-    cost_events, ready_times = _all_to_all_cost_exchange(
+    cost_events, ready_times = _broadcast_cost_exchange(
         num_robots=num_robots,
         num_tasks=num_tasks,
         sampler=sampler,
@@ -255,7 +276,7 @@ def simulate_democracy_hungarian(
                 vote_arrivals.append(send_time)
                 continue
 
-            event = _network_event(
+            event = _unicast_event(
                 phase="vote",
                 sender_id=voter_id,
                 receiver_id=winner_id,
@@ -275,21 +296,16 @@ def simulate_democracy_hungarian(
     commit_arrivals: list[float] = []
     for task_id in range(num_tasks):
         winner_id = winner_by_task[task_id]
-        send_time = quorum_time_by_task[task_id]
-        for receiver_id in range(num_robots):
-            if receiver_id == winner_id:
-                continue
-            event = _network_event(
-                phase="commit",
-                sender_id=winner_id,
-                receiver_id=receiver_id,
-                send_time_ms=send_time,
-                payload_bytes=COMMIT_PAYLOAD_BYTES,
-                sampler=sampler,
-                task_id=task_id,
-            )
-            events.append(event)
-            commit_arrivals.append(event.arrival_time_ms)
+        event = _broadcast_event(
+            phase="commit",
+            sender_id=winner_id,
+            send_time_ms=quorum_time_by_task[task_id],
+            payload_bytes=COMMIT_PAYLOAD_BYTES,
+            sampler=sampler,
+            task_id=task_id,
+        )
+        events.append(event)
+        commit_arrivals.append(event.arrival_time_ms)
 
     agreement_end = max(commit_arrivals, default=actionable_end)
 
