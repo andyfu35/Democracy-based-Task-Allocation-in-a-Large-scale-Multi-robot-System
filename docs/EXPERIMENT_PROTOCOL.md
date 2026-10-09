@@ -269,6 +269,8 @@ This is intentional: cost loss and vote loss are the independent variables in E2
 Primary metrics:
 
 - task commit rate;
+- **correct executor rate (CER)**, defined as oracle-matching committed tasks divided by total tasks;
+- **correctness among committed tasks**, defined as oracle-matching committed tasks divided by committed tasks;
 - full-assignment success rate;
 - optimal-solution rate;
 - optimality gap among full successful assignments;
@@ -299,3 +301,35 @@ At every loss level:
 - safety failures must remain zero.
 
 E2 assumes independent receiver-level Bernoulli delivery. Correlated burst loss is not modeled here; that is reserved for E5.
+
+
+### 12.8 Correct-executor metrics
+
+Let the deterministic complete-information Hungarian oracle assign task (j) to robot (r_j^*).
+
+For an evaluated method, if task (j) is committed to robot (hat r_j), that commit is correct iff:
+
+[
+hat r_j = r_j^*.
+]
+
+The **Correct Executor Rate (CER)** is:
+
+[
+CER = rac{#{	ext{correct committed tasks}}}{N_T}.
+]
+
+This metric penalizes both wrong commits and uncommitted tasks.
+
+The conditional **correctness among committed tasks** is:
+
+[
+C_{commit}
+=
+rac{#{	ext{correct committed tasks}}}
+{#{	ext{committed tasks}}}.
+]
+
+If no task is committed, (C_{commit}) is undefined and is reported as NaN.
+
+These metrics are required for E2 because full-assignment success alone can hide assignment-quality degradation. A method may assign every task while selecting executors that differ substantially from the complete-information Hungarian oracle.
