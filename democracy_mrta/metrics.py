@@ -274,42 +274,33 @@ def verify_e2_vote_ledgers(
             )
 
 
-def evaluate_e2_vote_audit(
+@dataclass(frozen=True)
+class E2BallotEvidence:
+    before: Counter
+    after: Counter
+    received_by_candidate: dict[tuple[int, int], set[int]]
+    voters: tuple[dict[str, float | int], ...]
+    ballots: tuple[dict[str, float | int], ...]
+    remote_attempts: int
+    remote_delivered: int
+    self_votes: int
+
+
+def verify_e2_local_views(
     *,
     result: LossyCoordinationResult,
-    oracle_assignment: AssignmentSolution,
     num_robots: int,
-    num_tasks: int,
-) -> E2VoteAuditReport:
-    """Observe one existing E2 result; never recalculate local Hungarian or voting."""
-    require_e2_vote_audit(result=result, num_robots=num_robots)
-
-    oracle_by_task = {
-        task_id: robot_id for robot_id, task_id in oracle_assignment.assigned_pairs
-    }
-    if len(oracle_by_task) != num_tasks:
-        raise ProtocolError(
-            Diagnostic(
-                owner="metrics",
-                function="evaluate_e2_vote_audit",
-                category="contract",
-                code="E2_AUDIT_ORACLE_INCOMPLETE",
-                expected=num_tasks,
-                actual=len(oracle_by_task),
-            )
-        )
-
+) -> None:
     received_rows = [{voter_id} for voter_id in range(num_robots)]
     for observation in result.deliveries:
         if observation.phase == "cost" and observation.delivered:
             received_rows[observation.receiver_id].add(observation.sender_id)
-    for voter_id in range(num_robots):
-        recorded = result.audit_visible_rows_by_voter[voter_id]
+    for voter_id, recorded in enumerate(result.audit_visible_rows_by_voter):
         if received_rows[voter_id] != set(recorded):
             raise ProtocolError(
                 Diagnostic(
                     owner="metrics",
-                    function="evaluate_e2_vote_audit",
+                    function="verify_e2_local_views",
                     category="contract",
                     code="E2_AUDIT_LOCAL_VIEW_MISMATCH",
                     expected=tuple(sorted(received_rows[voter_id])),
@@ -318,6 +309,13 @@ def evaluate_e2_vote_audit(
                 )
             )
 
+
+def collect_e2_ballot_evidence(
+    *,
+    result: LossyCoordinationResult,
+    oracle_by_task: dict[int, int],
+    num_tasks: int,
+) -> E2BallotEvidence:
     remaining_packets = index_e2_vote_deliveries(result)
     before = Counter()
     after = Counter()
@@ -327,19 +325,15 @@ def evaluate_e2_vote_audit(
     remote_attempts = remote_delivered = self_votes = 0
 
     for voter_id, proposal in enumerate(result.audit_proposals_by_voter):
-        correct = 0
-        delivered_correct = 0
-        voter_delivered = 0
-        voter_remote_attempts = 0
-        voter_remote_delivered = 0
-        voter_self_votes = 0
+        correct = delivered_correct = voter_delivered = 0
+        voter_remote_attempts = voter_remote_delivered = voter_self_votes = 0
         task_ids_seen: set[int] = set()
         for candidate_id, task_id in proposal.assigned_pairs:
             if task_id in task_ids_seen or not 0 <= task_id < num_tasks:
                 raise ProtocolError(
                     Diagnostic(
                         owner="metrics",
-                        function="evaluate_e2_vote_audit",
+                        function="collect_e2_ballot_evidence",
                         category="contract",
                         code="E2_AUDIT_INVALID_LOCAL_PROPOSAL",
                         expected="unique tasks in [0,num_tasks)",
@@ -351,8 +345,9 @@ def evaluate_e2_vote_audit(
             before[(task_id, candidate_id)] += 1
             is_correct = candidate_id == oracle_by_task[task_id]
             correct += int(is_correct)
+            is_self = candidate_id == voter_id
 
-            if candidate_id == voter_id:
+            if is_self:
                 delivered = True
                 self_votes += 1
                 voter_self_votes += 1
@@ -362,7 +357,7 @@ def evaluate_e2_vote_audit(
                     raise ProtocolError(
                         Diagnostic(
                             owner="metrics",
-                            function="evaluate_e2_vote_audit",
+                            function="collect_e2_ballot_evidence",
                             category="contract",
                             code="E2_AUDIT_MISSING_VOTE_PACKET",
                             expected=key,
@@ -382,7 +377,7 @@ def evaluate_e2_vote_audit(
                 "oracle_robot": oracle_by_task[task_id],
                 "oracle_match": int(is_correct),
                 "local_visible_rows": len(result.audit_visible_rows_by_voter[voter_id]),
-                "is_self_vote": int(candidate_id == voter_id),
+                "is_self_vote": int(is_self),
                 "transport_delivered": int(delivered),
                 "transport_dropped": int(not delivered),
             })
@@ -414,7 +409,7 @@ def evaluate_e2_vote_audit(
         raise ProtocolError(
             Diagnostic(
                 owner="metrics",
-                function="evaluate_e2_vote_audit",
+                function="collect_e2_ballot_evidence",
                 category="contract",
                 code="E2_AUDIT_UNEXPECTED_VOTE_PACKET",
                 expected="no unmatched vote transport observation",
@@ -422,19 +417,33 @@ def evaluate_e2_vote_audit(
             )
         )
 
-    quorum = num_robots // 2 + 1
-    verify_e2_vote_ledgers(
-        result=result,
+    return E2BallotEvidence(
+        before=before,
+        after=after,
         received_by_candidate=received_by_candidate,
-        num_tasks=num_tasks,
-        quorum=quorum,
+        voters=tuple(voter_rows),
+        ballots=tuple(ballot_rows),
+        remote_attempts=remote_attempts,
+        remote_delivered=remote_delivered,
+        self_votes=self_votes,
     )
 
-    committed = {task_id: robot_id for robot_id, task_id in result.assigned_pairs}
+
+def summarize_e2_task_vote_support(
+    *,
+    evidence: E2BallotEvidence,
+    oracle_by_task: dict[int, int],
+    committed: dict[int, int],
+    num_tasks: int,
+    quorum: int,
+) -> tuple[
+    tuple[dict[str, float | int], ...],
+    tuple[dict[str, float | int], ...],
+]:
+    before, after = evidence.before, evidence.after
     task_rows: list[dict[str, float | int]] = []
     candidate_rows: list[dict[str, float | int]] = []
-    pre_quorum = post_quorum = 0
-    oracle_pre_quorum = oracle_post_quorum = 0
+
     for task_id in range(num_tasks):
         choices = sorted(
             {candidate_id for (t, candidate_id) in before if t == task_id}
@@ -455,10 +464,6 @@ def evaluate_e2_vote_audit(
         n_proposals = sum(before[(task_id, candidate_id)] for candidate_id in choices)
         n_received = sum(after[(task_id, candidate_id)] for candidate_id in choices)
 
-        pre_quorum += int(before_top_votes >= quorum)
-        post_quorum += int(after_top_votes >= quorum)
-        oracle_pre_quorum += int(before_oracle >= quorum)
-        oracle_post_quorum += int(after_oracle >= quorum)
         task_rows.append({
             "task_id": task_id,
             "oracle_robot": oracle_robot,
@@ -490,38 +495,109 @@ def evaluate_e2_vote_audit(
                 "quorum": quorum,
                 "committed": int(candidate_id == committed.get(task_id, -1)),
             })
+    return tuple(task_rows), tuple(candidate_rows)
 
-    proposals_total = sum(int(row["proposals"]) for row in voter_rows)
-    correct_total = sum(int(row["oracle_matching_proposals"]) for row in voter_rows)
-    received_total = sum(int(row["delivered_votes"]) for row in voter_rows)
-    correct_received = sum(int(row["delivered_correct_votes"]) for row in voter_rows)
+
+def summarize_e2_ballot_totals(
+    *,
+    evidence: E2BallotEvidence,
+    tasks: tuple[dict[str, float | int], ...],
+    num_robots: int,
+    num_tasks: int,
+    quorum: int,
+    committed_tasks: int,
+) -> dict[str, float | int]:
+    voters = evidence.voters
+    proposals_total = sum(int(row["proposals"]) for row in voters)
+    correct_total = sum(int(row["oracle_matching_proposals"]) for row in voters)
+    received_total = sum(int(row["delivered_votes"]) for row in voters)
+    correct_received = sum(int(row["delivered_correct_votes"]) for row in voters)
+    return {
+        "robots": num_robots,
+        "tasks": num_tasks,
+        "quorum": quorum,
+        "visible_rows_mean": sum(int(row["visible_rows"]) for row in voters) / num_robots,
+        "raw_total_votes": proposals_total,
+        "raw_correct_votes": correct_total,
+        "raw_correct_vote_rate": correct_total / proposals_total if proposals_total else 0.0,
+        "received_total_votes": received_total,
+        "received_correct_votes": correct_received,
+        "received_correct_vote_rate": correct_received / received_total if received_total else 0.0,
+        "remote_vote_attempts": evidence.remote_attempts,
+        "remote_vote_delivered": evidence.remote_delivered,
+        "remote_delivery_rate": (
+            evidence.remote_delivered / evidence.remote_attempts
+            if evidence.remote_attempts else 0.0
+        ),
+        "self_votes": evidence.self_votes,
+        "tasks_with_raw_quorum": sum(int(t["pre_vote_quorum_possible"]) for t in tasks),
+        "tasks_with_received_quorum": sum(int(t["post_vote_quorum"]) for t in tasks),
+        "tasks_with_oracle_raw_quorum": sum(
+            int(t["raw_oracle_votes"] >= quorum) for t in tasks
+        ),
+        "tasks_with_oracle_received_quorum": sum(
+            int(t["received_oracle_votes"] >= quorum) for t in tasks
+        ),
+        "tasks_lost_quorum_to_vote_transport": sum(
+            int(t["lost_quorum_during_vote_transport"]) for t in tasks
+        ),
+        "committed_tasks": committed_tasks,
+    }
+
+
+def evaluate_e2_vote_audit(
+    *,
+    result: LossyCoordinationResult,
+    oracle_assignment: AssignmentSolution,
+    num_robots: int,
+    num_tasks: int,
+) -> E2VoteAuditReport:
+    """Compare existing E2 decisions and packet observations, without resimulation."""
+    require_e2_vote_audit(result=result, num_robots=num_robots)
+    oracle_by_task = {
+        task_id: robot_id for robot_id, task_id in oracle_assignment.assigned_pairs
+    }
+    if len(oracle_by_task) != num_tasks:
+        raise ProtocolError(
+            Diagnostic(
+                owner="metrics",
+                function="evaluate_e2_vote_audit",
+                category="contract",
+                code="E2_AUDIT_ORACLE_INCOMPLETE",
+                expected=num_tasks,
+                actual=len(oracle_by_task),
+            )
+        )
+    verify_e2_local_views(result=result, num_robots=num_robots)
+    evidence = collect_e2_ballot_evidence(
+        result=result, oracle_by_task=oracle_by_task, num_tasks=num_tasks
+    )
+    quorum = num_robots // 2 + 1
+    verify_e2_vote_ledgers(
+        result=result,
+        received_by_candidate=evidence.received_by_candidate,
+        num_tasks=num_tasks,
+        quorum=quorum,
+    )
+    task_rows, candidate_rows = summarize_e2_task_vote_support(
+        evidence=evidence,
+        oracle_by_task=oracle_by_task,
+        committed={task_id: robot_id for robot_id, task_id in result.assigned_pairs},
+        num_tasks=num_tasks,
+        quorum=quorum,
+    )
+    totals = summarize_e2_ballot_totals(
+        evidence=evidence,
+        tasks=task_rows,
+        num_robots=num_robots,
+        num_tasks=num_tasks,
+        quorum=quorum,
+        committed_tasks=len(result.assigned_pairs),
+    )
     return E2VoteAuditReport(
-        summary={
-            "robots": num_robots,
-            "tasks": num_tasks,
-            "quorum": quorum,
-            "visible_rows_mean": sum(int(row["visible_rows"]) for row in voter_rows) / num_robots,
-            "raw_total_votes": proposals_total,
-            "raw_correct_votes": correct_total,
-            "raw_correct_vote_rate": correct_total / proposals_total if proposals_total else 0.0,
-            "received_total_votes": received_total,
-            "received_correct_votes": correct_received,
-            "received_correct_vote_rate": correct_received / received_total if received_total else 0.0,
-            "remote_vote_attempts": remote_attempts,
-            "remote_vote_delivered": remote_delivered,
-            "remote_delivery_rate": remote_delivered / remote_attempts if remote_attempts else 0.0,
-            "self_votes": self_votes,
-            "tasks_with_raw_quorum": pre_quorum,
-            "tasks_with_received_quorum": post_quorum,
-            "tasks_with_oracle_raw_quorum": oracle_pre_quorum,
-            "tasks_with_oracle_received_quorum": oracle_post_quorum,
-            "tasks_lost_quorum_to_vote_transport": sum(
-                int(row["lost_quorum_during_vote_transport"]) for row in task_rows
-            ),
-            "committed_tasks": len(result.assigned_pairs),
-        },
-        voters=tuple(voter_rows),
-        tasks=tuple(task_rows),
-        candidates=tuple(candidate_rows),
-        ballots=tuple(ballot_rows),
+        summary=totals,
+        voters=evidence.voters,
+        tasks=task_rows,
+        candidates=candidate_rows,
+        ballots=evidence.ballots,
     )
