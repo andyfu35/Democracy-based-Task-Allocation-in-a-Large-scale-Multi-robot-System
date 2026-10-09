@@ -149,3 +149,55 @@ Commit the local E0 raw/summary files. Then make an explicit architecture decisi
 
 ### Commit SHA
 README result update: `d89c8006c0bf408616bb5f0f8bf4677977a17101`.
+
+
+## 2026-10-09 — Experiment architecture redefinition: fixed optimizer + empirical network timing
+
+### Purpose
+Refocus the paper on the communication/agreement contribution. Remove optimizer-comparison as the primary experimental question, fix Hungarian as the common optimizer, and define an externally grounded wireless-latency model.
+
+### Files
+- `README.md`
+- `docs/EXPERIMENT_PROTOCOL.md`
+- `docs/CHANGE_CONTINUITY.md`
+
+### Functions
+No code functions changed in this documentation-only change.
+
+### Responsibility movement
+- Optimization responsibility is frozen as a shared deterministic Hungarian backend.
+- Experimental differentiation moves to the communication/agreement layer.
+- Network timing becomes an explicit future owner; per-message timing must be event-driven.
+
+### Preserved behavior
+- Leaderless strict-majority voting remains the core Democracy protocol.
+- Reliable initial task/epoch dissemination remains the primary assumption.
+- Packet-loss resilience remains the principal robustness claim.
+
+### Intentionally changed behavior
+- Primary experiments no longer compare Greedy/MILP/Hungarian as competing optimizers.
+- Hungarian is now fixed across controlled coordination methods.
+- The previous sequential per-task E0 implementation/results are classified as obsolete/invalid for the new canonical definition and retained only as historical evidence.
+- The formal experiment sequence is now E0-E7 and includes explicit empirical wireless latency and real-trace replay.
+
+### Network timing evidence
+Primary empirical reference:
+M. Rady et al., “How does Wi-Fi 6 fare? An industrial outdoor robotic scenario,” Ad Hoc Networks 156, 103418, 2024, DOI 10.1016/j.adhoc.2024.103418.
+
+The authors' public repository `minarady1/wifi_for_industrial_robotics` provides processed application-level ROS 2 fields including `control_delay_ms` and `control_loss`. Controlled timing experiments will bootstrap per-message delay from a pinned Wi-Fi 6 trace/profile instead of assuming a single constant latency.
+
+### Diagnostic contract
+No code diagnostic changes. Future timing implementation must use explicit network/time boundaries and must not silently fill missing optimizer inputs from ground truth.
+
+### Open risks
+- The exact Wi-Fi 6 location/PHY trace to serve as the primary profile must be pinned during E1 implementation.
+- Missing-cost feasibility semantics for partial local Hungarian matrices require explicit implementation and tests before E2.
+- A shared-medium contention model beyond empirical per-message delay may be needed for very large fleets; this must not be invented silently.
+- Current code still implements the obsolete sequential E0 and must be replaced before new formal results are generated.
+
+### Next step
+Reimplement E0 under the new canonical full-matrix Hungarian proposal protocol. Require zero optimality gap at complete information. Then implement the network timing owner using the pinned Rady et al. empirical trace for E1.
+
+### Commit SHA
+README: `83e4961d4508aaf881f1c847ac5e76068594997a`
+Canonical protocol: `95d36911d43b4786ff9b81d1062c9162caa31950`
