@@ -372,3 +372,9 @@ Audit command:
     python3 -m experiments.audit_e2_votes --robots 100 --tasks 50 --p-loss 0.3 --seeds 100
 
 The change is instrumentation-only. Until the audit and its regression tests pass, E2's 30%-loss robustness claim is not considered validated.
+
+The selected forensic seed also exports individual ballots, one row per voter/task
+proposal: voter_id, task_id, candidate_id, oracle_robot, oracle_match,
+local_visible_rows, is_self_vote, transport_delivered, transport_dropped.
+This ballot table includes local self-votes that were not present in the previous
+network-only event log. The output is audit evidence, not a second vote ledger.
