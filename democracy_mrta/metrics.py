@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from scipy.optimize import linear_sum_assignment
-
+from .diagnostics import Diagnostic, ProtocolError
+from .optimizer import solve_hungarian_assignment
 from .protocol import AllocationResult
 
 
@@ -15,13 +15,6 @@ class E0Metrics:
     assignment_success_rate: float
 
 
-def hungarian_oracle_cost(cost_matrix: tuple[tuple[float, ...], ...]) -> float:
-    row_indices, column_indices = linear_sum_assignment(cost_matrix)
-    return float(
-        sum(cost_matrix[int(row_id)][int(task_id)] for row_id, task_id in zip(row_indices, column_indices))
-    )
-
-
 def optimality_gap_percent(protocol_cost: float, oracle_cost: float) -> float:
     if oracle_cost < 0:
         raise ValueError("oracle_cost must be non-negative")
@@ -30,17 +23,46 @@ def optimality_gap_percent(protocol_cost: float, oracle_cost: float) -> float:
     return (protocol_cost - oracle_cost) / oracle_cost * 100.0
 
 
+def require_zero_loss_optimality(
+    *,
+    protocol_cost: float,
+    oracle_cost: float,
+    tolerance: float = 1e-12,
+) -> None:
+    difference = abs(protocol_cost - oracle_cost)
+    if difference > tolerance:
+        raise ProtocolError(
+            Diagnostic(
+                owner="metrics",
+                function="require_zero_loss_optimality",
+                category="contract",
+                code="ZERO_LOSS_OPTIMALITY_MISMATCH",
+                expected=oracle_cost,
+                actual=protocol_cost,
+                details=f"absolute_difference={difference}, tolerance={tolerance}",
+            )
+        )
+
+
 def evaluate_e0(
     *,
     cost_matrix: tuple[tuple[float, ...], ...],
     allocation: AllocationResult,
 ) -> E0Metrics:
-    oracle_cost = hungarian_oracle_cost(cost_matrix)
+    oracle = solve_hungarian_assignment(cost_matrix)
+    require_zero_loss_optimality(
+        protocol_cost=allocation.total_cost,
+        oracle_cost=oracle.total_cost,
+    )
+
     num_tasks = len(cost_matrix[0])
     success_rate = allocation.assigned_tasks / num_tasks
     return E0Metrics(
         protocol_cost=allocation.total_cost,
-        oracle_cost=oracle_cost,
-        optimality_gap_percent=optimality_gap_percent(allocation.total_cost, oracle_cost),
+        oracle_cost=oracle.total_cost,
+        optimality_gap_percent=optimality_gap_percent(
+            allocation.total_cost,
+            oracle.total_cost,
+        ),
         assignment_success_rate=success_rate,
     )
