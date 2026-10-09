@@ -201,3 +201,92 @@ Reimplement E0 under the new canonical full-matrix Hungarian proposal protocol. 
 ### Commit SHA
 README: `83e4961d4508aaf881f1c847ac5e76068594997a`
 Canonical protocol: `95d36911d43b4786ff9b81d1062c9162caa31950`
+
+
+## 2026-10-09 — Corrected E0 full-matrix Hungarian proposal voting
+
+### Purpose
+Replace the obsolete sequential per-task minimum-cost E0 implementation with the canonical paper algorithm: each robot runs the same full-matrix Hungarian optimizer, converts the resulting assignment into task-level votes, and commits each task through strict-majority quorum.
+
+### Files
+- `democracy_mrta/optimizer.py`
+- `democracy_mrta/protocol.py`
+- `democracy_mrta/metrics.py`
+- `democracy_mrta/__init__.py`
+- `experiments/run_e0.py`
+- `tests/test_optimizer.py`
+- `tests/test_protocol.py`
+- `tests/test_metrics.py`
+- `results/e0_protocol_correctness/README.md`
+- `README.md`
+- `docs/CHANGE_CONTINUITY.md`
+
+### Functions / owners
+- `optimizer.validate_cost_matrix`: owns optimizer input validation.
+- `optimizer.solve_hungarian_assignment`: owns the fixed exact assignment optimizer.
+- `protocol.assignment_to_votes`: owns conversion from one local assignment proposal to task-level votes.
+- `protocol.record_vote`: preserves vote validation and deduplication.
+- `protocol.resolve_unique_majority`: preserves the quorum safety boundary.
+- `protocol.compute_zero_loss_local_proposals`: owns the E0 requirement that all complete-information local proposals are identical.
+- `protocol.collect_zero_loss_vote_ledgers`: owns zero-loss vote collection.
+- `protocol.resolve_zero_loss_epoch`: owns unanimous per-task commit and one-to-one safety checks.
+- `protocol.run_zero_loss_allocation_epoch`: orchestrates corrected E0 only.
+- `metrics.require_zero_loss_optimality`: owns the hard zero-gap contract.
+- `metrics.evaluate_e0`: evaluates corrected E0 against the same Hungarian oracle.
+- `experiments.run_e0.run_one_seed`: records oracle-assignment mismatch and non-unanimous task diagnostics in addition to prior E0 metrics.
+
+### Responsibility movement
+Hungarian optimization moved out of protocol/metrics into the dedicated `optimizer` owner. The protocol no longer selects a per-task minimum-cost robot or removes a winner before solving subsequent tasks. Protocol responsibility is now proposal-to-vote-to-quorum only.
+
+### Preserved behavior
+- strict-majority quorum;
+- duplicate-vote rejection;
+- stale-round rejection;
+- one-to-one static assignment model;
+- deterministic seed replay;
+- E0 synthetic Euclidean cost generation.
+
+### Intentionally changed behavior
+- Removed obsolete sequential task-wise greedy behavior.
+- Removed the behavior equivalent to `eligible.remove(winner)` before solving later tasks.
+- Each voter now solves the full cost matrix with Hungarian before casting task-level votes.
+- Zero-loss E0 now requires unanimous votes and exact equality with the Hungarian optimum.
+- Any nonzero zero-loss cost gap now fails at `metrics.require_zero_loss_optimality` with category `contract` and code `ZERO_LOSS_OPTIMALITY_MISMATCH`.
+
+### Diagnostic contract
+New important diagnostics:
+- `optimizer.validate_cost_matrix / data / EMPTY_COST_MATRIX`
+- `optimizer.validate_cost_matrix / data / EMPTY_TASK_SET`
+- `optimizer.validate_cost_matrix / data / NON_RECTANGULAR_COST_MATRIX`
+- `optimizer.validate_cost_matrix / contract / TASKS_EXCEED_ROBOTS`
+- `optimizer.validate_cost_matrix / data / NONFINITE_COST`
+- `optimizer.solve_hungarian_assignment / contract / INCOMPLETE_HUNGARIAN_ASSIGNMENT`
+- `protocol.compute_zero_loss_local_proposals / contract / ZERO_LOSS_PROPOSAL_MISMATCH`
+- `protocol.collect_zero_loss_vote_ledgers / contract / PROPOSAL_COUNT_MISMATCH`
+- `protocol.collect_zero_loss_vote_ledgers / contract / UNEXPECTED_ZERO_LOSS_VOTE_REJECTION`
+- `protocol.resolve_zero_loss_epoch / contract / ZERO_LOSS_VOTE_NOT_UNANIMOUS`
+- `protocol.resolve_zero_loss_epoch / safety / DUPLICATE_EXECUTION`
+- `metrics.require_zero_loss_optimality / contract / ZERO_LOSS_OPTIMALITY_MISMATCH`
+
+### Verification status
+The corrected implementation and tests are committed, but this environment has not executed the repository test suite. Formal verification is intentionally pending the user's local run.
+
+### Open risks
+- Deterministic tie behavior currently relies on identical matrix ordering and the same SciPy Hungarian implementation on every robot. A cross-runtime tie-policy test may be needed before distributed physical deployment.
+- E1 still requires pinning the exact Rady et al. Wi-Fi 6 profile and implementing the discrete-event network owner.
+- Partial local-matrix Hungarian semantics remain intentionally deferred to E2.
+
+### Next step
+Run the corrected E0 locally. Do not start E1 until all conditions report exact zero gap, zero oracle mismatch, zero non-unanimous tasks, zero safety failures, and zero replay failures.
+
+### Commit SHA
+- optimizer owner: `ad9d72cf83d9f3f46f91e6fdd1893b47133135f8`
+- optimizer tests: `2b45e430ee51754965019e6ba1bfb79196910fa1`
+- protocol correction: `a520a9b617ee8c2037a1f2a287fe96bee58ad6de`
+- zero-loss metric contract: `eb299ad0049b26468ce53cc836d82a157f06430b`
+- protocol tests: `6eb3e4a9b5a2738d6c7500c092687c8abcb5ad26`
+- E0 runner: `42cb4ab2ae4b607160eb32af20021c4c2f1c28d4`
+- package export: `24b38758799673077049073896e7aefb03c1ca08`
+- metric tests: `4ed0fdbd6ad1ced6aa13e25eecfccf111e337054`
+- E0 result contract doc: `589d2cfe084ac8a9774d9a8a929e64af052d882e`
+- README status update: `4af6478e6708a4a46580b35d52348073798e11e6`
