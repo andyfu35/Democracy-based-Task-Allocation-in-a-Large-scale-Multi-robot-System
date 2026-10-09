@@ -124,3 +124,71 @@ def solve_hungarian_assignment(
         assigned_pairs=assigned_pairs,
         total_cost=total_cost,
     )
+
+
+def solve_visible_hungarian_assignment(
+    cost_matrix: tuple[tuple[float, ...], ...],
+    visible_robot_ids: frozenset[int] | set[int] | tuple[int, ...],
+) -> AssignmentSolution:
+    num_robots, num_tasks = validate_cost_matrix(cost_matrix)
+    visible = tuple(sorted(set(int(robot_id) for robot_id in visible_robot_ids)))
+
+    if not visible:
+        raise ProtocolError(
+            Diagnostic(
+                owner="optimizer",
+                function="solve_visible_hungarian_assignment",
+                category="state",
+                code="NO_VISIBLE_ROBOTS",
+                expected="at least one visible robot row",
+                actual=0,
+            )
+        )
+
+    invalid = tuple(robot_id for robot_id in visible if robot_id < 0 or robot_id >= num_robots)
+    if invalid:
+        raise ProtocolError(
+            Diagnostic(
+                owner="optimizer",
+                function="solve_visible_hungarian_assignment",
+                category="data",
+                code="VISIBLE_ROBOT_ID_OUT_OF_RANGE",
+                expected=f"0 <= robot_id < {num_robots}",
+                actual=invalid,
+            )
+        )
+
+    local_matrix = tuple(cost_matrix[robot_id] for robot_id in visible)
+    row_indices, column_indices = linear_sum_assignment(local_matrix)
+
+    assigned_pairs = tuple(
+        sorted(
+            (
+                (visible[int(local_row_id)], int(task_id))
+                for local_row_id, task_id in zip(row_indices, column_indices)
+            ),
+            key=lambda pair: (pair[1], pair[0]),
+        )
+    )
+
+    expected_assignments = min(len(visible), num_tasks)
+    if len(assigned_pairs) != expected_assignments:
+        raise ProtocolError(
+            Diagnostic(
+                owner="optimizer",
+                function="solve_visible_hungarian_assignment",
+                category="contract",
+                code="PARTIAL_HUNGARIAN_CARDINALITY_MISMATCH",
+                expected=expected_assignments,
+                actual=len(assigned_pairs),
+                details=f"visible_robot_count={len(visible)}, num_tasks={num_tasks}",
+            )
+        )
+
+    total_cost = float(
+        sum(cost_matrix[robot_id][task_id] for robot_id, task_id in assigned_pairs)
+    )
+    return AssignmentSolution(
+        assigned_pairs=assigned_pairs,
+        total_cost=total_cost,
+    )
