@@ -15,7 +15,10 @@ from democracy_mrta.coordination import (
     simulate_ideal_full_information_lossy_reference,
     simulate_leader_hungarian_lossy,
 )
-from democracy_mrta.metrics import optimality_gap_percent
+from democracy_mrta.metrics import (
+    evaluate_assignment_correctness,
+    optimality_gap_percent,
+)
 from democracy_mrta.network import (
     BernoulliLossSampler,
     EmpiricalLatencySampler,
@@ -103,16 +106,21 @@ def result_row(
     num_robots: int,
     num_tasks: int,
     p_loss: float,
-    oracle_cost: float,
+    oracle,
     result: LossyCoordinationResult,
 ) -> dict[str, object]:
     full_success = result.full_assignment_success
     gap = (
-        optimality_gap_percent(result.total_cost, oracle_cost)
+        optimality_gap_percent(result.total_cost, oracle.total_cost)
         if full_success
         else float("nan")
     )
     optimal = int(full_success and abs(gap) <= 1e-9)
+    correctness = evaluate_assignment_correctness(
+        assigned_pairs=result.assigned_pairs,
+        oracle_assignment=oracle,
+        total_tasks=num_tasks,
+    )
 
     return {
         "seed": seed,
@@ -125,8 +133,12 @@ def result_row(
         "full_assignment_success": int(full_success),
         "optimal_solution": optimal,
         "protocol_cost": result.total_cost,
-        "oracle_cost": oracle_cost,
+        "oracle_cost": oracle.total_cost,
         "optimality_gap_percent": gap,
+        "correct_committed_tasks": correctness.correct_committed_tasks,
+        "incorrect_committed_tasks": correctness.incorrect_committed_tasks,
+        "correct_executor_rate": correctness.correct_executor_rate,
+        "correctness_among_committed": correctness.correctness_among_committed,
         "task_timeout_count": result.task_timeout_count,
         "cost_phase_completion_ms": result.cost_phase_completion_ms,
         "decision_completion_ms": result.decision_completion_ms,
@@ -187,6 +199,21 @@ def summarize_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 ),
                 "optimal_solution_rate": statistics.fmean(
                     int(row["optimal_solution"]) for row in selected
+                ),
+                "mean_correct_executor_rate": statistics.fmean(
+                    float(row["correct_executor_rate"]) for row in selected
+                ),
+                "mean_correctness_among_committed": (
+                    statistics.fmean(
+                        float(row["correctness_among_committed"])
+                        for row in selected
+                        if math.isfinite(float(row["correctness_among_committed"]))
+                    )
+                    if any(
+                        math.isfinite(float(row["correctness_among_committed"]))
+                        for row in selected
+                    )
+                    else float("nan")
                 ),
                 "mean_optimality_gap_percent_successful": (
                     statistics.fmean(successful_gaps)
@@ -389,7 +416,7 @@ def main() -> None:
                                 num_robots=num_robots,
                                 num_tasks=num_tasks,
                                 p_loss=p_loss,
-                                oracle_cost=oracle.total_cost,
+                                oracle=oracle,
                                 result=result,
                             )
                         )
@@ -421,6 +448,8 @@ def main() -> None:
             f"task_commit={float(row['mean_task_commit_rate']):.6f} "
             f"full_success={float(row['full_assignment_success_rate']):.6f} "
             f"optimal_rate={float(row['optimal_solution_rate']):.6f} "
+            f"cer={float(row['mean_correct_executor_rate']):.6f} "
+            f"correct_given_commit={float(row['mean_correctness_among_committed']):.6f} "
             f"gap_successful={gap_text} "
             f"timeout_task_rate={float(row['mean_timeout_task_rate']):.6f} "
             f"decision_mean={float(row['mean_decision_completion_ms']):.6f}ms "
