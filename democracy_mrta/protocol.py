@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .diagnostics import Diagnostic, ProtocolError
+from .optimizer import AssignmentSolution, solve_hungarian_assignment, validate_cost_matrix
 
 
 @dataclass(frozen=True)
@@ -44,26 +45,20 @@ def quorum_size(eligible_count: int) -> int:
     return eligible_count // 2 + 1
 
 
-def select_visible_candidate(
+def assignment_to_votes(
     *,
-    cost_matrix: tuple[tuple[float, ...], ...],
-    task_id: int,
-    visible_candidates: tuple[int, ...],
-) -> int:
-    if not visible_candidates:
-        raise ProtocolError(
-            Diagnostic(
-                owner="protocol",
-                function="select_visible_candidate",
-                category="state",
-                code="NO_VISIBLE_CANDIDATE",
-                expected="at least one visible eligible robot",
-                actual=0,
-            )
+    assignment: AssignmentSolution,
+    voter_id: int,
+    round_id: int,
+) -> tuple[Vote, ...]:
+    return tuple(
+        Vote(
+            task_id=task_id,
+            round_id=round_id,
+            voter_id=voter_id,
+            candidate_id=robot_id,
         )
-    return min(
-        visible_candidates,
-        key=lambda robot_id: (cost_matrix[robot_id][task_id], robot_id),
+        for robot_id, task_id in assignment.assigned_pairs
     )
 
 
@@ -80,8 +75,10 @@ def record_vote(
     if vote.voter_id not in eligible_robots or vote.candidate_id not in eligible_robots:
         return "INELIGIBLE_REJECTED"
 
-    voter_ledgers = [candidate for candidate, voters in ledgers_by_candidate.items() if vote.voter_id in voters]
-    if voter_ledgers:
+    already_counted = any(
+        vote.voter_id in voters for voters in ledgers_by_candidate.values()
+    )
+    if already_counted:
         return "DUPLICATE_REJECTED"
 
     ledgers_by_candidate.setdefault(vote.candidate_id, set()).add(vote.voter_id)
@@ -115,116 +112,174 @@ def resolve_unique_majority(
     return winners[0]
 
 
-def run_zero_loss_task_round(
-    *,
+def compute_zero_loss_local_proposals(
     cost_matrix: tuple[tuple[float, ...], ...],
-    task_id: int,
-    round_id: int,
-    eligible_robots: frozenset[int],
-) -> TaskDecision:
-    quorum = quorum_size(len(eligible_robots))
-    visible_candidates = tuple(sorted(eligible_robots))
-    ledgers_by_candidate: dict[int, set[int]] = {}
+) -> tuple[AssignmentSolution, ...]:
+    num_robots, _ = validate_cost_matrix(cost_matrix)
+    proposals = tuple(
+        solve_hungarian_assignment(cost_matrix)
+        for _voter_id in range(num_robots)
+    )
 
-    for voter_id in visible_candidates:
-        candidate_id = select_visible_candidate(
-            cost_matrix=cost_matrix,
-            task_id=task_id,
-            visible_candidates=visible_candidates,
-        )
-        status = record_vote(
-            vote=Vote(
-                task_id=task_id,
-                round_id=round_id,
-                voter_id=voter_id,
-                candidate_id=candidate_id,
-            ),
-            current_task_id=task_id,
-            current_round_id=round_id,
-            eligible_robots=eligible_robots,
-            ledgers_by_candidate=ledgers_by_candidate,
-        )
-        if status != "ACCEPTED":
+    expected = proposals[0].assigned_pairs
+    for voter_id, proposal in enumerate(proposals[1:], start=1):
+        if proposal.assigned_pairs != expected:
             raise ProtocolError(
                 Diagnostic(
                     owner="protocol",
-                    function="run_zero_loss_task_round",
+                    function="compute_zero_loss_local_proposals",
                     category="contract",
-                    code="UNEXPECTED_VOTE_REJECTION",
-                    expected="ACCEPTED",
-                    actual=status,
-                    details=f"task_id={task_id}, voter_id={voter_id}",
+                    code="ZERO_LOSS_PROPOSAL_MISMATCH",
+                    expected=expected,
+                    actual=proposal.assigned_pairs,
+                    details=f"voter_id={voter_id}",
+                )
+            )
+    return proposals
+
+
+def collect_zero_loss_vote_ledgers(
+    *,
+    proposals: tuple[AssignmentSolution, ...],
+    num_robots: int,
+    num_tasks: int,
+    round_id: int,
+) -> dict[int, dict[int, set[int]]]:
+    eligible_robots = frozenset(range(num_robots))
+    ledgers_by_task: dict[int, dict[int, set[int]]] = {
+        task_id: {} for task_id in range(num_tasks)
+    }
+
+    if len(proposals) != num_robots:
+        raise ProtocolError(
+            Diagnostic(
+                owner="protocol",
+                function="collect_zero_loss_vote_ledgers",
+                category="contract",
+                code="PROPOSAL_COUNT_MISMATCH",
+                expected=num_robots,
+                actual=len(proposals),
+            )
+        )
+
+    for voter_id, proposal in enumerate(proposals):
+        for vote in assignment_to_votes(
+            assignment=proposal,
+            voter_id=voter_id,
+            round_id=round_id,
+        ):
+            status = record_vote(
+                vote=vote,
+                current_task_id=vote.task_id,
+                current_round_id=round_id,
+                eligible_robots=eligible_robots,
+                ledgers_by_candidate=ledgers_by_task[vote.task_id],
+            )
+            if status != "ACCEPTED":
+                raise ProtocolError(
+                    Diagnostic(
+                        owner="protocol",
+                        function="collect_zero_loss_vote_ledgers",
+                        category="contract",
+                        code="UNEXPECTED_ZERO_LOSS_VOTE_REJECTION",
+                        expected="ACCEPTED",
+                        actual=status,
+                        details=(
+                            f"task_id={vote.task_id}, voter_id={voter_id}, "
+                            f"candidate_id={vote.candidate_id}"
+                        ),
+                    )
+                )
+
+    return ledgers_by_task
+
+
+def resolve_zero_loss_epoch(
+    *,
+    cost_matrix: tuple[tuple[float, ...], ...],
+    ledgers_by_task: dict[int, dict[int, set[int]]],
+    round_id: int,
+) -> AllocationResult:
+    num_robots, num_tasks = validate_cost_matrix(cost_matrix)
+    quorum = quorum_size(num_robots)
+    decisions: list[TaskDecision] = []
+    assigned_pairs: list[tuple[int, int]] = []
+
+    for task_id in range(num_tasks):
+        winner_id, counted_votes = resolve_unique_majority(
+            ledgers_by_candidate=ledgers_by_task[task_id],
+            quorum=quorum,
+            task_id=task_id,
+            round_id=round_id,
+        )
+
+        if counted_votes != num_robots:
+            raise ProtocolError(
+                Diagnostic(
+                    owner="protocol",
+                    function="resolve_zero_loss_epoch",
+                    category="contract",
+                    code="ZERO_LOSS_VOTE_NOT_UNANIMOUS",
+                    expected=num_robots,
+                    actual=counted_votes,
+                    details=f"task_id={task_id}, winner_id={winner_id}",
                 )
             )
 
-    winner_id, counted_votes = resolve_unique_majority(
-        ledgers_by_candidate=ledgers_by_candidate,
-        quorum=quorum,
-        task_id=task_id,
-        round_id=round_id,
+        decisions.append(
+            TaskDecision(
+                task_id=task_id,
+                round_id=round_id,
+                winner_id=winner_id,
+                quorum=quorum,
+                counted_votes=counted_votes,
+                eligible_count=num_robots,
+            )
+        )
+        assigned_pairs.append((winner_id, task_id))
+
+    winner_ids = [robot_id for robot_id, _task_id in assigned_pairs]
+    if len(winner_ids) != len(set(winner_ids)):
+        raise ProtocolError(
+            Diagnostic(
+                owner="protocol",
+                function="resolve_zero_loss_epoch",
+                category="safety",
+                code="DUPLICATE_EXECUTION",
+                expected="one robot per task and at most one task per robot",
+                actual=tuple(assigned_pairs),
+            )
+        )
+
+    total_cost = float(
+        sum(cost_matrix[robot_id][task_id] for robot_id, task_id in assigned_pairs)
     )
-    return TaskDecision(
-        task_id=task_id,
-        round_id=round_id,
-        winner_id=winner_id,
-        quorum=quorum,
-        counted_votes=counted_votes,
-        eligible_count=len(eligible_robots),
+    return AllocationResult(
+        decisions=tuple(decisions),
+        total_cost=total_cost,
+        assigned_pairs=tuple(assigned_pairs),
+        multiple_winner_failures=0,
+        duplicate_execution_failures=0,
+        duplicate_vote_counted_failures=0,
+        stale_vote_accepted_failures=0,
     )
 
 
 def run_zero_loss_allocation_epoch(
     cost_matrix: tuple[tuple[float, ...], ...],
 ) -> AllocationResult:
-    num_robots = len(cost_matrix)
-    if num_robots == 0:
-        raise ValueError("cost_matrix must contain robots")
-    num_tasks = len(cost_matrix[0])
-    if any(len(row) != num_tasks for row in cost_matrix):
-        raise ValueError("cost_matrix must be rectangular")
-    if num_tasks > num_robots:
-        raise ValueError("E0 requires num_tasks <= num_robots")
+    num_robots, num_tasks = validate_cost_matrix(cost_matrix)
+    round_id = 0
 
-    eligible = set(range(num_robots))
-    used_winners: set[int] = set()
-    decisions: list[TaskDecision] = []
-    assigned_pairs: list[tuple[int, int]] = []
-    total_cost = 0.0
-    duplicate_execution_failures = 0
-
-    for task_id in range(num_tasks):
-        decision = run_zero_loss_task_round(
-            cost_matrix=cost_matrix,
-            task_id=task_id,
-            round_id=0,
-            eligible_robots=frozenset(eligible),
-        )
-        if decision.winner_id in used_winners:
-            duplicate_execution_failures += 1
-            raise ProtocolError(
-                Diagnostic(
-                    owner="protocol",
-                    function="run_zero_loss_allocation_epoch",
-                    category="safety",
-                    code="DUPLICATE_EXECUTION",
-                    expected="winner not previously assigned in epoch",
-                    actual=decision.winner_id,
-                    details=f"task_id={task_id}",
-                )
-            )
-
-        used_winners.add(decision.winner_id)
-        eligible.remove(decision.winner_id)
-        decisions.append(decision)
-        assigned_pairs.append((decision.winner_id, task_id))
-        total_cost += cost_matrix[decision.winner_id][task_id]
-
-    return AllocationResult(
-        decisions=tuple(decisions),
-        total_cost=total_cost,
-        assigned_pairs=tuple(assigned_pairs),
-        multiple_winner_failures=0,
-        duplicate_execution_failures=duplicate_execution_failures,
-        duplicate_vote_counted_failures=0,
-        stale_vote_accepted_failures=0,
+    proposals = compute_zero_loss_local_proposals(cost_matrix)
+    ledgers_by_task = collect_zero_loss_vote_ledgers(
+        proposals=proposals,
+        num_robots=num_robots,
+        num_tasks=num_tasks,
+        round_id=round_id,
+    )
+    return resolve_zero_loss_epoch(
+        cost_matrix=cost_matrix,
+        ledgers_by_task=ledgers_by_task,
+        round_id=round_id,
     )
