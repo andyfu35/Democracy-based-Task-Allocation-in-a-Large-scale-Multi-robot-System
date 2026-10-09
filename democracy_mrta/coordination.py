@@ -2,8 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .optimizer import AssignmentSolution
-from .protocol import quorum_size
+from .optimizer import (
+    AssignmentSolution,
+    solve_visible_hungarian_assignment,
+)
+from .protocol import (
+    assignment_to_votes,
+    find_unique_majority,
+    quorum_size,
+    record_vote,
+    validate_one_to_one_commits,
+)
 
 
 APP_HEADER_BYTES = 16
@@ -315,4 +324,498 @@ def simulate_democracy_hungarian(
         actionable_decision_ms=actionable_end,
         global_agreement_ms=agreement_end,
         events=events,
+    )
+
+
+
+@dataclass(frozen=True)
+class DeliveryObservation:
+    phase: str
+    sender_id: int
+    receiver_id: int
+    delivered: bool
+    arrival_time_ms: float | None
+    task_id: int | None = None
+
+
+@dataclass(frozen=True)
+class LossyCoordinationResult:
+    method: str
+    assigned_pairs: tuple[tuple[int, int], ...]
+    total_cost: float
+    total_tasks: int
+    cost_phase_completion_ms: float
+    decision_completion_ms: float
+    global_agreement_ms: float
+    logical_message_count: int
+    payload_bytes: int
+    lossy_delivery_opportunities: int
+    lossy_delivered: int
+    lossy_dropped: int
+    task_timeout_count: int
+    mean_visible_robot_rows: float
+    events: tuple[CommunicationEvent, ...]
+    deliveries: tuple[DeliveryObservation, ...]
+
+    @property
+    def committed_tasks(self) -> int:
+        return len(self.assigned_pairs)
+
+    @property
+    def task_commit_rate(self) -> float:
+        if self.total_tasks <= 0:
+            return 0.0
+        return self.committed_tasks / self.total_tasks
+
+    @property
+    def full_assignment_success(self) -> bool:
+        return self.committed_tasks == self.total_tasks
+
+
+def _lossy_broadcast_deliveries(
+    *,
+    event: CommunicationEvent,
+    num_robots: int,
+    loss_sampler,
+    p_loss: float,
+    round_id: int,
+) -> tuple[DeliveryObservation, ...]:
+    observations: list[DeliveryObservation] = []
+    for receiver_id in range(num_robots):
+        if receiver_id == event.sender_id:
+            continue
+        key = (
+            f"broadcast|{event.phase}|{event.sender_id}|{receiver_id}|"
+            f"{event.task_id if event.task_id is not None else '-'}|round={round_id}"
+        )
+        delivered = bool(loss_sampler.is_delivered(key, p_loss))
+        observations.append(
+            DeliveryObservation(
+                phase=event.phase,
+                sender_id=event.sender_id,
+                receiver_id=receiver_id,
+                delivered=delivered,
+                arrival_time_ms=event.arrival_time_ms if delivered else None,
+                task_id=event.task_id,
+            )
+        )
+    return tuple(observations)
+
+
+def _lossy_unicast_delivery(
+    *,
+    event: CommunicationEvent,
+    loss_sampler,
+    p_loss: float,
+    round_id: int,
+) -> DeliveryObservation:
+    key = (
+        f"unicast|{event.phase}|{event.sender_id}|{event.receiver_id}|"
+        f"{event.task_id if event.task_id is not None else '-'}|round={round_id}"
+    )
+    delivered = bool(loss_sampler.is_delivered(key, p_loss))
+    return DeliveryObservation(
+        phase=event.phase,
+        sender_id=event.sender_id,
+        receiver_id=event.receiver_id,
+        delivered=delivered,
+        arrival_time_ms=event.arrival_time_ms if delivered else None,
+        task_id=event.task_id,
+    )
+
+
+def _summarize_lossy_result(
+    *,
+    method: str,
+    cost_matrix: tuple[tuple[float, ...], ...],
+    assigned_pairs: list[tuple[int, int]] | tuple[tuple[int, int], ...],
+    cost_phase_completion_ms: float,
+    decision_completion_ms: float,
+    global_agreement_ms: float,
+    task_timeout_count: int,
+    visible_counts: list[int] | tuple[int, ...],
+    events: list[CommunicationEvent],
+    deliveries: list[DeliveryObservation],
+) -> LossyCoordinationResult:
+    pairs = tuple(sorted(tuple(assigned_pairs), key=lambda pair: (pair[1], pair[0])))
+    validate_one_to_one_commits(pairs)
+    total_tasks = len(cost_matrix[0])
+    total_cost = float(
+        sum(cost_matrix[robot_id][task_id] for robot_id, task_id in pairs)
+    )
+    delivered = sum(int(observation.delivered) for observation in deliveries)
+    opportunities = len(deliveries)
+    mean_visible = (
+        sum(visible_counts) / len(visible_counts)
+        if visible_counts
+        else 0.0
+    )
+    return LossyCoordinationResult(
+        method=method,
+        assigned_pairs=pairs,
+        total_cost=total_cost,
+        total_tasks=total_tasks,
+        cost_phase_completion_ms=cost_phase_completion_ms,
+        decision_completion_ms=decision_completion_ms,
+        global_agreement_ms=global_agreement_ms,
+        logical_message_count=len(events),
+        payload_bytes=sum(event.payload_bytes for event in events),
+        lossy_delivery_opportunities=opportunities,
+        lossy_delivered=delivered,
+        lossy_dropped=opportunities - delivered,
+        task_timeout_count=task_timeout_count,
+        mean_visible_robot_rows=mean_visible,
+        events=tuple(events),
+        deliveries=tuple(deliveries),
+    )
+
+
+def simulate_ideal_full_information_lossy_reference(
+    *,
+    cost_matrix: tuple[tuple[float, ...], ...],
+    assignment: AssignmentSolution,
+) -> LossyCoordinationResult:
+    num_robots = len(cost_matrix)
+    return _summarize_lossy_result(
+        method="ideal_full_information",
+        cost_matrix=cost_matrix,
+        assigned_pairs=assignment.assigned_pairs,
+        cost_phase_completion_ms=0.0,
+        decision_completion_ms=0.0,
+        global_agreement_ms=0.0,
+        task_timeout_count=0,
+        visible_counts=[num_robots],
+        events=[],
+        deliveries=[],
+    )
+
+
+def simulate_leader_hungarian_lossy(
+    *,
+    cost_matrix: tuple[tuple[float, ...], ...],
+    sampler,
+    loss_sampler,
+    p_loss: float,
+    phase_timeout_ms: float,
+    leader_id: int = 0,
+    round_id: int = 0,
+) -> LossyCoordinationResult:
+    num_robots = len(cost_matrix)
+    num_tasks = len(cost_matrix[0])
+    events: list[CommunicationEvent] = []
+    deliveries: list[DeliveryObservation] = []
+    visible = {leader_id}
+    arrival_times: list[float] = []
+    row_bytes = cost_row_payload_bytes(num_tasks)
+
+    for sender_id in range(num_robots):
+        if sender_id == leader_id:
+            continue
+        event = _unicast_event(
+            phase="cost",
+            sender_id=sender_id,
+            receiver_id=leader_id,
+            send_time_ms=0.0,
+            payload_bytes=row_bytes,
+            sampler=sampler,
+        )
+        events.append(event)
+        observation = _lossy_unicast_delivery(
+            event=event,
+            loss_sampler=loss_sampler,
+            p_loss=p_loss,
+            round_id=round_id,
+        )
+        deliveries.append(observation)
+        if observation.delivered:
+            visible.add(sender_id)
+            arrival_times.append(float(observation.arrival_time_ms))
+
+    all_costs_received = len(visible) == num_robots
+    cost_ready = (
+        max(arrival_times, default=0.0)
+        if all_costs_received
+        else phase_timeout_ms
+    )
+
+    assignment = solve_visible_hungarian_assignment(
+        cost_matrix,
+        frozenset(visible),
+    )
+
+    announcement = _broadcast_event(
+        phase="leader_assignment",
+        sender_id=leader_id,
+        send_time_ms=cost_ready,
+        payload_bytes=assignment_payload_bytes(assignment.assigned_tasks),
+        sampler=sampler,
+    )
+    events.append(announcement)
+
+    task_timeouts = num_tasks - assignment.assigned_tasks
+    return _summarize_lossy_result(
+        method="leader_hungarian",
+        cost_matrix=cost_matrix,
+        assigned_pairs=assignment.assigned_pairs,
+        cost_phase_completion_ms=cost_ready,
+        decision_completion_ms=cost_ready,
+        global_agreement_ms=announcement.arrival_time_ms,
+        task_timeout_count=task_timeouts,
+        visible_counts=[len(visible)],
+        events=events,
+        deliveries=deliveries,
+    )
+
+
+def _simulate_lossy_cost_broadcasts(
+    *,
+    num_robots: int,
+    num_tasks: int,
+    sampler,
+    loss_sampler,
+    p_loss: float,
+    phase_timeout_ms: float,
+    round_id: int,
+) -> tuple[
+    list[CommunicationEvent],
+    list[DeliveryObservation],
+    tuple[frozenset[int], ...],
+    tuple[float, ...],
+]:
+    events: list[CommunicationEvent] = []
+    deliveries: list[DeliveryObservation] = []
+    visible_by_receiver: list[set[int]] = [
+        {robot_id} for robot_id in range(num_robots)
+    ]
+    arrivals_by_receiver: list[list[float]] = [
+        [] for _ in range(num_robots)
+    ]
+
+    for sender_id in range(num_robots):
+        event = _broadcast_event(
+            phase="cost",
+            sender_id=sender_id,
+            send_time_ms=0.0,
+            payload_bytes=cost_row_payload_bytes(num_tasks),
+            sampler=sampler,
+        )
+        events.append(event)
+        observations = _lossy_broadcast_deliveries(
+            event=event,
+            num_robots=num_robots,
+            loss_sampler=loss_sampler,
+            p_loss=p_loss,
+            round_id=round_id,
+        )
+        deliveries.extend(observations)
+        for observation in observations:
+            if observation.delivered:
+                visible_by_receiver[observation.receiver_id].add(sender_id)
+                arrivals_by_receiver[observation.receiver_id].append(
+                    float(observation.arrival_time_ms)
+                )
+
+    visible = tuple(frozenset(rows) for rows in visible_by_receiver)
+    ready_times = tuple(
+        max(arrivals_by_receiver[receiver_id], default=0.0)
+        if len(visible[receiver_id]) == num_robots
+        else phase_timeout_ms
+        for receiver_id in range(num_robots)
+    )
+    return events, deliveries, visible, ready_times
+
+
+def simulate_full_view_hungarian_lossy(
+    *,
+    cost_matrix: tuple[tuple[float, ...], ...],
+    assignment: AssignmentSolution,
+    sampler,
+    loss_sampler,
+    p_loss: float,
+    phase_timeout_ms: float,
+    round_id: int = 0,
+) -> LossyCoordinationResult:
+    num_robots = len(cost_matrix)
+    num_tasks = len(cost_matrix[0])
+    events, deliveries, visible, ready_times = _simulate_lossy_cost_broadcasts(
+        num_robots=num_robots,
+        num_tasks=num_tasks,
+        sampler=sampler,
+        loss_sampler=loss_sampler,
+        p_loss=p_loss,
+        phase_timeout_ms=phase_timeout_ms,
+        round_id=round_id,
+    )
+
+    every_robot_has_full_view = all(
+        len(rows) == num_robots for rows in visible
+    )
+    assigned_pairs = assignment.assigned_pairs if every_robot_has_full_view else ()
+    timeout_count = 0 if every_robot_has_full_view else num_tasks
+    completion = max(ready_times, default=0.0)
+
+    return _summarize_lossy_result(
+        method="full_view_hungarian",
+        cost_matrix=cost_matrix,
+        assigned_pairs=assigned_pairs,
+        cost_phase_completion_ms=completion,
+        decision_completion_ms=completion,
+        global_agreement_ms=completion,
+        task_timeout_count=timeout_count,
+        visible_counts=[len(rows) for rows in visible],
+        events=events,
+        deliveries=deliveries,
+    )
+
+
+def simulate_democracy_hungarian_lossy(
+    *,
+    cost_matrix: tuple[tuple[float, ...], ...],
+    sampler,
+    loss_sampler,
+    p_loss: float,
+    phase_timeout_ms: float,
+    round_id: int = 0,
+) -> LossyCoordinationResult:
+    num_robots = len(cost_matrix)
+    num_tasks = len(cost_matrix[0])
+    quorum = quorum_size(num_robots)
+    eligible = frozenset(range(num_robots))
+
+    events, deliveries, visible, ready_times = _simulate_lossy_cost_broadcasts(
+        num_robots=num_robots,
+        num_tasks=num_tasks,
+        sampler=sampler,
+        loss_sampler=loss_sampler,
+        p_loss=p_loss,
+        phase_timeout_ms=phase_timeout_ms,
+        round_id=round_id,
+    )
+    cost_completion = max(ready_times, default=0.0)
+
+    proposals = tuple(
+        solve_visible_hungarian_assignment(cost_matrix, visible[voter_id])
+        for voter_id in range(num_robots)
+    )
+
+    ledgers_by_task: dict[int, dict[int, set[int]]] = {
+        task_id: {} for task_id in range(num_tasks)
+    }
+    arrivals_by_task_candidate: dict[int, dict[int, list[float]]] = {
+        task_id: {} for task_id in range(num_tasks)
+    }
+
+    for voter_id, proposal in enumerate(proposals):
+        for vote in assignment_to_votes(
+            assignment=proposal,
+            voter_id=voter_id,
+            round_id=round_id,
+        ):
+            send_time = ready_times[voter_id]
+            if vote.candidate_id == voter_id:
+                status = record_vote(
+                    vote=vote,
+                    current_task_id=vote.task_id,
+                    current_round_id=round_id,
+                    eligible_robots=eligible,
+                    ledgers_by_candidate=ledgers_by_task[vote.task_id],
+                )
+                if status == "ACCEPTED":
+                    arrivals_by_task_candidate[vote.task_id].setdefault(
+                        vote.candidate_id, []
+                    ).append(send_time)
+                continue
+
+            event = _unicast_event(
+                phase="vote",
+                sender_id=voter_id,
+                receiver_id=vote.candidate_id,
+                send_time_ms=send_time,
+                payload_bytes=VOTE_PAYLOAD_BYTES,
+                sampler=sampler,
+                task_id=vote.task_id,
+            )
+            events.append(event)
+            observation = _lossy_unicast_delivery(
+                event=event,
+                loss_sampler=loss_sampler,
+                p_loss=p_loss,
+                round_id=round_id,
+            )
+            deliveries.append(observation)
+            if not observation.delivered:
+                continue
+
+            status = record_vote(
+                vote=vote,
+                current_task_id=vote.task_id,
+                current_round_id=round_id,
+                eligible_robots=eligible,
+                ledgers_by_candidate=ledgers_by_task[vote.task_id],
+            )
+            if status == "ACCEPTED":
+                arrivals_by_task_candidate[vote.task_id].setdefault(
+                    vote.candidate_id, []
+                ).append(float(observation.arrival_time_ms))
+
+    committed_pairs: list[tuple[int, int]] = []
+    quorum_times: dict[int, float] = {}
+
+    for task_id in range(num_tasks):
+        winner = find_unique_majority(
+            ledgers_by_candidate=ledgers_by_task[task_id],
+            quorum=quorum,
+            task_id=task_id,
+            round_id=round_id,
+        )
+        if winner is None:
+            continue
+        winner_id, _counted_votes = winner
+        accepted_arrivals = sorted(
+            arrivals_by_task_candidate[task_id][winner_id]
+        )
+        quorum_times[task_id] = accepted_arrivals[quorum - 1]
+        committed_pairs.append((winner_id, task_id))
+
+    validate_one_to_one_commits(committed_pairs)
+
+    commit_arrivals: list[float] = []
+    for winner_id, task_id in committed_pairs:
+        event = _broadcast_event(
+            phase="commit",
+            sender_id=winner_id,
+            send_time_ms=quorum_times[task_id],
+            payload_bytes=COMMIT_PAYLOAD_BYTES,
+            sampler=sampler,
+            task_id=task_id,
+        )
+        events.append(event)
+        commit_arrivals.append(event.arrival_time_ms)
+
+    timeout_count = num_tasks - len(committed_pairs)
+    vote_deadline = max(ready_times, default=0.0) + phase_timeout_ms
+    if timeout_count:
+        decision_completion = max(
+            max(quorum_times.values(), default=0.0),
+            vote_deadline,
+        )
+    else:
+        decision_completion = max(quorum_times.values(), default=cost_completion)
+
+    global_agreement = max(
+        decision_completion,
+        max(commit_arrivals, default=0.0),
+    )
+
+    return _summarize_lossy_result(
+        method="democracy_hungarian",
+        cost_matrix=cost_matrix,
+        assigned_pairs=committed_pairs,
+        cost_phase_completion_ms=cost_completion,
+        decision_completion_ms=decision_completion,
+        global_agreement_ms=global_agreement,
+        task_timeout_count=timeout_count,
+        visible_counts=[len(rows) for rows in visible],
+        events=events,
+        deliveries=deliveries,
     )
