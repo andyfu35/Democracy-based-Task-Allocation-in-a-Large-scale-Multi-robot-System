@@ -157,28 +157,35 @@ Checks:
 
 ### E0 result record
 
-Status: **IMPLEMENTED — AWAITING LOCAL FORMAL RUN**
+Status: **LOCAL FORMAL RUN COMPLETE — RAW DATA PENDING GIT COMMIT**
 
 Implementation state through: `7082518a798c840e6c76d785035379864dd1f97b`  
-Formal-result commit: `TBD after local run`  
-Date: `2026-10-09 implementation; formal run TBD`  
-Raw data: `results/e0_protocol_correctness/raw/`  
-Summary: `results/e0_protocol_correctness/summary.csv`  
+README result record: `pending current commit`  
+Date: `2026-10-09`  
+Local raw data: `results/e0_protocol_correctness/raw/e0_20261009T130507Z.csv`  
+Local summary: `results/e0_protocol_correctness/summary.csv`  
 Figures: `results/e0_protocol_correctness/figures/`
 
-| Metric | Result |
-|---|---:|
-| Scenarios | TBD |
-| Multiple winner | TBD |
-| Duplicate execution | TBD |
-| Duplicate vote counted | TBD |
-| Stale vote accepted | TBD |
-| Deterministic replay failures | TBD |
-| Mean optimality gap | TBD |
-| 95% CI optimality gap | TBD |
+Local verification:
+
+- unit tests: **5/5 passed**
+- total scenarios: **500**
+- assignment success rate: **1.000000 in every tested condition**
+- safety failures: **0**
+- deterministic replay failures: **0**
+
+| Robots | Tasks | Seeds | Mean optimality gap | 95% CI half-width | ASR | Safety failures | Replay failures |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 10 | 5 | 100 | 4.097006% | +/-1.252083% | 1.000000 | 0 | 0 |
+| 25 | 10 | 100 | 5.062453% | +/-1.086419% | 1.000000 | 0 | 0 |
+| 50 | 30 | 100 | 11.313390% | +/-1.436862% | 1.000000 | 0 | 0 |
+| 100 | 50 | 100 | 8.626984% | +/-0.849275% | 1.000000 | 0 | 0 |
+| 100 | 100 | 100 | **35.119499%** | +/-1.524564% | 1.000000 | 0 | 0 |
 
 **Interpretation / notes:**  
-_TBD — paste experiment conclusions here._
+E0 passes the protocol-correctness objective: every tested task was assigned, no recorded safety invariant failed, and deterministic replay passed. However, the current deterministic task-order sequential allocation is **not near-optimal at high assignment saturation**. The 100-robot / 100-task condition is 35.12% above the centralized Hungarian oracle on average even with 0% packet loss. This is therefore an algorithmic-quality finding, not a packet-loss or protocol-safety failure.
+
+Before claiming near-optimality in the paper, the allocation proposal stage must be reconsidered or the paper claim must explicitly accept this nominal-quality trade-off. The canonical protocol is **not changed by this result record**.
 
 ---
 
@@ -477,7 +484,7 @@ The tables in this README are the **paper-facing experiment ledger**. Formal res
 
 # 6. Planned implementation order
 
-- [x] E0 — protocol correctness implementation (formal 100-seed run pending)
+- [x] E0 — protocol correctness implementation and local 100-seed run (raw data git commit pending)
 - [ ] E1 — nominal comparison
 - [ ] E2 — Bernoulli packet-loss robustness
 - [ ] E3 — loss-source analysis
@@ -516,7 +523,7 @@ A literature note and exact implementation assumptions will be added before each
 
 Repository initialized for the RA-L experimental campaign.
 
-**E0 implementation is complete.** The formal 100-seed result has intentionally not been filled in before a local run.
+**E0 implementation and local 100-seed run are complete.** The locally generated raw CSV and summary still need to be committed from the machine that ran the experiment.
 
 Local run sequence:
 
@@ -538,4 +545,4 @@ After the run, preserve:
 
 and copy the formal summary into the E0 result record above.
 
-**Next after E0 passes locally:** E1 — Nominal Performance.
+**Decision gate before E1:** E0 revealed a 35.12% nominal optimality gap at 100 robots / 100 tasks. Do not silently change the canonical protocol. Decide whether to preserve sequential per-task voting as the paper algorithm or redesign the proposal stage to account for the complete multi-task assignment before implementing external baselines.
