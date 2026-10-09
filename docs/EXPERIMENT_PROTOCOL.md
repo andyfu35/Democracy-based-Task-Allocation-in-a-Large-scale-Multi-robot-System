@@ -195,3 +195,117 @@ For Democracy-Hungarian:
 E1 reports hardware-dependent Hungarian wall-clock time separately from trace-driven network waiting time; it does not serialize the computation of different robots, because robots are physically separate compute nodes.
 
 The E1 empirical model does not claim to simulate additional fleet-size-dependent 802.11 MAC contention. That limitation must remain explicit. E3 may add a separately justified contention sensitivity model; no contention penalty may be invented silently.
+
+
+## 12. E2 Bernoulli packet-loss semantics
+
+E2 isolates **single-round packet-loss robustness**. It does not evaluate retry policy.
+
+Loss sweep:
+
+[
+p_{loss}\in\{0,0.1,0.3,0.5,0.7,0.9\}.
+]
+
+The same pinned empirical latency profile as E1 is used for all successfully delivered transmissions.
+
+### 12.1 Cost dissemination
+
+Each robot always knows its own cost row.
+
+Each logical cost-row broadcast is one attempted wireless transmission. For every peer receiver, delivery is sampled independently with Bernoulli probability:
+
+[
+P(\text{drop})=p_{loss}.
+]
+
+A dropped row remains absent from that receiver's local view. It must never be reconstructed, imputed, or copied from the ground-truth matrix.
+
+If all expected peer rows arrive, a local view becomes ready at the final required arrival time. If one or more expected rows are missing, the receiver closes its cost phase at the fixed E2 phase timeout.
+
+The phase timeout is the maximum measured delay in the pinned E1 profile:
+
+[
+T_{phase}=531.535123\text{ ms}.
+]
+
+This makes (p_{loss}=0) timing-compatible with E1 while giving receivers a deterministic boundary at which absence becomes observable.
+
+### 12.2 Partial local Hungarian optimization
+
+For Democracy-Hungarian and Leader-Hungarian, the Hungarian optimizer receives only the robot rows visible to that decision maker.
+
+If (K) robot rows are visible for (M) tasks, the local optimizer returns exactly
+
+[
+\min(K,M)
+]
+
+one-to-one assignment pairs.
+
+When (K<M), the proposal is partial. No synthetic cost is inserted for hidden robots.
+
+A Democracy voter casts votes only for the task pairs present in its own partial assignment. Tasks omitted by that local assignment are abstentions from that voter.
+
+### 12.3 Voting and quorum
+
+Votes are direct unicasts to proposed executors and use the same Bernoulli packet-loss probability (p_{loss}).
+
+The quorum denominator never shrinks with packet reception:
+
+[
+Q=\left\lfloor\frac{N}{2}\right\rfloor+1.
+]
+
+A task commits only if one candidate receives at least (Q) distinct valid delivered votes.
+
+No-quorum is an expected E2 outcome and produces a task timeout rather than an exception.
+
+### 12.4 Commit reliability
+
+Commit broadcasts remain reliable in E2.
+
+This is intentional: cost loss and vote loss are the independent variables in E2. Commit loss can create duplicate-execution safety hazards and is therefore isolated for the later message-type failure experiment.
+
+### 12.5 Controlled-method behavior
+
+- **Ideal Full Information**: unaffected reference.
+- **Leader-Hungarian**: the leader optimizes over its self row plus cost rows actually received. A partial leader assignment is allowed.
+- **Full-View Hungarian**: succeeds only if every robot receives a complete matrix in that round. Otherwise the full-view coordination round times out.
+- **Democracy-Hungarian**: every robot optimizes its own visible rows, casts votes from that partial proposal, and relies on strict-majority aggregation.
+
+### 12.6 E2 metrics
+
+Primary metrics:
+
+- task commit rate;
+- full-assignment success rate;
+- optimal-solution rate;
+- optimality gap among full successful assignments;
+- task timeout rate;
+- decision completion time;
+- global agreement time;
+- logical transmission count;
+- logical payload bytes;
+- lossy delivery opportunities / delivered / dropped;
+- mean visible robot rows;
+- safety failures.
+
+Retry count is fixed to zero in E2.
+
+### 12.7 Correctness boundaries
+
+At (p_{loss}=0):
+
+- all methods must have task commit rate 1;
+- all methods must have full-assignment success 1;
+- all methods must have zero optimality gap;
+- Democracy timing/message behavior must reduce to the E1 zero-loss implementation.
+
+At every loss level:
+
+- quorum denominator remains fixed at (N);
+- no duplicate robot/task commit is permitted;
+- safety failures must remain zero.
+
+E2 assumes independent receiver-level Bernoulli delivery. Correlated burst loss is not modeled here; that is reserved for E5.
