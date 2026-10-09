@@ -509,3 +509,60 @@ Pull the broadcast correction, rerun the full tests, then rerun `python3 -m expe
 - canonical protocol: `e29053177fb61cc62a4126ae1b131f689a50886f`
 - README: `237f888fccc2aaf7f542eefd221891b5e3fe6f2c`
 - E1 result ledger: `8b84cb31daa3c885b9b90d879e33e6339246e68a`
+
+
+## 2026-10-09 — Corrected E1 formal trace-driven latency result
+
+### Purpose
+Record the broadcast-corrected 100-seed E1 result and close the latency-only experiment before adding packet loss.
+
+### Files
+- `README.md`
+- `docs/CHANGE_CONTINUITY.md`
+
+### Functions
+No code functions changed in this result-record commit.
+
+### Verification result
+The corrected E1 run completed for 10R/5T, 25R/10T, 50R/30T, 100R/50T, and 100R/100T with 100 seeds per condition.
+
+Key 100R/100T means:
+- Leader actionable/global: 477.408627 ms.
+- Full-View actionable/global: 452.626633 ms.
+- Democracy actionable: 478.326876 ms.
+- Democracy global agreement: 918.550733 ms.
+- Leader messages/payload: 100 / 81,600 bytes.
+- Full-View messages/payload: 100 / 81,600 bytes.
+- Democracy messages/payload: 10,100 / 401,200 bytes.
+- Reference local Hungarian compute: 0.752068 ms.
+
+### Interpretation
+The dominant cost is communication, not Hungarian computation. Democracy's quorum adds only about 25–26 ms beyond Full-View actionable time in the larger conditions and is essentially latency-equal to Leader-Hungarian at 100 robots. The larger Democracy global-agreement time comes from waiting for all task commit broadcasts. Its principal cost is therefore communication volume and final dissemination rather than quorum decision latency.
+
+### Responsibility movement
+None.
+
+### Preserved behavior
+- broadcast-corrected cost/commit transport;
+- direct vote unicasts;
+- fixed Hungarian optimizer;
+- zero packet loss;
+- pinned Rady latency profile.
+
+### Intentionally changed behavior
+None; this entry records experimental evidence only.
+
+### Diagnostic contract
+No new diagnostics.
+
+### Open risks
+- The local raw/event/summary result files have not yet been confirmed committed to GitHub.
+- E1 does not model additional shared-medium contention induced by 10,100 Democracy transmissions.
+- E2 must define partial local-matrix semantics and packet-loss behavior before implementation.
+- Commit loss remains a safety concern and must not be introduced into E2 until its safety semantics are explicit.
+
+### Next step
+Commit the corrected E1 raw, event, and summary files from the local machine. Then implement E2 with Bernoulli loss on cost and vote delivery while keeping commit dissemination reliable for safety; commit-loss localization remains a later explicit experiment after its safety contract is defined.
+
+### Commit SHA
+README E1 result record: `a3a804b717e66f6c3dfcfd6473b243c9591a6200`
