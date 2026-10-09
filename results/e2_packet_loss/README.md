@@ -4,9 +4,7 @@ E2 isolates one-round robustness to independent packet loss.
 
 Loss sweep:
 
-[
-p_{loss}\in\{0,0.1,0.3,0.5,0.7,0.9\}.
-]
+`p_loss ∈ {0, 0.1, 0.3, 0.5, 0.7, 0.9}`
 
 Canonical E2 semantics:
 
@@ -24,7 +22,7 @@ Canonical E2 semantics:
 - Full-View succeeds only if every robot receives the complete cost matrix;
 - Leader-Hungarian optimizes over the rows actually received by the leader.
 
-The phase timeout is the maximum measured delay in the pinned E1 empirical profile. Therefore (p_{loss}=0) preserves the E1 successful-delivery timing semantics, while missing cost packets become observable by absence at the end of the communication window.
+The phase timeout is the maximum measured delay in the pinned E1 empirical profile. Therefore `p_loss = 0` preserves the E1 successful-delivery timing semantics, while missing cost packets become observable by absence at the end of the communication window.
 
 Run:
 
