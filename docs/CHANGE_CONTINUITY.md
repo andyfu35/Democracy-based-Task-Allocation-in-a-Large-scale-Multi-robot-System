@@ -833,3 +833,36 @@ Run `python3 -m unittest discover -s tests -v`; then `python3 -m experiments.aud
 - audit regression tests: `b5d30840894dbbf3da92a8682ba6263d0b9324af`
 - canonical audit gate: `bb1cbf1f0d8d60e720265d7abd9d33a213167411`
 - README result status: `b6a44bd2382f9aa0a01b7645447b9743e8ecf08a`
+
+
+### Follow-up: individual ballot evidence and audit-owner separation
+
+The same E2 forensic measurement concern was extended without changing allocation semantics:
+- `metrics.E2VoteAuditReport.ballots` now contains each generated voter/task/candidate ballot with oracle match, visible rows, self-vote flag and delivery outcome.
+- The selected audit seed is exported to `ballots_seedNNN.csv`.
+- `metrics.verify_e2_local_views` owns source-information validation.
+- `metrics.collect_e2_ballot_evidence` owns cross-indexing existing proposals against actual vote transport observations.
+- `metrics.summarize_e2_task_vote_support` owns per-task and per-candidate statistics.
+- `metrics.summarize_e2_ballot_totals` owns per-seed aggregate metrics.
+- `metrics.evaluate_e2_vote_audit` is reduced to explicit orchestration of these named boundaries.
+- `experiments.audit_e2_votes.run_vote_audit` remains only the audit-runner owner.
+
+New owner diagnostic mapping:
+- `metrics.verify_e2_local_views / contract / E2_AUDIT_LOCAL_VIEW_MISMATCH`
+- `metrics.collect_e2_ballot_evidence / contract / E2_AUDIT_INVALID_LOCAL_PROPOSAL`
+- `metrics.collect_e2_ballot_evidence / contract / E2_AUDIT_MISSING_VOTE_PACKET`
+- `metrics.collect_e2_ballot_evidence / contract / E2_AUDIT_UNEXPECTED_VOTE_PACKET`
+All previously documented diagnostic codes remain the same.
+
+Files: `democracy_mrta/metrics.py`, `experiments/audit_e2_votes.py`, `tests/test_metrics.py`, `docs/EXPERIMENT_PROTOCOL.md`, and this continuity record. The canonical document now specifies the ballot-level evidence contract.
+
+Preserved behavior: all existing algorithm states, votes, random loss samples, quorum outcomes, timing and official E2 metrics.
+
+Verification remains pending user's local test/audit execution.
+
+Follow-up commits:
+- metrics individual ballots: `8e831e0425f647c368971f1ee222f2b7b95555ed`
+- audit runner ballot CSV: `359536e2f0e2b847b8bdc084858c9f07fb7011e6`
+- tests individual ballots: `759586fa8852e46412ef348c4fb212534e4b346b`
+- canonical ballot evidence: `202c9f47144852d92e234d3a475e330cd622a9ab`
+- modular metrics audit functions: `aa0a5d582359b4ee61a3ef027b9e6cf61288b338`
