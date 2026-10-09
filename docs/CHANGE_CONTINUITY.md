@@ -760,3 +760,76 @@ Pull the CER instrumentation, run the unit suite, and rerun E2 with the same 100
 - canonical metric update: `459fc4b3e56c16d53bd895e30244aeaf4601dc03`
 - README status update: `4d0dbd44919e8963a70ef78e1ac4f0232c13ae25`
 - result ledger update: `aeb989833c274bc210aac23800ceb65d6b73986a`
+
+
+## 2026-10-09 — E2 vote-level forensic instrumentation (no protocol behavior changes)
+
+### Purpose
+The user challenged the 100R/50T, 30% cost-loss + 30% vote-loss result: 70.285 mean visible rows, yet only 15.22% task commits. Earlier 30/30 tests and aggregate metrics do not establish how many local proposals actually match the Hungarian oracle, how many raw votes each candidate earned, or whether the second lossy hop destroyed an otherwise available quorum. Mark the E2 result UNDER AUDIT until ballot evidence is cross-checked.
+
+### Changed files
+- `democracy_mrta/coordination.py`
+- `democracy_mrta/metrics.py`
+- `experiments/audit_e2_votes.py`
+- `tests/test_metrics.py`
+- `docs/EXPERIMENT_PROTOCOL.md`
+- `README.md`
+- `docs/CHANGE_CONTINUITY.md`
+
+### Responsibility owners / named functions
+- `coordination.simulate_democracy_hungarian_lossy`: adds an optional read-only capture flag for already-computed local views/proposals and actual counted vote ledgers; no new voting logic.
+- `coordination.snapshot_counted_vote_ledgers`: serializes the existing protocol ledger for forensic comparison; no new ledger/state machine.
+- `metrics.require_e2_vote_audit`: requires explicit opt-in capture.
+- `metrics.index_e2_vote_deliveries`: indexes actual vote transport observations without resampling delivery.
+- `metrics.verify_e2_vote_ledgers`: cross-checks reconstructed delivered+self-votes against the protocol's existing ledger and actual commit winners.
+- `metrics.evaluate_e2_vote_audit`: compares actual local assignments to the same complete-information Hungarian oracle and produces voter/task/candidate vote audit rows.
+- `experiments.audit_e2_votes.run_vote_audit`: runs paired existing scenario/sampler/simulator over selected seeds and exports CSVs.
+- `experiments.audit_e2_votes.aggregate_seed_summaries`: reports exact counts for pre-transport majority, post-transport majority, and quorum lost during vote transmission.
+- `experiments.audit_e2_votes.aggregate_robot_rows`: aggregates each voting robot's proposals, correct proposals, and delivered/dropped votes across seeds.
+
+### Responsibility movement
+None. Coordination remains the protocol timing/transport owner. Metrics owns audit verification and calculation. The new experiment script only orchestrates calls to existing owner functions and writes audit evidence; it is not an alternate protocol implementation.
+
+### Preserved behavior
+- Cost packet loss and vote packet loss remain separate keyed independent Bernoulli trials.
+- Same `p_loss` for both hops in the default E2 sweep.
+- Same partial visible-row Hungarian proposals and missing-row semantics.
+- Same strict majority `Q=floor(N/2)+1`.
+- Same self-vote bypass of network transport, reliable commit, and no-retry E2.
+- No changes to optimizer, packet-loss sampler, voting/commit logic, timing, official run_e2 output columns, or seeds.
+
+### Intentionally changed behavior
+- An **opt-in audit-only** simulator argument `capture_vote_audit=True` exposes immutable snapshots of already-computed voter local views/proposals and actual counted vote ledger in the result object.
+- Audit runner now exports `summary.csv`, `seed_summary.csv`, `voters_by_seed.csv`, `voters_summary.csv`, `tasks_by_seed.csv`, and a selected seed's `candidates_seedNNN.csv`.
+- README and canonical protocol mark the 30%-loss performance result not paper-accepted until audit review.
+
+### Diagnostic contract
+- `metrics.require_e2_vote_audit / contract / E2_AUDIT_NOT_CAPTURED`
+- `metrics.index_e2_vote_deliveries / contract / E2_AUDIT_DUPLICATE_VOTE_DELIVERY`
+- `metrics.evaluate_e2_vote_audit / contract / E2_AUDIT_ORACLE_INCOMPLETE`
+- `metrics.evaluate_e2_vote_audit / contract / E2_AUDIT_LOCAL_VIEW_MISMATCH`
+- `metrics.evaluate_e2_vote_audit / contract / E2_AUDIT_INVALID_LOCAL_PROPOSAL`
+- `metrics.evaluate_e2_vote_audit / contract / E2_AUDIT_MISSING_VOTE_PACKET`
+- `metrics.evaluate_e2_vote_audit / contract / E2_AUDIT_UNEXPECTED_VOTE_PACKET`
+- `metrics.verify_e2_vote_ledgers / contract / E2_AUDIT_LEDGER_MISMATCH`
+- `metrics.verify_e2_vote_ledgers / contract / E2_AUDIT_QUORUM_MISMATCH`
+
+### Verification status
+Five unit tests added: zero-loss self/unicast accounting, full-loss local self-vote accounting, read-only capture noninterference, corrupted-ledger detection, missing-audit detection. GitHub edits were committed, but the assistant container cannot resolve github.com for full repo checkout and **has not executed** the new test suite or forensic 100-seed run. User-side execution is required before claiming correctness.
+
+### Open risks
+- Actual 100-seed per-task/per-voter ballot rates are not present in the uploaded console log. Audit still needs to be run locally.
+- 30% missing rows do not imply 30% incorrect multi-task Hungarian ballots; the ballot distribution must be measured.
+- Existing multi-task independent task-level quorum may produce assignment conflicts under untested adversarial cases; current `validate_one_to_one_commits` detects but does not repair them. This remains a separate safety-contract issue.
+- The E2 paper claim must remain pending until audit results establish the first lost-quorum boundary.
+
+### Next step
+Run `python3 -m unittest discover -s tests -v`; then `python3 -m experiments.audit_e2_votes --robots 100 --tasks 50 --p-loss 0.3 --seeds 100`. Inspect `summary.csv` and `tasks_by_seed.csv`, compare task commit rate against the original 15.22% and verify zero ledger-contract failures. Analyze raw oracle support versus delivered oracle votes. Only then decide whether there is an implementation defect or an expected consequence of fragmented proposals and the second transport loss.
+
+### Commit SHA
+- coordination opt-in snapshots: `bf521720f05fe05d301a52ac2d9e0ce6830dabfc`
+- metrics forensic validation: `00d0389e85bf0e23bef4c2a27c903231845628b5`
+- audit runner: `8645e4a709a0ef1c2bc6e4c37acf9b9567e09a33`
+- audit regression tests: `b5d30840894dbbf3da92a8682ba6263d0b9324af`
+- canonical audit gate: `bb1cbf1f0d8d60e720265d7abd9d33a213167411`
+- README result status: `b6a44bd2382f9aa0a01b7645447b9743e8ecf08a`
