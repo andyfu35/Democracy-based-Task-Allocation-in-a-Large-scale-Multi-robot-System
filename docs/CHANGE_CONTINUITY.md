@@ -669,3 +669,13 @@ Run the full local unit suite, then run `python3 -m experiments.run_e2 --seeds 1
 - E2 result ledger: `632c36fb53704de90c567894e0cfb258392d26a0`
 - canonical protocol: `338445d757925c2adc58c0bbe7142251e5d77c74`
 - README: `4f751d5944e7143d2f0e3e8e06e5d31b23aa058b`
+
+
+### E2 documentation-rendering follow-up
+
+No experiment semantics or code behavior changed. Math rendering in the E2 README/canonical/result ledger was corrected after the implementation entry so that loss probabilities, timeout, and quorum notation display unambiguously.
+
+Latest documentation commits:
+- README E2 rendering: `33d1f6cee58dfe7483708eeba1137531248bdac1`
+- canonical E2 rendering: `7fc245304f34c79c4b7e25b7e9a0ae2fe6af69b0`
+- E2 result-ledger rendering: `b70f480080da66924aa33e18eead3342ff0ee67a`
