@@ -290,3 +290,106 @@ Run the corrected E0 locally. Do not start E1 until all conditions report exact 
 - metric tests: `4ed0fdbd6ad1ced6aa13e25eecfccf111e337054`
 - E0 result contract doc: `589d2cfe084ac8a9774d9a8a929e64af052d882e`
 - README status update: `4af6478e6708a4a46580b35d52348073798e11e6`
+
+
+## 2026-10-09 — Corrected E0 formal pass and E1 empirical latency implementation
+
+### Purpose
+Close E0 after the user's corrected formal local run and implement E1 as a trace-driven communication-time experiment using pinned ROS 2 Wi-Fi measurements.
+
+### E0 verification result
+- Unit tests: 12/12 passed.
+- 500 corrected E0 scenarios.
+- Every condition: gap 0, ASR 1, oracle mismatch 0, non-unanimous tasks 0, safety failures 0, replay failures 0.
+- Corrected raw output: `results/e0_protocol_correctness/raw/e0_corrected_20261009T141508Z.csv`.
+- Corrected summary: `results/e0_protocol_correctness/summary.csv`.
+- These locally generated files remain pending user-side git commit.
+
+### Files
+- `democracy_mrta/network.py`
+- `democracy_mrta/coordination.py`
+- `democracy_mrta/__init__.py`
+- `experiments/run_e1.py`
+- `scripts/__init__.py`
+- `scripts/prepare_rady_wifi_dataset.py`
+- `tests/test_network.py`
+- `tests/test_coordination.py`
+- `data/external/.gitignore`
+- `results/e1_latency/README.md`
+- `README.md`
+- `docs/EXPERIMENT_PROTOCOL.md`
+- `docs/CHANGE_CONTINUITY.md`
+
+### Functions / owners
+- `network.compute_git_blob_sha`: external data integrity owner.
+- `network.verify_rady_dataset_bytes`: pinned source-data contract owner.
+- `network.ensure_rady_dataset`: external dataset dependency owner.
+- `network.load_rady_latency_profile`: empirical profile extraction/data validation owner.
+- `network.summarize_latency_profile`: profile descriptive-statistics owner.
+- `network.EmpiricalLatencySampler.sample_ms`: deterministic keyed empirical bootstrap owner.
+- `coordination.simulate_ideal_full_information`: ideal timing reference owner.
+- `coordination.simulate_leader_hungarian`: leader communication architecture timing owner.
+- `coordination.simulate_full_view_hungarian`: decentralized full-view communication timing owner.
+- `coordination.simulate_democracy_hungarian`: Democracy cost/vote/quorum/commit timing owner.
+- `experiments.run_e1.simulate_methods`: E1 controlled-method orchestration owner.
+- `experiments.run_e1.summarize_rows`: E1 aggregate result owner.
+- `experiments.run_e1.write_selected_events`: designated audit event-log owner.
+
+### Responsibility movement
+Network evidence acquisition, integrity, profile extraction, and sampling now belong to `network`. Coordination timing belongs to `coordination`. Protocol voting correctness remains in `protocol`; the E1 simulator does not create a second protocol state machine.
+
+### Preserved behavior
+- Fixed Hungarian optimizer.
+- E0 correctness contract.
+- Strict-majority Democracy decision rule.
+- Packet loss remains disabled in E1.
+- Reliable initial task dissemination remains unchanged.
+
+### Intentionally changed behavior
+- E0 status moves from pending to passed based on the user's local corrected run.
+- E1 now has executable trace-driven timing behavior.
+- E1 primary network profile is pinned to Rady location 2 / ax_160mhz_6ghz / 120–181 s.
+- Per-message latency is selected by deterministic keyed empirical bootstrap rather than constant/normal delay.
+- Event logs default to designated audit seed 0 rather than all seeds to prevent unnecessary multi-million-row artifacts; aggregate metrics remain 100-seed.
+
+### Network evidence / provenance
+- Source repository: `minarady1/wifi_for_industrial_robotics`
+- Commit: `1996e5bb69b9ba4d25060cbc14838ddedf65cff2`
+- JSON Git blob: `11e70e685229cc26458f272b0c954487c87d7953`
+- Profile: Medium range LoS (60 m), Wi-Fi 6E ax/6/160
+- Steady-state samples: 121
+- Mean 33.593687 ms; P50 19.962509 ms; P95 64.149866 ms; P99 159.419021 ms; max 531.535123 ms.
+
+### Diagnostic contract
+New network diagnostics:
+- `network.verify_rady_dataset_bytes / data / RADY_DATASET_BLOB_MISMATCH`
+- `network.ensure_rady_dataset / dependency / RADY_DATASET_MISSING`
+- `network.ensure_rady_dataset / dependency / RADY_DATASET_DOWNLOAD_FAILED`
+- `network.load_rady_latency_profile / data / RADY_DATASET_PARSE_FAILED`
+- `network.load_rady_latency_profile / data / RADY_LOCATION_MISSING`
+- `network.load_rady_latency_profile / data / RADY_CONFIG_MISSING`
+- `network.load_rady_latency_profile / data / RADY_CONTROL_SERIES_MISSING`
+- `network.load_rady_latency_profile / data / RADY_CONTROL_SERIES_LENGTH_MISMATCH`
+- `network.load_rady_latency_profile / data / RADY_STEADY_PROFILE_EMPTY`
+
+### Open risks
+- E1 empirical bootstrap captures measured application-delay distribution but does not model new 802.11 MAC contention caused by a 100-robot fleet.
+- Bootstrap samples are independent across logical messages in E1; temporal correlation is deferred to E7 trace replay.
+- Payload-byte counts are logical protocol payload estimates, not full DDS/RTPS/UDP/IP on-air frame bytes.
+- E2 still needs explicit partial-matrix feasibility and packet-loss semantics.
+- E1 code has not yet been executed in the user's local environment.
+
+### Next step
+Run the complete test suite, prepare/verify the Rady dataset, and run E1 with 100 seeds. Inspect the communication-time scaling before implementing packet loss.
+
+### Commit SHA
+- network owner: `54721844ff322946a4c5def416ac9584b4f4ad7e`
+- coordination owner: `6081df7a78277e7b5d294848ef2fd5a4cbd0df7e`
+- network tests: `946457f4c3c1052ea5c92011a84c7fc866e0f0ec`
+- coordination tests: `8ddc2b7688f4caa8b9b95c88fa7d9598c139c7d2`
+- dataset preparation: `80e4d6fedc982b64aebdcd50925a652cd219072a`
+- E1 runner: `8a090dff60d0cb63e128b8cd13c42bc9e7435f9c`
+- package export: `7ed0c22d655f613e5fc69355c6eebf786a2d1a63`
+- scripts package: `fedb4ed71fb6d753b25dab51939cc6dccd3459d0`
+- README result/status update: `35f24cd8c80939d5b5fbb2cc569011b985ac26b6`
+- canonical E1 semantics: `c703d27bacd2b07294fa0a230e2a157b730b3e45`
