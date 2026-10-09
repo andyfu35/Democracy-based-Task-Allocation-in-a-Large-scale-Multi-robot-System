@@ -566,3 +566,106 @@ Commit the corrected E1 raw, event, and summary files from the local machine. Th
 
 ### Commit SHA
 README E1 result record: `a3a804b717e66f6c3dfcfd6473b243c9591a6200`
+
+
+## 2026-10-09 — E2 single-round Bernoulli packet-loss implementation
+
+### Purpose
+Implement the next formal experiment after E1: paired Bernoulli packet-loss sweeps over cost delivery and vote delivery while keeping commit dissemination reliable.
+
+### Files
+- `democracy_mrta/optimizer.py`
+- `democracy_mrta/network.py`
+- `democracy_mrta/protocol.py`
+- `democracy_mrta/coordination.py`
+- `experiments/run_e2.py`
+- `tests/test_optimizer.py`
+- `tests/test_network.py`
+- `tests/test_protocol.py`
+- `tests/test_coordination.py`
+- `results/e2_packet_loss/README.md`
+- `docs/EXPERIMENT_PROTOCOL.md`
+- `README.md`
+- `docs/CHANGE_CONTINUITY.md`
+
+### Functions / owners
+- `optimizer.solve_visible_hungarian_assignment`: owns exact Hungarian optimization over only locally visible robot rows and may return a partial assignment.
+- `network.validate_packet_loss_probability`: owns packet-loss probability validation.
+- `network.BernoulliLossSampler.is_delivered`: owns deterministic keyed Bernoulli delivery.
+- `protocol.find_unique_majority`: owns expected quorum/no-quorum resolution without converting ordinary no-quorum into an exception.
+- `protocol.resolve_unique_majority`: preserves the E0 hard-failure boundary by wrapping `find_unique_majority`.
+- `protocol.validate_one_to_one_commits`: owns committed-assignment safety validation.
+- `coordination._lossy_broadcast_deliveries`: owns per-receiver delivery outcomes for one logical broadcast.
+- `coordination._lossy_unicast_delivery`: owns lossy direct-message delivery.
+- `coordination._simulate_lossy_cost_broadcasts`: owns receiver-local visible-row construction and cost-phase ready times.
+- `coordination.simulate_leader_hungarian_lossy`: owns E2 Leader behavior.
+- `coordination.simulate_full_view_hungarian_lossy`: owns E2 strict complete-view behavior.
+- `coordination.simulate_democracy_hungarian_lossy`: owns E2 partial-view proposal, lossy vote, quorum and reliable commit timing.
+- `experiments.run_e2.result_row`: owns per-seed E2 metrics.
+- `experiments.run_e2.summarize_rows`: owns condition-level E2 summaries.
+- `experiments.run_e2.write_audit_records`: owns designated-seed logical-message and receiver-delivery audit evidence.
+
+### Responsibility movement
+No existing responsibility was wrapped or duplicated. Partial optimization belongs to `optimizer`, delivery/loss belongs to `network`, majority/safety belongs to `protocol`, and experiment-specific method timing/orchestration remains in `coordination`.
+
+### Preserved behavior
+- static one-to-one assignment model;
+- deterministic Hungarian implementation;
+- fixed strict-majority quorum denominator;
+- Rady empirical latency profile;
+- logical broadcast message counting from corrected E1;
+- reliable initial task/epoch announcement;
+- reliable commit dissemination for this experiment.
+
+### Intentionally changed behavior
+- Cost packets and Democracy vote packets may now be lost independently.
+- One logical cost broadcast has receiver-specific Bernoulli delivery outcomes.
+- Missing rows are never imputed from ground truth.
+- Local Hungarian proposals may be partial when visible robot rows are fewer than tasks.
+- A voter abstains on tasks omitted by its partial assignment.
+- No-quorum is recorded as timeout instead of raising an E0-style protocol error.
+- Full-View now requires every robot to have the complete matrix in E2.
+- Leader may produce a partial assignment from its received rows.
+- E2 intentionally performs one round only; retry count is zero.
+- Commit loss remains out of scope until its duplicate-execution safety contract is specified.
+
+### Timeout contract
+The E2 phase timeout equals the largest measured latency in the pinned E1 profile: 531.535123 ms. If all expected costs arrive, a robot proceeds at its actual last-arrival time; if at least one expected row is missing, it closes the cost phase at the timeout. The vote deadline is one phase-timeout interval after the latest local proposal-ready time.
+
+### Diagnostic contract
+New diagnostics:
+- `optimizer.solve_visible_hungarian_assignment / state / NO_VISIBLE_ROBOTS`
+- `optimizer.solve_visible_hungarian_assignment / data / VISIBLE_ROBOT_ID_OUT_OF_RANGE`
+- `optimizer.solve_visible_hungarian_assignment / contract / PARTIAL_HUNGARIAN_CARDINALITY_MISMATCH`
+- `network.validate_packet_loss_probability / data / INVALID_PACKET_LOSS_PROBABILITY`
+- `protocol.find_unique_majority / safety / MULTIPLE_QUORUM_WINNERS`
+- `protocol.validate_one_to_one_commits / safety / DUPLICATE_ROBOT_COMMIT`
+- `protocol.validate_one_to_one_commits / safety / DUPLICATE_TASK_COMMIT`
+
+### Verification status
+Code and regression tests are committed. The assistant execution container cannot resolve github.com, so the repository test suite could not be executed there. Formal verification is pending the user's local test run.
+
+### Open risks
+- E2 uses independent receiver-level Bernoulli loss; correlated/burst loss remains E5.
+- Broadcast delay is one shared trace-derived latency per logical broadcast while delivery is receiver-specific.
+- E2 does not model additional 802.11 contention from Democracy's high vote volume.
+- Full-View is intentionally a complete-information baseline and may collapse quickly as fleet size/loss rises.
+- No retry behavior is evaluated in E2.
+- Commit-loss safety remains unresolved and isolated from this experiment.
+
+### Next step
+Run the full local unit suite, then run `python3 -m experiments.run_e2 --seeds 100`. Verify the (p=0) compatibility boundary before interpreting higher loss levels.
+
+### Commit SHA
+- partial-view optimizer: `18e014cb5808d615144de5897c32c62db66ff5a6`
+- Bernoulli loss owner: `ae0e6a1fe8e395a15fbe8b9e015201655112bb34`
+- protocol quorum/safety boundaries: `79fa6f2795154ba4e0cbafed769f6a9c5ea1ea9e`
+- lossy coordination: `0eac39e489e4cb4d4ced1b1a5461a371c5a17d8d`
+- optimizer tests: `054485df417e1cadd9ce5cbaa75fe4177714356a`
+- network tests: `7f1eb3caaf209e54ab9f0bea908aa7387813701c`
+- protocol tests: `99495ebcbea1b09f65a5d3472eb2e898c68b567f`
+- coordination tests: `ac02e039f8e8245d06c8fae4b44cbbc41982e197`
+- E2 runner: `1dc166c0cab17f21a223167dc8b2467f029f9bb8`
+- E2 result ledger: `632c36fb53704de90c567894e0cfb258392d26a0`
+- canonical protocol: `338445d757925c2adc58c0bbe7142251e5d77c74`
+- README: `4f751d5944e7143d2f0e3e8e06e5d31b23aa058b`
