@@ -679,3 +679,84 @@ Latest documentation commits:
 - README E2 rendering: `33d1f6cee58dfe7483708eeba1137531248bdac1`
 - canonical E2 rendering: `7fc245304f34c79c4b7e25b7e9a0ae2fe6af69b0`
 - E2 result-ledger rendering: `b70f480080da66924aa33e18eead3342ff0ee67a`
+
+
+## 2026-10-09 — E2 CER instrumentation after first 100-seed pilot
+
+### Purpose
+Add task-level correct-executor metrics after the first formal-sized E2 run revealed that assignment completion alone can hide severe quality degradation under partial information.
+
+### Pilot evidence
+The user's local suite passed 28/28 tests. The first 100-seed E2 run completed all five robot/task conditions and six loss levels with zero safety failures.
+
+Representative pilot findings:
+- 100R/50T, 10% loss: Democracy task commit 0.9762, full success 0.39, successful full-assignment gap 0.012795%; Leader full success 1.0 but optimal rate 0 and gap 8.497465%.
+- 100R/50T, 30% loss: Democracy task commit 0.1522; Leader full success 1.0 but gap 37.787330%.
+- 50R/30T, 10% loss: Democracy task commit 0.945667 and successful gap 0.144397%; Leader full success 1.0 but gap 9.280371%.
+- All reported safety failures were zero.
+
+The pilot is not the final paper E2 because it cannot evaluate correctness of partial committed outcomes.
+
+### Files
+- `democracy_mrta/metrics.py`
+- `tests/test_metrics.py`
+- `experiments/run_e2.py`
+- `docs/EXPERIMENT_PROTOCOL.md`
+- `README.md`
+- `results/e2_packet_loss/README.md`
+- `docs/CHANGE_CONTINUITY.md`
+
+### Functions / owners
+- `metrics.evaluate_assignment_correctness`: owns task-level comparison against the deterministic complete-information Hungarian oracle.
+- `experiments.run_e2.result_row`: records correct/incorrect committed tasks and CER fields.
+- `experiments.run_e2.summarize_rows`: aggregates CER and conditional correctness across paired seeds.
+
+### Responsibility movement
+No protocol, optimizer, network, or coordination responsibility moved. This change is measurement-only. Correct-executor evaluation belongs to the existing metrics owner.
+
+### Preserved behavior
+- Same scenarios and seeds.
+- Same Bernoulli delivery.
+- Same Rady latency profile.
+- Same partial-view Hungarian behavior.
+- Same quorum.
+- Same reliable commit assumption.
+- Same one-round/no-retry E2 protocol.
+- Same timing and message counting.
+
+### Intentionally changed behavior
+No allocation behavior changed. E2 output now additionally records:
+- `correct_committed_tasks`;
+- `incorrect_committed_tasks`;
+- `correct_executor_rate`;
+- `correctness_among_committed`.
+
+The first 100-seed E2 output is reclassified as diagnostic pilot evidence; a CER-instrumented rerun is required for the paper result.
+
+### Metric definitions
+- CER = correct committed tasks / total tasks.
+- correctness among committed = correct committed tasks / committed tasks.
+- When committed tasks = 0, conditional correctness is NaN.
+
+### Diagnostic contract
+New metrics diagnostics:
+- `metrics.evaluate_assignment_correctness / data / INVALID_TOTAL_TASKS`
+- `metrics.evaluate_assignment_correctness / contract / ORACLE_ASSIGNMENT_INCOMPLETE`
+- `metrics.evaluate_assignment_correctness / contract / DUPLICATE_TASK_IN_EVALUATED_ASSIGNMENT`
+- `metrics.evaluate_assignment_correctness / data / COMMITTED_TASK_OUT_OF_ORACLE_RANGE`
+
+### Open risks
+- Full-View in E2 is a strict one-shot complete-view baseline and should not be described as a retransmitting/gossip implementation.
+- CER uses the deterministic complete-information Hungarian assignment as the reference executor map; alternate equal-cost global optima may be scored as different executors if ties occur.
+- E2 still does not model MAC contention, burst loss, retry policy, or commit loss.
+
+### Next step
+Pull the CER instrumentation, run the unit suite, and rerun E2 with the same 100 seeds. Use CER plus task commit rate as the primary robustness-quality plot before closing E2.
+
+### Commit SHA
+- metrics owner: `7afed145945e5e248d9685d310c652e4f713f1a4`
+- metrics tests: `3a9b440975b89c3c183d74b6f92e338b691ced7e`
+- E2 runner: `abac777719f69ed1840acee517e9797f2fcebd6b`
+- canonical metric update: `459fc4b3e56c16d53bd895e30244aeaf4601dc03`
+- README status update: `4d0dbd44919e8963a70ef78e1ac4f0232c13ae25`
+- result ledger update: `aeb989833c274bc210aac23800ceb65d6b73986a`
