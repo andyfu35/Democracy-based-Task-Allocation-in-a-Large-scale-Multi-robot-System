@@ -39,3 +39,70 @@ Implement E0 Protocol Correctness Preflight.
 ### Commit SHA
 README initialization: `37e8d5c2693bff335c4b0f4f77c63ba719544e47`.
 Documentation commits: see repository history for this initialization sequence.
+
+
+## 2026-10-09 — E0 Protocol Correctness Preflight implementation
+
+### Purpose
+Implement the first experiment without introducing external baselines. E0 verifies the leaderless strict-majority protocol under zero packet loss and exposes the sequential protocol's cost gap against a centralized Hungarian oracle.
+
+### Files
+- `requirements.txt`
+- `democracy_mrta/__init__.py`
+- `democracy_mrta/diagnostics.py`
+- `democracy_mrta/scenario.py`
+- `democracy_mrta/protocol.py`
+- `democracy_mrta/metrics.py`
+- `experiments/__init__.py`
+- `experiments/run_e0.py`
+- `tests/test_protocol.py`
+- `results/e0_protocol_correctness/README.md`
+- `results/e0_protocol_correctness/figures/.gitkeep`
+- `README.md`
+
+### Functions / owners
+- `scenario.generate_e0_scenario`: deterministic synthetic E0 scenario owner.
+- `scenario.compute_euclidean_cost_matrix`: E0 cost-generation owner.
+- `protocol.quorum_size`: strict-majority threshold owner.
+- `protocol.select_visible_candidate`: local candidate-selection owner.
+- `protocol.record_vote`: vote validation/deduplication owner.
+- `protocol.resolve_unique_majority`: quorum resolution and multiple-winner safety boundary.
+- `protocol.run_zero_loss_task_round`: one zero-loss task-round execution owner.
+- `protocol.run_zero_loss_allocation_epoch`: sequential one-to-one epoch owner.
+- `metrics.hungarian_oracle_cost`: centralized oracle owner.
+- `metrics.evaluate_e0`: E0 metric owner.
+- `experiments.run_e0.run_one_seed`: one paired E0 seed owner.
+- `experiments.run_e0.build_summary`: E0 aggregation owner.
+
+### Responsibility movement
+None; these are the first code owners in the new repository.
+
+### Preserved behavior
+The canonical protocol remains task-order sequential, leaderless, and strict-majority based. Task dissemination remains reliable in the primary model.
+
+### Intentionally changed behavior
+Executable E0 behavior now exists. The E0 synthetic cost is Euclidean distance only and is explicitly not the final paper cost model.
+
+### Diagnostic contract
+Protocol failures use structured `Diagnostic` values with owner / function / category / code / expected / actual / details. Safety-relevant boundaries include duplicate execution and multiple quorum winners. Vote validation explicitly rejects stale and duplicate votes.
+
+### Verification status
+Code and unit tests are committed. A clean remote execution attempt could not run because the execution container cannot resolve github.com; therefore this entry does **not** claim a passing local/formal run. The formal result remains pending the user's local execution.
+
+### Open risks
+- Sequential task ordering can produce non-zero global optimality gap versus Hungarian even at 0% loss.
+- Final paper cost model remains unfrozen.
+- Packet-loss transport is intentionally deferred until E2/E3.
+- Commit-loss semantics remain deferred until E3.
+
+### Next step
+Run E0 locally with 100 seeds, preserve raw and summary CSVs, then update the README result ledger before starting E1.
+
+### Commit SHA
+Implementation sequence is represented by:
+- protocol: `5ec7796c80ac94289e19077ea605e22711ee20db`
+- metrics: `5c8059c0fcba49f537a87e80a74f2e730e0fbf8b`
+- runner: `959f03a723b5fc9b03f3a7b928197be3ada65853`
+- tests: `441232a96529f6b2cc40fc74d9cf8e795080a270`
+- repository state through result-directory setup: `7082518a798c840e6c76d785035379864dd1f97b`
+- README run-instruction update: `57af1134d9c59e6889898199546b0fbd1f2c2cb9`
