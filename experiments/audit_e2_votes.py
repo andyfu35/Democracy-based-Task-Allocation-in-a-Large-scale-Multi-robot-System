@@ -140,6 +140,7 @@ def run_vote_audit(
     voter_rows: list[dict[str, int | float]] = []
     task_rows: list[dict[str, int | float]] = []
     candidates_selected: list[dict[str, int | float]] = []
+    ballots_selected: list[dict[str, int | float]] = []
 
     for seed in range(seeds):
         scenario = generate_e0_scenario(seed, robots, tasks)
@@ -163,6 +164,7 @@ def run_vote_audit(
         task_rows.extend(add_seed_column(seed, audit.tasks))
         if seed == candidate_audit_seed:
             candidates_selected = add_seed_column(seed, audit.candidates)
+            ballots_selected = add_seed_column(seed, audit.ballots)
 
     summary = aggregate_seed_summaries(seed_rows=seed_rows)
     output_paths = {
@@ -172,6 +174,7 @@ def run_vote_audit(
         "voter_summary": output_root / "voters_summary.csv",
         "task": output_root / "tasks_by_seed.csv",
         "candidate": output_root / f"candidates_seed{candidate_audit_seed:03d}.csv",
+        "ballot": output_root / f"ballots_seed{candidate_audit_seed:03d}.csv",
     }
     write_csv(output_paths["summary"], [summary])
     write_csv(output_paths["seed"], seed_rows)
@@ -183,9 +186,13 @@ def run_vote_audit(
     write_csv(output_paths["task"], task_rows)
     if candidates_selected:
         write_csv(output_paths["candidate"], candidates_selected)
+    if ballots_selected:
+        write_csv(output_paths["ballot"], ballots_selected)
 
     for label, path in output_paths.items():
         if label == "candidate" and not candidates_selected:
+            continue
+        if label == "ballot" and not ballots_selected:
             continue
         print(f"E2_VOTE_AUDIT_{label.upper()}={path}")
     for key, value in summary.items():
