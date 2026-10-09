@@ -203,9 +203,7 @@ E2 isolates **single-round packet-loss robustness**. It does not evaluate retry 
 
 Loss sweep:
 
-[
-p_{loss}\in\{0,0.1,0.3,0.5,0.7,0.9\}.
-]
+`p_loss ∈ {0, 0.1, 0.3, 0.5, 0.7, 0.9}`
 
 The same pinned empirical latency profile as E1 is used for all successfully delivered transmissions.
 
@@ -215,9 +213,7 @@ Each robot always knows its own cost row.
 
 Each logical cost-row broadcast is one attempted wireless transmission. For every peer receiver, delivery is sampled independently with Bernoulli probability:
 
-[
-P(\text{drop})=p_{loss}.
-]
+`P(drop) = p_loss`
 
 A dropped row remains absent from that receiver's local view. It must never be reconstructed, imputed, or copied from the ground-truth matrix.
 
@@ -225,39 +221,33 @@ If all expected peer rows arrive, a local view becomes ready at the final requir
 
 The phase timeout is the maximum measured delay in the pinned E1 profile:
 
-[
-T_{phase}=531.535123\text{ ms}.
-]
+`T_phase = 531.535123 ms`
 
-This makes (p_{loss}=0) timing-compatible with E1 while giving receivers a deterministic boundary at which absence becomes observable.
+This makes `p_loss = 0` timing-compatible with E1 while giving receivers a deterministic boundary at which absence becomes observable.
 
 ### 12.2 Partial local Hungarian optimization
 
 For Democracy-Hungarian and Leader-Hungarian, the Hungarian optimizer receives only the robot rows visible to that decision maker.
 
-If (K) robot rows are visible for (M) tasks, the local optimizer returns exactly
+If `K` robot rows are visible for `M` tasks, the local optimizer returns exactly
 
-[
-\min(K,M)
-]
+`min(K, M)`
 
 one-to-one assignment pairs.
 
-When (K<M), the proposal is partial. No synthetic cost is inserted for hidden robots.
+When `K < M`, the proposal is partial. No synthetic cost is inserted for hidden robots.
 
 A Democracy voter casts votes only for the task pairs present in its own partial assignment. Tasks omitted by that local assignment are abstentions from that voter.
 
 ### 12.3 Voting and quorum
 
-Votes are direct unicasts to proposed executors and use the same Bernoulli packet-loss probability (p_{loss}).
+Votes are direct unicasts to proposed executors and use the same Bernoulli packet-loss probability `p_loss`.
 
 The quorum denominator never shrinks with packet reception:
 
-[
-Q=\left\lfloor\frac{N}{2}\right\rfloor+1.
-]
+`Q = floor(N / 2) + 1`
 
-A task commits only if one candidate receives at least (Q) distinct valid delivered votes.
+A task commits only if one candidate receives at least `Q` distinct valid delivered votes.
 
 No-quorum is an expected E2 outcome and produces a task timeout rather than an exception.
 
@@ -295,7 +285,7 @@ Retry count is fixed to zero in E2.
 
 ### 12.7 Correctness boundaries
 
-At (p_{loss}=0):
+At `p_loss = 0`:
 
 - all methods must have task commit rate 1;
 - all methods must have full-assignment success 1;
@@ -304,7 +294,7 @@ At (p_{loss}=0):
 
 At every loss level:
 
-- quorum denominator remains fixed at (N);
+- quorum denominator remains fixed at `N`;
 - no duplicate robot/task commit is permitted;
 - safety failures must remain zero.
 
