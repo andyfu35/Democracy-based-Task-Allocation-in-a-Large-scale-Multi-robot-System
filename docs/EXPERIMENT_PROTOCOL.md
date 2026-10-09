@@ -30,19 +30,20 @@ For each allocation round:
 
 1. the allocation epoch/task set is reliably disseminated;
 2. each robot computes its own cost row;
-3. peer cost messages are transmitted;
+3. each robot broadcasts its cost row once to the peer set;
 4. robot \(i\) constructs local matrix \(\hat C_i\);
 5. unknown/unreceived entries are explicitly represented as unavailable and never silently replaced by ground-truth data;
 6. robot \(i\) runs Hungarian on its local feasible matrix;
 7. each local assignment becomes one task-level vote per proposed robot;
-8. votes are sent directly to proposed executors;
+8. votes are sent directly as unicasts to proposed executors;
 9. task \(j\) commits to robot \(k\) only when robot \(k\) receives strict majority
    \[
    Q=\lfloor N/2\rfloor+1;
    \]
-10. votes are unique by voter/task/round;
-11. stale votes are rejected;
-12. if the required assignment cannot be committed before timeout, the round fails and is retried.
+10. after quorum, the winner broadcasts one commit announcement for that task;
+11. votes are unique by voter/task/round;
+12. stale votes are rejected;
+13. if the required assignment cannot be committed before timeout, the round fails and is retried.
 
 ## 4. Zero-loss correctness contract
 
@@ -175,15 +176,17 @@ E1 isolates latency cost; packet loss is disabled.
 Primary methods:
 
 1. **Ideal Full Information**: no network communication; reference only.
-2. **Leader-Hungarian**: every non-leader sends one cost-row message to robot 0; the leader solves Hungarian and sends the assignment to every peer.
-3. **Full-View Hungarian**: every robot sends its cost row directly to every other robot; a robot has a full view after its final required row arrives.
-4. **Democracy-Hungarian**: uses the same all-to-all cost-row exchange as Full-View in E1, then each robot independently forms the identical Hungarian proposal, sends one task vote directly to the proposed executor, and each task winner broadcasts commit after strict-majority quorum.
+2. **Leader-Hungarian**: every non-leader unicasts one cost-row message to robot 0; the leader solves Hungarian and emits one logical wireless assignment broadcast.
+3. **Full-View Hungarian**: every robot emits one logical wireless cost-row broadcast. At zero loss, every peer receives each broadcast and obtains a complete matrix.
+4. **Democracy-Hungarian**: uses the same one-broadcast-per-robot cost exchange as Full-View in E1, then each robot independently forms the identical Hungarian proposal, sends task votes as direct unicasts to proposed executors, and each task winner emits one logical wireless commit broadcast after strict-majority quorum.
 
 All network messages are concurrent discrete events. A phase completes from actual simulated arrival events, never from message count multiplied by mean latency.
 
+For E1, one logical broadcast is counted as **one attempted wireless transmission and one payload copy**, not \(N-1\) unicasts. Because E1 has zero packet loss, one broadcast uses one trace-derived application-delay sample and becomes visible to all intended peers at that simulated arrival time. Receiver-specific loss/delivery semantics are intentionally deferred to E2.
+
 For Democracy-Hungarian:
 
-- voter \(i\) may send votes as soon as its own complete local matrix is ready;
+- robot \(i\)'s local matrix becomes ready after all required peer cost broadcasts have arrived;
 - a self-vote is a zero-latency local event and is not counted as a network message;
 - task quorum time is the arrival time of the \(Q\)-th valid vote;
 - actionable decision time is the maximum task quorum time;
