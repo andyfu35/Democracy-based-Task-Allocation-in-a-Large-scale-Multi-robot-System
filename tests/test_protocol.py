@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 
+from democracy_mrta.optimizer import solve_hungarian_assignment
 from democracy_mrta.protocol import (
     Vote,
     quorum_size,
@@ -54,12 +55,42 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(status, "STALE_REJECTED")
         self.assertEqual(ledgers, {})
 
+    def test_zero_loss_epoch_matches_global_hungarian_not_sequential_greedy(self) -> None:
+        cost_matrix = (
+            (1.0, 1.0),
+            (2.0, 100.0),
+        )
+
+        result = run_zero_loss_allocation_epoch(cost_matrix)
+        oracle = solve_hungarian_assignment(cost_matrix)
+
+        self.assertEqual(result.assigned_pairs, oracle.assigned_pairs)
+        self.assertEqual(result.assigned_pairs, ((1, 0), (0, 1)))
+        self.assertEqual(result.total_cost, 3.0)
+
     def test_zero_loss_epoch_assigns_each_robot_at_most_once(self) -> None:
         scenario = generate_e0_scenario(seed=42, num_robots=10, num_tasks=5)
         result = run_zero_loss_allocation_epoch(scenario.cost_matrix)
         winners = [robot_id for robot_id, _ in result.assigned_pairs]
         self.assertEqual(len(winners), len(set(winners)))
         self.assertEqual(result.assigned_tasks, 5)
+
+    def test_zero_loss_votes_are_unanimous(self) -> None:
+        scenario = generate_e0_scenario(seed=7, num_robots=10, num_tasks=5)
+        result = run_zero_loss_allocation_epoch(scenario.cost_matrix)
+
+        for decision in result.decisions:
+            self.assertEqual(decision.counted_votes, 10)
+            self.assertEqual(decision.eligible_count, 10)
+            self.assertEqual(decision.quorum, 6)
+
+    def test_zero_loss_epoch_matches_hungarian_oracle(self) -> None:
+        scenario = generate_e0_scenario(seed=123, num_robots=25, num_tasks=10)
+        result = run_zero_loss_allocation_epoch(scenario.cost_matrix)
+        oracle = solve_hungarian_assignment(scenario.cost_matrix)
+
+        self.assertEqual(result.assigned_pairs, oracle.assigned_pairs)
+        self.assertAlmostEqual(result.total_cost, oracle.total_cost, places=12)
 
     def test_seed_replay_is_deterministic(self) -> None:
         first = generate_e0_scenario(seed=99, num_robots=10, num_tasks=5)
