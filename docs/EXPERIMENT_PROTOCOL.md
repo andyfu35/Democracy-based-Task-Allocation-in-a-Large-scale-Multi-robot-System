@@ -1,60 +1,155 @@
 # Canonical Experiment Protocol
 
-This document is the canonical specification for the current benchmark protocol.
+## 1. Research question
 
-## Scope
+The paper studies a **leaderless fully decentralized communication and agreement protocol for multi-robot task allocation under unreliable wireless communication**.
 
-The primary contribution under study is a **leaderless, fully decentralized task-allocation decision protocol**. Initial task dissemination is reliable; executor selection is decentralized.
+The paper does **not** claim a new optimizer.
 
-## Allocation epoch
+## 2. Fixed optimizer
 
-For an eligible robot set \(R\), every task is processed in a deterministic task order in the current protocol version.
+All primary controlled methods use the same deterministic Hungarian implementation.
 
-For each task and round:
-
-1. all currently eligible robots know the task;
-2. each eligible robot computes its own scalar execution cost;
-3. robots announce costs to peers;
-4. each robot forms a local view from successfully received cost announcements plus its own cost;
-5. each robot selects the minimum-cost visible candidate, breaking ties by robot ID;
-6. each robot sends at most one vote to that candidate;
-7. votes are deduplicated by voter ID;
-8. a robot wins only after receiving
-   \[
-   Q=\lfloor N/2\rfloor+1
-   \]
-   distinct valid votes, where \(N\) is the fixed eligible-set size for that task/round;
-9. the winner is removed from the eligible set for subsequent tasks in that epoch;
-10. stale-round messages do not count.
-
-## E0 scope
-
-E0 uses zero packet loss and synthetic Euclidean-distance costs only to verify protocol mechanics.
-
-Synthetic E0 cost:
+The allocation problem for one epoch is a static linear one-to-one assignment problem:
 
 \[
-c_{ij}=\|p_i-p_j\|_2.
+X^*=\arg\min_X\sum_i\sum_j c_{ij}x_{ij}
 \]
 
-This is **not** yet the final paper cost model.
+with
 
-The centralized Hungarian solution over the same cost matrix is an oracle/reference. Because the protocol currently assigns tasks sequentially, E0 may expose a non-zero global optimality gap even when packet loss is zero. That is an experimental finding, not a protocol correctness failure.
+\[
+\sum_jx_{ij}\le1,\qquad \sum_ix_{ij}=1.
+\]
 
-## E0 safety invariants
+With a complete identical matrix and deterministic ordering/tie handling, every robot must compute the same optimal assignment.
 
-- no task has multiple valid winners;
-- a voter contributes at most one counted vote per task/round;
-- stale-round votes are rejected;
-- quorum denominator is common and fixed per task/round;
-- assigned robots are not assigned again in the same one-to-one allocation epoch.
+## 3. Democracy protocol
 
-## Reproducibility
+For each allocation round:
 
-Same configuration + same seed must reproduce the same:
+1. the allocation epoch/task set is reliably disseminated;
+2. each robot computes its own cost row;
+3. peer cost messages are transmitted;
+4. robot \(i\) constructs local matrix \(\hat C_i\);
+5. unknown/unreceived entries are explicitly represented as unavailable and never silently replaced by ground-truth data;
+6. robot \(i\) runs Hungarian on its local feasible matrix;
+7. each local assignment becomes one task-level vote per proposed robot;
+8. votes are sent directly to proposed executors;
+9. task \(j\) commits to robot \(k\) only when robot \(k\) receives strict majority
+   \[
+   Q=\lfloor N/2\rfloor+1;
+   \]
+10. votes are unique by voter/task/round;
+11. stale votes are rejected;
+12. if the required assignment cannot be committed before timeout, the round fails and is retried.
 
-- robot positions
-- task positions
-- cost matrix
-- winners
-- metrics
+## 4. Zero-loss correctness contract
+
+At zero packet loss with complete information:
+
+\[
+\hat C_1=\hat C_2=\cdots=\hat C_N=C.
+\]
+
+Therefore:
+
+\[
+X_1=X_2=\cdots=X_N=X^*
+\]
+
+must hold.
+
+Any nonzero optimality gap in this condition is a **contract failure**, not a performance result.
+
+The earlier sequential per-task minimum-cost implementation is obsolete and is not the canonical paper algorithm.
+
+## 5. Timing model
+
+Primary empirical latency source:
+
+M. Rady et al., “How does Wi-Fi 6 fare? An industrial outdoor robotic scenario,” Ad Hoc Networks 156, 103418, 2024, DOI 10.1016/j.adhoc.2024.103418.
+
+The authors publish real ROS 2 application-delay observations. Their processed dataset exposes `control_delay_ms` and `control_loss` across locations and PHY configurations.
+
+For controlled latency experiments, each successfully delivered protocol message receives an empirical latency sample:
+
+\[
+L_m\sim Bootstrap(D_{WiFi6}).
+\]
+
+Arrival:
+
+\[
+t_{arrival}=t_{send}+L_m.
+\]
+
+Packet-loss sweeps are injected independently from latency unless an experiment explicitly runs real trace replay.
+
+## 6. Event-time accounting
+
+The simulator must be discrete-event.
+
+Do not estimate communication time as message count times mean latency.
+
+Required timing boundaries:
+
+- cost exchange start/end;
+- local optimization start/end;
+- vote send / arrival;
+- quorum achieved time;
+- commit send / arrival;
+- timeout;
+- retry start;
+- final decision time.
+
+For Democracy voting, quorum time is the arrival time of the Q-th valid vote.
+
+Per run:
+
+\[
+T_{total}=T_{compute}+T_{communication}+T_{retry}.
+\]
+
+## 7. Primary controlled methods
+
+- Ideal Full Information — reference.
+- Leader-Hungarian.
+- Flooding/Full-View Hungarian.
+- Democracy-Hungarian — ours.
+
+CBAA/ACBBA/DHBA are Related Work and possible secondary cross-method comparisons, not primary controlled baselines.
+
+## 8. Formal experiment sequence
+
+- E0: perfect-information correctness.
+- E1: empirical Wi-Fi communication-time cost.
+- E2: Bernoulli packet-loss robustness.
+- E3: robot scalability.
+- E4: task-load saturation.
+- E5: Gilbert-Elliott burst loss.
+- E6: message-type failure localization.
+- E7: published real Wi-Fi trace replay.
+
+## 9. Diagnostics
+
+Allowed categories:
+
+`data / time / state / dependency / planning / safety / runtime / contract`.
+
+Timing-model failures belong to owner `network` / category `time` or `data` as appropriate.
+
+Optimizer-input incompleteness must be explicit; missing costs must never be silently filled from ground truth.
+
+## 10. Reproducibility
+
+Every formal run stores:
+
+- code commit SHA;
+- source network dataset provenance and pinned revision;
+- selected location / PHY profile;
+- scenario seed;
+- network sampling/replay seed;
+- raw per-message network event log;
+- per-seed metrics;
+- aggregate summary.
