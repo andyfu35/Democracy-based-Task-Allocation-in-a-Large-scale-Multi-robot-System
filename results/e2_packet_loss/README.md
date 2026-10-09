@@ -41,6 +41,8 @@ Formal outputs:
 Primary metrics:
 
 - task commit rate;
+- correct executor rate (CER);
+- correctness among committed tasks;
 - full-assignment success rate;
 - optimal-solution rate;
 - optimality gap among full successful assignments;
@@ -52,3 +54,17 @@ Primary metrics:
 - safety failures.
 
 Commit loss is intentionally excluded from E2. It is a separate safety problem because a winner may execute while peers miss the commit; that failure source remains isolated for the later message-type experiment.
+
+
+## CER instrumentation follow-up
+
+The first 100-seed E2 run completed on 2026-10-09 and is retained as diagnostic pilot evidence. It did not record task-level oracle-match information, so it cannot distinguish “assigned every task” from “assigned the correct executor for each task” when only partial cost information is available.
+
+The current runner additionally records:
+
+- `correct_committed_tasks`
+- `incorrect_committed_tasks`
+- `correct_executor_rate`
+- `correctness_among_committed`
+
+Only the CER-instrumented rerun is eligible to become the formal E2 paper result.
