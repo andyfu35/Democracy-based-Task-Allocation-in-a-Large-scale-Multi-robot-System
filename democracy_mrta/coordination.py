@@ -1119,6 +1119,7 @@ def simulate_democracy_hungarian_lossy(
     voting_strategy: str = "hungarian",
     cost_snapshot: RetirementCostSnapshot | None = None,
     vote_decision_rule: str = "strict_majority",
+    vote_repetitions: int = 1,
 ) -> LossyCoordinationResult:
     num_robots, num_tasks = validate_cost_matrix(cost_matrix)
     physical_robots, physical_tasks = validate_epoch_identity_mapping(
@@ -1133,6 +1134,7 @@ def simulate_democracy_hungarian_lossy(
         voting_strategy=voting_strategy,
         num_tasks=num_tasks,
     )
+    validate_vote_repetitions(vote_repetitions)
     quorum = quorum_size(num_robots)
     eligible = frozenset(physical_robots)
     vote_loss_probability = (
@@ -1195,25 +1197,21 @@ def simulate_democracy_hungarian_lossy(
                     ).append(send_time)
                 continue
 
-            event = _unicast_event(
-                phase="vote",
-                sender_id=voter_id,
-                receiver_id=vote.candidate_id,
-                send_time_ms=send_time,
-                payload_bytes=VOTE_PAYLOAD_BYTES,
-                sampler=sampler,
+            physical_events, physical_deliveries, observation = transmit_repeated_remote_vote(
+                voter_id=voter_id,
+                candidate_id=vote.candidate_id,
                 task_id=vote.task_id,
                 round_id=round_id,
-            )
-            events.append(event)
-            observation = _lossy_unicast_delivery(
-                event=event,
+                send_time_ms=send_time,
+                phase_timeout_ms=phase_timeout_ms,
+                vote_repetitions=vote_repetitions,
+                sampler=sampler,
                 loss_sampler=loss_sampler,
-                p_loss=vote_loss_probability,
-                round_id=round_id,
+                p_vote_loss=vote_loss_probability,
             )
-            deliveries.append(observation)
-            if not observation.delivered:
+            events.extend(physical_events)
+            deliveries.extend(physical_deliveries)
+            if observation is None:
                 continue
 
             status = record_vote(
@@ -1231,10 +1229,16 @@ def simulate_democracy_hungarian_lossy(
     committed_pairs: list[tuple[int, int]] = []
     quorum_times: dict[int, float] = {}
     plurality_resolutions: list[PluralityResolution] = []
+    # Sender-side fixed repetition never cancels copies after an early receipt.
+    # Decisions wait for the physically scheduled final vote transmission.
+    vote_transmit_completion_ms = max(
+        (event.arrival_time_ms for event in events if event.phase == "vote"),
+        default=max(ready_times, default=0.0),
+    )
 
     for task_id in physical_tasks:
         if vote_decision_rule == "quarter_plurality":
-            vote_deadline = max(ready_times, default=0.0) + phase_timeout_ms
+            vote_deadline = max(ready_times, default=0.0) + vote_repetitions * phase_timeout_ms
             resolution, announcements, ready_ms = simulate_quarter_plurality_announcement_phase(
                 ledgers_by_candidate=ledgers_by_task[task_id],
                 eligible_robots=eligible,
@@ -1263,7 +1267,10 @@ def simulate_democracy_hungarian_lossy(
         accepted_arrivals = sorted(
             arrivals_by_task_candidate[task_id][winner_id]
         )
-        quorum_times[task_id] = accepted_arrivals[quorum - 1]
+        quorum_times[task_id] = (
+            accepted_arrivals[quorum - 1] if vote_repetitions == 1
+            else max(accepted_arrivals[quorum - 1], vote_transmit_completion_ms)
+        )
         committed_pairs.append((winner_id, task_id))
 
     validate_one_to_one_commits(committed_pairs)
@@ -1283,7 +1290,7 @@ def simulate_democracy_hungarian_lossy(
         commit_arrivals.append(event.arrival_time_ms)
 
     timeout_count = num_tasks - len(committed_pairs)
-    vote_deadline = max(ready_times, default=0.0) + phase_timeout_ms
+    vote_deadline = max(ready_times, default=0.0) + vote_repetitions * phase_timeout_ms
     if timeout_count:
         decision_completion = max(
             max(quorum_times.values(), default=0.0),
@@ -1369,6 +1376,7 @@ class MultiRoundRetirementResult:
     payload_bytes: int
     lossy_delivered: int
     lossy_dropped: int
+    vote_repetitions: int = 1
 
     @property
     def committed_tasks(self) -> int:
@@ -1433,6 +1441,7 @@ def simulate_democracy_hungarian_retirement(
     max_rounds: int,
     voting_strategy: str = "hungarian",
     vote_decision_rule: str = "strict_majority",
+    vote_repetitions: int = 1,
 ) -> MultiRoundRetirementResult:
     """Multi-round membership owner; reuses the same E2 single-round vote engine.
 
@@ -1455,6 +1464,7 @@ def simulate_democracy_hungarian_retirement(
 
     validate_packet_loss_probability(p_loss)
     validate_packet_loss_probability(p_vote_loss)
+    validate_vote_repetitions(vote_repetitions)
     validate_epoch_voting_strategy(
         strategy=voting_strategy, num_tasks=(1 if voting_strategy == "greedy_task" else num_tasks)
     )
@@ -1509,6 +1519,7 @@ def simulate_democracy_hungarian_retirement(
             voting_strategy=voting_strategy,
             cost_snapshot=snapshot,
             vote_decision_rule=vote_decision_rule,
+            vote_repetitions=vote_repetitions,
         )
         require_retirement_commit_announcements(
             round_result=round_result,
@@ -1561,4 +1572,5 @@ def simulate_democracy_hungarian_retirement(
         payload_bytes=sum(item.coordination.payload_bytes for item in rounds),
         lossy_delivered=sum(item.coordination.lossy_delivered for item in rounds),
         lossy_dropped=sum(item.coordination.lossy_dropped for item in rounds),
+        vote_repetitions=vote_repetitions,
     )
