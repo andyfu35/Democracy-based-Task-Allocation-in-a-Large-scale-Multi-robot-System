@@ -719,6 +719,57 @@ def simulate_full_view_hungarian_lossy(
     )
 
 
+
+def validate_epoch_identity_mapping(
+    *,
+    num_robots: int,
+    num_tasks: int,
+    robot_ids: tuple[int, ...] | None,
+    task_ids: tuple[int, ...] | None,
+) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    physical_robots = tuple(range(num_robots)) if robot_ids is None else tuple(robot_ids)
+    physical_tasks = tuple(range(num_tasks)) if task_ids is None else tuple(task_ids)
+
+    if (
+        len(physical_robots) != num_robots
+        or len(set(physical_robots)) != num_robots
+        or any(r < 0 for r in physical_robots)
+        or len(physical_tasks) != num_tasks
+        or len(set(physical_tasks)) != num_tasks
+        or any(t < 0 for t in physical_tasks)
+    ):
+        from .diagnostics import Diagnostic, ProtocolError
+
+        raise ProtocolError(
+            Diagnostic(
+                owner="coordination",
+                function="validate_epoch_identity_mapping",
+                category="data",
+                code="INVALID_EPOCH_ID_MAPPING",
+                expected=f"{num_robots} unique nonnegative robot IDs; {num_tasks} unique nonnegative task IDs",
+                actual=(physical_robots, physical_tasks),
+            )
+        )
+    return physical_robots, physical_tasks
+
+
+def map_epoch_local_proposal(
+    *,
+    assignment: AssignmentSolution,
+    robot_ids: tuple[int, ...],
+    task_ids: tuple[int, ...],
+) -> AssignmentSolution:
+    return AssignmentSolution(
+        assigned_pairs=tuple(
+            sorted(
+                ((robot_ids[r], task_ids[t]) for r, t in assignment.assigned_pairs),
+                key=lambda pair: (pair[1], pair[0]),
+            )
+        ),
+        total_cost=assignment.total_cost,
+    )
+
+
 def simulate_democracy_hungarian_lossy(
     *,
     cost_matrix: tuple[tuple[float, ...], ...],
@@ -729,11 +780,18 @@ def simulate_democracy_hungarian_lossy(
     round_id: int = 0,
     capture_vote_audit: bool = False,
     p_vote_loss: float | None = None,
+    robot_ids: tuple[int, ...] | None = None,
+    task_ids: tuple[int, ...] | None = None,
 ) -> LossyCoordinationResult:
-    num_robots = len(cost_matrix)
-    num_tasks = len(cost_matrix[0])
+    num_robots, num_tasks = validate_cost_matrix(cost_matrix)
+    physical_robots, physical_tasks = validate_epoch_identity_mapping(
+        num_robots=num_robots,
+        num_tasks=num_tasks,
+        robot_ids=robot_ids,
+        task_ids=task_ids,
+    )
     quorum = quorum_size(num_robots)
-    eligible = frozenset(range(num_robots))
+    eligible = frozenset(physical_robots)
     vote_loss_probability = (
         p_loss if p_vote_loss is None
         else validate_packet_loss_probability(p_vote_loss)
@@ -747,28 +805,34 @@ def simulate_democracy_hungarian_lossy(
         p_loss=p_loss,
         phase_timeout_ms=phase_timeout_ms,
         round_id=round_id,
+        robot_ids=physical_robots,
     )
     cost_completion = max(ready_times, default=0.0)
 
     proposals = tuple(
-        solve_visible_hungarian_assignment(cost_matrix, visible[voter_id])
-        for voter_id in range(num_robots)
+        map_epoch_local_proposal(
+            assignment=solve_visible_hungarian_assignment(cost_matrix, visible[voter_local_id]),
+            robot_ids=physical_robots,
+            task_ids=physical_tasks,
+        )
+        for voter_local_id in range(num_robots)
     )
 
     ledgers_by_task: dict[int, dict[int, set[int]]] = {
-        task_id: {} for task_id in range(num_tasks)
+        task_id: {} for task_id in physical_tasks
     }
     arrivals_by_task_candidate: dict[int, dict[int, list[float]]] = {
-        task_id: {} for task_id in range(num_tasks)
+        task_id: {} for task_id in physical_tasks
     }
 
-    for voter_id, proposal in enumerate(proposals):
+    for voter_local_id, proposal in enumerate(proposals):
+        voter_id = physical_robots[voter_local_id]
         for vote in assignment_to_votes(
             assignment=proposal,
             voter_id=voter_id,
             round_id=round_id,
         ):
-            send_time = ready_times[voter_id]
+            send_time = ready_times[voter_local_id]
             if vote.candidate_id == voter_id:
                 status = record_vote(
                     vote=vote,
@@ -791,6 +855,7 @@ def simulate_democracy_hungarian_lossy(
                 payload_bytes=VOTE_PAYLOAD_BYTES,
                 sampler=sampler,
                 task_id=vote.task_id,
+                round_id=round_id,
             )
             events.append(event)
             observation = _lossy_unicast_delivery(
@@ -818,7 +883,7 @@ def simulate_democracy_hungarian_lossy(
     committed_pairs: list[tuple[int, int]] = []
     quorum_times: dict[int, float] = {}
 
-    for task_id in range(num_tasks):
+    for task_id in physical_tasks:
         winner = find_unique_majority(
             ledgers_by_candidate=ledgers_by_task[task_id],
             quorum=quorum,
@@ -845,6 +910,7 @@ def simulate_democracy_hungarian_lossy(
             payload_bytes=COMMIT_PAYLOAD_BYTES,
             sampler=sampler,
             task_id=task_id,
+            round_id=round_id,
         )
         events.append(event)
         commit_arrivals.append(event.arrival_time_ms)
@@ -875,10 +941,15 @@ def simulate_democracy_hungarian_lossy(
         visible_counts=[len(rows) for rows in visible],
         events=events,
         deliveries=deliveries,
-        audit_visible_rows_by_voter=visible if capture_vote_audit else (),
+        audit_visible_rows_by_voter=(
+            tuple(frozenset(physical_robots[r] for r in rows) for rows in visible)
+            if capture_vote_audit else ()
+        ),
         audit_proposals_by_voter=proposals if capture_vote_audit else (),
         audit_counted_vote_ledgers=(
             snapshot_counted_vote_ledgers(ledgers_by_task)
             if capture_vote_audit else ()
         ),
+        robot_ids=physical_robots if robot_ids is not None else None,
+        task_ids=physical_tasks if task_ids is not None else None,
     )
