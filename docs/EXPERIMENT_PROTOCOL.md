@@ -781,3 +781,78 @@ Extended full 36-point Greedy-only curves can be generated to a DISTINCT new roo
 Acceptance requires exact source SHA/seed/scene matching, zero baseline cost differences at p0, no references to Hungarian in any GENERATED CSV column, all 0% scenario controls valid, no incomplete allocation included in a full-batch cost mean, and counts of paired successes reconciling to seeds for every p. Historical raw E2 roots and E3/E4 6,000-run scaling results must remain untouched.
 
 Status when authored: source and regression tests committed; actual run on user's Mac pending. Do not claim the newly derived report has been generated until its files and console results are observed.
+
+
+## 17. Literature-grounded packet-loss defense baseline — vote-copy redundancy (NO ACK)
+
+### 17.1 Scientific comparison, published baselines, scope
+
+User-requested priority: compare our decentralized packet-loss-resilient task allocation against OTHER established communication/reliability and decentralized MRTA techniques. Preserve the unchanged Sequential Greedy optimizer and compare complete-task success, assignment accuracy relative to 0%-loss Greedy, physical traffic bytes, time and safety.
+
+Sources used for study design:
+- IEEE Technology Navigator, Automatic repeat request (https://technav.ieee.org/topic/automatic-repeat-request/). Genuine ARQ uses receiver acknowledgement and retransmission feedback; this initial baseline has NO ACK and is NOT ARQ.
+- Retransmission or Redundancy: Transmission Reliability in Wireless Sensor Networks, IEEE 2007, DOI 10.1109/MOBHOC.2007.4428620. Published reliability/energy tradeoff motivation, NOT an identical published algorithm implementation.
+- Choi, Brunet, How, Consensus-Based Decentralized Auctions for Robust Task Allocation, IEEE Transactions on Robotics 25(4), 2009, DOI 10.1109/TRO.2009.2022423 (CBAA and CBBA, separate distributed assignment algorithms).
+- MIT Aerospace Controls Lab official CBBA/ACBBA overview https://acl.mit.edu/projects/consensus-based-bundle-algorithm; Rantanen et al., Performance of the Asynchronous Consensus Based Bundle Algorithm in Lossy Network Environments, IEEE SAM 2018, DOI 10.1109/SAM.2018.8448984.
+
+This initial code change implements ONE narrow and correctly labeled external reliability-control mechanism: FIXED OPEN-LOOP REDUNDANT REMOTE VOTE TRANSMISSION. It is neither ARQ, coded redundancy, CBAA, CBBA nor ACBBA. Future separate blocks should implement real ACK/retry and faithfully reproduce published CBAA/CBBA/ACBBA including their consensus/deconfliction and duplicate-allocation behavior, with separate owners/tests.
+
+### 17.2 Exact transport policy and unchanged election semantics
+
+Add opt-in vote_repetitions = K where K is an actual integer in {1, 2, 3}. K=1 is the historical default, preserving the EXACT original first physical Vote key and all existing per-seed Cost/Vote Bernoulli draws.
+
+For each remote Greedy Vote:
+- K=1 emits one physical unicast, as before.
+- K=2 or 3 sends K unconditional packet copies at send_time + copy_index * phase_timeout_ms. There is no ACK and copies are sent even when an earlier copy was delivered.
+- Each copy uses independent Bernoulli Vote Loss and a separately keyed empirical latency sample. Physical event and delivery observation include transmission_index (0..K-1). Every copy is charged in logical_message_count, payload_bytes and remote_vote_attempts, including copies that are dropped or redundant.
+- Select the EARLIEST delivered physical copy and feed exactly one logical Vote to protocol.record_vote. Never count another packet copy as an extra voter. Local self-votes are never transmitted or repeated.
+- Vote decisions at K>1 wait for the physically scheduled copies to complete. For the 25% final-score announcement, the vote collection deadline is max(cost_ready_times)+K*phase_timeout_ms. Strict majority also waits for scheduled copies before final Commit. This intentionally charges a conservative sequential slot delay. The model does NOT simulate collision, byte-rate or MAC scheduling.
+- Initial Cost rows are broadcast ONCE with original independent Cost Loss and never resent. Hence this first baseline defends against VOTE LOSS only. Later Cost Loss recovery is its own separate concern. Reliable qualified final-score announcements and Commit assumptions remain unchanged.
+- Neither the decision threshold, local Greedy, task queue rotation, robot retirement, nor the forbidden self-claim fallback is altered. 25% means strictly greater than 25% of the whole active electorate, not physical packet-copy count.
+- A single remote vote delivery probability with independent copy loss p is 1-p^K, but full-task success also depends on missing Cost rows, candidate-vote disagreement and finite voting attempts; never infer whole-team performance from that packet formula alone.
+
+### 17.3 One owner per concern / diagnostic contract
+
+- network.validate_vote_repetitions: data / INVALID_VOTE_REPETITIONS; K must be an integer in 1..3.
+- coordination._unicast_event and coordination._lossy_unicast_delivery: original physical transport owner functions, now accept/record optional transmission_index=0; index 0 retains original keyed samples, indices >0 get unique copy-suffixed keys.
+- coordination.transmit_repeated_remote_vote: one named FIXED-COPY physical Vote sender function; return K physical events, K physical delivery observations and earliest successful observation (or None). It neither records votes nor chooses winners.
+- coordination.simulate_democracy_hungarian_lossy: unchanged owner of vote ledger/threshold/Commit; consumes only earliest delivered remote copy as one voter and enforces end-of-copy decision time at K>1.
+- coordination.simulate_democracy_hungarian_retirement: unchanged task queue and executor retirement owner; forwards validated K; one-to-one and failed-round task rotation preserved.
+- experiments.run_e2_retirement.retirement_transport_stage_metrics: original physical packet counter, now computes self-votes from DISTINCT (round, sender, receiver, task) remote ballot identities and checks each has copy indices EXACTLY [0..K-1]. Contract / REPEATED_VOTE_PHYSICAL_COPIES_MISMATCH with expected, actual and details.
+- experiments.run_e2_retirement.run_retirement_experiment, retirement_result_row, retirement_round_rows, summarize_retirement_results and write_retirement_audit_events: existing data-evidence owners; add vote_repetitions to new raw/round/summary/audit records and transmission_index to compressed seed-0 message/delivery events. Expose --vote-repetitions {1,2,3}, default=1. Refuse known archived output directories for K>1.
+- tests/test_vote_repetition_baseline.py: K input bounds, 1-copy deterministic parity, first physical votes all lost but second copy reaches old majority, no duplicate voter, higher physical messages/bytes/time at 0% loss, no emergency Commit when all copies lost, unchanged retirement and Cost exchange, nonnegative self-votes and physical copy audit.
+
+This is a bounded physical vote-transport concern. No second coordinator, voting state machine, optimizer, or safety workaround was added. All historical E2/E3/E4 entry points default to K=1.
+
+### 17.4 Paired experiment and commands
+
+Compare 100 Robots / 50 Tasks, Cost Loss=Vote Loss=p (independent draws), 100 seeds at each condition, max 100 individual task attempts, same original per-seed scene, optimizer and physical network model:
+
+A: old 51% strict-majority with K=1 (historical E2, already recorded).
+B: strict-majority with K=2 redundant Vote copies (NEW).
+C: strict-majority with K=3 redundant Vote copies (NEW).
+D: pure >25% final-score Greedy with K=1 and NO fallback (historical E2, already recorded).
+Optional E: pure >25% with K=2 (transport ablation, not necessary for first formal comparison).
+
+First execute all unit tests and three-seed smoke at p = 0,0.30,0.50 into NEW separate results:
+
+    git pull
+    python3 -m unittest discover -s tests -v
+    python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 3 --cost-loss-probabilities 0,0.30,0.50 --loss-pairing diagonal --max-rounds 100 --vote-decision-rule strict_majority --vote-repetitions 2 --output-root results/e2_repeat2_majority_smoke
+    python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 3 --cost-loss-probabilities 0,0.30,0.50 --loss-pairing diagonal --max-rounds 100 --vote-decision-rule strict_majority --vote-repetitions 3 --output-root results/e2_repeat3_majority_smoke
+
+After tests and smoke PASS, run the two 100-seed × 36-level (0..0.70 every 0.02) formal baselines into separate NEW directories. 3,600 runs per additional K:
+
+    LEVELS="$(python3 -c 'print(",".join(f"{i/100:.2f}" for i in range(0, 71, 2)))')"
+    python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 100 --cost-loss-probabilities "$LEVELS" --loss-pairing diagonal --max-rounds 100 --vote-decision-rule strict_majority --vote-repetitions 2 --output-root results/e2_repeat2_majority_100r50t
+    python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 100 --cost-loss-probabilities "$LEVELS" --loss-pairing diagonal --max-rounds 100 --vote-decision-rule strict_majority --vote-repetitions 3 --output-root results/e2_repeat3_majority_100r50t
+
+Primary plots: full assignment success and committed task fraction versus p; physical vote packets/bytes, simulated end-to-end coordinator time versus p; Greedy executor agreement and complete-task cost gap versus each seed's 0%-loss Greedy (report complete-case sample n); actual physical vote drop rate and per-copy audit; safety errors / duplicate assignment must remain zero.
+
+The legacy E2 experiment runner still computes a Hungarian oracle for backward-compatible existing raw columns; this is NOT an optimized method or comparison metric in this baseline analysis. Keep the Greedy-only primary plots/claims. Do not overwrite any historical E2/E3/E4 evidence or mislabel redundancy as ARQ or published CBBA.
+
+### 17.5 Limitations, verification and next steps
+
+This fixed K-copy scheme assumes independent Bernoulli losses, ignores shared airtime/collision and correlated outages, and does not repair initial Cost packet loss or test loss of reliably modeled announcement/Commit messages. It is a fundamental communications-control baseline, not yet a fair published MRTA algorithm-to-algorithm comparison. Next separately implement true ACBBA/CBAA if feasible under a validated 1 robot : 1 task policy and a distributed winner/conflict state model, keeping score/travel costs and communication accounting comparable.
+
+Source and new tests are committed, but tests and K>1 experiments have NOT yet been run on the user's Mac. The last 111/111 test pass was for the previous code revision. Do not claim any new packet-loss success rates until evidence is observed.
