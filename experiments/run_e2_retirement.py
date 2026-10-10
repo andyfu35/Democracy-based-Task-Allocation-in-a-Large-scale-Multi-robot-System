@@ -118,6 +118,7 @@ def retirement_result_row(
         "remaining_tasks": len(result.remaining_task_ids),
         "total_elapsed_ms": result.global_agreement_ms,
         "logical_message_count": result.logical_message_count,
+        "payload_bytes": result.payload_bytes,
         "lossy_delivered": result.lossy_delivered,
         "lossy_dropped": result.lossy_dropped,
         "safety_failures": 0,
@@ -217,6 +218,7 @@ def summarize_retirement_results(
             "mean_rounds_with_commits": mean("rounds_with_commits"),
             "mean_elapsed_ms": mean("total_elapsed_ms"),
             "mean_logical_message_count": mean("logical_message_count"),
+            "mean_payload_bytes": mean("payload_bytes"),
             "mean_lossy_dropped": mean("lossy_dropped"),
             "safety_failures": int(sum(int(r["safety_failures"]) for r in selected)),
         })
@@ -393,7 +395,7 @@ def main() -> None:
         default=DEFAULT_COST_LOSSES,
     )
     parser.add_argument("--vote-loss-probability", type=float, default=0.0)
-    parser.add_argument("--max-rounds", type=int, default=100)
+    parser.add_argument("--max-rounds", type=int, default=None)
     parser.add_argument(
         "--dataset", type=Path,
         default=Path("data/external/rady/perama_range_testing.json"),
@@ -405,8 +407,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    max_rounds = args.max_rounds if args.max_rounds is not None else 2 * args.tasks
     print(
-        f"GREEDY_RETIREMENT_CONFIG tasks={args.tasks} max_rounds={args.max_rounds} "
+        f"GREEDY_RETIREMENT_CONFIG tasks={args.tasks} max_rounds={max_rounds} "
         f"min_rounds_without_retries={args.tasks} initial_cost_exchange_once=true",
         flush=True,
     )
@@ -416,7 +419,7 @@ def main() -> None:
         seeds=args.seeds,
         cost_losses=args.cost_loss_probabilities,
         p_vote_loss=args.vote_loss_probability,
-        max_rounds=args.max_rounds,
+        max_rounds=max_rounds,
         dataset_path=args.dataset,
         output_root=args.output_root,
         allow_download=not args.no_download,
