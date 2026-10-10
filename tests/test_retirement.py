@@ -172,6 +172,31 @@ class RetirementCoordinationTests(unittest.TestCase):
             repeated.global_agreement_ms, reference.global_agreement_ms
         )
 
+    def test_first_round_with_loss_matches_original_e2_packet_outcomes(self) -> None:
+        original = simulate_democracy_hungarian_lossy(
+            cost_matrix=COSTS,
+            sampler=FixedLatency(),
+            loss_sampler=BernoulliLossSampler(seed=11),
+            p_loss=0.3,
+            p_vote_loss=0.0,
+            phase_timeout_ms=10.0,
+        )
+        retired = simulate_democracy_hungarian_retirement(
+            cost_matrix=COSTS,
+            sampler=FixedLatency(),
+            loss_sampler=BernoulliLossSampler(seed=11),
+            p_loss=0.3,
+            p_vote_loss=0.0,
+            phase_timeout_ms=10.0,
+            max_rounds=1,
+        )
+        first = retired.rounds[0].coordination
+        self.assertEqual(first.assigned_pairs, original.assigned_pairs)
+        self.assertEqual(first.total_cost, original.total_cost)
+        self.assertEqual(first.events, original.events)
+        self.assertEqual(first.deliveries, original.deliveries)
+        self.assertEqual(first.global_agreement_ms, original.global_agreement_ms)
+
     def test_one_round_cap_preserves_partial_commit(self) -> None:
         result = simulate_democracy_hungarian_retirement(
             cost_matrix=COSTS,
