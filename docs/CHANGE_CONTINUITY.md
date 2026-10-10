@@ -1632,3 +1632,15 @@ The user previously verified 100/100 unit tests and 6,000 E3/E4 formal size/pack
 - Top-level README official Greedy-only report instructions: 0549bd57553ad211b29295ff0ae30c038ff84cc5
 - Remove unused write-path local source set: dad5fe766e80bdba770e384e6b0fe0112bbaffa9
 - Add duplicate-record and false-zero-baseline tests: 693b18623d88419dd840092bb8edb9b24ae037f8
+
+
+### Same-boundary follow-up — immutable source-root isolation
+
+After the Greedy-only report module and initial continuity entry were committed, strengthened **the existing reporting owner** experiments.compare_greedy_communication.write_greedy_only_comparison (no new wrapper or state machine):
+- Reject not only a report root equal to an original E2 source root, but also any report root nested under it or any output parent directory containing historical source trees. Prevent accidental derived-file writes anywhere inside/above immutable original E2 evidence.
+- Reject output path that already exists as a non-directory, using the existing structured state / GREEDY_ANALYSIS_OUTPUT_EXISTS diagnostic.
+- Added tests/test_greedy_communication_comparison.py.test_report_cannot_be_written_under_either_source_tree proving the first-failure owner returns GREEDY_ANALYSIS_SOURCE_OUTPUT_COLLISION and leaves source data untouched.
+- Intended behavioral change: stronger refusal of unsafe user-chosen output paths ONLY; all default analysis output, per-seed metrics, source reading, Greedy-only costs and historical vote/safety behaviors unchanged.
+- Diagnostic contract preserved: owner=experiments.compare_greedy_communication; function=write_greedy_only_comparison; category=state; code=GREEDY_ANALYSIS_SOURCE_OUTPUT_COLLISION or GREEDY_ANALYSIS_OUTPUT_EXISTS; expected distinct new report root, actual supplied output path.
+- Tests and report on user's Mac still pending. No output overwrites, changes to canonical study definitions or numerical claims.
+- Commit SHAs: d55cccf1444dc150cf7f57822dad56060c7431ce (owner path guard), e3412cc6cc38caf3e1a0ef41462ef5aa5981b85d (guard test). Next step remains pull, unittest, run Greedy-only comparison, inspect manifest and 6-point curves.
