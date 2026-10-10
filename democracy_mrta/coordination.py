@@ -391,6 +391,7 @@ class LossyCoordinationResult:
     fallback_self_claim_count: int = 0
     fallback_used_task_count: int = 0
     plurality_tie_break_count: int = 0
+    plurality_winner_vote_count: int = 0
 
     @property
     def committed_tasks(self) -> int:
@@ -485,6 +486,7 @@ def _summarize_lossy_result(
     fallback_self_claim_count: int = 0,
     fallback_used_task_count: int = 0,
     plurality_tie_break_count: int = 0,
+    plurality_winner_vote_count: int = 0,
 ) -> LossyCoordinationResult:
     pairs = tuple(sorted(tuple(assigned_pairs), key=lambda pair: (pair[1], pair[0])))
     validate_one_to_one_commits(pairs)
@@ -531,6 +533,7 @@ def _summarize_lossy_result(
         fallback_self_claim_count=fallback_self_claim_count,
         fallback_used_task_count=fallback_used_task_count,
         plurality_tie_break_count=plurality_tie_break_count,
+        plurality_winner_vote_count=plurality_winner_vote_count,
     )
 
 
@@ -1274,6 +1277,9 @@ def simulate_democracy_hungarian_lossy(
         fallback_used_task_count=sum(int(p.fallback_used) for p in plurality_resolutions),
         plurality_tie_break_count=sum(
             int(p.tied_highest) for p in plurality_resolutions
+        ),
+        plurality_winner_vote_count=(
+            plurality_resolutions[0].counted_votes if plurality_resolutions else 0
         ),
     )
 
