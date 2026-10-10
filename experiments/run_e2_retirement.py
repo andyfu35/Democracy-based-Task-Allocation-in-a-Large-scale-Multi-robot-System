@@ -451,14 +451,16 @@ def run_retirement_experiment(
     dataset_path: Path,
     output_root: Path,
     allow_download: bool,
+    vote_losses: tuple[float, ...] | None = None,
+    loss_pairing: str = "grid",
 ) -> list[dict[str, object]]:
     if seeds < 1:
         raise ValueError("seeds must be >= 1")
-    if not cost_losses:
-        raise ValueError("at least one cost-loss probability is required")
-    for p in cost_losses:
-        validate_packet_loss_probability(p)
-    validate_packet_loss_probability(p_vote_loss)
+    conditions = build_retirement_loss_conditions(
+        cost_losses=cost_losses,
+        vote_losses=(p_vote_loss,) if vote_losses is None else vote_losses,
+        pairing=loss_pairing,
+    )
 
     dataset = ensure_rady_dataset(dataset_path, allow_download=allow_download)
     profile = load_rady_latency_profile(dataset)
@@ -489,32 +491,32 @@ def run_retirement_experiment(
             oracle = solve_hungarian_assignment(scenario.cost_matrix)
             greedy_oracle = solve_sequential_greedy_reference(scenario.cost_matrix)
 
-            for p_loss in cost_losses:
+            for p_loss, vote_loss in conditions:
                 result = simulate_democracy_hungarian_retirement(
                     cost_matrix=scenario.cost_matrix,
                     sampler=EmpiricalLatencySampler(profile, seed=seed),
                     loss_sampler=BernoulliLossSampler(seed=seed),
                     p_loss=p_loss,
-                    p_vote_loss=p_vote_loss,
+                    p_vote_loss=vote_loss,
                     phase_timeout_ms=phase_timeout_ms,
                     max_rounds=max_rounds,
                     voting_strategy="greedy_task",
                 )
                 raw_rows.append(retirement_result_row(
                     seed=seed, robots=robots, tasks=tasks,
-                    p_cost_loss=p_loss, p_vote_loss=p_vote_loss,
+                    p_cost_loss=p_loss, p_vote_loss=vote_loss,
                     max_rounds=max_rounds, oracle=oracle,
                     greedy_oracle=greedy_oracle, result=result,
                     git_sha=git_sha, timestamp=timestamp,
                 ))
                 round_rows.extend(retirement_round_rows(
                     seed=seed, p_cost_loss=p_loss,
-                    p_vote_loss=p_vote_loss, result=result,
+                    p_vote_loss=vote_loss, result=result,
                 ))
                 if seed == 0:
                     write_retirement_audit_events(
                         writer, seed=seed, p_cost_loss=p_loss,
-                        p_vote_loss=p_vote_loss, result=result,
+                        p_vote_loss=vote_loss, result=result,
                     )
             if (seed + 1) % 10 == 0 or seed + 1 == seeds:
                 print(f"GREEDY_RETIREMENT_PROGRESS seeds={seed + 1}/{seeds}", flush=True)
@@ -524,6 +526,9 @@ def run_retirement_experiment(
     summary_rows = summarize_retirement_results(raw_rows)
     write_csv(summary_path, summary_rows)
 
+    print(f"RETIREMENT_LOSS_PAIRING={loss_pairing}")
+    print(f"RETIREMENT_LOSS_CONDITIONS={len(conditions)}")
+    print(f"RETIREMENT_TOTAL_SCENARIOS={len(conditions) * seeds}")
     print(f"RETIREMENT_HEAD={git_sha}")
     print(f"RETIREMENT_RAW={raw_path}")
     print(f"RETIREMENT_ROUNDS={round_path}")
