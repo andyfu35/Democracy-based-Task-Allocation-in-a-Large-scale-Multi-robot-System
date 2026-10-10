@@ -7,6 +7,7 @@ from .network import validate_packet_loss_probability
 from .optimizer import (
     AssignmentSolution,
     solve_visible_hungarian_assignment,
+    validate_cost_matrix,
 )
 from .protocol import (
     assignment_to_votes,
@@ -14,6 +15,8 @@ from .protocol import (
     quorum_size,
     record_vote,
     validate_one_to_one_commits,
+    initialize_retirement_membership,
+    apply_announced_retirement_commits,
 )
 
 
@@ -37,6 +40,7 @@ class CommunicationEvent:
     arrival_time_ms: float
     payload_bytes: int
     task_id: int | None = None
+    round_id: int = 0
 
     @property
     def is_broadcast(self) -> bool:
@@ -75,11 +79,14 @@ def _unicast_event(
     payload_bytes: int,
     sampler,
     task_id: int | None = None,
+    round_id: int = 0,
 ) -> CommunicationEvent:
     key = (
         f"unicast|{phase}|{sender_id}|{receiver_id}|"
         f"{task_id if task_id is not None else '-'}"
     )
+    if round_id:
+        key += f"|round={round_id}"
     latency_ms = float(sampler.sample_ms(key))
     return CommunicationEvent(
         phase=phase,
@@ -90,6 +97,7 @@ def _unicast_event(
         arrival_time_ms=send_time_ms + latency_ms,
         payload_bytes=payload_bytes,
         task_id=task_id,
+        round_id=round_id,
     )
 
 
@@ -101,11 +109,14 @@ def _broadcast_event(
     payload_bytes: int,
     sampler,
     task_id: int | None = None,
+    round_id: int = 0,
 ) -> CommunicationEvent:
     key = (
         f"broadcast|{phase}|{sender_id}|"
         f"{task_id if task_id is not None else '-'}"
     )
+    if round_id:
+        key += f"|round={round_id}"
     latency_ms = float(sampler.sample_ms(key))
     return CommunicationEvent(
         phase=phase,
@@ -116,6 +127,7 @@ def _broadcast_event(
         arrival_time_ms=send_time_ms + latency_ms,
         payload_bytes=payload_bytes,
         task_id=task_id,
+        round_id=round_id,
     )
 
 
@@ -338,6 +350,7 @@ class DeliveryObservation:
     delivered: bool
     arrival_time_ms: float | None
     task_id: int | None = None
+    round_id: int = 0
 
 
 @dataclass(frozen=True)
@@ -384,9 +397,10 @@ def _lossy_broadcast_deliveries(
     loss_sampler,
     p_loss: float,
     round_id: int,
+    receiver_ids: tuple[int, ...] | None = None,
 ) -> tuple[DeliveryObservation, ...]:
     observations: list[DeliveryObservation] = []
-    for receiver_id in range(num_robots):
+    for receiver_id in (range(num_robots) if receiver_ids is None else receiver_ids):
         if receiver_id == event.sender_id:
             continue
         key = (
@@ -402,6 +416,7 @@ def _lossy_broadcast_deliveries(
                 delivered=delivered,
                 arrival_time_ms=event.arrival_time_ms if delivered else None,
                 task_id=event.task_id,
+                round_id=round_id,
             )
         )
     return tuple(observations)
@@ -426,6 +441,7 @@ def _lossy_unicast_delivery(
         delivered=delivered,
         arrival_time_ms=event.arrival_time_ms if delivered else None,
         task_id=event.task_id,
+        round_id=round_id,
     )
 
 
@@ -444,13 +460,21 @@ def _summarize_lossy_result(
     audit_visible_rows_by_voter: tuple[frozenset[int], ...] = (),
     audit_proposals_by_voter: tuple[AssignmentSolution, ...] = (),
     audit_counted_vote_ledgers: tuple[tuple[int, int, tuple[int, ...]], ...] = (),
+    robot_ids: tuple[int, ...] | None = None,
+    task_ids: tuple[int, ...] | None = None,
 ) -> LossyCoordinationResult:
     pairs = tuple(sorted(tuple(assigned_pairs), key=lambda pair: (pair[1], pair[0])))
     validate_one_to_one_commits(pairs)
     total_tasks = len(cost_matrix[0])
-    total_cost = float(
-        sum(cost_matrix[robot_id][task_id] for robot_id, task_id in pairs)
-    )
+    if robot_ids is None and task_ids is None:
+        total_cost = float(sum(cost_matrix[r][t] for r, t in pairs))
+    else:
+        assert robot_ids is not None and task_ids is not None
+        robot_to_local = {original: idx for idx, original in enumerate(robot_ids)}
+        task_to_local = {original: idx for idx, original in enumerate(task_ids)}
+        total_cost = float(sum(
+            cost_matrix[robot_to_local[r]][task_to_local[t]] for r, t in pairs
+        ))
     delivered = sum(int(observation.delivered) for observation in deliveries)
     opportunities = len(deliveries)
     mean_visible = (
@@ -597,12 +621,15 @@ def _simulate_lossy_cost_broadcasts(
     p_loss: float,
     phase_timeout_ms: float,
     round_id: int,
+    robot_ids: tuple[int, ...] | None = None,
 ) -> tuple[
     list[CommunicationEvent],
     list[DeliveryObservation],
     tuple[frozenset[int], ...],
     tuple[float, ...],
 ]:
+    physical_ids = tuple(range(num_robots)) if robot_ids is None else robot_ids
+    local_index = {robot_id: idx for idx, robot_id in enumerate(physical_ids)}
     events: list[CommunicationEvent] = []
     deliveries: list[DeliveryObservation] = []
     visible_by_receiver: list[set[int]] = [
@@ -612,13 +639,14 @@ def _simulate_lossy_cost_broadcasts(
         [] for _ in range(num_robots)
     ]
 
-    for sender_id in range(num_robots):
+    for sender_local_id, sender_id in enumerate(physical_ids):
         event = _broadcast_event(
             phase="cost",
             sender_id=sender_id,
             send_time_ms=0.0,
             payload_bytes=cost_row_payload_bytes(num_tasks),
             sampler=sampler,
+            round_id=round_id,
         )
         events.append(event)
         observations = _lossy_broadcast_deliveries(
@@ -627,12 +655,14 @@ def _simulate_lossy_cost_broadcasts(
             loss_sampler=loss_sampler,
             p_loss=p_loss,
             round_id=round_id,
+            receiver_ids=physical_ids,
         )
         deliveries.extend(observations)
         for observation in observations:
             if observation.delivered:
-                visible_by_receiver[observation.receiver_id].add(sender_id)
-                arrivals_by_receiver[observation.receiver_id].append(
+                receiver_local_id = local_index[observation.receiver_id]
+                visible_by_receiver[receiver_local_id].add(sender_local_id)
+                arrivals_by_receiver[receiver_local_id].append(
                     float(observation.arrival_time_ms)
                 )
 
