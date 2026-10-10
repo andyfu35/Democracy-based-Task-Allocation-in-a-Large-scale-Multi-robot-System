@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
+from democracy_mrta.coordination import simulate_democracy_hungarian_retirement
 from democracy_mrta.diagnostics import ProtocolError
 from experiments.run_e2_retirement import (
     build_retirement_loss_conditions,
@@ -20,7 +21,39 @@ class FixedLatency:
         return 10.0
 
 
+class RecordingLossSampler:
+    def __init__(self):
+        self.cost_probabilities = []
+        self.vote_probabilities = []
+
+    def is_delivered(self, key: str, p_loss: float) -> bool:
+        if key.startswith("broadcast|cost|"):
+            self.cost_probabilities.append(p_loss)
+        elif key.startswith("unicast|vote|"):
+            self.vote_probabilities.append(p_loss)
+        return True
+
+
 class VoteLossSweepTests(unittest.TestCase):
+    def test_coordination_uses_separate_actual_cost_and_vote_probabilities(self) -> None:
+        sampler = RecordingLossSampler()
+        result = simulate_democracy_hungarian_retirement(
+            cost_matrix=((1.0,), (2.0,), (3.0,)),
+            sampler=FixedLatency(),
+            loss_sampler=sampler,
+            p_loss=0.3,
+            p_vote_loss=0.7,
+            phase_timeout_ms=10.0,
+            max_rounds=2,
+            voting_strategy="greedy_task",
+        )
+        self.assertTrue(result.full_assignment_success)
+        self.assertTrue(sampler.cost_probabilities)
+        self.assertTrue(sampler.vote_probabilities)
+        self.assertEqual(set(sampler.cost_probabilities), {0.3})
+        self.assertEqual(set(sampler.vote_probabilities), {0.7})
+
+
     def test_original_cost_only_axis_is_unchanged(self) -> None:
         votes = resolve_retirement_vote_loss_axis(
             cost_losses=(0.0, 0.3),
