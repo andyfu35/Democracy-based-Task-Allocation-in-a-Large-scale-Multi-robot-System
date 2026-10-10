@@ -210,6 +210,7 @@ def retirement_result_row(
     first_greedy_matches = sum(
         greedy_by_task[task] == robot for robot, task in first_committed
     )
+    transport = retirement_transport_stage_metrics(result)
     full = result.full_assignment_success
     gap = (
         optimality_gap_percent(result.total_cost, oracle.total_cost)
@@ -259,6 +260,7 @@ def retirement_result_row(
         "payload_bytes": result.payload_bytes,
         "lossy_delivered": result.lossy_delivered,
         "lossy_dropped": result.lossy_dropped,
+        **transport,
         "safety_failures": 0,
     }
 
@@ -319,6 +321,11 @@ def summarize_retirement_results(
         def mean(key: str) -> float:
             return statistics.fmean(float(r[key]) for r in selected)
 
+        def observed_loss_rate(*, dropped_key: str, attempts_key: str) -> float:
+            dropped = sum(int(r[dropped_key]) for r in selected)
+            attempts = sum(int(r[attempts_key]) for r in selected)
+            return dropped / attempts if attempts else 0.0
+
         summary.append({
             "robots": selected[0]["robots"],
             "tasks": selected[0]["tasks"],
@@ -370,6 +377,16 @@ def summarize_retirement_results(
             "mean_logical_message_count": mean("logical_message_count"),
             "mean_payload_bytes": mean("payload_bytes"),
             "mean_lossy_dropped": mean("lossy_dropped"),
+            "observed_cost_drop_rate": observed_loss_rate(
+                dropped_key="cost_packet_dropped", attempts_key="cost_packet_attempts"
+            ),
+            "observed_vote_drop_rate": observed_loss_rate(
+                dropped_key="remote_vote_dropped", attempts_key="remote_vote_attempts"
+            ),
+            "mean_remote_vote_attempts": mean("remote_vote_attempts"),
+            "mean_remote_vote_dropped": mean("remote_vote_dropped"),
+            "mean_self_votes": mean("self_votes"),
+            "mean_quorum_failed_attempts": mean("quorum_failed_attempts"),
             "safety_failures": int(sum(int(r["safety_failures"]) for r in selected)),
         })
     return summary
@@ -527,7 +544,9 @@ def run_retirement_experiment(
             f"global_gap={float(row['mean_optimality_gap_percent_successful']):.4f}% "
             f"greedy_gap={float(row['mean_greedy_gap_percent_successful']):.4f}% "
             f"rounds_mean={float(row['mean_rounds_executed']):.2f} "
-            f"elapsed_ms={float(row['mean_elapsed_ms']):.2f} "
+            f"vote_drop_actual={float(row['observed_vote_drop_rate']):.4f} "
+            f"cost_drop_actual={float(row['observed_cost_drop_rate']):.4f} "
+            f"elapsed_ms={float(row['mean_elapsed_ms']):.2f} 
             f"safety_failures={row['safety_failures']}"
         )
     return summary_rows
