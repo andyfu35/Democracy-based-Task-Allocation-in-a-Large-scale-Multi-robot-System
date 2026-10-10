@@ -192,6 +192,29 @@ class GreedyOnlyCommunicationEvidenceTests(unittest.TestCase):
                 self.analyze(majority, quarter, report)
             self.assertEqual(context.exception.diagnostic.code, "GREEDY_RAW_CONTRACT_MISMATCH")
 
+    def test_duplicate_seed_loss_in_historical_raw_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            majority, quarter, report = self.make_files(Path(tmp))
+            raw = majority / "raw" / "retirement_formal.csv"
+            self.edit_raw(raw, lambda rows: rows.append(dict(rows[0])))
+            with self.assertRaises(ProtocolError) as context:
+                self.analyze(majority, quarter, report)
+            self.assertEqual(
+                context.exception.diagnostic.code, "DUPLICATE_GREEDY_SEED_CONDITION"
+            )
+            self.assertFalse(report.exists())
+
+    def test_zero_loss_run_that_is_not_greedy_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            majority, quarter, report = self.make_files(Path(tmp))
+            raw = majority / "raw" / "retirement_formal.csv"
+            self.edit_raw(raw, lambda rows: rows[0].__setitem__("total_cost", "150.0"))
+            with self.assertRaises(ProtocolError) as context:
+                self.analyze(majority, quarter, report)
+            self.assertEqual(
+                context.exception.diagnostic.code, "ZERO_LOSS_GREEDY_BASELINE_MISMATCH"
+            )
+
     def test_previously_written_report_is_never_overwritten(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             majority, quarter, report = self.make_files(Path(tmp))
