@@ -1337,3 +1337,103 @@ On user's Mac: pull; run `python3 -m unittest discover -s tests -v`; run a 3-see
 - Canonical Section 14: `8140bebb093f9576304575b26a49ff198470fadc`
 - README experiment entrypoint: `515e9ede03200e37c99937d029679ff8c5a81844`
 - New pending result ledger: `9aa2cfcaf32c210a3688f7e3996528f62d82c07e`
+
+
+## 2026-10-10 — Remove unauthorized 25% plurality fallback entirely
+
+### Goal and why this was required
+
+The user explicitly rejected the previously assistant-invented reliable self-claim fallback. The only intended 25% rule is: more than 25% of the entire active electorate may issue a final-score announcement; choose the highest announced vote tally (lowest original robot ID on ties); if no candidate crosses 25%, **do not announce, do not commit, do not execute**. Leave the task unassigned and rotate it through the existing pending-task queue. A candidate already committed to an earlier task still retires permanently for the remainder of this static assignment.
+
+Previous experimental evidence at Git HEAD 6cf14239ffd427c45b1f5311749fa7034c02bc59 (user's Mac 2026-10-10) passed 85/85 tests and completed 100 seeds × 36 equal Cost/Vote Loss levels. The old 25%-with-fallback method reported full task coverage even at 70% packet loss only because 99.98% of high-loss task decisions used additional reliably broadcast self-claims. That historical method was **NOT** pure 25% plurality and MUST NOT be reported as evidence of the user-requested algorithm.
+
+### Modified files / exact existing owner modules and named functions
+
+- democracy_mrta/protocol.py
+  - PluralityResolution now represents only a qualified-final-score winner (winner, tally, active 25% threshold, number of valid announcements, tie). Removed fallback-only fields.
+  - quarter_vote_announcement_threshold retains the original floor(N/4)+1 rule.
+  - resolve_unique_plurality_claims remains the SINGLE winner validation and resolution owner; removed fallback_used input and all all-robot self-claim behavior. Returns PluralityResolution | None: None means no qualified announcement, without a winner or failure exception. Still validates candidate eligibility, integer tally range, unique announcements, and strictly over-25% qualification.
+- democracy_mrta/coordination.py
+  - validate_vote_decision_rule recognizes strict_majority (unchanged default) and quarter_plurality, **explicitly REJECTS** former quarter_plurality_fallback via a named contract diagnostic rather than silently aliasing the old CLI/API.
+  - build_quarter_plurality_claims now returns **ONLY** candidates with >= floor(N/4)+1 legitimately received ballots from existing ledgers; returns an empty tuple if none qualify. Removed all eligible-robot backup claims.
+  - simulate_quarter_plurality_announcement_phase sends only qualified reliable final-score announcements after the vote deadline; if none qualifies, returns (None, empty events, deadline). No fallback_self_claim phase, no reliable backup traffic and no emergency winner.
+  - simulate_democracy_hungarian_lossy remains the exact ONE vote/commit owner. In quarter_plurality, a None resolution leads to a normal unassigned task timeout and NO commit event. The strict-majority branch and original packet/vote sampling are not touched.
+  - _summarize_lossy_result and LossyCoordinationResult drop fallback-only metrics; retain method/rule/threshold/qualified-score/tie/actual winning vote-count evidence. Effective threshold is now recorded even when zero candidate announcements were received, avoiding misleading threshold=0 on failures.
+  - simulate_democracy_hungarian_retirement still owns attempt scheduling and passes the requested decision rule through to the same voter owner. Method=democracy_greedy_quarter_plurality_retirement for the new pure 25% rule. A round without a commit passes zero announced pairs to the SAME protocol.apply_announced_retirement_commits function, rotating the queue head while preserving active members and bounded attempts.
+- experiments/run_e2_retirement.py
+  - retirement_plurality_diagnostics is only an observer; counts actual qualified announcements/commits vs **no-qualified attempts**, and raises a contract error if these do not exactly match the corresponding Commit/no-Commit round.
+  - retirement_result_row and summarize_retirement_results carry new no-qualified attempt count/rate, removing all fabricated fallback output columns. Historical Cost/Vote observed drop, full success, Greedy and Hungarian CER, complete-run cost gaps, rounds, communication time/bytes remain comparable.
+  - retirement_round_rows reports no_qualified_announcement per task attempt, original IDs, threshold, actual qualified messages and winner score. Removed fallback diagnostics.
+  - main accepts --vote-decision-rule quarter_plurality and does not allow the removed old mode; it protects the existing Majority and archived fallback output roots from being overwritten by the pure experiment.
+- tests/test_quarter_plurality.py
+  - Replaced all forced-commit/self-claim behavior tests. Covers threshold strictness (100->26, 4->2, 2->1), ranking of multiple qualified announcements, tie/invalid/duplicate score diagnostics, protocol returns None if none qualify, 4R single task at Cost=Vote=100% has zero announcement and zero Commit, multi-round 4R/2T loses all packets and rotates tasks without retiring voters, zero-loss retirement, unchanged strict majority, explicit rejection of old fallback method, wrong optimizer context, and paired-seed runner raw/summary/round/event evidence with zero fallback phases and incomplete tasks at high loss.
+- docs/EXPERIMENT_PROTOCOL.md
+  - Replaced canonical Section 14 completely with pure 25%-announcement protocol, no-winner timeout and task rotation, exact diagnostic responsibilities, reproducibility command and completed old-result segregation. Canonical rule changed intentionally, not silently.
+- README.md
+  - Removed now-invalid fallback execution commands and documented pure plurality 3-seed smoke/full 100-seed equal Cost/Vote loss scan.
+- results/e2_greedy_quarter_plurality_100r50t/README.md
+  - Reclassified earlier fallback-based data as **ARCHIVED/REJECTED**, recording the user's actual 85-test, 3,600-simulation evidence at old HEAD and explaining why 100% coverage at 70% loss is not representative of the pure rule.
+- results/e2_greedy_quarter_plurality_no_fallback_100r50t/README.md (NEW)
+  - Separate formal no-fallback evidence root and acceptance checks. Old raw CSVs remain on user's Mac and are not overwritten/deleted.
+- docs/CHANGE_CONTINUITY.md
+  - This mandatory continuity entry.
+
+### Responsibility movement
+
+No owner moved, no wrapper added, and no second vote/commit state machine introduced. protocol still owns threshold/unique winner/membership; coordination still owns counted ledgers and physical communication/round execution; optimizer still owns Greedy and external benchmarks; network still owns Cost/Vote packet loss; experiments runner still owns evidence/reporting. The no-qualified case is a legitimate protocol outcome (None -> no commit -> existing queue rotation) in the already defined owner functions.
+
+### Behavior preserved
+
+- Original E0/E1/E2 Hungarian methods and results unchanged.
+- Existing strict_majority vote_decision_rule remains the DEFAULT in all public coordination and runner call paths; its packet/event semantics unchanged.
+- Sequential one-task Greedy, single incomplete Cost-row broadcast at the start, remote Vote Loss sampling (same p as Cost in diagonal benchmark), self-vote local reliability, original physical robot/task IDs, final qualified score-announcement reliability, reliable commit, one-to-one safety, task queue rotation, retirement upon Commit, and max_rounds task attempt cap all retained.
+- Original majority experimental results and historical fallback experimental CSV/output directories preserved as archived evidence.
+- Greedy-reference CER vs full-information Hungarian CER and complete-assignment-only cost-gap comparison definitions retained.
+
+### Deliberately changed behavior (only for new pure 25% mode)
+
+1. No candidate above 25% -> **zero** final-score announcements, **zero** Commit, unchanged active electorate, failed task moves to queue tail and remains unassigned.
+2. No self-declared provisional winners, no fallback broadcasts, no forced task assignment. Removing the fallback must allow lower/full-task coverage at high loss; no artificial 100% success.
+3. Candidate scores are FINAL after the ordinary vote collection deadline; only >25% qualified candidates reliably announce. Highest vote/tie ID unique winner and subsequent retirement unchanged when at least one qualifies.
+4. New optional rule string quarter_plurality; obsolete quarter_plurality_fallback intentionally returns contract error and is no longer a valid CLI choice.
+5. New raw/summary metrics distinguish qualified commits from no-qualified attempts; none include fallback columns.
+6. Pure run writes only to the NEW no-fallback root. The old result root is marked archived rather than silently repurposed.
+
+### Diagnostic contract
+
+- coordination.validate_vote_decision_rule / contract / REMOVED_PLURALITY_FALLBACK_RULE; expected quarter_plurality without forced fallback, actual removed method string.
+- coordination.validate_vote_decision_rule / data / UNKNOWN_VOTE_DECISION_RULE (existing).
+- coordination.validate_vote_decision_rule / planning / PLURALITY_REQUIRES_ONE_TASK_GREEDY (existing).
+- protocol.quarter_vote_announcement_threshold / data / INVALID_QUARTER_ELECTORATE (existing).
+- protocol.resolve_unique_plurality_claims / data / INVALID_PLURALITY_CLAIM (existing).
+- protocol.resolve_unique_plurality_claims / contract / DUPLICATE_PLURALITY_ANNOUNCEMENT (existing).
+- protocol.resolve_unique_plurality_claims / contract / INVALID_QUALIFIED_PLURALITY_ANNOUNCEMENTS (existing) if an unqualified candidate attempts a score announcement.
+- experiments.run_e2_retirement.retirement_plurality_diagnostics / contract / PLURALITY_ANNOUNCEMENT_COMMIT_MISMATCH (new): expected one Commit per qualified attempt and zero when no announcement, actual per-round observed decision.
+- No-qualified, no-winner, and timed-out task attempts are NOT errors; normal no-commit results are captured by existing task_timeout_count and no_qualified_announcement fields.
+- Previous INVALID_PLURALITY_FALLBACK_CLAIMS / PLURALITY_RESOLUTION_NOT_ACCOUNTED codes are retired as the forbidden fallback branches no longer exist.
+
+### Verification status
+
+The user's attached historical log confirms 85/85 passing tests and the earlier 3,600-run **fallback-bearing** experiment at old HEAD 6cf1423. These do NOT certify this correction.
+The assistant read AGENTS.md -> AI_CHANGE_PROTOCOL.md -> CHANGE_CONTINUITY.md -> EXPERIMENT_PROTOCOL.md -> true protocol/coordination/experiment/test functions before changing source. Source, tests, canonical spec, result ledgers and this continuity have been committed through GitHub. The assistant's container cannot resolve github.com to clone and run the full Python suite. **New tests, 3-seed no-fallback smoke, and 100-seed no-fallback run are PENDING Mac execution**, and no new empirical success percentages are claimed.
+
+### Remaining risks / next steps
+
+- No re-broadcast of lost initial Cost rows; retrying votes may not help if all voters persistently disagree on the best candidate.
+- Score announcements are assumed reliable and truthful; a real decentralized protocol with lossy or delayed score announcements would need membership agreement and safety validation. Current test does not prove physical end-to-end fault tolerance.
+- Even pure 25% plurality may allow multiple announcements; reliable final score comparison must finish BEFORE any task execution.
+- Fixed max 100 attempts can leave unassigned tasks. At high loss, the no-fallback result can be substantially below historical forced-commit 100%; this is expected and scientifically useful.
+- At small N a single self-vote can exceed 25%, which is mathematically a normal qualified result, not fallback.
+- At extreme loss, zero remote votes may be transmitted, so an observed 0.0 Vote drop rate with zero attempts must not be misinterpreted as a reliable network (raw attempts denominator available).
+- Need local unittest suite; targeted 3-seed smoke at 0/30/70% Cost=Vote; verify zero-loss Greedy parity, no-commit/no-announcement rounds, queue rotation, real packet drops, unique Commit, and original voter exclusions. Only then run full 100 seeds / 36 levels (3,600 runs), compare with the stored 51-vote majority and archived fallback curves. Preserve all three result roots separately.
+
+### Code and canonical commit SHAs before this continuity entry
+
+- protocol owner removes forced self-claim: ed9823f32e2c2a0ac063e8199bf05ec0e02b56b1
+- coordination owner removes fallback communication and commits: b9a24e5b33d45d535583697b640e7b6c5be9dac3
+- experiment owner removes fallback metrics, reports no-qualified attempts and guards historic roots: b55dfec18a9bb96566439699dbc0475dd1ab731b
+- dedicated no-fallback tests: 7aec4c637f56b7facafdad04b1f34b7322a3998a
+- canonical protocol Section 14 replacement: e8173d43c6a873b3782da767391ff907f69cdc45
+- updated README instructions: 4fcc4909bcd3da81a7b36540fb04ad018b957e04
+- archived rejected historical experiment record: 9e2d1a67a072f7f36ef441671569cd134c04ded8
+- new pure 25% evidence root: 2ca6504e75aef7c550685cfe0fc732ff74bd3584
