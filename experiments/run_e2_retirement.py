@@ -557,6 +557,32 @@ def run_retirement_experiment(
     return summary_rows
 
 
+
+def resolve_retirement_vote_loss_axis(
+    *,
+    cost_losses: tuple[float, ...],
+    fixed_vote_loss: float | None,
+    vote_loss_sweep: tuple[float, ...] | None,
+    loss_pairing: str,
+) -> tuple[float, ...]:
+    """Interpret CLI controls without silently overriding an explicit Vote Loss."""
+    if loss_pairing == "diagonal" and fixed_vote_loss is not None:
+        raise ProtocolError(
+            Diagnostic(
+                owner="experiments.run_e2_retirement",
+                function="resolve_retirement_vote_loss_axis",
+                category="data",
+                code="DIAGONAL_WITH_FIXED_VOTE_LOSS",
+                expected="omit --vote-loss-probability when --loss-pairing=diagonal",
+                actual=fixed_vote_loss,
+            )
+        )
+    if vote_loss_sweep is not None:
+        return vote_loss_sweep
+    if loss_pairing == "diagonal":
+        return cost_losses
+    return (0.0 if fixed_vote_loss is None else fixed_vote_loss,)
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Sequential Greedy task voting with executor retirement"
@@ -568,7 +594,20 @@ def main() -> None:
         "--cost-loss-probabilities", type=parse_probabilities,
         default=DEFAULT_COST_LOSSES,
     )
-    parser.add_argument("--vote-loss-probability", type=float, default=0.0)
+    vote_group = parser.add_mutually_exclusive_group()
+    vote_group.add_argument("--vote-loss-probability", type=float, default=None)
+    vote_group.add_argument(
+        "--vote-loss-probabilities",
+        type=parse_probabilities,
+        default=None,
+        help="Independent Vote Loss axis, comma-separated fractions e.g. 0,0.02,0.04",
+    )
+    parser.add_argument(
+        "--loss-pairing",
+        choices=("grid", "diagonal"),
+        default="grid",
+        help="grid: every Cost/Vote combination; diagonal: matching p_cost=p_vote",
+    )
     parser.add_argument("--max-rounds", type=int, default=None)
     parser.add_argument(
         "--dataset", type=Path,
@@ -582,9 +621,22 @@ def main() -> None:
     args = parser.parse_args()
 
     max_rounds = args.max_rounds if args.max_rounds is not None else 2 * args.tasks
+    vote_losses = resolve_retirement_vote_loss_axis(
+        cost_losses=args.cost_loss_probabilities,
+        fixed_vote_loss=args.vote_loss_probability,
+        vote_loss_sweep=args.vote_loss_probabilities,
+        loss_pairing=args.loss_pairing,
+    )
+    conditions = build_retirement_loss_conditions(
+        cost_losses=args.cost_loss_probabilities,
+        vote_losses=vote_losses,
+        pairing=args.loss_pairing,
+    )
     print(
         f"GREEDY_RETIREMENT_CONFIG tasks={args.tasks} max_rounds={max_rounds} "
-        f"min_rounds_without_retries={args.tasks} initial_cost_exchange_once=true",
+        f"min_rounds_without_retries={args.tasks} initial_cost_exchange_once=true "
+        f"pairing={args.loss_pairing} conditions={len(conditions)} "
+        f"total_seed_conditions={args.seeds * len(conditions)}",
         flush=True,
     )
     run_retirement_experiment(
@@ -592,7 +644,9 @@ def main() -> None:
         tasks=args.tasks,
         seeds=args.seeds,
         cost_losses=args.cost_loss_probabilities,
-        p_vote_loss=args.vote_loss_probability,
+        p_vote_loss=(0.0 if args.vote_loss_probability is None else args.vote_loss_probability),
+        vote_losses=vote_losses,
+        loss_pairing=args.loss_pairing,
         max_rounds=max_rounds,
         dataset_path=args.dataset,
         output_root=args.output_root,
