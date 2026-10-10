@@ -1437,3 +1437,104 @@ The assistant read AGENTS.md -> AI_CHANGE_PROTOCOL.md -> CHANGE_CONTINUITY.md ->
 - updated README instructions: 4fcc4909bcd3da81a7b36540fb04ad018b957e04
 - archived rejected historical experiment record: 9e2d1a67a072f7f36ef441671569cd134c04ded8
 - new pure 25% evidence root: 2ca6504e75aef7c550685cfe0fc732ff74bd3584
+
+
+## 2026-10-10 — E3/E4 robot × task-load factorial scaling to 100R/100T
+
+### Purpose and user decision
+
+Following the user's successful 2026-10-10 local run of the **pure** 25%-qualified Greedy with **no fallback** (89/89 tests and 36 packet-loss conditions × 100 seeds), the user requested varying both robot count and task count, with an explicit **100-robot maximum** and **maximum 1:1 robots-to-tasks**. This is a NEW experiment configuration and scaling evidence owner, not a voting or architecture rewrite.
+
+Design exactly 30 representative R/T size cells:
+- R=10: T=1,3,5,8,10
+- R=20: T=2,5,10,15,20
+- R=40: T=4,10,20,30,40
+- R=60: T=6,15,30,45,60
+- R=80: T=8,20,40,60,80
+- R=100: T=10,25,50,75,100
+
+Each corresponds to a target T/R load ratio in (0.10, 0.25, 0.50, 0.75, 1.00), using deterministic round-half-up and always recording actual load. Compare **Cost Loss = Vote Loss = 0% versus 30%**, independent per-stage packet Bernoulli sampling. Each condition has 100 matching scenario/network seeds, totalling **30 × 2 × 100 = 6,000 proposed simulations**. At 100R/50T, max_rounds=100 reproduces the prior 100-attempt base point. For fair load scaling at 100R/100T use **max_rounds=2*T=200**, not a fixed 100 attempts that would force any single failed vote to preclude completion.
+
+### Modified files, owners and named functions
+
+- experiments/run_e3_e4_scaling.py (NEW, dedicated R/T scale-experiment owner):
+  - ScalingCell dataclass exposes actual_load_ratio and physical R/T ID without mutating protocol membership;
+  - validate_scaling_axes: **data** validation for strictly increasing unique positive robot levels R<=100, target ratios (0,1], sorted unique loss levels, seeds>=1, attempts-per-task multiplier>=1;
+  - build_scaling_cells: **data / contract** responsibility for deterministic half-up task count and no invalid or duplicated rounded size cell;
+  - make_scaling_plan: **configuration/provenance** responsibility freezing source commit SHA, R/T/loss axes, exact T/R, seed count, dataset path, simulation method, attempt formula and experiment schema;
+  - prepare_scaling_output: **state / contract** gate requiring a fresh output directory (a pre-committed README.md is permitted) or explicit --resume with identical frozen plan; refuses mixing experiments/source revisions or overwriting unmanaged data;
+  - read_completed_scaling_cell: **contract** gate confirming existing summary.csv plus exactly one raw, round and compressed seed-0 event file, all expected seed-and-loss pairs, source SHA, dimensions, pure 25% method ID and max_rounds=attempts_per_task*T; rejects incomplete/mismatched evidence on resume;
+  - build_scaling_aggregate_rows: **reporting** owner retaining original per-cell E2 summary metrics and adding target/actual T/R, elapsed simulated coordination time and traffic/attempts normalized PER REQUESTED TASK, total committed tasks and path to original evidence;
+  - run_scaling_benchmark: **orchestration only**; calls the EXISTING experiments.run_e2_retirement.run_retirement_experiment for each cell; verifies output integrity and appends one aggregate summary.csv after every completed cell, giving a safe restart boundary;
+  - parse_int_levels and main: CLI parsing, default 30 R/T cells, 0%/30% paired Cost/Vote loss, 100 seeds, max_rounds=2*T, --resume and output-root.
+- tests/test_e3_e4_scaling.py (NEW):
+  - verify default 30 unique legal cells including 100R/50T and 100R/100T;
+  - robot count >100, load >1, unsorted/duplicate axes, invalid seeds or round multiplier, duplicate rounded T reject with diagnostic owner/code;
+  - small end-to-end mocked latency/dataset scenario with the REAL Greedy retirement simulator for 4 size cells × 2 equal-loss points × 2 seeds, verifying expected distinct raw/round/event/aggregate outputs, source SHA, method/rule, per-task attempt budgets and zero-loss full-information behavior;
+  - verify --resume reuses validated completed cell evidence, same request without --resume is refused, seed-count changes are refused, corrupted per-seed SHA fails instead of passing summary integrity;
+  - verify a preexisting result-ledger README.md in an otherwise unused output root is permitted without bypassing data overwrite checks.
+- docs/EXPERIMENT_PROTOCOL.md: canonical new Section 15 fully specifying the upper 100-R limit, 1:1 cap, T half-up rounding, two equal packet-loss levels, 100 seeds/cell, task-relative 2*T attempts, metric normalization, owner boundaries, experiment provenance/resume and commands; E2 Section 14 remains unchanged.
+- README.md: replaced PLANNED E3 200-R and E4 separately listed ladders with the current user-authorized 100R-capped 30-size-cell E3/E4 plan, smoke/formal/--resume commands, formula, evidence location and expected metrics. This is an EXPLICIT experiment plan change, not a silent update to the previous E2 result.
+- results/e3_e4_scaling_100robot_cap/README.md (NEW): task configuration grid, experiment evidence directory, assumptions/limitations, preflight/formal commands, no-fallback method and pending verification status.
+- docs/CHANGE_CONTINUITY.md: this required continuity entry.
+
+### Responsibility movement and preserved behavior
+
+No vote, planning, packet loss, safety, membership or runtime execution responsibility moves: existing protocol and coordination modules remain the single owners of candidate qualification, counted ballots, score broadcasts, Commit, failing-task rotation and retiring successful executors. Existing optimizer continues to provide per-task lowest visible Cost Greedy and separate offline full-information Greedy and global Hungarian references. Existing network owns Bernoulli Cost/Vote delivery. Existing E2 experiment owner remains responsible for per-seed simulation, raw/round/event CSV, and per-cell metrics. The new E3/E4 module owns **only grid validation, source/provenance plan, per-cell orchestration/resume and cross-cell reporting**.
+
+Preserved:
+- All original E0/E1/E2 methods and historical output roots/results unchanged.
+- The user-approved **quarter_plurality** rule strictly >25% of currently active voters, with NO fallback, NO self-claims and NO alternative winner; when nobody qualifies, NO qualified score announcement and NO Commit, task remains pending and rotates.
+- Stable original IDs, one executor per task, executor retires only after unique Commit, lost Cost rows remain unavailable, votes sample independently on each retry, qualified score and Commit announcements are modeled as reliable.
+- Cost and Vote losses have equal numeric probability in the new study (unlike 0% Vote-only historical Cost experiment), with same integer seeds WITHIN a given R/T cell for matched 0% vs 30% conditions.
+- Seed count 100 as previous formal study; source SHA and original per-cell raw evidence retained.
+- Simulated elapsed coordination time vs wall-clock algorithm computation time distinction. The current scaling study does NOT measure physical robot task execution, communication contention or mixed-cost/physical trajectory optimization.
+
+### Intentionally changed experimental behavior
+
+- Vary R from 10 to 100 and T from 10% to 100% of R; previous primary E3 200-R planned point excluded as user explicitly sets 100-R maximum; previous E4 separate T set replaced by a factorial ratio grid. These are a NEW experimental family and do not affect any earlier E2 command.
+- At 100R/100T, no spare executors exist and all 100 have at most one assigned task; 2*T=200 voting attempts instead of 100. The 100R/50T anchor preserves max_rounds=100.
+- Two controlled network conditions: 0%/0% control vs 30%/30% loss, rather than 0..70% repeated at every scale; this isolates scaling and avoids a prohibitively large experiment.
+- Write one independent cell directory per R/T to avoid overloading per-seed raw CSV with different robot/task dimensions; write root summary.csv after every verified completed cell (expected 60 final rows).
+- Normalized outputs include actual load fraction, mean committed task count, attempts/time/messages/payload bytes per REQUESTED task, not falsely normalized only by successful tasks. Full assignment and cost-gap valid denominator retain prior definitions.
+
+### Diagnostic contract: first failing owner / function / category / code
+
+- experiments.run_e3_e4_scaling.validate_scaling_axes / data / INVALID_SCALING_ROBOT_LEVELS: max100 and strictly increasing unique positive integers; expected/actual robot list.
+- experiments.run_e3_e4_scaling.validate_scaling_axes / data / INVALID_SCALING_LOAD_RATIOS: sorted unique (0,1] ratios; expected/actual fractions.
+- experiments.run_e3_e4_scaling.validate_scaling_axes / data / INVALID_SCALING_LOSS_LEVELS: sorted unique loss conditions.
+- experiments.run_e3_e4_scaling.validate_scaling_axes / data / INVALID_SCALING_SEEDS: seeds>=1.
+- experiments.run_e3_e4_scaling.validate_scaling_axes / data / INVALID_SCALING_ATTEMPT_MULTIPLIER: attempts_per_task>=1.
+- experiments.run_e3_e4_scaling.build_scaling_cells / data / SCALING_TASK_COUNT_OUT_OF_RANGE: 1<=T<=R after rounding.
+- experiments.run_e3_e4_scaling.build_scaling_cells / contract / SCALING_DUPLICATE_TASK_CELL: multiple target ratios collapse into same integer task count.
+- experiments.run_e3_e4_scaling.prepare_scaling_output / state / SCALING_OUTPUT_ALREADY_EXISTS: existing run without explicit --resume.
+- experiments.run_e3_e4_scaling.prepare_scaling_output / contract / SCALING_RESUME_PLAN_MISMATCH: source SHA, size grid, ratio/loss axes, seeds, dataset, multiplier or schema mismatch; preserve expected/actual entire frozen plan.
+- experiments.run_e3_e4_scaling.prepare_scaling_output / state / SCALING_UNMANAGED_OUTPUT_ROOT: existing unknown data files, no matching plan (a README.md-only root is explicitly allowed).
+- experiments.run_e3_e4_scaling.read_completed_scaling_cell / contract / SCALING_CELL_EVIDENCE_INCOMPLETE: summary/raw/round/audit evidence missing or duplicated.
+- experiments.run_e3_e4_scaling.read_completed_scaling_cell / contract / SCALING_CELL_PROVENANCE_MISMATCH: wrong seed-loss Cartesian diagonal coverage, R/T, SHA, method, vote rule, round cap, summary seed count.
+- experiments.run_e3_e4_scaling.run_scaling_benchmark / state / SCALING_EXISTING_CELL_REQUIRES_RESUME.
+- experiments.run_e3_e4_scaling.run_scaling_benchmark / state / SCALING_PARTIAL_CELL_REQUIRES_MANUAL_REVIEW: never blindly overwrite interrupted cell evidence.
+- Existing Bernoulli loss probability diagnostics and protocol/planning/quorum/safety diagnostics retain their original owners; no unknown category or invented fallback.
+
+### Verification and completion status
+
+The user supplied a complete historical console log showing **89/89 unit tests passed** and **3,600 pure 25%-plurality 100R/50T diagonal packet-loss simulations completed** at previous HEAD 0966d25db1a6cd17bc8a06eaad4ab6025d6fd326. At 40% Cost=Vote loss the historical 100R/50T full 50-task allocation success was 100/100 seeds; the 100R/100T case has NOT YET BEEN TESTED. The new E3/E4 source and tests have been committed via GitHub connector, but assistant's current environment lacks a checked-out repository and cannot run the full project. **Do NOT claim that this new scaling code passed tests, smoke or the 6,000 formal cases until the Mac logs are returned.**
+
+### Remaining risks / next actions
+
+1. On user's Mac: git pull; python3 -m unittest discover -s tests -v. Address any failing specific named owner before formal run.
+2. Small 3-seed smoke: 10 and 100 robots, 50% and 100% load, Cost=Vote losses 0% and 30%; expected 4 cells×2 losses×3 seeds=24 simulations, validate one-to-one safety, early/late 25% thresholds, 2*T cap and complete data.
+3. Formal 6,000-case E3/E4 grid with 100 seeds/cell/condition. Use --resume after interruption on EXACTLY the same SHA/config/data, and review any interrupted incomplete cell before a retry.
+4. Verify root summary.csv has 60 size-and-loss rows, each from exactly 100 seeds, raw files with 200 seed-loss rows/cell, declared code SHA, unmodified model and 0% controls. Check R=100,T=50,Cost=Vote=30% reproduces the old per-cell E2 result (allow matching parameter/time seed restrictions), and R=T=100 passes every safety and identity check.
+5. Analyze E3 fixed T/R: R vs full-assignment success, Greedy/global-optimal cost gap, absolute/per-task simulated time and traffic. Analyze E4 fixed R=100: target/actual load ratio vs success, missing tasks, no-qualified attempts, cost-gap and mean time/bytes. Prefer paired seed comparison and confidence intervals for publication.
+6. Future work: actual wall-clock execution runtime, true time/energy/collision effects, correlated packet loss, loss of qualified-score/Commit control traffic, multi-task executors that return after completing work. None silently included here.
+
+### Related implementation commits and immutable provenance
+
+- experiments/run_e3_e4_scaling.py new scaling config + resumption owner: e02e1715624036c2f65e0d471cbe4f278901341a
+- tests/test_e3_e4_scaling.py original scale coverage: a50e2a501df03ba59d4cccb69d3f2ea52b8de387
+- docs/EXPERIMENT_PROTOCOL.md new canonical Section 15: 5c324041551fe57881404ebdaa92da10b83ffa02
+- experiments/run_e3_e4_scaling.py allow preexisting README.md evidence ledger at new root: 62cd567c6b03590cc1784ba230513378cb98cb0f
+- results/e3_e4_scaling_100robot_cap/README.md evidence ledger: b5255f1ca8ee481bb8ffed990afdb5317cae7cc8
+- README.md updated E3/E4 configuration: 3b81d520594893b18298c4027d215982331b6d21
+- tests/test_e3_e4_scaling.py README-only fresh output root regression: 069f429871c0be8acb29b5559ef212d5e26819ab
