@@ -483,15 +483,23 @@ def write_greedy_only_comparison(
     paired: list[dict[str, object]],
 ) -> None:
     """Write a NEW derived report; the historical raw files are immutable."""
-    if output_root.resolve() in {p.parent.parent.resolve() for p in source_files.values()}:
+    resolved_output = output_root.resolve()
+    source_roots = {p.parent.parent.resolve() for p in source_files.values()}
+    if any(
+        resolved_output == source_root
+        or source_root in resolved_output.parents
+        or resolved_output in source_root.parents
+        for source_root in source_roots
+    ):
         raise comparison_error(
             function="write_greedy_only_comparison", category="state",
             code="GREEDY_ANALYSIS_SOURCE_OUTPUT_COLLISION",
-            expected="a separate new derived-report directory",
+            expected="a new report directory outside both historical source trees",
             actual=str(output_root),
         )
-    if output_root.exists() and any(
-        p.name != "README.md" for p in output_root.iterdir()
+    if output_root.exists() and (
+        not output_root.is_dir()
+        or any(p.name != "README.md" for p in output_root.iterdir())
     ):
         raise comparison_error(
             function="write_greedy_only_comparison", category="state",
