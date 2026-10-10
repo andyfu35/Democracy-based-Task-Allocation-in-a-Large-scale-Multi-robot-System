@@ -1,6 +1,6 @@
 # Sequential Greedy Democracy with executor retirement (100R/50T)
 
-Status: **IMPLEMENTED; LOCAL VERIFICATION AND 100-SEED RUN PENDING**.
+Status: **COST-ONLY LOCAL RUN COMPLETED AT HEAD d0596a1; FULL VOTE-LOSS RUNS PENDING**.
 
 Algorithm (not Hungarian):
 1. All 100 robots share their full 50-task cost row ONCE. Each other robot independently receives or loses the full row according to Cost Loss p_c. A robot always retains its own row.
@@ -41,4 +41,6 @@ Interpretation:
 - A retry of the exact same task with identical active membership and zero Vote Loss will not improve information completeness, since cost rows are not refreshed.
 - The simulator does not model physical task travel/execution, robots returning to service, packet-loss of commit announcements, or real Wi-Fi channel contention.
 
-Until tests and smoke pass locally, do not cite these as completed performance results.
+The user-side 2026-10-10 log now confirms **62/62 tests passed** and the formal Cost-only sweep ran 100 seeds per loss level at HEAD `d0596a1417a30b90854a21161170c34ee599b845`, with Vote Loss fixed at 0. At 30% Cost Loss, the logged full-assignment success was 99% and per-task Commit 99.98%. Raw and round CSVs are on the user's Mac and were not added to this repository; this README records only the provided console provenance. This confirmation is for the PRE-VOTE-SWEEP commit and does not certify new Vote Loss changes.
+
+New Vote Loss-only, fixed Cost 30% with increasing Vote Loss, and simultaneous Cost/Vote Loss experiments are specified in `results/e2_vote_loss/README.md`. Formal Vote Loss results remain pending.
