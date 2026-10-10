@@ -378,3 +378,25 @@ proposal: voter_id, task_id, candidate_id, oracle_robot, oracle_match,
 local_visible_rows, is_self_vote, transport_delivered, transport_dropped.
 This ballot table includes local self-votes that were not present in the previous
 network-only event log. The output is audit evidence, not a second vote ledger.
+
+
+## 12.10 Controlled E2 cost-information-loss sweep
+
+The E2 loss sampler continues to use distinct deterministic Bernoulli packet keys for cost-row reception and vote transport.
+
+To isolate **local-information loss**, vary the probability of *receiving a peer cost row* while fixing the vote-packet delivery loss to zero:
+
+- `p_cost_loss = p` independently for each sender-to-receiver cost-row delivery, with each robot always retaining its own row;
+- `p_vote_loss = 0` for each remote vote;
+- reliable task announcement and commit as before;
+- unchanged partial-row Hungarian, strict majority and no retry.
+
+The `experiments.run_e2` CLI option `--loss-probabilities` still controls the cost-delivery loss sweep. New optional `--vote-loss-probability VALUE` fixes Democracy's vote-transport packet loss independently for the entire sweep.
+
+**Backward-compatibility contract:** if `--vote-loss-probability` is omitted, Democracy keeps the prior `p_vote_loss = p_cost_loss` for each point. When set to `0`, cost loss alone is tested. Leader/Full-View methods do not transmit Democracy votes, so this vote override does not change their behavior.
+
+The legacy raw/summary/events field `p_loss` identifies cost loss. The additional `p_vote_loss` field records the effective vote loss at each point, including the original default two-stage experiment. Audit and per-seed event records continue to be paired by the same seeds. Use a distinct `--output-root` for this ablation to avoid replacing formal E2 summaries.
+
+Suggested initial analysis: fixed 100 robots / 50 tasks, 100 paired scenario/network seeds, cost loss 0% to 70% at 2-percentage-point increments, vote loss fixed 0%. Report task commit, CER and all-tasks global-optimal solution rates separately. A claimed `unusable` transition requires a stated operational criterion; for inspection one may report the first sampled loss level where task commit falls below 90%, 50% and 10%, without treating those as predefined success standards.
+
+This sweep remains single-round and does not quantify eventual completion under retries.
