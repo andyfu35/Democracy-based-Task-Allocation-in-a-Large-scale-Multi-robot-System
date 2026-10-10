@@ -1058,6 +1058,7 @@ def simulate_democracy_hungarian_lossy(
     task_ids: tuple[int, ...] | None = None,
     voting_strategy: str = "hungarian",
     cost_snapshot: RetirementCostSnapshot | None = None,
+    vote_decision_rule: str = "strict_majority",
 ) -> LossyCoordinationResult:
     num_robots, num_tasks = validate_cost_matrix(cost_matrix)
     physical_robots, physical_tasks = validate_epoch_identity_mapping(
@@ -1067,6 +1068,11 @@ def simulate_democracy_hungarian_lossy(
         task_ids=task_ids,
     )
     validate_epoch_voting_strategy(strategy=voting_strategy, num_tasks=num_tasks)
+    validate_vote_decision_rule(
+        rule=vote_decision_rule,
+        voting_strategy=voting_strategy,
+        num_tasks=num_tasks,
+    )
     quorum = quorum_size(num_robots)
     eligible = frozenset(physical_robots)
     vote_loss_probability = (
@@ -1164,8 +1170,25 @@ def simulate_democracy_hungarian_lossy(
 
     committed_pairs: list[tuple[int, int]] = []
     quorum_times: dict[int, float] = {}
+    plurality_resolutions: list[PluralityResolution] = []
 
     for task_id in physical_tasks:
+        if vote_decision_rule == "quarter_plurality_fallback":
+            vote_deadline = max(ready_times, default=0.0) + phase_timeout_ms
+            resolution, announcements, ready_ms = simulate_quarter_plurality_announcement_phase(
+                ledgers_by_candidate=ledgers_by_task[task_id],
+                eligible_robots=eligible,
+                task_id=task_id,
+                round_id=round_id,
+                vote_deadline_ms=vote_deadline,
+                sampler=sampler,
+            )
+            events.extend(announcements)
+            committed_pairs.append((resolution.winner_id, task_id))
+            quorum_times[task_id] = ready_ms
+            plurality_resolutions.append(resolution)
+            continue
+
         winner = find_unique_majority(
             ledgers_by_candidate=ledgers_by_task[task_id],
             quorum=quorum,
@@ -1213,7 +1236,11 @@ def simulate_democracy_hungarian_lossy(
     )
 
     return _summarize_lossy_result(
-        method=("democracy_greedy" if voting_strategy == "greedy_task" else "democracy_hungarian"),
+        method=(
+            "democracy_greedy_quarter_plurality"
+            if vote_decision_rule == "quarter_plurality_fallback"
+            else ("democracy_greedy" if voting_strategy == "greedy_task" else "democracy_hungarian")
+        ),
         cost_matrix=cost_matrix,
         assigned_pairs=committed_pairs,
         cost_phase_completion_ms=cost_completion,
@@ -1234,6 +1261,20 @@ def simulate_democracy_hungarian_lossy(
         ),
         robot_ids=(physical_robots if robot_ids is not None or task_ids is not None else None),
         task_ids=(physical_tasks if robot_ids is not None or task_ids is not None else None),
+        vote_decision_rule=vote_decision_rule,
+        announcement_threshold=(
+            plurality_resolutions[0].announcement_threshold if plurality_resolutions else 0
+        ),
+        qualified_announcement_count=sum(
+            p.announced_candidate_count for p in plurality_resolutions
+        ),
+        fallback_self_claim_count=sum(
+            p.fallback_self_claim_count for p in plurality_resolutions
+        ),
+        fallback_used_task_count=sum(int(p.fallback_used) for p in plurality_resolutions),
+        plurality_tie_break_count=sum(
+            int(p.tied_highest) for p in plurality_resolutions
+        ),
     )
 
 
