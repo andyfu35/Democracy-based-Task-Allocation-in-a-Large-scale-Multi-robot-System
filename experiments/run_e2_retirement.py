@@ -530,9 +530,15 @@ def run_retirement_experiment(
     allow_download: bool,
     vote_losses: tuple[float, ...] | None = None,
     loss_pairing: str = "grid",
+    vote_decision_rule: str = "strict_majority",
 ) -> list[dict[str, object]]:
     if seeds < 1:
         raise ValueError("seeds must be >= 1")
+    validate_vote_decision_rule(
+        rule=vote_decision_rule,
+        voting_strategy="greedy_task",
+        num_tasks=1,
+    )
     conditions = build_retirement_loss_conditions(
         cost_losses=cost_losses,
         vote_losses=(p_vote_loss,) if vote_losses is None else vote_losses,
@@ -580,6 +586,7 @@ def run_retirement_experiment(
                     phase_timeout_ms=phase_timeout_ms,
                     max_rounds=max_rounds,
                     voting_strategy="greedy_task",
+                    vote_decision_rule=vote_decision_rule,
                 )
                 raw_rows.append(retirement_result_row(
                     seed=seed, robots=robots, tasks=tasks,
@@ -605,6 +612,7 @@ def run_retirement_experiment(
     summary_rows = summarize_retirement_results(raw_rows)
     write_csv(summary_path, summary_rows)
 
+    print(f"RETIREMENT_VOTE_DECISION_RULE={vote_decision_rule}")
     print(f"RETIREMENT_LOSS_PAIRING={loss_pairing}")
     print(f"RETIREMENT_LOSS_CONDITIONS={len(conditions)}")
     print(f"RETIREMENT_TOTAL_SCENARIOS={len(conditions) * seeds}")
@@ -691,6 +699,12 @@ def main() -> None:
         default="grid",
         help="grid: every Cost/Vote combination; diagonal: matching p_cost=p_vote",
     )
+    parser.add_argument(
+        "--vote-decision-rule",
+        choices=("strict_majority", "quarter_plurality_fallback"),
+        default="strict_majority",
+        help="Experiment-only commit rule; default retains the original 51-vote majority",
+    )
     parser.add_argument("--max-rounds", type=int, default=None)
     parser.add_argument(
         "--dataset", type=Path,
@@ -702,6 +716,11 @@ def main() -> None:
         default=Path("results/e2_greedy_retirement_100r50t"),
     )
     args = parser.parse_args()
+    if (
+        args.vote_decision_rule == "quarter_plurality_fallback"
+        and args.output_root == Path("results/e2_greedy_retirement_100r50t")
+    ):
+        parser.error("25pct plurality mode requires a separate --output-root; do not overwrite majority evidence")
 
     max_rounds = args.max_rounds if args.max_rounds is not None else 2 * args.tasks
     vote_losses = resolve_retirement_vote_loss_axis(
@@ -718,6 +737,7 @@ def main() -> None:
     print(
         f"GREEDY_RETIREMENT_CONFIG tasks={args.tasks} max_rounds={max_rounds} "
         f"min_rounds_without_retries={args.tasks} initial_cost_exchange_once=true "
+        f"vote_rule={args.vote_decision_rule} "
         f"pairing={args.loss_pairing} conditions={len(conditions)} "
         f"total_seed_conditions={args.seeds * len(conditions)}",
         flush=True,
@@ -730,6 +750,7 @@ def main() -> None:
         p_vote_loss=(0.0 if args.vote_loss_probability is None else args.vote_loss_probability),
         vote_losses=vote_losses,
         loss_pairing=args.loss_pairing,
+        vote_decision_rule=args.vote_decision_rule,
         max_rounds=max_rounds,
         dataset_path=args.dataset,
         output_root=args.output_root,
