@@ -521,6 +521,37 @@ python3 -m experiments.run_e2 \
 In that output, `p_loss` is cost-row loss and `p_vote_loss` is zero. Track Democracy `mean_task_commit_rate`, `mean_correct_executor_rate`, `optimal_solution_rate`, and `full_assignment_success_rate` separately. Declare the operational usability threshold explicitly; report the first sampled loss where task commit falls below selected cutoffs rather than inferring it from full-assignment optimality alone.
 
 
+
+### Experimental multi-round Democracy: retire committed executors
+
+This is a **new opt-in protocol experiment**, not a correction to or replacement for the single-round E2 results. In each round, all currently active robots vote using their own incomplete local Hungarian solution. Only after a candidate earns majority and its reliable commit announcement completes is that robot removed from **future voters and future executor candidates**, and its task removed from the pending pool. The next round uses a freshly sampled communication epoch and a quorum of `floor(active_robots/2) + 1`. A `--max-rounds` cap prevents infinite retries.
+
+Smoke test:
+
+```bash
+git pull
+python3 -m unittest discover -s tests -v
+python3 -m experiments.run_e2_retirement \
+  --robots 100 --tasks 50 --seeds 3 \
+  --cost-loss-probabilities 0,0.3,0.5 \
+  --vote-loss-probability 0 --max-rounds 5 \
+  --output-root results/e2_retirement_smoke
+```
+
+100-seed formal-sized diagnostic comparison with Cost Loss 0%-70% in 2-point increments, and Vote Loss fixed to 0%:
+
+```bash
+python3 -m experiments.run_e2_retirement \
+  --robots 100 --tasks 50 --seeds 100 \
+  --vote-loss-probability 0 --max-rounds 10 \
+  --output-root results/e2_retirement_100r50t
+```
+
+This generates a summary, raw per-seed rows, per-epoch active membership / pending-task / quorum / commit rows and a seed-0 delivery audit log. It reports the **identical first-round E2 baseline** next to the bounded multi-round outcome, so added retries cannot be mislabeled as better one-round packet-loss robustness.
+
+**Research status: PENDING LOCAL VERIFICATION.** The simulator records task assignment and executor retirement, not physical task execution; it assumes reliable commits and does not model robot return, burst loss, or MAC contention.
+
+
 ---
 
 ## E3 — Robot Scalability
