@@ -62,6 +62,26 @@ class RetirementProtocolTests(unittest.TestCase):
         self.assertEqual(third.active_robot_ids, (2, 3))
         self.assertEqual(third.committed_pairs, ((0, 0), (1, 1)))
 
+    def test_failed_greedy_task_rotates_pending_queue_without_retiring(self) -> None:
+        initial = initialize_retirement_membership(num_robots=4, num_tasks=3)
+        state = apply_announced_retirement_commits(
+            membership=initial, announced_pairs=(), attempted_task_id=0,
+        )
+        self.assertEqual(state.active_robot_ids, (0, 1, 2, 3))
+        self.assertEqual(state.pending_task_ids, (1, 2, 0))
+        self.assertEqual(state.epoch_index, 1)
+        self.assertEqual(state.committed_pairs, ())
+
+    def test_greedy_queue_rejects_voting_on_non_head_task(self) -> None:
+        initial = initialize_retirement_membership(num_robots=4, num_tasks=3)
+        with self.assertRaises(ProtocolError) as context:
+            apply_announced_retirement_commits(
+                membership=initial, announced_pairs=(), attempted_task_id=2,
+            )
+        self.assertEqual(
+            context.exception.diagnostic.code, "RETIREMENT_TASK_NOT_QUEUE_HEAD"
+        )
+
     def test_ineligible_executor_is_rejected(self) -> None:
         state = initialize_retirement_membership(num_robots=4, num_tasks=2)
         state = apply_announced_retirement_commits(
