@@ -1290,6 +1290,7 @@ class RetirementRoundTrace:
     elapsed_end_ms: float
     coordination: LossyCoordinationResult
     voted_task_id: int | None = None
+    announcement_threshold: int = 0
 
 
 @dataclass(frozen=True)
@@ -1369,6 +1370,7 @@ def simulate_democracy_hungarian_retirement(
     phase_timeout_ms: float,
     max_rounds: int,
     voting_strategy: str = "hungarian",
+    vote_decision_rule: str = "strict_majority",
 ) -> MultiRoundRetirementResult:
     """Multi-round membership owner; reuses the same E2 single-round vote engine.
 
@@ -1393,6 +1395,11 @@ def simulate_democracy_hungarian_retirement(
     validate_packet_loss_probability(p_vote_loss)
     validate_epoch_voting_strategy(
         strategy=voting_strategy, num_tasks=(1 if voting_strategy == "greedy_task" else num_tasks)
+    )
+    validate_vote_decision_rule(
+        rule=vote_decision_rule,
+        voting_strategy=voting_strategy,
+        num_tasks=(1 if voting_strategy == "greedy_task" else num_tasks),
     )
     snapshot = (
         capture_retirement_cost_snapshot(
@@ -1439,6 +1446,7 @@ def simulate_democracy_hungarian_retirement(
             task_ids=pending_tasks,
             voting_strategy=voting_strategy,
             cost_snapshot=snapshot,
+            vote_decision_rule=vote_decision_rule,
         )
         require_retirement_commit_announcements(
             round_result=round_result,
@@ -1451,7 +1459,8 @@ def simulate_democracy_hungarian_retirement(
                 active_robot_ids=active_robots,
                 pending_task_ids=membership.pending_task_ids,
                 voted_task_id=(pending_tasks[0] if voting_strategy == "greedy_task" else None),
-                quorum=quorum_size(len(active_robots)),
+                quorum=(quorum_size(len(active_robots)) if vote_decision_rule == "strict_majority" else 0),
+                announcement_threshold=round_result.announcement_threshold,
                 newly_committed_pairs=round_result.assigned_pairs,
                 elapsed_start_ms=elapsed_ms,
                 elapsed_end_ms=next_elapsed,
@@ -1467,9 +1476,13 @@ def simulate_democracy_hungarian_retirement(
 
     return MultiRoundRetirementResult(
         method=(
-            "democracy_greedy_retirement"
-            if voting_strategy == "greedy_task"
-            else "democracy_hungarian_retirement"
+            "democracy_greedy_quarter_plurality_retirement"
+            if vote_decision_rule == "quarter_plurality_fallback"
+            else (
+                "democracy_greedy_retirement"
+                if voting_strategy == "greedy_task"
+                else "democracy_hungarian_retirement"
+            )
         ),
         assigned_pairs=membership.committed_pairs,
         total_cost=float(
