@@ -317,6 +317,26 @@ def validate_packet_loss_probability(p_loss: float) -> float:
     return value
 
 
+def validate_vote_repetitions(vote_repetitions: int) -> int:
+    """Bound a no-ACK, sender-side repetition transport experiment.
+
+    One physical remote vote is sent for each copy. Local self-votes remain
+    local and are never repeated. The 1-copy setting is the original E2 model.
+    """
+    if type(vote_repetitions) is not int or not 1 <= vote_repetitions <= 3:
+        raise ProtocolError(
+            Diagnostic(
+                owner="network",
+                function="validate_vote_repetitions",
+                category="data",
+                code="INVALID_VOTE_REPETITIONS",
+                expected="integer in {1, 2, 3} (physical copies per remote ballot)",
+                actual=vote_repetitions,
+            )
+        )
+    return vote_repetitions
+
+
 class BernoulliLossSampler:
     def __init__(self, seed: int):
         self._seed = int(seed)
