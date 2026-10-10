@@ -625,44 +625,31 @@ Each output root contains its own `summary.csv`, per-seed raw rows, per-round st
 
 
 
-### 25%-Announcement Plurality + self-claim fallback: formal paired E2 experiment
+### Pure 25%-Announcement Plurality — no fallback or self-election
 
-This new opt-in Greedy voting rule answers the user's proposal to **announce a candidate once its received votes exceed 25% of all current active robots**, compare announcement scores, and let candidates self-claim when no announcement qualifies. It does not change legacy strict-majority or Hungarian experiments.
+This is the user-authorized 25% voting experiment. **The previously added self-claim fallback was explicitly removed**. The archived experiment with fallback in results/e2_greedy_quarter_plurality_100r50t is no longer a valid estimate of pure 25% voting behavior. Existing strict-majority and Hungarian experiments remain unchanged.
 
-- At 100 active robots the threshold is **26** received distinct votes, NOT 25. After each executor retires, the threshold is recalculated on the reduced electorate.
-- If several candidates qualify, each reliably broadcasts its actual counted votes after the vote window closes. All participants choose the highest score; ties choose lowest original robot ID.
-- If none qualify, all current active candidates make reliable **provisional self-claims** with their own vote counts, including zero. They do **not** independently execute. Reliable announcements and a common highest-score/ID comparison select ONE winner before reliable commit and retirement.
-- The local Greedy algorithm, one initial lossy Cost exchange, per-voter partial views, independent Vote Loss sampling, task queue, 100-attempt limit, scenarios, seeds and Rady empirical latencies remain unchanged.
-- **Important:** added score/self-claim broadcasts are modeled as reliable control announcements. They are charged to communication bytes/time, but this is a stronger reliability assumption than Cost/Vote data packets. At severe loss, fallback may always complete tasks with poor assignment cost. Do not report 100% coverage without the fallback fraction, winner scores, costs and communication overhead.
+- Active robots independently choose the cheapest currently visible active executor for the next pending task, using Greedy and the single initial lossy Cost exchange.
+- A candidate may send a reliable **final-score announcement** only if it has more than 25% of ALL active voter ballots: floor(N/4)+1. At N=100 this is 26 received votes.
+- If several qualify, highest announced tally wins; ties use the lowest original robot ID. One winner sends a reliable Commit and retires from subsequent voting.
+- **If no candidate qualifies, there is NO announcement and NO Commit.** The task rotates to the pending queue tail, everyone remains active, and the next vote attempt uses fresh Vote Loss packet draws. There is no emergency self-claim or other winner-selection channel.
+- The total attempt budget stays at 100 for 100R/50T. Incomplete tasks stay incomplete; only complete assignments receive an overall cost-gap metric.
+- Qualified score announcements are assumed reliable and charged to communication counts/time; Cost and Vote packet loss remain independent with equal numeric probabilities in the formal test. This assumption must not be generalized to unreliable control broadcasts.
 
-Run tests and a 3-seed smoke:
+Upgrade and run tests / a 3-seed smoke:
 
-```bash
-git pull
-python3 -m unittest discover -s tests -v
-python3 -m experiments.run_e2_retirement \
-  --robots 100 --tasks 50 --seeds 3 \
-  --cost-loss-probabilities 0,0.30,0.70 \
-  --loss-pairing diagonal --max-rounds 100 \
-  --vote-decision-rule quarter_plurality_fallback \
-  --output-root results/e2_greedy_quarter_plurality_smoke
-```
+    git pull
+    python3 -m unittest discover -s tests -v
+    python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 3 --cost-loss-probabilities 0,0.30,0.70 --loss-pairing diagonal --max-rounds 100 --vote-decision-rule quarter_plurality --output-root results/e2_greedy_quarter_plurality_no_fallback_smoke
 
-Full 100-seed, 36-point **Cost Loss = Vote Loss** paired benchmark (3,600 seed-conditions):
+Full paired 100-seed, 36-point Cost Loss = Vote Loss sweep:
 
-```bash
-LEVELS="$(python3 -c 'print(",".join(f"{i/100:.2f}" for i in range(0, 71, 2)))')"
-python3 -m experiments.run_e2_retirement \
-  --robots 100 --tasks 50 --seeds 100 \
-  --cost-loss-probabilities "$LEVELS" \
-  --loss-pairing diagonal --max-rounds 100 \
-  --vote-decision-rule quarter_plurality_fallback \
-  --output-root results/e2_greedy_quarter_plurality_100r50t
-```
+    LEVELS="$(python3 -c 'print(",".join(f"{i/100:.2f}" for i in range(0, 71, 2)))')"
+    python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 100 --cost-loss-probabilities "$LEVELS" --loss-pairing diagonal --max-rounds 100 --vote-decision-rule quarter_plurality --output-root results/e2_greedy_quarter_plurality_no_fallback_100r50t
 
-Compare against the completed original strict-majority curve in `results/e2_joint_loss_diagonal_100r50t/summary.csv`. The new `summary.csv` adds `mean_qualified_announcements`, `mean_fallback_commit_rate`, `mean_fallback_self_claims`, `mean_winning_received_votes`, `mean_plurality_tie_breaks` and retains task commit/full completion, two oracle quality scores, total time, messages and bytes. Per-task/seed event logs record each announced vote score.
+Do not reuse the archived fallback result root. New per-round and summary results report no-qualified-announcement attempts, qualified announcements, actual winner tally, remaining tasks, successful commits, total elapsed time, bytes/messages, and two oracle comparisons. Historical fallback-only metrics are deliberately not generated.
 
-**Status: SOURCE COMMITTED; NEW UNIT TESTS AND FORMAL 100-SEED RUN PENDING USER-SIDE VERIFICATION.** Canonical detail and explicit reliability limitations: `docs/EXPERIMENT_PROTOCOL.md` §14.
+Status: **new code/tests committed; updated local tests and full no-fallback scan pending**. Canonical rule: docs/EXPERIMENT_PROTOCOL.md Section 14.
 
 
 ---
