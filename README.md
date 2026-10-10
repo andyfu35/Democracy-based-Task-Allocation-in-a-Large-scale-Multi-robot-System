@@ -566,7 +566,7 @@ The completed 100-seed Cost-only run had p_vote_loss=0. The separate Vote Loss e
 
 Upgrade and smoke test **before** starting the three full runs:
 
-\`\`\`bash
+```bash
 git pull
 python3 -m unittest discover -s tests -v
 python3 -m experiments.run_e2_retirement \
@@ -575,53 +575,53 @@ python3 -m experiments.run_e2_retirement \
   --vote-loss-probabilities 0,0.30,0.70 \
   --max-rounds 100 \
   --output-root results/e2_vote_loss_smoke
-\`\`\`
+```
 
 Formal 36-point Vote Loss-only curve (p_cost_loss=0):
 
-\`\`\`bash
+```bash
 LEVELS="$(python3 -c 'print(",".join(f"{i/100:.2f}" for i in range(0, 71, 2)))')"
 python3 -m experiments.run_e2_retirement \
   --robots 100 --tasks 50 --seeds 100 \
   --cost-loss-probabilities 0 \
   --vote-loss-probabilities "$LEVELS" \
   --max-rounds 100 --output-root results/e2_vote_only_100r50t
-\`\`\`
+```
 
 Formal 36-point Vote Loss sweep with fixed 30% Cost Loss:
 
-\`\`\`bash
+```bash
 python3 -m experiments.run_e2_retirement \
   --robots 100 --tasks 50 --seeds 100 \
   --cost-loss-probabilities 0.30 \
   --vote-loss-probabilities "$LEVELS" \
   --max-rounds 100 --output-root results/e2_cost30_vote_sweep_100r50t
-\`\`\`
+```
 
 Formal 36-point joint diagonal curve (p_cost_loss=p_vote_loss; packet draws independent):
 
-\`\`\`bash
+```bash
 python3 -m experiments.run_e2_retirement \
   --robots 100 --tasks 50 --seeds 100 \
   --cost-loss-probabilities "$LEVELS" \
   --loss-pairing diagonal \
   --max-rounds 100 --output-root results/e2_joint_loss_diagonal_100r50t
-\`\`\`
+```
 
-Each command independently reports actual \`observed_cost_drop_rate\` and \`observed_vote_drop_rate\` from physical packet records, \`mean_task_commit_rate\`, \`full_assignment_success_rate\`, \`mean_greedy_correct_executor_rate\`, rounds/time/payload and complete-allocation cost gap relative to the external full-information Hungarian benchmark. The Vote Loss denominator excludes self-votes; raw rows also expose self-vote counts and vote-quorum failures.
+Each command independently reports actual `observed_cost_drop_rate` and `observed_vote_drop_rate` from physical packet records, `mean_task_commit_rate`, `full_assignment_success_rate`, `mean_greedy_correct_executor_rate`, rounds/time/payload and complete-allocation cost gap relative to the external full-information Hungarian benchmark. The Vote Loss denominator excludes self-votes; raw rows also expose self-vote counts and vote-quorum failures.
 
 Optional coarse 2D interaction test (64 cells × 100 seeds):
 
-\`\`\`bash
+```bash
 GRID="0,0.10,0.20,0.30,0.40,0.50,0.60,0.70"
 python3 -m experiments.run_e2_retirement \
   --robots 100 --tasks 50 --seeds 100 \
   --cost-loss-probabilities "$GRID" \
   --vote-loss-probabilities "$GRID" \
   --max-rounds 100 --output-root results/e2_joint_loss_grid_100r50t
-\`\`\`
+```
 
-Each output root contains its own \`summary.csv\`, per-seed raw rows, per-round state/commit rows and seed-0 event/delivery evidence. **Do not overwrite the completed Cost-only summary.** The new Vote Loss runner extension must pass the expanded unit suite and local smoke before any formal numerical conclusions.
+Each output root contains its own `summary.csv`, per-seed raw rows, per-round state/commit rows and seed-0 event/delivery evidence. **Do not overwrite the completed Cost-only summary.** The new Vote Loss runner extension must pass the expanded unit suite and local smoke before any formal numerical conclusions.
 
 
 ---
