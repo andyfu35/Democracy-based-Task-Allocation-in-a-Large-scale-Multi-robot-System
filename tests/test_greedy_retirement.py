@@ -10,6 +10,7 @@ from democracy_mrta.diagnostics import ProtocolError
 from democracy_mrta.network import BernoulliLossSampler
 from democracy_mrta.optimizer import (
     solve_visible_greedy_task,
+    solve_all_visible_greedy_task_votes,
     solve_sequential_greedy_reference,
     solve_hungarian_assignment,
 )
@@ -35,6 +36,30 @@ class GreedyOptimizerTests(unittest.TestCase):
         a = solve_visible_greedy_task(costs, {1, 2})
         self.assertEqual(a.assigned_pairs, ((1, 0),))
         self.assertEqual(a.total_cost, 3.0)
+
+    def test_batched_greedy_matches_individual_visible_choices(self) -> None:
+        costs = ((1.0,), (2.0,), (3.0,), (4.0,))
+        views = (
+            frozenset({0, 1, 2, 3}),
+            frozenset({1, 2, 3}),
+            frozenset({2, 3}),
+            frozenset({0, 3}),
+        )
+        actual = solve_all_visible_greedy_task_votes(costs, views)
+        expected = tuple(
+            solve_visible_greedy_task(costs, rows) for rows in views
+        )
+        self.assertEqual(actual, expected)
+
+    def test_batched_greedy_rejects_incorrect_voter_count(self) -> None:
+        with self.assertRaises(ProtocolError) as context:
+            solve_all_visible_greedy_task_votes(
+                ((1.0,), (2.0,)),
+                (frozenset({0}),),
+            )
+        self.assertEqual(
+            context.exception.diagnostic.code, "GREEDY_LOCAL_VIEW_COUNT_MISMATCH"
+        )
 
     def test_visible_greedy_uses_stable_tie_rule(self) -> None:
         costs = ((2.0,), (2.0,), (2.0,))
