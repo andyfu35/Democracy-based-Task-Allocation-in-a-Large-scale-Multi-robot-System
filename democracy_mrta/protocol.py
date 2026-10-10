@@ -435,9 +435,10 @@ def apply_announced_retirement_commits(
     )
 
 
+
 @dataclass(frozen=True)
 class CandidateVoteAnnouncement:
-    """Final vote count claimed by one eligible candidate after vote collection."""
+    """A qualified executor's final locally counted votes for one task."""
     candidate_id: int
     received_votes: int
 
@@ -448,8 +449,6 @@ class PluralityResolution:
     counted_votes: int
     announcement_threshold: int
     announced_candidate_count: int
-    fallback_self_claim_count: int
-    fallback_used: bool
     tied_highest: bool
 
 
@@ -473,15 +472,14 @@ def resolve_unique_plurality_claims(
     *,
     announcements: tuple[CandidateVoteAnnouncement, ...],
     eligible_robots: frozenset[int],
-    fallback_used: bool,
     task_id: int,
     round_id: int,
-) -> PluralityResolution:
-    """Deterministic winner AFTER reliable dissemination of candidate claims.
+) -> PluralityResolution | None:
+    """Resolve only qualified final vote announcements, never a self-claim.
 
-    Provisional self-claims cannot independently start execution: when no
-    candidate exceeded 25%, EVERY active robot self-claims and the shared
-    announcement stage selects exactly one by votes, then original robot ID.
+    With no qualified announcement, there is NO winner and NO commit.
+    The current task is left pending for the existing membership owner
+    to rotate to the end of the queue on the next voting attempt.
     """
     threshold = quarter_vote_announcement_threshold(len(eligible_robots))
     candidate_ids = [announcement.candidate_id for announcement in announcements]
@@ -518,54 +516,33 @@ def resolve_unique_plurality_claims(
                 details=f"task_id={task_id}, round_id={round_id}",
             )
         )
-    if fallback_used:
-        if set(candidate_ids) != eligible_robots or any(
-            announcement.received_votes >= threshold
-            for announcement in announcements
-        ):
-            raise ProtocolError(
-                Diagnostic(
-                    owner="protocol",
-                    function="resolve_unique_plurality_claims",
-                    category="contract",
-                    code="INVALID_PLURALITY_FALLBACK_CLAIMS",
-                    expected=(
-                        "all eligible robots claim once and none has "
-                        f"{threshold} or more votes"
-                    ),
-                    actual=tuple((a.candidate_id,a.received_votes) for a in announcements),
-                    details=f"task_id={task_id}, round_id={round_id}",
-                )
-            )
-    elif not announcements or any(
-        announcement.received_votes < threshold for announcement in announcements
-    ):
+    if any(a.received_votes < threshold for a in announcements):
         raise ProtocolError(
             Diagnostic(
                 owner="protocol",
                 function="resolve_unique_plurality_claims",
                 category="contract",
                 code="INVALID_QUALIFIED_PLURALITY_ANNOUNCEMENTS",
-                expected=f"one or more candidates with at least {threshold} received votes",
-                actual=tuple((a.candidate_id,a.received_votes) for a in announcements),
+                expected=f"every announcement has at least {threshold} received votes",
+                actual=tuple((a.candidate_id, a.received_votes) for a in announcements),
                 details=f"task_id={task_id}, round_id={round_id}",
             )
         )
 
-    # Multiple candidates may exceed 25% of the electorate, unlike majority.
-    # The reliable announcement stage makes the comparison common to all.
+    if not announcements:
+        return None
+
+    # The reliable score-announcement phase ensures all active voters
+    # compare identical qualified candidates. Ties use original robot ID.
     top_score = max(a.received_votes for a in announcements)
     tied_ids = tuple(
         a.candidate_id for a in announcements
         if a.received_votes == top_score
     )
-    winner_id = min(tied_ids)
     return PluralityResolution(
-        winner_id=winner_id,
+        winner_id=min(tied_ids),
         counted_votes=top_score,
         announcement_threshold=threshold,
-        announced_candidate_count=0 if fallback_used else len(announcements),
-        fallback_self_claim_count=len(announcements) if fallback_used else 0,
-        fallback_used=fallback_used,
+        announced_candidate_count=len(announcements),
         tied_highest=len(tied_ids) > 1,
     )
