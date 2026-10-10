@@ -620,3 +620,70 @@ Only if tests/smoke pass, run formal 100-seed sweep in the same shell:
     python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 100 --cost-loss-probabilities "$LEVELS" --loss-pairing diagonal --max-rounds 100 --vote-decision-rule quarter_plurality --output-root results/e2_greedy_quarter_plurality_no_fallback_100r50t
 
 Acceptance checks: no fallback event phases, no commit without a qualifying announcement, failed attempts rotate tasks without retiring any robot, zero-loss matches full-information sequential Greedy, zero duplicate assignments, all actual loss probabilities as configured, and new SHA/seeds/evidence saved separately. The new code/tests are committed but the NEW suite and formal no-fallback run remain pending local execution.
+
+
+## 15. E3/E4 — Robot/task scaling (maximum 100 robots, up to 1:1)
+
+### 15.1 Experiment matrix and unchanged voting
+
+This experiment implements the user's requested maximum fleet size 100, with no more tasks than robots (one-to-one maximum task load). It supersedes the earlier planned 200-robot E3 point in README for this primary study, without changing any E2 protocol behavior.
+
+Use the following primary factorial grid:
+- Robot counts R: 10, 20, 40, 60, 80, 100.
+- Target task-load ratios T/R: 0.10, 0.25, 0.50, 0.75, 1.00.
+- Convert fractional T using ROUND HALF UP: T=floor(R*target_ratio+0.5), enforce 1 <= T <= R, and always report the actual resulting T/R.
+- R=10: tasks 1,3,5,8,10; R=20: 2,5,10,15,20; R=40: 4,10,20,30,40; R=60: 6,15,30,45,60; R=80: 8,20,40,60,80; R=100: 10,25,50,75,100.
+- 30 unique size cells, including the previous 100R/50T reference and requested 100R/100T full load.
+- The full set of all integer 1<=T<=R<=100 would contain 5,050 size cells. Use this structured representative grid instead; full dense enumeration is explicitly out of scope.
+
+The ONLY voting method in the scaling experiment is the existing PURE quarter_plurality rule: each active robot independently casts one Greedy vote using its locally retained incomplete Cost rows, strictly more than 25% of the entire active electorate must be received before a candidate can announce, highest score among qualified announcements wins with global robot ID tie-break, and successful executors retire. If no one qualifies, no one commits, and the task rotates to the tail of the existing pending queue. No self-claim, fallback message, alternate winner selection or new state machine.
+
+### 15.2 Fair controlled conditions
+
+For each R/T cell test two conditions:
+- 0% Cost Loss AND 0% Vote Loss (control).
+- 30% Cost Loss AND 30% Vote Loss (primary packet-loss condition).
+
+Cost and Vote stage physical packets are independently sampled at the same numerical loss probability. As before, only the initial Cost exchange is lossy; candidate final-score announcements and commits remain modeled as reliable and incur explicit communication time and payload bytes. Use the existing Rady Wi-Fi latency dataset, unchanged greedy cost model, scenario generation and network seed scheme. Each cell uses the same seed and static cost scene under both 0% and 30% loss, but distinct R/T cells represent distinct generated scenes even with matching integer seeds. The geometry continues to be a 100x100 Euclidean world and spatial density therefore changes when the robot count changes.
+
+100 seeds per size cell per loss condition: 30 x 2 x 100 = 6,000 seed-condition runs.
+
+**Attempt budget must depend on T.** A fixed 100 rounds would make 100R/100T unable to complete all tasks after even one failed voting attempt. Therefore use max_rounds = 2*T for every grid cell, giving exactly one failed-attempt allowance per task (and two attempts for T=1). This matches the previous 100R/50T max-rounds=100 baseline. Raw total rounds, no-qualified failures and attempts per requested task must all be reported; 1:1 successes should not be evaluated with a secretly smaller retry ratio.
+
+Report: per-task completion and full T-task success; correct-executor rate against full-information sequential Greedy and the offline Hungarian optimum; total-cost gap only for fully completed assignments (NaN otherwise); mean voting attempts; time/messages/bytes both absolute and PER REQUESTED TASK; Cost/Vote observed physical drop rates; actual load ratio, R, T, method, SHA, seeds and zero safety errors. A final remaining robot may be forced into a costly last task even if the overall assignment completes. Thus global gap remains a critical metric at 1:1.
+
+### 15.3 New scaling owner and evidence boundaries
+
+New sole experiment-dimension owner: experiments.run_e3_e4_scaling. It MUST reuse experiments.run_e2_retirement.run_retirement_experiment for every (R,T) cell. It MUST NOT introduce a second vote ledger, state machine, network sampler, optimizer or altered quorum.
+
+Named functions by responsibility:
+- validate_scaling_axes: validate ordered/distinct robot counts, ratios, loss levels, seeds, round factor. Fail when R>100 or ratios exceed 1.
+- build_scaling_cells: deterministic round-half-up conversion, prevent tasks exceeding active robots and prevent duplicated integer task counts from ratio rounding.
+- make_scaling_plan: immutable source SHA, grid, seed, dataset and packet/attempt policy metadata.
+- prepare_scaling_output: reject output reuse unless explicitly resumed with exactly the same plan and git SHA.
+- read_completed_scaling_cell: require existing raw per-seed rows, per-round CSV, per-seed-zero message audit and summary; validate method/rule/R/T/seed-loss pair/SHA/round cap before reusing any previous cell.
+- build_scaling_aggregate_rows: preserve original E2 per-cell summary metrics and add actual vs planned load ratios and attempts/time/messages/bytes PER REQUESTED TASK.
+- run_scaling_benchmark: execute each unique cell via existing E2 experiment owner, append complete verified rows to the root summary after each cell, and support safe resume without overwriting incomplete evidence.
+- main: fixed 100-R ceiling and configurable levels/ratios/loss/seeds/output root; no change to earlier E2 CLI.
+
+Critical diagnostic codes: INVALID_SCALING_ROBOT_LEVELS, INVALID_SCALING_LOAD_RATIOS, INVALID_SCALING_LOSS_LEVELS, INVALID_SCALING_SEEDS, INVALID_SCALING_ATTEMPT_MULTIPLIER, SCALING_TASK_COUNT_OUT_OF_RANGE, SCALING_DUPLICATE_TASK_CELL, SCALING_OUTPUT_ALREADY_EXISTS, SCALING_UNMANAGED_OUTPUT_ROOT, SCALING_RESUME_PLAN_MISMATCH, SCALING_CELL_EVIDENCE_INCOMPLETE, SCALING_CELL_PROVENANCE_MISMATCH, SCALING_PARTIAL_CELL_REQUIRES_MANUAL_REVIEW. All use a structured owner/function/category and expected/actual/details; run-level protocol failures continue to come from the existing actual owners.
+
+### 15.4 Output and commands
+
+The new root is results/e3_e4_scaling_100robot_cap with benchmark_plan.json, cells/R###_T###/summary.csv, per-cell raw/round/event files, and an aggregated summary.csv with one row per (R,T,loss) condition (expected 60 rows). This root must never overwrite E2 majority or pure 25% previous results. Aborted runs can be resumed using --resume with an IDENTICAL grid, git SHA, seed count, dataset, attempt factor and verified existing cell files. Incomplete partially written cells require explicit inspection/moving aside; no silent overwrites.
+
+User Mac preflight:
+
+    git pull
+    python3 -m unittest discover -s tests -v
+    python3 -m experiments.run_e3_e4_scaling --robot-levels 10,100 --load-ratios 0.5,1.0 --loss-probabilities 0,0.30 --seeds 3 --attempts-per-task 2 --output-root results/e3_e4_scaling_smoke_100cap
+
+Expect 4 unique size cells x 2 losses x 3 seeds = 24 seed-condition simulations.
+
+Formal default:
+
+    python3 -m experiments.run_e3_e4_scaling --seeds 100 --output-root results/e3_e4_scaling_100robot_cap
+
+Expect 30 cells x 2 losses x 100 seeds = 6,000 runs. On interruption, repeat the identical command with --resume. Compare the 100R/50T 30% cell against the previously validated standalone E2 result, with matching method, seed set and max_rounds=100.
+
+The earlier 89/89 tests and 3,600-run E2 no-fallback curve were verified by the user on a PRE-scaling commit. New scaling tests and full formal scaling runs are pending Mac execution and may NOT be presented as completed results.
