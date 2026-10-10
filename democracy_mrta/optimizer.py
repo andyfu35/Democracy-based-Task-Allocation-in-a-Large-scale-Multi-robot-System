@@ -194,56 +194,101 @@ def solve_visible_hungarian_assignment(
     )
 
 
-def solve_visible_greedy_task(
-    cost_matrix: tuple[tuple[float, ...], ...],
+def select_cheapest_visible_greedy_row(
+    *,
+    cost_column: tuple[float, ...],
     visible_robot_ids: frozenset[int] | set[int] | tuple[int, ...],
-) -> AssignmentSolution:
-    """Select the cheapest visible ACTIVE executor for exactly one task.
+) -> tuple[int, float]:
+    """One pass over only this voter's known active candidate rows."""
+    if not visible_robot_ids:
+        raise ProtocolError(
+            Diagnostic(
+                owner="optimizer",
+                function="select_cheapest_visible_greedy_row",
+                category="state",
+                code="NO_VISIBLE_GREEDY_CANDIDATES",
+                expected="at least one eligible visible row",
+                actual=0,
+            )
+        )
+    best: tuple[float, int] | None = None
+    for row_id in visible_robot_ids:
+        if not isinstance(row_id, int) or row_id < 0 or row_id >= len(cost_column):
+            raise ProtocolError(
+                Diagnostic(
+                    owner="optimizer",
+                    function="select_cheapest_visible_greedy_row",
+                    category="data",
+                    code="GREEDY_VISIBLE_ROBOT_OUT_OF_RANGE",
+                    expected=f"integer 0 <= row_id < {len(cost_column)}",
+                    actual=row_id,
+                )
+            )
+        item = (cost_column[row_id], row_id)
+        if best is None or item < best:
+            best = item
+    assert best is not None
+    return best[1], float(best[0])
 
-    No joint assignment, no Hungarian, no unavailable-row imputation.
-    Ties are broken deterministically by active row index.
-    """
-    num_robots, num_tasks = validate_cost_matrix(cost_matrix)
+
+def require_one_greedy_task(num_tasks: int) -> None:
     if num_tasks != 1:
         raise ProtocolError(
             Diagnostic(
                 owner="optimizer",
-                function="solve_visible_greedy_task",
+                function="require_one_greedy_task",
                 category="planning",
                 code="GREEDY_REQUIRES_ONE_TASK",
                 expected=1,
                 actual=num_tasks,
             )
         )
-    visible = tuple(sorted(set(visible_robot_ids)))
-    if not visible:
-        raise ProtocolError(
-            Diagnostic(
-                owner="optimizer",
-                function="solve_visible_greedy_task",
-                category="state",
-                code="NO_VISIBLE_GREEDY_CANDIDATES",
-                expected="one or more eligible cost rows",
-                actual=0,
-            )
-        )
-    bad = tuple(r for r in visible if not isinstance(r, int) or r < 0 or r >= num_robots)
-    if bad:
-        raise ProtocolError(
-            Diagnostic(
-                owner="optimizer",
-                function="solve_visible_greedy_task",
-                category="data",
-                code="GREEDY_VISIBLE_ROBOT_OUT_OF_RANGE",
-                expected=f"integer 0 <= robot_id < {num_robots}",
-                actual=bad,
-            )
-        )
-    robot_id = min(visible, key=lambda r: (cost_matrix[r][0], r))
-    return AssignmentSolution(
-        assigned_pairs=((robot_id, 0),),
-        total_cost=float(cost_matrix[robot_id][0]),
+
+
+def solve_visible_greedy_task(
+    cost_matrix: tuple[tuple[float, ...], ...],
+    visible_robot_ids: frozenset[int] | set[int] | tuple[int, ...],
+) -> AssignmentSolution:
+    """Public one-task solver; never substitutes unseen rows."""
+    _, num_tasks = validate_cost_matrix(cost_matrix)
+    require_one_greedy_task(num_tasks)
+    row_id, value = select_cheapest_visible_greedy_row(
+        cost_column=tuple(row[0] for row in cost_matrix),
+        visible_robot_ids=visible_robot_ids,
     )
+    return AssignmentSolution(assigned_pairs=((row_id, 0),), total_cost=value)
+
+
+def solve_all_visible_greedy_task_votes(
+    cost_matrix: tuple[tuple[float, ...], ...],
+    visible_by_voter: tuple[frozenset[int], ...],
+) -> tuple[AssignmentSolution, ...]:
+    """Validate the epoch ONCE, then make one independent local choice per voter."""
+    num_robots, num_tasks = validate_cost_matrix(cost_matrix)
+    require_one_greedy_task(num_tasks)
+    if len(visible_by_voter) != num_robots:
+        raise ProtocolError(
+            Diagnostic(
+                owner="optimizer",
+                function="solve_all_visible_greedy_task_votes",
+                category="contract",
+                code="GREEDY_LOCAL_VIEW_COUNT_MISMATCH",
+                expected=num_robots,
+                actual=len(visible_by_voter),
+            )
+        )
+    costs = tuple(row[0] for row in cost_matrix)
+    proposals: list[AssignmentSolution] = []
+    for voter_id, rows in enumerate(visible_by_voter):
+        row_id, value = select_cheapest_visible_greedy_row(
+            cost_column=costs,
+            visible_robot_ids=rows,
+        )
+        proposals.append(AssignmentSolution(
+            assigned_pairs=((row_id, 0),),
+            total_cost=value,
+        ))
+    return tuple(proposals)
 
 
 def solve_sequential_greedy_reference(
