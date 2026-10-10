@@ -762,6 +762,65 @@ The analysis **rejects** mismatched per-seed Greedy reference costs, missing see
 
 ---
 
+## External Packet-Loss Defense Benchmarks — first implementation
+
+**Status: fixed-count vote-copy baseline added, tests and actual new runs pending Mac execution.** Our formal research contribution is decentralized task allocation under Packet Loss, NOT a new global optimizer. Keep exactly the same Greedy local decision rule and original task/robot scenarios in all primary communication comparisons.
+
+Our existing two reference curves:
+- Greedy + 51%-majority (one remote Vote packet).
+- Greedy + pure >25%-qualified score announcement, NO fallback (one remote Vote packet).
+
+**New external communications reliability control**: redundant physical sending of each remote Vote packet without acknowledgements. Command-line option --vote-repetitions=2 or 3, or default 1. This is fixed open-loop sender redundancy, NOT ACK-based ARQ, NOT CBAA, CBBA or ACBBA. All additional transmissions are physically sampled and charged in packet attempts, messages, payload bytes and conservative transmission time slots. Only one logical Vote per voter is counted, regardless of how many copies arrive; self-votes stay local, Cost row broadcast remains once and final score/Commit remain reliably modeled as before.
+
+Compared variants at 100 Robots / 50 Tasks, 100 seeds, diagonal Cost Loss=Vote Loss=0..70% in 2% steps and max_rounds=100:
+1. Original 51%-majority, one Vote packet (old E2 evidence).
+2. 51%-majority, TWO Vote packet copies (new).
+3. 51%-majority, THREE Vote packet copies (new).
+4. Pure >25%-qualified score announcement, one Vote packet, NO fallback (old E2 evidence).
+
+Start with unit tests and 3-seed smoke (0%, 30%, 50% joint Cost/Vote Loss):
+
+~~~bash
+git pull
+python3 -m unittest discover -s tests -v
+python3 -m experiments.run_e2_retirement \
+  --robots 100 --tasks 50 --seeds 3 \
+  --cost-loss-probabilities 0,0.30,0.50 --loss-pairing diagonal \
+  --max-rounds 100 --vote-decision-rule strict_majority \
+  --vote-repetitions 2 --output-root results/e2_repeat2_majority_smoke
+python3 -m experiments.run_e2_retirement \
+  --robots 100 --tasks 50 --seeds 3 \
+  --cost-loss-probabilities 0,0.30,0.50 --loss-pairing diagonal \
+  --max-rounds 100 --vote-decision-rule strict_majority \
+  --vote-repetitions 3 --output-root results/e2_repeat3_majority_smoke
+~~~
+
+Only after tests and smoke pass, run full 36-point, 100-seed scans (3,600 runs per repeated-vote variant):
+
+~~~bash
+LEVELS="$(python3 -c 'print(",".join(f"{i/100:.2f}" for i in range(0, 71, 2)))')"
+python3 -m experiments.run_e2_retirement \
+  --robots 100 --tasks 50 --seeds 100 \
+  --cost-loss-probabilities "$LEVELS" --loss-pairing diagonal \
+  --max-rounds 100 --vote-decision-rule strict_majority \
+  --vote-repetitions 2 \
+  --output-root results/e2_repeat2_majority_100r50t
+python3 -m experiments.run_e2_retirement \
+  --robots 100 --tasks 50 --seeds 100 \
+  --cost-loss-probabilities "$LEVELS" --loss-pairing diagonal \
+  --max-rounds 100 --vote-decision-rule strict_majority \
+  --vote-repetitions 3 \
+  --output-root results/e2_repeat3_majority_100r50t
+~~~
+
+Compare FULL-task assignment success, Greedy executor accuracy and complete-only Greedy cost degradation alongside **number of physical Vote attempts, payload bytes and simulated total coordination time**. DO NOT claim winning solely from success percentage if another protocol sends significantly more packets; this is a success/traffic/time Pareto analysis.
+
+The fixed-copy scheme is a standard general reliability CONTROL, not a faithful reproduction of published MRTA algorithms. A genuinely comparable next algorithm family is CBAA/CBBA and its asynchronous ACBBA variant, with their own true local bid/conflict and convergence mechanisms. Reference sources: Choi et al. (IEEE T-RO 2009 DOI 10.1109/TRO.2009.2022423), MIT ACL's CBBA project, Rantanen et al. (IEEE SAM 2018 DOI 10.1109/SAM.2018.8448984). Implement those in a separate bounded change; do not disguise our Vote plurality or duplicate-copy mechanism as those algorithms.
+
+Protocol, code ownership, diagnostics, limitations: docs/EXPERIMENT_PROTOCOL.md Section 17.
+
+---
+
 ## E5 — Bursty Packet Loss
 
 Purpose: determine whether conclusions from independent Bernoulli loss survive correlated outages.
