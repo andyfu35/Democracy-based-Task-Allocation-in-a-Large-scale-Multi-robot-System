@@ -394,7 +394,8 @@ def summarize_retirement_results(
             "p_cost_loss": cost_loss,
             "p_vote_loss": vote_loss,
             "max_rounds": selected[0]["max_rounds"],
-            "method": "democracy_greedy_retirement",
+            "method": selected[0]["method"],
+            "vote_decision_rule": selected[0]["vote_decision_rule"],
             "local_optimizer": "greedy_min_visible_cost_per_task",
             "mean_first_task_vote_success": mean("first_task_vote_success"),
             "mean_first_task_matches_full_greedy": mean("first_task_matches_full_greedy"),
@@ -448,6 +449,13 @@ def summarize_retirement_results(
             "mean_remote_vote_dropped": mean("remote_vote_dropped"),
             "mean_self_votes": mean("self_votes"),
             "mean_quorum_failed_attempts": mean("quorum_failed_attempts"),
+            "mean_qualified_announcements": mean("qualified_announcement_count"),
+            "mean_qualified_commit_tasks": mean("qualified_commit_tasks"),
+            "mean_fallback_self_claims": mean("fallback_self_claim_count"),
+            "mean_fallback_commit_tasks": mean("fallback_commit_tasks"),
+            "mean_fallback_commit_rate": mean("fallback_commit_rate"),
+            "mean_plurality_tie_breaks": mean("plurality_tie_breaks"),
+            "mean_winning_received_votes": mean("mean_winning_received_votes"),
             "safety_failures": int(sum(int(r["safety_failures"]) for r in selected)),
         })
     return summary
@@ -471,6 +479,11 @@ def write_retirement_audit_events(
                 "round_id": trace.round_id,
                 "active_robots": len(trace.active_robot_ids),
                 "quorum": trace.quorum,
+                "vote_decision_rule": trace.coordination.vote_decision_rule,
+                "announcement_threshold": trace.announcement_threshold,
+                "announced_vote_count": (
+                    "" if event.announced_vote_count is None else event.announced_vote_count
+                ),
                 "phase": event.phase,
                 "sender_id": event.sender_id,
                 "receiver_id": event.receiver_id,
@@ -488,6 +501,9 @@ def write_retirement_audit_events(
                 "round_id": trace.round_id,
                 "active_robots": len(trace.active_robot_ids),
                 "quorum": trace.quorum,
+                "vote_decision_rule": trace.coordination.vote_decision_rule,
+                "announcement_threshold": trace.announcement_threshold,
+                "announced_vote_count": "",
                 "phase": obs.phase,
                 "sender_id": obs.sender_id,
                 "receiver_id": obs.receiver_id,
@@ -540,7 +556,9 @@ def run_retirement_experiment(
 
     fields = [
         "kind", "seed", "p_cost_loss", "p_vote_loss", "round_id",
-        "active_robots", "quorum", "phase", "sender_id", "receiver_id",
+        "active_robots", "quorum", "vote_decision_rule",
+        "announcement_threshold", "announced_vote_count",
+        "phase", "sender_id", "receiver_id",
         "task_id", "delivered", "send_ms", "arrival_ms",
     ]
     with gzip.open(audit_path, "wt", newline="", encoding="utf-8") as stream:
@@ -601,6 +619,7 @@ def run_retirement_experiment(
             f"robots={row['robots']} tasks={row['tasks']} "
             f"p_cost_loss={float(row['p_cost_loss']):.2f} "
             f"p_vote_loss={float(row['p_vote_loss']):.2f} "
+            f"method={row['method']} "
             f"first_task_success={float(row['mean_first_task_vote_success']):.6f} "
             f"eventual_commit={float(row['mean_task_commit_rate']):.6f} "
             f"hungarian_cer={float(row['mean_correct_executor_rate']):.6f} "
@@ -610,6 +629,9 @@ def run_retirement_experiment(
             f"global_gap={float(row['mean_optimality_gap_percent_successful']):.4f}% "
             f"greedy_gap={float(row['mean_greedy_gap_percent_successful']):.4f}% "
             f"rounds_mean={float(row['mean_rounds_executed']):.2f} "
+            f"fallback_commit_rate={float(row['mean_fallback_commit_rate']):.4f} "
+            f"qualified_announcements={float(row['mean_qualified_announcements']):.2f} "
+            f"fallback_self_claims={float(row['mean_fallback_self_claims']):.2f} "
             f"vote_drop_actual={float(row['observed_vote_drop_rate']):.4f} "
             f"cost_drop_actual={float(row['observed_cost_drop_rate']):.4f} "
             f"elapsed_ms={float(row['mean_elapsed_ms']):.2f} "
