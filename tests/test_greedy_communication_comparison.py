@@ -215,6 +215,17 @@ class GreedyOnlyCommunicationEvidenceTests(unittest.TestCase):
                 context.exception.diagnostic.code, "ZERO_LOSS_GREEDY_BASELINE_MISMATCH"
             )
 
+    def test_report_cannot_be_written_under_either_source_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            majority, quarter, _ = self.make_files(Path(tmp))
+            with self.assertRaises(ProtocolError) as context:
+                self.analyze(majority, quarter, majority / "derived_results")
+            self.assertEqual(
+                context.exception.diagnostic.code,
+                "GREEDY_ANALYSIS_SOURCE_OUTPUT_COLLISION",
+            )
+            self.assertFalse((majority / "derived_results").exists())
+
     def test_previously_written_report_is_never_overwritten(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             majority, quarter, report = self.make_files(Path(tmp))
