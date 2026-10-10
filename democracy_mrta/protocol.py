@@ -373,10 +373,34 @@ def apply_announced_retirement_commits(
     *,
     membership: RetirementMembership,
     announced_pairs: tuple[tuple[int, int], ...],
+    attempted_task_id: int | None = None,
 ) -> RetirementMembership:
     """Advance membership only after the prior epoch's reliable commits finish."""
     active = set(membership.active_robot_ids)
     pending = set(membership.pending_task_ids)
+    if attempted_task_id is not None:
+        if not membership.pending_task_ids or attempted_task_id != membership.pending_task_ids[0]:
+            raise ProtocolError(
+                Diagnostic(
+                    owner="protocol",
+                    function="apply_announced_retirement_commits",
+                    category="state",
+                    code="RETIREMENT_TASK_NOT_QUEUE_HEAD",
+                    expected=membership.pending_task_ids[0] if membership.pending_task_ids else None,
+                    actual=attempted_task_id,
+                )
+            )
+        if any(task_id != attempted_task_id for _, task_id in announced_pairs):
+            raise ProtocolError(
+                Diagnostic(
+                    owner="protocol",
+                    function="apply_announced_retirement_commits",
+                    category="contract",
+                    code="GREEDY_COMMIT_WRONG_TASK",
+                    expected=attempted_task_id,
+                    actual=announced_pairs,
+                )
+            )
 
     for robot_id, task_id in announced_pairs:
         if robot_id not in active or task_id not in pending:
@@ -400,9 +424,12 @@ def apply_announced_retirement_commits(
 
     retired = {robot_id for robot_id, _task_id in announced_pairs}
     completed = {task_id for _robot_id, task_id in announced_pairs}
+    remaining = tuple(t for t in membership.pending_task_ids if t not in completed)
+    if attempted_task_id is not None and not announced_pairs:
+        remaining = remaining[1:] + remaining[:1]
     return RetirementMembership(
         active_robot_ids=tuple(r for r in membership.active_robot_ids if r not in retired),
-        pending_task_ids=tuple(t for t in membership.pending_task_ids if t not in completed),
+        pending_task_ids=remaining,
         committed_pairs=tuple(sorted(combined, key=lambda pair: (pair[1], pair[0]))),
         epoch_index=membership.epoch_index + 1,
     )
