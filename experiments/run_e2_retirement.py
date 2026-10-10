@@ -25,7 +25,10 @@ from democracy_mrta.network import (
     summarize_latency_profile,
     validate_packet_loss_probability,
 )
-from democracy_mrta.optimizer import solve_hungarian_assignment
+from democracy_mrta.optimizer import (
+    solve_hungarian_assignment,
+    solve_sequential_greedy_reference,
+)
 from democracy_mrta.scenario import generate_e0_scenario
 from experiments.run_e2 import parse_probabilities, write_csv
 
@@ -48,6 +51,7 @@ def retirement_result_row(
     p_vote_loss: float,
     max_rounds: int,
     oracle,
+    greedy_oracle,
     result: MultiRoundRetirementResult,
     git_sha: str,
     timestamp: str,
@@ -57,15 +61,24 @@ def retirement_result_row(
         oracle_assignment=oracle,
         total_tasks=tasks,
     )
-    first = result.rounds[0].coordination
-    first_correctness = evaluate_assignment_correctness(
-        assigned_pairs=first.assigned_pairs,
-        oracle_assignment=oracle,
+    greedy_correctness = evaluate_assignment_correctness(
+        assigned_pairs=result.assigned_pairs,
+        oracle_assignment=greedy_oracle,
         total_tasks=tasks,
+    )
+    first = result.rounds[0].coordination
+    first_committed = first.assigned_pairs
+    greedy_by_task = {task: robot for robot, task in greedy_oracle.assigned_pairs}
+    first_greedy_matches = sum(
+        greedy_by_task[task] == robot for robot, task in first_committed
     )
     full = result.full_assignment_success
     gap = (
         optimality_gap_percent(result.total_cost, oracle.total_cost)
+        if full else float("nan")
+    )
+    greedy_gap = (
+        optimality_gap_percent(result.total_cost, greedy_oracle.total_cost)
         if full else float("nan")
     )
     return {
@@ -78,19 +91,26 @@ def retirement_result_row(
         "p_vote_loss": p_vote_loss,
         "max_rounds": max_rounds,
         "method": result.method,
-        "first_round_task_commit_rate": first.task_commit_rate,
-        "first_round_correct_executor_rate": first_correctness.correct_executor_rate,
+        "local_optimizer": "greedy_min_visible_cost_per_task",
+        "task_order": "ascending_task_id_with_failed_tasks_rotated",
+        "cost_exchange_count": 1,
+        "first_task_vote_success": int(bool(first_committed)),
+        "first_task_matches_full_greedy": first_greedy_matches,
         "committed_tasks": result.committed_tasks,
         "task_commit_rate": result.task_commit_rate,
         "correct_committed_tasks": correctness.correct_committed_tasks,
         "incorrect_committed_tasks": correctness.incorrect_committed_tasks,
         "correct_executor_rate": correctness.correct_executor_rate,
+        "greedy_correct_executor_rate": greedy_correctness.correct_executor_rate,
+        "greedy_correctness_among_committed": greedy_correctness.correctness_among_committed,
         "correctness_among_committed": correctness.correctness_among_committed,
         "full_assignment_success": int(full),
         "optimal_solution": int(full and abs(gap) <= 1e-9),
         "total_cost": result.total_cost,
         "oracle_cost": oracle.total_cost,
+        "greedy_reference_cost": greedy_oracle.total_cost,
         "optimality_gap_percent_successful": gap,
+        "greedy_gap_percent_successful": greedy_gap,
         "rounds_executed": len(result.rounds),
         "rounds_with_commits": sum(
             bool(round_trace.newly_committed_pairs) for round_trace in result.rounds
@@ -119,6 +139,7 @@ def retirement_round_rows(
             "round_id": item.round_id,
             "active_robot_count": len(item.active_robot_ids),
             "pending_task_count": len(item.pending_task_ids),
+            "voted_task_id": item.voted_task_id,
             "quorum": item.quorum,
             "new_committed_tasks": len(item.newly_committed_pairs),
             "newly_committed_pairs": repr(item.newly_committed_pairs),
