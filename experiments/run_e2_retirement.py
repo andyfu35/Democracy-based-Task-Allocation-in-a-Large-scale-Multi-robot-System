@@ -12,6 +12,7 @@ import subprocess
 from democracy_mrta.coordination import (
     MultiRoundRetirementResult,
     simulate_democracy_hungarian_retirement,
+    validate_vote_decision_rule,
 )
 from democracy_mrta.diagnostics import Diagnostic, ProtocolError
 from democracy_mrta.metrics import (
@@ -180,6 +181,56 @@ def read_retirement_revision() -> str:
     ).strip()
 
 
+
+def retirement_plurality_diagnostics(
+    result: MultiRoundRetirementResult,
+) -> dict[str, int | float]:
+    """Audit announcement-vs-fallback outcomes without altering votes."""
+    qualified_announcements = sum(
+        trace.coordination.qualified_announcement_count for trace in result.rounds
+    )
+    fallback_claims = sum(
+        trace.coordination.fallback_self_claim_count for trace in result.rounds
+    )
+    fallback_decisions = sum(
+        trace.coordination.fallback_used_task_count for trace in result.rounds
+    )
+    tie_breaks = sum(
+        trace.coordination.plurality_tie_break_count for trace in result.rounds
+    )
+    qualified_decisions = sum(
+        int(trace.coordination.qualified_announcement_count > 0)
+        for trace in result.rounds
+    )
+    if result.method == "democracy_greedy_quarter_plurality_retirement":
+        if fallback_decisions + qualified_decisions != len(result.rounds):
+            from democracy_mrta.diagnostics import Diagnostic, ProtocolError
+
+            raise ProtocolError(
+                Diagnostic(
+                    owner="experiments.run_e2_retirement",
+                    function="retirement_plurality_diagnostics",
+                    category="contract",
+                    code="PLURALITY_RESOLUTION_NOT_ACCOUNTED",
+                    expected=len(result.rounds),
+                    actual=fallback_decisions + qualified_decisions,
+                )
+            )
+    return {
+        "qualified_announcement_count": qualified_announcements,
+        "qualified_commit_tasks": qualified_decisions,
+        "fallback_self_claim_count": fallback_claims,
+        "fallback_commit_tasks": fallback_decisions,
+        "fallback_commit_rate": fallback_decisions / len(result.rounds)
+        if result.rounds else 0.0,
+        "plurality_tie_breaks": tie_breaks,
+        "mean_winning_received_votes": (
+            sum(trace.coordination.plurality_winner_vote_count for trace in result.rounds)
+            / len(result.rounds)
+        ) if result.rounds else 0.0,
+    }
+
+
 def retirement_result_row(
     *,
     seed: int,
@@ -211,6 +262,7 @@ def retirement_result_row(
         greedy_by_task[task] == robot for robot, task in first_committed
     )
     transport = retirement_transport_stage_metrics(result)
+    plurality = retirement_plurality_diagnostics(result)
     full = result.full_assignment_success
     gap = (
         optimality_gap_percent(result.total_cost, oracle.total_cost)
@@ -230,6 +282,7 @@ def retirement_result_row(
         "p_vote_loss": p_vote_loss,
         "max_rounds": max_rounds,
         "method": result.method,
+        "vote_decision_rule": result.rounds[0].coordination.vote_decision_rule,
         "local_optimizer": "greedy_min_visible_cost_per_task",
         "task_order": "ascending_task_id_with_failed_tasks_rotated",
         "cost_exchange_count": 1,
@@ -261,6 +314,7 @@ def retirement_result_row(
         "lossy_delivered": result.lossy_delivered,
         "lossy_dropped": result.lossy_dropped,
         **transport,
+        **plurality,
         "safety_failures": 0,
     }
 
@@ -281,7 +335,14 @@ def retirement_round_rows(
             "active_robot_count": len(item.active_robot_ids),
             "pending_task_count": len(item.pending_task_ids),
             "voted_task_id": item.voted_task_id,
+            "vote_decision_rule": item.coordination.vote_decision_rule,
             "quorum": item.quorum,
+            "announcement_threshold": item.announcement_threshold,
+            "qualified_announcements": item.coordination.qualified_announcement_count,
+            "fallback_self_claims": item.coordination.fallback_self_claim_count,
+            "fallback_used": item.coordination.fallback_used_task_count,
+            "winner_received_votes": item.coordination.plurality_winner_vote_count,
+            "plurality_tie_break": item.coordination.plurality_tie_break_count,
             "new_committed_tasks": len(item.newly_committed_pairs),
             "newly_committed_pairs": repr(item.newly_committed_pairs),
             "active_robot_ids": repr(item.active_robot_ids),
