@@ -388,8 +388,6 @@ class LossyCoordinationResult:
     vote_decision_rule: str = "strict_majority"
     announcement_threshold: int = 0
     qualified_announcement_count: int = 0
-    fallback_self_claim_count: int = 0
-    fallback_used_task_count: int = 0
     plurality_tie_break_count: int = 0
     plurality_winner_vote_count: int = 0
 
@@ -483,8 +481,6 @@ def _summarize_lossy_result(
     vote_decision_rule: str = "strict_majority",
     announcement_threshold: int = 0,
     qualified_announcement_count: int = 0,
-    fallback_self_claim_count: int = 0,
-    fallback_used_task_count: int = 0,
     plurality_tie_break_count: int = 0,
     plurality_winner_vote_count: int = 0,
 ) -> LossyCoordinationResult:
@@ -530,8 +526,6 @@ def _summarize_lossy_result(
         vote_decision_rule=vote_decision_rule,
         announcement_threshold=announcement_threshold,
         qualified_announcement_count=qualified_announcement_count,
-        fallback_self_claim_count=fallback_self_claim_count,
-        fallback_used_task_count=fallback_used_task_count,
         plurality_tie_break_count=plurality_tie_break_count,
         plurality_winner_vote_count=plurality_winner_vote_count,
     )
@@ -950,19 +944,30 @@ def validate_vote_decision_rule(
     voting_strategy: str,
     num_tasks: int,
 ) -> None:
-    """Keep the new 25-percent rule separate from legacy majority behavior."""
-    if rule not in ("strict_majority", "quarter_plurality_fallback"):
+    """Reject the removed fallback rule instead of silently reinterpreting it."""
+    if rule == "quarter_plurality_fallback":
+        raise ProtocolError(
+            Diagnostic(
+                owner="coordination",
+                function="validate_vote_decision_rule",
+                category="contract",
+                code="REMOVED_PLURALITY_FALLBACK_RULE",
+                expected="quarter_plurality (no winner if no announcement)",
+                actual=rule,
+            )
+        )
+    if rule not in ("strict_majority", "quarter_plurality"):
         raise ProtocolError(
             Diagnostic(
                 owner="coordination",
                 function="validate_vote_decision_rule",
                 category="data",
                 code="UNKNOWN_VOTE_DECISION_RULE",
-                expected=("strict_majority", "quarter_plurality_fallback"),
+                expected=("strict_majority", "quarter_plurality"),
                 actual=rule,
             )
         )
-    if rule == "quarter_plurality_fallback" and (
+    if rule == "quarter_plurality" and (
         voting_strategy != "greedy_task" or num_tasks != 1
     ):
         raise ProtocolError(
@@ -981,25 +986,17 @@ def build_quarter_plurality_claims(
     *,
     ledgers_by_candidate: dict[int, set[int]],
     eligible_robots: frozenset[int],
-) -> tuple[tuple[CandidateVoteAnnouncement, ...], bool]:
-    """Each executor may announce ONLY its own final received vote count.
-
-    If none exceeds one quarter, all eligible candidates make provisional
-    self-claims, including those with zero received votes.
-    """
+) -> tuple[CandidateVoteAnnouncement, ...]:
+    """Only eligible candidates with >25% actually received votes may announce."""
     threshold = quarter_vote_announcement_threshold(len(eligible_robots))
-    all_claims = tuple(
+    return tuple(
         CandidateVoteAnnouncement(
             candidate_id=candidate_id,
             received_votes=len(ledgers_by_candidate.get(candidate_id, set())),
         )
         for candidate_id in sorted(eligible_robots)
+        if len(ledgers_by_candidate.get(candidate_id, set())) >= threshold
     )
-    qualified = tuple(
-        claim for claim in all_claims
-        if claim.received_votes >= threshold
-    )
-    return (qualified, False) if qualified else (all_claims, True)
 
 
 def simulate_quarter_plurality_announcement_phase(
@@ -1010,27 +1007,29 @@ def simulate_quarter_plurality_announcement_phase(
     round_id: int,
     vote_deadline_ms: float,
     sampler,
-) -> tuple[PluralityResolution, tuple[CommunicationEvent, ...], float]:
-    """Reliable score announcements, one deterministic comparison, then commit.
+) -> tuple[PluralityResolution | None, tuple[CommunicationEvent, ...], float]:
+    """Compare ONLY qualified candidates; nobody qualifies means timeout.
 
-    The score is FINAL as of the vote collection deadline. A provisional
-    self-claim is not a commit and must not execute before arbitration.
+    Reliable score announcements are sent after the vote deadline so they
+    contain final scores. With zero announcements there are zero extra
+    messages, zero commits, and no self-election or backup communication.
     """
-    claims, fallback_used = build_quarter_plurality_claims(
+    claims = build_quarter_plurality_claims(
         ledgers_by_candidate=ledgers_by_candidate,
         eligible_robots=eligible_robots,
     )
     resolution = resolve_unique_plurality_claims(
         announcements=claims,
         eligible_robots=eligible_robots,
-        fallback_used=fallback_used,
         task_id=task_id,
         round_id=round_id,
     )
-    phase = "fallback_self_claim" if fallback_used else "vote_score_announcement"
+    if resolution is None:
+        return None, (), vote_deadline_ms
+
     events = tuple(
         _broadcast_event(
-            phase=phase,
+            phase="vote_score_announcement",
             sender_id=claim.candidate_id,
             send_time_ms=vote_deadline_ms,
             payload_bytes=VOTE_SCORE_ANNOUNCEMENT_BYTES,
@@ -1041,10 +1040,8 @@ def simulate_quarter_plurality_announcement_phase(
         )
         for claim in claims
     )
-    # Broadcast announcements are RELIABLE in this opt-in model. All active
-    # robots make the same comparison after the final broadcast arrives.
-    ready_ms = max(event.arrival_time_ms for event in events)
-    return resolution, events, ready_ms
+    # All qualified final scores are reliably broadcast in this opt-in model.
+    return resolution, events, max(event.arrival_time_ms for event in events)
 
 
 def simulate_democracy_hungarian_lossy(
@@ -1176,7 +1173,7 @@ def simulate_democracy_hungarian_lossy(
     plurality_resolutions: list[PluralityResolution] = []
 
     for task_id in physical_tasks:
-        if vote_decision_rule == "quarter_plurality_fallback":
+        if vote_decision_rule == "quarter_plurality":
             vote_deadline = max(ready_times, default=0.0) + phase_timeout_ms
             resolution, announcements, ready_ms = simulate_quarter_plurality_announcement_phase(
                 ledgers_by_candidate=ledgers_by_task[task_id],
@@ -1187,6 +1184,8 @@ def simulate_democracy_hungarian_lossy(
                 sampler=sampler,
             )
             events.extend(announcements)
+            if resolution is None:
+                continue
             committed_pairs.append((resolution.winner_id, task_id))
             quorum_times[task_id] = ready_ms
             plurality_resolutions.append(resolution)
@@ -1241,7 +1240,7 @@ def simulate_democracy_hungarian_lossy(
     return _summarize_lossy_result(
         method=(
             "democracy_greedy_quarter_plurality"
-            if vote_decision_rule == "quarter_plurality_fallback"
+            if vote_decision_rule == "quarter_plurality"
             else ("democracy_greedy" if voting_strategy == "greedy_task" else "democracy_hungarian")
         ),
         cost_matrix=cost_matrix,
@@ -1266,15 +1265,12 @@ def simulate_democracy_hungarian_lossy(
         task_ids=(physical_tasks if robot_ids is not None or task_ids is not None else None),
         vote_decision_rule=vote_decision_rule,
         announcement_threshold=(
-            plurality_resolutions[0].announcement_threshold if plurality_resolutions else 0
+            quarter_vote_announcement_threshold(len(eligible))
+            if vote_decision_rule == "quarter_plurality" else 0
         ),
         qualified_announcement_count=sum(
             p.announced_candidate_count for p in plurality_resolutions
         ),
-        fallback_self_claim_count=sum(
-            p.fallback_self_claim_count for p in plurality_resolutions
-        ),
-        fallback_used_task_count=sum(int(p.fallback_used) for p in plurality_resolutions),
         plurality_tie_break_count=sum(
             int(p.tied_highest) for p in plurality_resolutions
         ),
@@ -1483,7 +1479,7 @@ def simulate_democracy_hungarian_retirement(
     return MultiRoundRetirementResult(
         method=(
             "democracy_greedy_quarter_plurality_retirement"
-            if vote_decision_rule == "quarter_plurality_fallback"
+            if vote_decision_rule == "quarter_plurality"
             else (
                 "democracy_greedy_retirement"
                 if voting_strategy == "greedy_task"
