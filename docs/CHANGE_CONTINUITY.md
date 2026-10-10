@@ -1140,3 +1140,93 @@ GitHub source/tests/canonical updates were committed. The assistant environment 
 - Greedy matrix batch-validation refactor: `196b63c0b31125d7686de3770f5418f679ebcca1`, `7693c8715ca7ce5aa78317b9da12f028d46f4898`
 - Batch per-voter regression tests: `fc6673087fcf6db43bcd923bf4f84f3c5545dbe1`
 - Separate conditional Greedy correctness summary: `cc70005f8589e4ee5a42d4100a6d41d09a2e80f0`
+
+
+## 2026-10-10 — Full E2 Greedy Vote Loss sensitivity suite (separate Cost/Vote axes)
+
+### Purpose and concrete experimental concern
+After finishing the 100R/50T 100-seed Cost-only sweep, the user requested **the complete Vote Loss test** for the newly implemented sequential Greedy with executor retirement. The pre-existing scan had p_vote_loss=0, so it could not answer joint packet-loss robustness. Implement experiment control only: (A) Vote Loss alone at Cost Loss 0, (B) Vote Loss increasing with Cost Loss fixed 30%, (C) equal numeric Cost/Vote Loss increasing together; provide optional 8x8 independent Cost × Vote interaction grid. The new suite uses 100 robots, 50 tasks, 100 paired seeds per condition and 100 maximum task voting attempts, matching the previous experimental protocol.
+
+**Baseline provenance:** The user ran 62 unit tests successfully and completed 100 seeds × 36 Cost-only conditions on 2026-10-10 at commit `d0596a1417a30b90854a21161170c34ee599b845`. At p_cost=0.30,p_vote=0 the observed full-assignment success was 99/100 and mean task commit 0.9998. These are PRE-change controls, not new Vote Loss outcomes; do not infer 30% vote robustness from them.
+
+### Files / exact owner functions
+- `experiments/run_e2_retirement.py`
+  - `build_retirement_loss_conditions`: own axis validation and pairing `grid` vs `diagonal`; grid emits all unique Cartesian Cost × Vote cells, diagonal accepts only genuinely identical numerical axes (p_cost=p_vote) and emits exactly one pair per level. Duplicates, mismatched axes and empty sweeps raise structured diagnostics before simulation.
+  - `resolve_retirement_vote_loss_axis`: own CLI-option interpretation, mutually exclusive fixed Vote Loss and Vote Loss axis; old fixed-Vote default remains zero, and diagonal without explicit Vote Loss axis uses Cost Loss axis automatically. Reject diagonal when an explicit fixed Vote Loss was supplied rather than silently ignoring it.
+  - `retirement_transport_stage_metrics`: own observational accounting for actual initial Cost-row delivery opportunities/drops and per-round remote Vote unicast opportunities/drops; derive self-votes separately, never count self-votes as wireless successes or losses; reconstruct aggregate delivery totals and report first failing phase on mismatch.
+  - `run_retirement_experiment`: iterate the selected `(p_cost_loss,p_vote_loss)` pair list with deterministic **paired scenario and Bernoulli network seeds**, calling the unchanged `coordination.simulate_democracy_hungarian_retirement(..., voting_strategy="greedy_task")`; pass each effective Vote Loss consistently into simulator, raw, per-round, designated audit and summary output. New optional `vote_losses` and `loss_pairing` args preserve old call defaults.
+  - `retirement_result_row`: add observed phase/drop/self-vote/quorum-failure counts to every raw per-seed record.
+  - `summarize_retirement_results`: aggregate observed Cost/Vote drops as dropped packets divided by total attempted packets over all seeds in that condition (weighted by packet opportunities), retain final Greedy/Hungarian reference quality and all existing success/time/byte metrics.
+  - `main`: add CLI `--vote-loss-probabilities` (mutually exclusive with existing scalar `--vote-loss-probability`) and `--loss-pairing grid|diagonal` (default grid); print condition and seed-condition counts for preflight verification.
+- `tests/test_vote_loss_sweep.py` (new): require legacy Cost-only axis compatibility; vote-only and fixed Cost=30% factorization; diagonal only identical axes; full Cartesian grid; reject mismatches, duplicate/empty and invalid probabilities; verify true coordinator applies different probabilities to actual Cost and Vote delivery samplers; run a mocked-profile mini end-to-end paired-seed simulation and inspect 4 condition summaries/8 raw rows; ensure Vote Loss 100% counts dropped remote votes but does not drop self-votes or the reliable initial cost exchange.
+- `docs/EXPERIMENT_PROTOCOL.md`: new canonical §13.7–13.8 defining all four evidence families, exact packet loss semantics, command contract, quality/coverage metrics, no unexpected raw overwrite, and optional coarse 8x8 interaction grid.
+- `README.md`: documented test/smoke and three 100-seed formal Vote Loss commands and optional grid.
+- `results/e2_vote_loss/README.md` (new): experimental evidence/provenance ledger, explicit pending status, acceptance gates and expected plots.
+- `docs/CHANGE_CONTINUITY.md`: this change ledger.
+
+### Responsibility movement / architecture rule
+No algorithm, packet sampler, membership state machine, planning rule, or quorum ownership moved.
+- `network` still owns independent Bernoulli Cost/Vote delivery.
+- `optimizer` remains the sole local Greedy choice owner.
+- `coordination` remains the sole per-task vote ledger/quorum/commit and multi-round retirement scheduler owner.
+- `protocol` still owns executor/task retirement membership and task queue transitions.
+- `experiments.run_e2_retirement` only owns experimental parameter selection, loop orchestration, CSV evidence, and observational rate calculation. It neither fabricates network outcomes nor adds a second vote or state machine.
+
+### Preserved behavior
+- Original E0/E1/E2 Hungarian experiments and historical output roots unchanged.
+- Historical Greedy Cost-only command (no `--vote-loss-probabilities`, no `--loss-pairing`) still varies Cost Loss 0–70% by 2% and fixes Vote Loss=0.
+- Historical single fixed `--vote-loss-probability VALUE` still applies VALUE to every selected Cost Loss condition.
+- Greedy receives independently incomplete static cost rows once, self-row always known; self-votes local and reliable; remote vote loss separately Bernoulli; majority frozen per epoch; no new vote ledger; retired robots excluded; failed task rotates; max 100 attempts; reliable commit; same physical IDs and round keys; no stored cost-row recovery or execution rejoining.
+- Hungarian remains offline evaluation reference only for Greedy new mode; quality reporting remains two-oracle.
+- Existing `summary.csv`, raw, round and audit columns retain their meanings; new phase evidence columns added without removing existing ones.
+
+### Intentionally changed behavior
+- Optional full Vote Loss axis and pairing mode allow controlled `p_cost_loss=0, p_vote_loss=0...0.70`; `p_cost_loss=0.30, p_vote_loss=0...0.70`; and `p_cost_loss=p_vote_loss=0...0.70` with independently sampled physical packets.
+- A `grid` can also test a cross-product of selected Cost/Vote levels; the recommended coarse 8x8 grid uses 64 conditions (6,400 seed-condition runs); full 36x36 cross-product would be 129,600 seed-condition runs and requires an explicit compute/storage budget.
+- The `observed_vote_drop_rate` denominator counts **only remote attempted vote unicasts**; self-votes are an additional integer metric. `observed_cost_drop_rate` counts initial cost receiver opportunities only.
+- Runner prints loss pairing and total seed-condition count, and concise results include actual measured packet loss rates.
+- Separate output roots prevent overriding the already completed Cost-only evidence.
+
+### Diagnostic contract
+- `experiments.run_e2_retirement.build_retirement_loss_conditions / data / EMPTY_PACKET_LOSS_SWEEP`: missing nonempty axes
+- `experiments.run_e2_retirement.build_retirement_loss_conditions / data / INVALID_PACKET_LOSS_PAIRING`
+- `experiments.run_e2_retirement.build_retirement_loss_conditions / contract / DIAGONAL_LOSS_AXES_DIFFER`: expected matching axes, actual supplied Vote levels
+- `experiments.run_e2_retirement.build_retirement_loss_conditions / data / DUPLICATE_PACKET_LOSS_CONDITION`
+- `experiments.run_e2_retirement.resolve_retirement_vote_loss_axis / data / DIAGONAL_WITH_FIXED_VOTE_LOSS`
+- `network.validate_packet_loss_probability / data / INVALID_PACKET_LOSS_PROBABILITY` reused for both independent axes
+- `experiments.run_e2_retirement.retirement_transport_stage_metrics / contract / UNKNOWN_RETIREMENT_DELIVERY_PHASE`
+- `experiments.run_e2_retirement.retirement_transport_stage_metrics / contract / RETIREMENT_DELIVERY_TOTAL_MISMATCH`: expected internal (delivered,dropped) vs reconstructed Cost+Vote
+- `experiments.run_e2_retirement.retirement_transport_stage_metrics / contract / RETIREMENT_NEGATIVE_SELF_VOTE_COUNT`
+
+### Verification status
+The user-supplied 62-test pass and completed Cost-only 100-seed run are confirmed at old HEAD `d0596a1` (2026-10-10). **New Vote Loss code, new tests and 3-seed smoke have not been run in the assistant environment.** GitHub remote commits were created but direct container checkout is blocked by DNS resolution. Do NOT claim the 10,800 new seed-condition simulations ran or report any newly inferred Vote Loss curve as measured data.
+
+### Open risks and limitations
+- No retransmission of missing COST rows: Vote Loss is retried with fresh keys but local information remains stale, and no new global data appears merely because a task retries.
+- The 100-round cap is a modeling choice and must be clearly disclosed; Vote Loss sensitivity depends on timeout/retry budget.
+- Weighted observed packet-drop proportions will fluctuate across seeds; self-votes bypass Vote Loss and may dominate only when the active electorate becomes small.
+- No commit loss, execution duration, burst correlation, real radio contention, per-packet size dependent radio loss, or rejoining modeled.
+- Near a majority threshold, Task Commit Rate may remain high while the probability that *all 50 tasks* eventually commit falls rapidly.
+- Greedy may finish all tasks with greater total cost than global Hungarian even at zero loss; only report complete-final-assignment cost gaps and preserve greedy-reference vs Hungarian-reference distinction.
+- Optional 8x8 grid produces sizable per-round CSV and audit evidence; run three 36-point curves and smoke first to avoid unnecessary compute/storage costs.
+- Formal 100-seed Vote Loss comparisons should also include mean rounds, elapsed time, logical message/byte costs, and per-condition observed packet-loss rate; do not cherry-pick only successful conditions.
+- If future simulations introduce multiple alternative cost/burst mechanisms, this experiment runner's grid cannot automatically infer those states; not part of current change.
+
+### Next steps
+1. User Mac: `git pull`; `python3 -m unittest discover -s tests -v`. Resolve any new test failure at its owner boundary before formal experiments.
+2. 3-seed smoke with Cost levels 0/30% and Vote levels 0/30/70%, `max_rounds=100`, isolated root. Expect exactly 6 loss conditions / 18 seed-condition runs; verify successful zero-loss Greedy and Cost/Vote delivery reconciliation.
+3. If smoke passes, run Vote-only, Cost30+Vote, and joint diagonal 36-point sweeps (each 100 seeds) in three distinct output roots, with all new fields and git SHA.
+4. Inspect raw, per-round, summary and designated seed-0 audit logs. Plot Vote Loss vs Task Commit, Full Assignment Success, Greedy-reference CER, mean time/attempt count. Optional 8x8 interaction grid afterward.
+5. Archive outputs and only then revise paper conclusions and final acceptance status.
+
+### Implementation commits (complete artifact SHA references)
+- Loss condition builder and transport metric owners: `5d886d52c93f3bb1cb1a2a264dc8b8fbd861e1d5`
+- Raw/summary stage counters: `39c6df7b57eabbc0cc84cbc8f860bb520a8515ce`
+- Console formatting correction: `24963ed4e985534fac96a08274cb37ba4b1984c4`
+- Loop over true Cost/Vote pairs: `37816be00ff0debbd33eaac9a9579986a30c297a`
+- CLI grid/diagonal and Vote Loss axis: `d709423b9a0be5d8cdca24ed72b3e91fa1ecdebd`
+- Vote Loss unit and mini-end-to-end tests: `048c2c22562b20e350dcead762581610a81bc740`
+- Physical protocol independent Cost/Vote sampler regression: `b7c15085d9a98be1864e619a236ed2c8d00c8506`
+- Canonical Vote Loss spec: `1017b293ac2b84233c73cf2a44a0d2fa4f562f24`, formatting `bf896985de82479f304c8d0dfc4bc9c075d37ee8`
+- README benchmark commands: `1a2908294b695afabb5dc9c61f2df2a4de389b16`, formatting `8440651fb022f8df5211a17c8434cc9d479fc14b`
+- New Vote Loss evidence ledger: `9447935b49d3e338ceb95bba4d2e93a723d4e7cf`
