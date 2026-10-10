@@ -207,6 +207,18 @@ class ScalingRunnerEvidenceTests(unittest.TestCase):
             with (root / "scale" / "summary.csv").open(newline="", encoding="utf-8") as stream:
                 self.assertEqual(len(list(csv.DictReader(stream))), 8)
 
+    def test_fresh_result_root_may_contain_its_documentation_readme(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result_root = root / "scale"
+            result_root.mkdir()
+            (result_root / "README.md").write_text(
+                "Scaling experiment evidence ledger", encoding="utf-8"
+            )
+            summaries = self.run_fixture(root)
+            self.assertEqual(len(summaries), 8)
+            self.assertTrue((result_root / "benchmark_plan.json").is_file())
+
     def test_resume_reuses_only_verified_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
