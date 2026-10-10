@@ -9,6 +9,7 @@ from .network import validate_packet_loss_probability
 from .optimizer import (
     AssignmentSolution,
     solve_visible_hungarian_assignment,
+    solve_visible_greedy_task,
     validate_cost_matrix,
 )
 from .protocol import (
@@ -722,6 +723,144 @@ def simulate_full_view_hungarian_lossy(
 
 
 
+
+@dataclass(frozen=True)
+class RetirementCostSnapshot:
+    """One full cost-row broadcast epoch, retained independently at each voter."""
+    robot_ids: tuple[int, ...]
+    visible_by_voter: tuple[frozenset[int], ...]
+    ready_times_ms: tuple[float, ...]
+    events: tuple[CommunicationEvent, ...]
+    deliveries: tuple[DeliveryObservation, ...]
+
+
+def capture_retirement_cost_snapshot(
+    *,
+    cost_matrix: tuple[tuple[float, ...], ...],
+    sampler,
+    loss_sampler,
+    p_loss: float,
+    phase_timeout_ms: float,
+) -> RetirementCostSnapshot:
+    """Disseminate every task's costs only once at the beginning of the run."""
+    num_robots, num_tasks = validate_cost_matrix(cost_matrix)
+    events, deliveries, visible, ready_times = _simulate_lossy_cost_broadcasts(
+        num_robots=num_robots,
+        num_tasks=num_tasks,
+        sampler=sampler,
+        loss_sampler=loss_sampler,
+        p_loss=p_loss,
+        phase_timeout_ms=phase_timeout_ms,
+        round_id=0,
+    )
+    return RetirementCostSnapshot(
+        robot_ids=tuple(range(num_robots)),
+        visible_by_voter=visible,
+        ready_times_ms=ready_times,
+        events=tuple(events),
+        deliveries=tuple(deliveries),
+    )
+
+
+def resolve_retirement_cost_view(
+    *,
+    snapshot: RetirementCostSnapshot,
+    active_robot_ids: tuple[int, ...],
+    round_id: int,
+) -> tuple[
+    list[CommunicationEvent],
+    list[DeliveryObservation],
+    tuple[frozenset[int], ...],
+    tuple[float, ...],
+]:
+    """Discard retired candidates from each local view, never restore missing rows."""
+    source_index = {r: i for i, r in enumerate(snapshot.robot_ids)}
+    if (
+        len(set(active_robot_ids)) != len(active_robot_ids)
+        or not set(active_robot_ids).issubset(source_index)
+        or (round_id == 0 and active_robot_ids != snapshot.robot_ids)
+    ):
+        raise ProtocolError(
+            Diagnostic(
+                owner="coordination",
+                function="resolve_retirement_cost_view",
+                category="state",
+                code="INVALID_RETAINED_COST_ELECTORATE",
+                expected="active IDs in initial snapshot; complete team in epoch 0",
+                actual=(round_id, active_robot_ids),
+            )
+        )
+    active_local = {r: i for i, r in enumerate(active_robot_ids)}
+    visible = tuple(
+        frozenset(
+            active_local[snapshot.robot_ids[source_row]]
+            for source_row in snapshot.visible_by_voter[source_index[voter]]
+            if snapshot.robot_ids[source_row] in active_local
+        )
+        for voter in active_robot_ids
+    )
+    if round_id == 0:
+        return (
+            list(snapshot.events),
+            list(snapshot.deliveries),
+            visible,
+            snapshot.ready_times_ms,
+        )
+    return [], [], visible, tuple(0.0 for _ in active_robot_ids)
+
+
+def validate_epoch_voting_strategy(
+    *,
+    strategy: str,
+    num_tasks: int,
+) -> None:
+    if strategy not in ("hungarian", "greedy_task"):
+        raise ProtocolError(
+            Diagnostic(
+                owner="coordination",
+                function="validate_epoch_voting_strategy",
+                category="data",
+                code="UNKNOWN_VOTING_STRATEGY",
+                expected=("hungarian", "greedy_task"),
+                actual=strategy,
+            )
+        )
+    if strategy == "greedy_task" and num_tasks != 1:
+        raise ProtocolError(
+            Diagnostic(
+                owner="coordination",
+                function="validate_epoch_voting_strategy",
+                category="planning",
+                code="GREEDY_EPOCH_REQUIRES_SINGLE_TASK",
+                expected=1,
+                actual=num_tasks,
+            )
+        )
+
+
+def build_epoch_local_proposals(
+    *,
+    cost_matrix: tuple[tuple[float, ...], ...],
+    visible: tuple[frozenset[int], ...],
+    physical_robots: tuple[int, ...],
+    physical_tasks: tuple[int, ...],
+    strategy: str,
+) -> tuple[AssignmentSolution, ...]:
+    solver = (
+        solve_visible_greedy_task
+        if strategy == "greedy_task"
+        else solve_visible_hungarian_assignment
+    )
+    return tuple(
+        map_epoch_local_proposal(
+            assignment=solver(cost_matrix, visible[voter_local_id]),
+            robot_ids=physical_robots,
+            task_ids=physical_tasks,
+        )
+        for voter_local_id in range(len(physical_robots))
+    )
+
+
 def validate_epoch_identity_mapping(
     *,
     num_robots: int,
@@ -782,6 +921,8 @@ def simulate_democracy_hungarian_lossy(
     p_vote_loss: float | None = None,
     robot_ids: tuple[int, ...] | None = None,
     task_ids: tuple[int, ...] | None = None,
+    voting_strategy: str = "hungarian",
+    cost_snapshot: RetirementCostSnapshot | None = None,
 ) -> LossyCoordinationResult:
     num_robots, num_tasks = validate_cost_matrix(cost_matrix)
     physical_robots, physical_tasks = validate_epoch_identity_mapping(
@@ -790,6 +931,7 @@ def simulate_democracy_hungarian_lossy(
         robot_ids=robot_ids,
         task_ids=task_ids,
     )
+    validate_epoch_voting_strategy(strategy=voting_strategy, num_tasks=num_tasks)
     quorum = quorum_size(num_robots)
     eligible = frozenset(physical_robots)
     vote_loss_probability = (
@@ -797,25 +939,30 @@ def simulate_democracy_hungarian_lossy(
         else validate_packet_loss_probability(p_vote_loss)
     )
 
-    events, deliveries, visible, ready_times = _simulate_lossy_cost_broadcasts(
-        num_robots=num_robots,
-        num_tasks=num_tasks,
-        sampler=sampler,
-        loss_sampler=loss_sampler,
-        p_loss=p_loss,
-        phase_timeout_ms=phase_timeout_ms,
-        round_id=round_id,
-        robot_ids=physical_robots,
-    )
-    cost_completion = max(ready_times, default=0.0)
-
-    proposals = tuple(
-        map_epoch_local_proposal(
-            assignment=solve_visible_hungarian_assignment(cost_matrix, visible[voter_local_id]),
+    if cost_snapshot is None:
+        events, deliveries, visible, ready_times = _simulate_lossy_cost_broadcasts(
+            num_robots=num_robots,
+            num_tasks=num_tasks,
+            sampler=sampler,
+            loss_sampler=loss_sampler,
+            p_loss=p_loss,
+            phase_timeout_ms=phase_timeout_ms,
+            round_id=round_id,
             robot_ids=physical_robots,
-            task_ids=physical_tasks,
         )
-        for voter_local_id in range(num_robots)
+    else:
+        events, deliveries, visible, ready_times = resolve_retirement_cost_view(
+            snapshot=cost_snapshot,
+            active_robot_ids=physical_robots,
+            round_id=round_id,
+        )
+    cost_completion = max(ready_times, default=0.0)
+    proposals = build_epoch_local_proposals(
+        cost_matrix=cost_matrix,
+        visible=visible,
+        physical_robots=physical_robots,
+        physical_tasks=physical_tasks,
+        strategy=voting_strategy,
     )
 
     ledgers_by_task: dict[int, dict[int, set[int]]] = {
@@ -931,7 +1078,7 @@ def simulate_democracy_hungarian_lossy(
     )
 
     return _summarize_lossy_result(
-        method="democracy_hungarian",
+        method=("democracy_greedy" if voting_strategy == "greedy_task" else "democracy_hungarian"),
         cost_matrix=cost_matrix,
         assigned_pairs=committed_pairs,
         cost_phase_completion_ms=cost_completion,
