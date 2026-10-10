@@ -9,7 +9,7 @@ from .network import validate_packet_loss_probability
 from .optimizer import (
     AssignmentSolution,
     solve_visible_hungarian_assignment,
-    solve_visible_greedy_task,
+    solve_all_visible_greedy_task_votes,
     validate_cost_matrix,
 )
 from .protocol import (
@@ -846,14 +846,19 @@ def build_epoch_local_proposals(
     physical_tasks: tuple[int, ...],
     strategy: str,
 ) -> tuple[AssignmentSolution, ...]:
-    solver = (
-        solve_visible_greedy_task
-        if strategy == "greedy_task"
-        else solve_visible_hungarian_assignment
-    )
+    if strategy == "greedy_task":
+        local_solutions = solve_all_visible_greedy_task_votes(
+            cost_matrix=cost_matrix,
+            visible_by_voter=visible,
+        )
+    else:
+        local_solutions = tuple(
+            solve_visible_hungarian_assignment(cost_matrix, rows)
+            for rows in visible
+        )
     return tuple(
         map_epoch_local_proposal(
-            assignment=solver(cost_matrix, visible[voter_local_id]),
+            assignment=local_solutions[voter_local_id],
             robot_ids=physical_robots,
             task_ids=physical_tasks,
         )
