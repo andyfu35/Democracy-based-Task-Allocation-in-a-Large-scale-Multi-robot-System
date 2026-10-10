@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .diagnostics import Diagnostic, ProtocolError
+
 from .network import validate_packet_loss_probability
 
 from .optimizer import (
@@ -738,8 +740,6 @@ def validate_epoch_identity_mapping(
         or len(set(physical_tasks)) != num_tasks
         or any(t < 0 for t in physical_tasks)
     ):
-        from .diagnostics import Diagnostic, ProtocolError
-
         raise ProtocolError(
             Diagnostic(
                 owner="coordination",
@@ -950,8 +950,8 @@ def simulate_democracy_hungarian_lossy(
             snapshot_counted_vote_ledgers(ledgers_by_task)
             if capture_vote_audit else ()
         ),
-        robot_ids=physical_robots if robot_ids is not None else None,
-        task_ids=physical_tasks if task_ids is not None else None,
+        robot_ids=(physical_robots if robot_ids is not None or task_ids is not None else None),
+        task_ids=(physical_tasks if robot_ids is not None or task_ids is not None else None),
     )
 
 
@@ -1014,8 +1014,6 @@ def require_retirement_commit_announcements(
     round_id: int,
 ) -> None:
     """A retired executor must have already broadcast its reliable commit."""
-    from .diagnostics import Diagnostic, ProtocolError
-
     announced_pairs = {
         (event.sender_id, event.task_id)
         for event in round_result.events
@@ -1052,8 +1050,6 @@ def simulate_democracy_hungarian_retirement(
     only between complete voting epochs; pending tasks retry with fresh packet keys.
     This model records assignment/execution eligibility, not physical task motion.
     """
-    from .diagnostics import Diagnostic, ProtocolError
-
     num_robots, num_tasks = validate_cost_matrix(cost_matrix)
     if max_rounds < 1:
         raise ProtocolError(
