@@ -654,75 +654,64 @@ Status: **new code/tests committed; updated local tests and full no-fallback sca
 
 ---
 
-## E3 — Robot Scalability
+## E3/E4 — Robot × Task-Load Scaling (up to 100 robots and 1:1)
 
-Purpose: measure how communication and decision cost scale with fleet size.
+**Status: driver and tests committed; local scaling validation and formal runs pending.** The planned 200-robot E3 point is superseded by the user's explicit 100-robot ceiling.
 
-Primary sweep:
+The algorithm is the previously verified PURE 25%-announcement Greedy:
+- One active robot casts one locally planned lowest-visible-cost ballot for the pending task.
+- A candidate announces only after receiving strictly more than 25% of all currently active voters' votes.
+- Compare qualifying final scores; highest vote count wins, lower physical robot ID breaks ties; one reliable Commit and executor retirement.
+- **No fallback.** A failed threshold means no announcement and no Commit; rotate the still-unassigned task and retry, up to max_rounds.
+- Initial Cost rows are sent once; Cost and Vote packet loss are sampled independently at equal configured loss probability; qualified score and Commit announcements remain modeled as reliable.
 
-\[
-N_R\in\{10,25,50,100,200\}.
-\]
+The 30-size-cell matrix is:
 
-Primary network setting:
+| Robots | 10% tasks | 25% tasks | 50% tasks | 75% tasks | 100% tasks (1:1) |
+|---:|---:|---:|---:|---:|---:|
+| 10 | 1 | 3 | 5 | 8 | 10 |
+| 20 | 2 | 5 | 10 | 15 | 20 |
+| 40 | 4 | 10 | 20 | 30 | 40 |
+| 60 | 6 | 15 | 30 | 45 | 60 |
+| 80 | 8 | 20 | 40 | 60 | 80 |
+| 100 | 10 | 25 | 50 | 75 | 100 |
 
-- empirical Wi-Fi latency
-- Bernoulli packet loss = 30%
+Target ratio -> task count uses round-half-up. Record the actual T/R, and never permit R>100 or T>R. The previously measured 100R/50T point is retained as a comparison anchor, and 100R/100T is the maximum-load case.
 
-Hold task/robot load ratio fixed.
+Two paired conditions per cell: Cost Loss = Vote Loss = **0% and 30%**, with 100 seeds per loss condition. Total: **30 cells × 2 losses × 100 seeds = 6,000 simulations**.
 
-Primary outputs:
+**Fair retry allowance:** max_rounds = 2 × requested tasks, not a fixed global 100. Thus 100R/50T has 100 attempts (as before) and 100R/100T has 200 attempts. One failure should not mathematically prevent 1:1 full assignment before reaching the retry budget.
 
-- communication time
-- total decision latency
-- messages / bytes
-- success rate
-- optimality gap
+### Run on Mac
 
-### E3 result record
+~~~bash
+git pull
+python3 -m unittest discover -s tests -v
 
-Status: **PLANNED**
+# Smoke: 4 size cells x 2 loss levels x 3 seeds = 24 runs
+python3 -m experiments.run_e3_e4_scaling \
+  --robot-levels 10,100 --load-ratios 0.5,1.0 \
+  --loss-probabilities 0,0.30 --seeds 3 \
+  --attempts-per-task 2 \
+  --output-root results/e3_e4_scaling_smoke_100cap
 
-Raw: `results/e3_robot_scalability/raw/`  
-Summary: `results/e3_robot_scalability/summary.csv`
+# Formal: 30 size cells x 2 loss levels x 100 seeds = 6,000 runs
+python3 -m experiments.run_e3_e4_scaling \
+  --seeds 100 \
+  --output-root results/e3_e4_scaling_100robot_cap
 
----
+# Exact same code/config/dataset only; resume after interruption:
+python3 -m experiments.run_e3_e4_scaling \
+  --seeds 100 \
+  --output-root results/e3_e4_scaling_100robot_cap \
+  --resume
+~~~
 
-## E4 — Task-Load / Saturation
+The scaling root stores benchmark_plan.json, per-cell raw/round/message files in cells/R###_T### and aggregate summary.csv (expected 60 rows when complete). It writes the summary after each completed verified cell, and refuses an incompatible resume or silently overwriting partial data.
 
-Purpose: determine how close to full one-to-one assignment the protocol can operate before communication loss makes consensus difficult.
+Primary E3 comparison: robots vs communication time, messages/bytes, completion and global cost gap at constant task ratio (particularly 50% and 100%). Primary E4 comparison: task ratio vs completion, time, failed-vote count and greedy/global-optimum quality at fixed robots=100. Compare both absolute and per-requested-task communication metrics.
 
-Primary fleet:
-
-\[
-N_R=100.
-\]
-
-Task sweep:
-
-\[
-N_T\in\{5,10,20,30,50,75,100\}.
-\]
-
-Primary network setting:
-
-- empirical Wi-Fi latency
-- Bernoulli packet loss = 30%
-
-Primary outputs:
-
-- success rate
-- optimality gap
-- quorum failures
-- communication time
-- retry count
-
-### E4 result record
-
-Status: **PLANNED**
-
-Raw: `results/e4_task_load/raw/`  
-Summary: `results/e4_task_load/summary.csv`
+The model remains static ONE-TO-ONE assignment with retired executors: it does not simulate physical task completion and robots rejoining. See docs/EXPERIMENT_PROTOCOL.md section 15 and results/e3_e4_scaling_100robot_cap/README.md.
 
 ---
 
