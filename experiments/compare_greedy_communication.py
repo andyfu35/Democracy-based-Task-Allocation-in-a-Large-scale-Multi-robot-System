@@ -483,7 +483,6 @@ def write_greedy_only_comparison(
     paired: list[dict[str, object]],
 ) -> None:
     """Write a NEW derived report; the historical raw files are immutable."""
-    protected = {p.resolve() for p in source_files.values()}
     if output_root.resolve() in {p.parent.parent.resolve() for p in source_files.values()}:
         raise comparison_error(
             function="write_greedy_only_comparison", category="state",
