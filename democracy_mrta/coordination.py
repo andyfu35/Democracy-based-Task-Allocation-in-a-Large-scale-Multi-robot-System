@@ -953,3 +953,189 @@ def simulate_democracy_hungarian_lossy(
         robot_ids=physical_robots if robot_ids is not None else None,
         task_ids=physical_tasks if task_ids is not None else None,
     )
+
+
+
+@dataclass(frozen=True)
+class RetirementRoundTrace:
+    round_id: int
+    active_robot_ids: tuple[int, ...]
+    pending_task_ids: tuple[int, ...]
+    quorum: int
+    newly_committed_pairs: tuple[tuple[int, int], ...]
+    elapsed_start_ms: float
+    elapsed_end_ms: float
+    coordination: LossyCoordinationResult
+
+
+@dataclass(frozen=True)
+class MultiRoundRetirementResult:
+    method: str
+    assigned_pairs: tuple[tuple[int, int], ...]
+    total_cost: float
+    total_tasks: int
+    remaining_task_ids: tuple[int, ...]
+    active_robot_ids: tuple[int, ...]
+    rounds: tuple[RetirementRoundTrace, ...]
+    global_agreement_ms: float
+    logical_message_count: int
+    lossy_delivered: int
+    lossy_dropped: int
+
+    @property
+    def committed_tasks(self) -> int:
+        return len(self.assigned_pairs)
+
+    @property
+    def full_assignment_success(self) -> bool:
+        return len(self.remaining_task_ids) == 0
+
+    @property
+    def task_commit_rate(self) -> float:
+        return self.committed_tasks / self.total_tasks
+
+
+def build_retirement_round_cost_matrix(
+    *,
+    cost_matrix: tuple[tuple[float, ...], ...],
+    active_robot_ids: tuple[int, ...],
+    pending_task_ids: tuple[int, ...],
+) -> tuple[tuple[float, ...], ...]:
+    """Only currently eligible robots/tasks may enter the local optimizer."""
+    return tuple(
+        tuple(cost_matrix[robot_id][task_id] for task_id in pending_task_ids)
+        for robot_id in active_robot_ids
+    )
+
+
+def require_retirement_commit_announcements(
+    *,
+    round_result: LossyCoordinationResult,
+    round_id: int,
+) -> None:
+    """A retired executor must have already broadcast its reliable commit."""
+    from .diagnostics import Diagnostic, ProtocolError
+
+    announced_pairs = {
+        (event.sender_id, event.task_id)
+        for event in round_result.events
+        if event.phase == "commit" and event.round_id == round_id
+    }
+    expected_pairs = set(round_result.assigned_pairs)
+    if announced_pairs != expected_pairs:
+        raise ProtocolError(
+            Diagnostic(
+                owner="coordination",
+                function="require_retirement_commit_announcements",
+                category="contract",
+                code="RETIREMENT_COMMIT_ANNOUNCEMENT_MISMATCH",
+                expected=tuple(sorted(expected_pairs)),
+                actual=tuple(sorted(announced_pairs)),
+                details=f"round_id={round_id}",
+            )
+        )
+
+
+def simulate_democracy_hungarian_retirement(
+    *,
+    cost_matrix: tuple[tuple[float, ...], ...],
+    sampler,
+    loss_sampler,
+    p_loss: float,
+    p_vote_loss: float,
+    phase_timeout_ms: float,
+    max_rounds: int,
+) -> MultiRoundRetirementResult:
+    """Multi-round membership owner; reuses the same E2 single-round vote engine.
+
+    Successful reliable commits retire both assigned robots and completed tasks
+    only between complete voting epochs; pending tasks retry with fresh packet keys.
+    This model records assignment/execution eligibility, not physical task motion.
+    """
+    from .diagnostics import Diagnostic, ProtocolError
+
+    num_robots, num_tasks = validate_cost_matrix(cost_matrix)
+    if max_rounds < 1:
+        raise ProtocolError(
+            Diagnostic(
+                owner="coordination",
+                function="simulate_democracy_hungarian_retirement",
+                category="data",
+                code="INVALID_RETIREMENT_ROUND_LIMIT",
+                expected="max_rounds >= 1",
+                actual=max_rounds,
+            )
+        )
+
+    validate_packet_loss_probability(p_loss)
+    validate_packet_loss_probability(p_vote_loss)
+    membership = initialize_retirement_membership(
+        num_robots=num_robots,
+        num_tasks=num_tasks,
+    )
+    elapsed_ms = 0.0
+    rounds: list[RetirementRoundTrace] = []
+
+    for _ in range(max_rounds):
+        if not membership.pending_task_ids:
+            break
+        active_robots = membership.active_robot_ids
+        pending_tasks = membership.pending_task_ids
+        round_id = membership.epoch_index
+
+        round_costs = build_retirement_round_cost_matrix(
+            cost_matrix=cost_matrix,
+            active_robot_ids=active_robots,
+            pending_task_ids=pending_tasks,
+        )
+        round_result = simulate_democracy_hungarian_lossy(
+            cost_matrix=round_costs,
+            sampler=sampler,
+            loss_sampler=loss_sampler,
+            p_loss=p_loss,
+            p_vote_loss=p_vote_loss,
+            phase_timeout_ms=phase_timeout_ms,
+            round_id=round_id,
+            robot_ids=active_robots,
+            task_ids=pending_tasks,
+        )
+        require_retirement_commit_announcements(
+            round_result=round_result,
+            round_id=round_id,
+        )
+        next_elapsed = elapsed_ms + round_result.global_agreement_ms
+        rounds.append(
+            RetirementRoundTrace(
+                round_id=round_id,
+                active_robot_ids=active_robots,
+                pending_task_ids=pending_tasks,
+                quorum=quorum_size(len(active_robots)),
+                newly_committed_pairs=round_result.assigned_pairs,
+                elapsed_start_ms=elapsed_ms,
+                elapsed_end_ms=next_elapsed,
+                coordination=round_result,
+            )
+        )
+        membership = apply_announced_retirement_commits(
+            membership=membership,
+            announced_pairs=round_result.assigned_pairs,
+        )
+        elapsed_ms = next_elapsed
+
+    return MultiRoundRetirementResult(
+        method="democracy_hungarian_retirement",
+        assigned_pairs=membership.committed_pairs,
+        total_cost=float(
+            sum(cost_matrix[robot_id][task_id] for robot_id, task_id in membership.committed_pairs)
+        ),
+        total_tasks=num_tasks,
+        remaining_task_ids=membership.pending_task_ids,
+        active_robot_ids=membership.active_robot_ids,
+        rounds=tuple(rounds),
+        global_agreement_ms=elapsed_ms,
+        logical_message_count=sum(
+            item.coordination.logical_message_count for item in rounds
+        ),
+        lossy_delivered=sum(item.coordination.lossy_delivered for item in rounds),
+        lossy_dropped=sum(item.coordination.lossy_dropped for item in rounds),
+    )
