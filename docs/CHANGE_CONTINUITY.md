@@ -1644,3 +1644,91 @@ After the Greedy-only report module and initial continuity entry were committed,
 - Diagnostic contract preserved: owner=experiments.compare_greedy_communication; function=write_greedy_only_comparison; category=state; code=GREEDY_ANALYSIS_SOURCE_OUTPUT_COLLISION or GREEDY_ANALYSIS_OUTPUT_EXISTS; expected distinct new report root, actual supplied output path.
 - Tests and report on user's Mac still pending. No output overwrites, changes to canonical study definitions or numerical claims.
 - Commit SHAs: d55cccf1444dc150cf7f57822dad56060c7431ce (owner path guard), e3412cc6cc38caf3e1a0ef41462ef5aa5981b85d (guard test). Next step remains pull, unittest, run Greedy-only comparison, inspect manifest and 6-point curves.
+
+
+## 2026-10-10 — First packet-loss competitor baseline: fixed vote-copy redundancy K=1/2/3
+
+### Purpose / user-approved direction
+
+The user decided that further tuning of Greedy global-optimality gaps is NOT important. The core goal is to prove the contribution of a decentralized, Packet Loss-resilient communication/voting protocol by implementing and comparing OTHER credible PL defense mechanisms and true published MRTA protocols. Literature review identified:
+- fixed redundant packet transmission and feedback-based ARQ as established wireless reliability mechanisms (IEEE Technology Navigator ARQ; IEEE 2007 Retransmission or Redundancy, DOI 10.1109/MOBHOC.2007.4428620);
+- original CBAA/CBBA, Choi/Brunet/How, IEEE Transactions on Robotics 2009 DOI 10.1109/TRO.2009.2022423, as published decentralized auction/consensus task allocators;
+- asynchronous ACBBA, MIT ACL and Rantanen et al., IEEE SAM 2018 DOI 10.1109/SAM.2018.8448984, as a highly relevant tested lossy-network multi-robot baseline.
+
+Scientific honesty: this bounded FIRST implementation is solely **open-loop fixed physical repetition of remote Vote packets** (no ACK). Do NOT call it ARQ, FEC, gossip, CBAA, CBBA or ACBBA. Original optimizer remains Sequential Greedy, and genuine published algorithm baselines must be implemented separately with their own state/consensus rules and correct controls. A fully reliable Commit channel remains a known modeling assumption.
+
+### Files changed and exact named owners
+
+1. democracy_mrta/network.py
+   - NEW network.validate_vote_repetitions: solely validates opt-in K is actual integer 1,2,3 (bool and float rejected). data / INVALID_VOTE_REPETITIONS with expected/actual and named owner. Original network.BernoulliLossSampler and keyed first-copy packet-loss model not changed.
+2. democracy_mrta/coordination.py
+   - Original CommunicationEvent and DeliveryObservation dataclasses: append optional transmission_index=0 metadata for original physical message and delivery, retaining old default constructor equality and unmodified existing event fields.
+   - Existing coordinator._unicast_event: add optional nonzero copy index into physical empirical latency key; index 0 preserves original key EXACTLY. For copy index >0 in round zero use explicit round=0 so packet latency key matches the existing delivery sampler's physical packet identity.
+   - Existing coordinator._lossy_unicast_delivery: distinct independent Bernoulli loss key for copy indices >0; index 0 preserves prior key EXACTLY. DeliveryObservation includes physical copy index for loss audit.
+   - NEW coordinator.transmit_repeated_remote_vote: sole transport-redundancy owner; for each REMOTE voter ballot, schedule fixed K physical Vote messages at send_time + copy_index * phase_timeout_ms, sample all K independent Vote losses, return all K events and delivery records plus EARLIEST delivered observation (or None). NO ACK, no score decision, no ledger, no second state machine, no duplicate counted Vote.
+   - Existing coordinator.simulate_democracy_hungarian_lossy: accepts optional vote_repetitions=1; original voting/Greedy and eligibility decisions unchanged. Replaces just its previous single physical Vote send with one call to the named transport owner, feeds at most one earliest successful observation to the ORIGINAL protocol.record_vote, appends EVERY attempted physical packet to communication audit. At K>1 it waits until scheduled copies finish before Vote decision/Commit, and shifts the quarter_plurality collection timeout to max(ready)+K*phase_timeout_ms. At K=1 the original packet results, vote deadlines, commit timing and safety remain unchanged.
+   - Existing coordinator.simulate_democracy_hungarian_retirement: passes K from original scheduler to the original epoch, validates the K at transport-owner boundary and stores K as optional metadata on MultiRoundRetirementResult. Existing task queue, method labels, safety, owner eligibility and one-time Cost view unchanged.
+3. experiments/run_e2_retirement.py
+   - retirement_transport_stage_metrics: count EVERY physical Vote copy in the physical remote_vote_attempts/dropped counts; derive self_votes from DISTINCT (round, sender, receiver, task) logical remote ballots instead of subtracting physical copies. Additional contract / REPEATED_VOTE_PHYSICAL_COPIES_MISMATCH verifies each remote ballot has EXACT copy indices [0..K-1]. Original physical deliveries and local one-voter-one-ballot invariant preserved.
+   - run_retirement_experiment: opt-in validated vote_repetitions=1 default, pass to coordinator; new CLI --vote-repetitions 1/2/3, refuse archived historical result roots for K>1. E2 original Greedy/majority/quarter allowed unchanged, full source SHA/seed/Rady time/packet sampling retained. No output silently overwritten by new repeated-vote option.
+   - retirement_result_row / retirement_round_rows / summarize_retirement_results: add explicit vote_repetitions column; existing assignment/full-success/Greedy-cost/physical drop/bytes/elapsed metrics retained.
+   - write_retirement_audit_events: physical Vote copy index and K in seed-0 compressed per-message and per-delivery audit, as well as original sender, receiver, task, round and timing. Original Cost packets appear only once per sender per experiment condition. User-visible logs now print K; no hidden attempt.
+4. tests/test_vote_repetition_baseline.py (NEW)
+   - invalid K rejects at network owner; exact K=1 original Bernoulli copy-zero packet parity; fixed loss sampler with original first copies all dropped and second copies delivered can rescue 51% majority without duplicating votes; K3 zero-loss outcome exactly matches K1 while physical packets, bytes and time increase; full 100% vote loss has no fallback winner; one robot only commits once and local self-votes remain local; seed-0 archive has physical Vote copy indices and one Cost exchange per robot/condition.
+   - Follow-up corrected expected initial Cost broadcast event count in multi-condition seed-0 audit to four senders × two loss conditions = eight messages (not four).
+5. docs/EXPERIMENT_PROTOCOL.md
+   - NEW canonical Section 17: accurate distinction between fixed packet repetition vs ARQ and published CBBA/ACBBA, exact K-copy time/delivery/data contract, formal paired benchmark, accepted metric denominators, explicit limited capabilities and reproducible Mac commands. Canonical Section 14 pure >25%-no-fallback rule remains unchanged.
+6. README.md
+   - NEW external PL defense benchmark documentation, compare 51%-majority K=2/3 against historical 51%-majority K=1 and pure 25%-no-fallback K=1; unit tests/smoke/formal commands and message/time/bytes reporting.
+7. results/e2_repeat2_majority_100r50t/README.md and results/e2_repeat3_majority_100r50t/README.md (NEW)
+   - Distinct future evidence roots, 100R/50T, 0–70% diagonal Cost/Vote Loss every 2%, 100 seeds, 100 task-voting attempts, SHA and physical packet proof. Marked NOT RUN, and expressly distinct from historical majority, pure25 and rejected fallback.
+8. docs/CHANGE_CONTINUITY.md
+   - This mandatory continuity entry with exact function, intentional behavior, diagnostic, risk and commit provenance.
+
+### Responsibility and architectural continuity
+
+No concern moved or duplicated. Network owns valid repetition parameter and original Bernoulli physical loss; coordinator owns actual Vote transport/copy schedules and original logical ledger/unique Commit separately; protocol.record_vote remains SOLE candidate-ledger duplicate-elimination owner, not implemented a second time; original multi-round scheduler owns task membership and retries, with exact same one-time retained Cost matrix; existing E2 evidence owner counts and writes physical packets, and reports first failing contract. All changes are one bounded new physical Vote-copy reliability concern. No robot task execution simulator, alternative optimizer, alternate voting state machine, or new quorum semantics was introduced.
+
+### Preserved historical behavior / deliberate opt-in changes
+
+Preserved: EVERY entry point defaults to K=1 and should reproduce the exact original keyed physical packet-loss outcomes and all Greedy assignments, quorum/quarter-plurality thresholds, score comparison, one-to-one robot retirement, failed-task queue rotation, physical Cost row exchange, self-votes and original coordination time. All prior E2/E3/E4 raw CSVs are immutable historical evidence. The pre-existing experiment runner still evaluates a Hungarian reference for backward-compatible old raw columns, but the new study scientifically compares ONLY Greedy local decisions; this is NOT Hungarian vs Greedy as a competing optimizer.
+
+Opt-in only for K=2/3: send extra identical physical Vote unicasts at fixed phase-timeout slots; sample loss independently per copy; earliest successfully arrived copy contributes ONE vote, even when multiple copies arrive; delay the decision to finish unconditional copies; count physical packets and full bytes/time. Do not repeat Cost messages; do not send reliable ACK/NACK (hence NOT ARQ), do not introduce a self-claim fallback. Local self-votes remain one/zero physical attempts. 51%-majority K=2/3 receives EXACTLY the same Greedy optimizer and 51% threshold as the one-copy original. At 0% loss, extra copies cannot create extra votes or improve the best executor; they only cost extra traffic/time.
+
+### Diagnostic contract
+
+1. owner=network, function=validate_vote_repetitions, category=data, code=INVALID_VOTE_REPETITIONS; expected integer K in 1..3, actual malformed value (including true/float/0/4).
+2. owner=experiments.run_e2_retirement, function=retirement_transport_stage_metrics, category=contract, code=REPEATED_VOTE_PHYSICAL_COPIES_MISMATCH; expected exact physical copy indices 0..K-1 for each DISTINCT remote logical ballot, actual wrong/duplicate/missing copy observations, details identifies ballot identity.
+3. Existing network.validate_packet_loss_probability / data / INVALID_PACKET_LOSS_PROBABILITY unchanged.
+4. Existing coordinator.validate_vote_decision_rule / contract / REMOVED_PLURALITY_FALLBACK_RULE unchanged. Missing qualified score at pure25 still normal task failure, not a new emergency winner.
+5. Original protocol.record_vote still owns duplicate and stale Vote handling; one physical original ballot contributes at most one logical vote; one-to-one Commit safety diagnostics unchanged.
+6. Existing experiments.run_e2_retirement.retirement_transport_stage_metrics / contract / RETIREMENT_DELIVERY_TOTAL_MISMATCH and RETIREMENT_NEGATIVE_SELF_VOTE_COUNT remain active, with self-vote computed from logical remote ballot identities, not physical copies.
+No new undocumented error categories.
+
+### Verification status / pending risk / next step
+
+Last user-provided Mac results BEFORE this modification: 111/111 previous unit tests pass; two older 3,600-run original E2 experiments and a 7,200-row derived 36-loss-point Greedy-only protocol comparison complete; E3/E4 6,000 formal simulations complete. Those are NOT tests of K>1. Current assistant used GitHub connector to commit changed source/tests/docs because local container cannot resolve github.com and no repo checkout is present, hence CANNOT currently run the project's full tests or actual K2/K3 user Mac experiments. New K>1 numeric success rates are UNKNOWN, and there has been NO completed new run.
+
+Next steps on user's Mac:
+- git pull and python3 -m unittest discover -s tests -v; fix first actual failing owner/function before formal run.
+- smoke 3 seeds for both 51%-majority K2 and K3 at p_cost=p_vote=0%, 30%, 50%, compare with previous K1 original and pure25.
+- ensure K2/K3 zero-loss assignments and Greedy cost equal historical K1, but packet count/bytes and simulated time increase; verify one counted vote per voter and nonnegative local self-votes; audit physical copy indices and no fallback; check physical loss near p and no safety failures.
+- after smoke passes, two independent 100-seed × 36 diagonal p levels full experiments (3,600 runs each; 7,200 new runs total), stored under new roots. Compare full success AND physical message/bytes/time, because duplication can only win if added overhead is justified.
+- then separately implement a TRUE ACK-based ARQ baseline and published CBAA/CBBA or ACBBA with accurate consensus rules and contract validation. Do not claim that this bounded repetition baseline fulfills the published MRTA algorithm-level comparisons by itself.
+- Known limitations: correlated loss invalidates independent-copy p^K prediction; retries may be wasteful at lower p; cost packet loss remains unrepaired; Rady delay-based slot schedule lacks MAC collision/channel capacity; reliable score/Commit assumption remains; actual protocol message traces may not be identical after algorithms diverge despite same integer seed.
+- The compressed per-seed audit still logs only seed 0 by design; others preserve raw summaries. Any comparison of global cost using unsuccessful batches is censored with NaN, not a fake cheap partial task.
+
+### Related commits before this continuity entry
+
+- network.validate_vote_repetitions: 3e0a0f83a48ff2aed53dd08a577dfab73492c47e
+- coordinator physical copy event/delivery and repeat transport owner: 8a5960cc8b817d313fc322ddf4902f40b4abd9fd
+- coordinator epoch/retirement forwarding and K-copy decision boundary: 5e9992a348824ee2fa47ae77a865039ab1878334
+- existing E2 runner physical/audit/CLI K support: dd1998254f9519d39d330e8ca0da89d27e4ab310
+- new K2/3 transport/runner tests: d59e1fb198f3c97dbc2563008dc69c143b1d3f03
+- test seed-0 two-loss-condition Cost message count correction: 95f98a3a28701f4a49da6399e82099a087df7c46
+- physical Vote copy index count first-failure diagnostic: 743fd794f3f660e18520a95a9e2ccee30ab7ac7a
+- match K>1 round0 physical latency and loss key: cb0a5a70817eabd211eba18646db05bdd877265f
+- canonical external PL baseline Section 17: dde05b5468661cb2ba23f31545a0b7aefb651e21
+- README new external PL benchmark section: 175444b8f8ca2020537aea0fce6cd6895c34cfe2
+- new K2 evidence README: 8c38f5020d6a7b0121521a36976b36ca27a589a9
+- new K3 evidence README: 3f10e2ae878917c8a6603455a7ee2fc135a61c32
