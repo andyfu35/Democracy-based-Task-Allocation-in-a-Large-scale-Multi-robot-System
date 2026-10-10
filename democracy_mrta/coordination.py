@@ -99,6 +99,8 @@ def _unicast_event(
     if round_id:
         key += f"|round={round_id}"
     if transmission_index:
+        if round_id == 0:
+            key += "|round=0"
         key += f"|copy={transmission_index}"
     latency_ms = float(sampler.sample_ms(key))
     return CommunicationEvent(
