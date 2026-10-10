@@ -207,7 +207,9 @@ def prepare_scaling_output(
                 details="source SHA, size grid, loss levels, seeds, and dataset must match",
             ))
         return
-    if output_root.exists() and any(output_root.iterdir()):
+    if output_root.exists() and any(
+        item.name != "README.md" for item in output_root.iterdir()
+    ):
         raise ProtocolError(Diagnostic(
             owner="experiments.run_e3_e4_scaling",
             function="prepare_scaling_output", category="state",
