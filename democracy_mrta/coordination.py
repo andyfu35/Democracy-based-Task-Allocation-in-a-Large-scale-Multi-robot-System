@@ -940,6 +940,110 @@ def map_epoch_local_proposal(
     )
 
 
+
+def validate_vote_decision_rule(
+    *,
+    rule: str,
+    voting_strategy: str,
+    num_tasks: int,
+) -> None:
+    """Keep the new 25-percent rule separate from legacy majority behavior."""
+    if rule not in ("strict_majority", "quarter_plurality_fallback"):
+        raise ProtocolError(
+            Diagnostic(
+                owner="coordination",
+                function="validate_vote_decision_rule",
+                category="data",
+                code="UNKNOWN_VOTE_DECISION_RULE",
+                expected=("strict_majority", "quarter_plurality_fallback"),
+                actual=rule,
+            )
+        )
+    if rule == "quarter_plurality_fallback" and (
+        voting_strategy != "greedy_task" or num_tasks != 1
+    ):
+        raise ProtocolError(
+            Diagnostic(
+                owner="coordination",
+                function="validate_vote_decision_rule",
+                category="planning",
+                code="PLURALITY_REQUIRES_ONE_TASK_GREEDY",
+                expected="greedy_task on a single pending task",
+                actual=(voting_strategy, num_tasks),
+            )
+        )
+
+
+def build_quarter_plurality_claims(
+    *,
+    ledgers_by_candidate: dict[int, set[int]],
+    eligible_robots: frozenset[int],
+) -> tuple[tuple[CandidateVoteAnnouncement, ...], bool]:
+    """Each executor may announce ONLY its own final received vote count.
+
+    If none exceeds one quarter, all eligible candidates make provisional
+    self-claims, including those with zero received votes.
+    """
+    threshold = quarter_vote_announcement_threshold(len(eligible_robots))
+    all_claims = tuple(
+        CandidateVoteAnnouncement(
+            candidate_id=candidate_id,
+            received_votes=len(ledgers_by_candidate.get(candidate_id, set())),
+        )
+        for candidate_id in sorted(eligible_robots)
+    )
+    qualified = tuple(
+        claim for claim in all_claims
+        if claim.received_votes >= threshold
+    )
+    return (qualified, False) if qualified else (all_claims, True)
+
+
+def simulate_quarter_plurality_announcement_phase(
+    *,
+    ledgers_by_candidate: dict[int, set[int]],
+    eligible_robots: frozenset[int],
+    task_id: int,
+    round_id: int,
+    vote_deadline_ms: float,
+    sampler,
+) -> tuple[PluralityResolution, tuple[CommunicationEvent, ...], float]:
+    """Reliable score announcements, one deterministic comparison, then commit.
+
+    The score is FINAL as of the vote collection deadline. A provisional
+    self-claim is not a commit and must not execute before arbitration.
+    """
+    claims, fallback_used = build_quarter_plurality_claims(
+        ledgers_by_candidate=ledgers_by_candidate,
+        eligible_robots=eligible_robots,
+    )
+    resolution = resolve_unique_plurality_claims(
+        announcements=claims,
+        eligible_robots=eligible_robots,
+        fallback_used=fallback_used,
+        task_id=task_id,
+        round_id=round_id,
+    )
+    phase = "fallback_self_claim" if fallback_used else "vote_score_announcement"
+    events = tuple(
+        _broadcast_event(
+            phase=phase,
+            sender_id=claim.candidate_id,
+            send_time_ms=vote_deadline_ms,
+            payload_bytes=VOTE_SCORE_ANNOUNCEMENT_BYTES,
+            sampler=sampler,
+            task_id=task_id,
+            round_id=round_id,
+            announced_vote_count=claim.received_votes,
+        )
+        for claim in claims
+    )
+    # Broadcast announcements are RELIABLE in this opt-in model. All active
+    # robots make the same comparison after the final broadcast arrives.
+    ready_ms = max(event.arrival_time_ms for event in events)
+    return resolution, events, ready_ms
+
+
 def simulate_democracy_hungarian_lossy(
     *,
     cost_matrix: tuple[tuple[float, ...], ...],
