@@ -400,3 +400,62 @@ The legacy raw/summary/events field `p_loss` identifies cost loss. The additiona
 Suggested initial analysis: fixed 100 robots / 50 tasks, 100 paired scenario/network seeds, cost loss 0% to 70% at 2-percentage-point increments, vote loss fixed 0%. Report task commit, CER and all-tasks global-optimal solution rates separately. A claimed `unusable` transition requires a stated operational criterion; for inspection one may report the first sampled loss level where task commit falls below 90%, 50% and 10%, without treating those as predefined success standards.
 
 This sweep remains single-round and does not quantify eventual completion under retries.
+
+
+## 13. Optional multi-round retiring-executor Democracy experiment
+
+**Status:** New experimental protocol, not a revision to E2 single-round evidence.
+
+The user-specified rule is: after a candidate receives strict majority for a task, that robot broadcasts its task commit, starts executing that task, and no longer participates as a **voter or candidate** for subsequent tasks. Its task also leaves the open task pool. Since this repository is a *static assignment simulator*, the new experiment records execution eligibility/retirement on accepted commit; it does **not** simulate physical navigation or task completion.
+
+### 13.1 Eligible membership and quorum
+
+At the start of epoch k, the immutable team snapshot is:
+
+- A_k: active robots still eligible to vote and be allocated;
+- T_k: pending uncommitted tasks;
+- C_k: pairs reliably committed in previous epochs.
+
+Every active robot computes Hungarian using only A_k and T_k, and only peer rows actually received in that epoch. It votes directly to the proposed executor. Each task's strict-majority threshold is:
+
+    Q_k = floor(|A_k| / 2) + 1
+
+**Never reduce the electorate or denominator in the middle of a vote collection epoch.** After the current epoch's reliable task commit announcements finish, atomically remove the newly committed robot IDs from the next electorate/candidate set and newly committed task IDs from the next task set. The protocol owner checks both against previously active/pending membership and checks one-robot/one-task commit safety.
+
+For example, if 100 robots / 50 tasks yield 30 distinct commits in one epoch, the next epoch contains 70 voters/candidates and 20 pending tasks; its quorum is 36.
+
+If an epoch has no commits, membership remains unchanged but cost delivery/voting may be retried with a new round ID and a fresh independently keyed Bernoulli delivery sample. The run ends when all tasks commit or a configured `max_rounds` limit is reached. It must not retry indefinitely.
+
+### 13.2 Communication and identity
+
+- The existing `coordination.simulate_democracy_hungarian_lossy` still owns one actual round of cost dissemination, local Hungarian proposals, vote unicasts, counted ledgers, majority, and reliable commit broadcasts.
+- `protocol.apply_announced_retirement_commits` owns the membership transition and one-to-one validation **after** the existing round's reliable commits are finalized.
+- `coordination.simulate_democracy_hungarian_retirement` owns scheduling successive epochs, absolute round offsets, and the bounded termination condition. It does **not** implement a second vote collector.
+- Active robot and task IDs remain their **original physical/global IDs** in packet keys, vote ledgers, commit announcements and result pairs even when their compact optimizer matrix shrinks.
+- Cost and vote packet losses are separate Bernoulli decisions; each epoch uses new round-qualified packet keys. Empirical latency keys for epochs beyond zero also include the epoch index to avoid copying the same bootstrap delay into every retry. The first round retains E2's exact key/latency compatibility.
+- Cost dissemination happens again each epoch, as the eligible population and pending task set changed.
+- Reliable task announcements and reliable commit announcements are assumptions inherited from E2. A distributed implementation with delayed/missing commit announcements would need a separate membership reconciliation and safety protocol.
+
+### 13.3 Comparison and results
+
+Do **not** overwrite or rename E2. Retiring-executor results live in `results/e2_retirement_100r50t/` and run through `experiments.run_e2_retirement`.
+
+Compare at identical scenario/network seeds and same Cost Loss / Vote Loss:
+- the initial epoch's E2-equivalent single-round Task Commit Rate and CER;
+- bounded **eventual** Task Commit Rate and CER after all retirement rounds;
+- full-assignment success probability and complete-assignment Hungarian optimal cost gap;
+- mean/maximum rounds and cumulative communication time/message count;
+- per-epoch active population, pending tasks, quorum, new commits;
+- zero duplicate task and robot assignments.
+
+Only full final assignments can have total-cost optimality gap measured against the original full-information Hungarian oracle. Partial assignments cannot be compared by total cost alone; their CER and commit coverage must be reported separately. A sequence of irrevocable local commits may reach full coverage without achieving the original global optimum.
+
+The current benchmark has no task execution duration, robot rejoining, MAC contention, real commit loss, or global re-optimization of already committed assignments.
+
+### 13.4 Command and reproducibility
+
+    python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 100 --vote-loss-probability 0 --max-rounds 10 --output-root results/e2_retirement_100r50t
+
+The runner defaults to Cost Loss levels 0.00–0.70 in 0.02 increments and records per-seed raw results, each epoch's eligibility/commit record, seed-0 message/delivery event logs, aggregate summary, git HEAD and UTC timestamp. It reuses the same E1 Rady Wi-Fi latency evidence and matching seed indices.
+
+This experiment is pending local tests and runs. It must not be described as evidence that original E2 was incorrect or that any particular loss level is survivable until the new output has been examined.
