@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .network import validate_packet_loss_probability
+
 from .optimizer import (
     AssignmentSolution,
     solve_visible_hungarian_assignment,
@@ -696,11 +698,16 @@ def simulate_democracy_hungarian_lossy(
     phase_timeout_ms: float,
     round_id: int = 0,
     capture_vote_audit: bool = False,
+    p_vote_loss: float | None = None,
 ) -> LossyCoordinationResult:
     num_robots = len(cost_matrix)
     num_tasks = len(cost_matrix[0])
     quorum = quorum_size(num_robots)
     eligible = frozenset(range(num_robots))
+    vote_loss_probability = (
+        p_loss if p_vote_loss is None
+        else validate_packet_loss_probability(p_vote_loss)
+    )
 
     events, deliveries, visible, ready_times = _simulate_lossy_cost_broadcasts(
         num_robots=num_robots,
@@ -759,7 +766,7 @@ def simulate_democracy_hungarian_lossy(
             observation = _lossy_unicast_delivery(
                 event=event,
                 loss_sampler=loss_sampler,
-                p_loss=p_loss,
+                p_loss=vote_loss_probability,
                 round_id=round_id,
             )
             deliveries.append(observation)
