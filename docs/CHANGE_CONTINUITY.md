@@ -1040,3 +1040,103 @@ Run the full Mac local test suite and then the 3-seed smoke. Verify first-round 
 - canonical spec: `e19e83d2074eaaf4ddfe2c47ae609df65487a6fd`
 - README: `4f2f39510e2aa6c373cbd4748f1c09d100acb215`
 - result ledger: `6320ab35e7290fe362a9d5f76e64d41f2fb50c1b`
+
+
+## 2026-10-10 — Greedy replaces Hungarian for the retiring-executor experiment
+
+### Purpose
+The user explicitly requested replacing Hungarian with Greedy after identifying that committed robots should exit all subsequent voting. This change implements **one-task-at-a-time, local-visible-minimum-cost Greedy voting** in the new retiring-executor experimental runner, preserving all original E0/E1/E2 Hungarian benchmarks and their raw evidence. Prior multi-task Hungarian retirement remains callable only as an explicit legacy strategy through its existing code owner.
+
+The new protocol avoids both (a) coupling the assignment of 50 tasks inside each voter's Hungarian matrix and (b) repeatedly retransmitting the same static 50-task cost rows. Each robot receives one independently lossy copy of each other robot's entire cost row, then retains that incomplete local view throughout sequential task voting. After a majority commit, its executor exits both the voter and candidate population; the next task is voted with a smaller electorate.
+
+### Files changed and owner named functions
+- `democracy_mrta/optimizer.py`:
+  - `require_one_greedy_task` owns planning shape validation: exactly one active task in a Greedy vote.
+  - `select_cheapest_visible_greedy_row` scans ONLY the voter's currently visible active candidates, selecting minimum (cost, stable original ID) with input diagnostics.
+  - `solve_visible_greedy_task` is the standalone optimizer entrypoint with full input validation.
+  - `solve_all_visible_greedy_task_votes` validates each active cost matrix ONCE per epoch, then computes each voter's independent candidate using its own subset; avoids N redundant full-matrix validations for N votes.
+  - `solve_sequential_greedy_reference` is the offline full-information ascending-task Greedy baseline used only for evaluation.
+- `democracy_mrta/coordination.py`:
+  - `capture_retirement_cost_snapshot` owns ONE initial full-row peer cost exchange with independent receiver-level Bernoulli loss; stores delivered row sets, physical voter identities, first-epoch readiness and actual cost delivery events.
+  - `resolve_retirement_cost_view` filters retained per-voter visibility to the active physical IDs. First epoch includes original cost deliveries/readiness. Later epochs include NO repeated cost transmissions, and voting begins relative to the new epoch's start.
+  - `validate_epoch_voting_strategy` accepts only named `hungarian` or `greedy_task` and forbids multi-task Greedy voting.
+  - `build_epoch_local_proposals` routes ONLY the optimizer selection to the true `optimizer` owner. Under `greedy_task`, calls `solve_all_visible_greedy_task_votes`; under the default `hungarian` retains the same original per-voter partial Hungarian solver.
+  - `simulate_democracy_hungarian_lossy` remains the SINGLE actual cost/vote/strict-quorum/commit state machine; optional `voting_strategy` and `cost_snapshot` select Greedy without duplicate vote ledgers or new wrappers. The historical default remains `hungarian` and old E2 results remain unchanged.
+  - `simulate_democracy_hungarian_retirement` remains the SINGLE bounded multi-round owner; with `voting_strategy="greedy_task"` it votes only on the pending-queue head task, reuses the initial snapshot, passes physical IDs, updates membership after a reliable commit, and caps total TASK VOTING ATTEMPTS rather than complete multi-task rounds.
+  - `RetirementRoundTrace.voted_task_id` identifies the one attempted Greedy task while `pending_task_ids` captures the full task pool. `MultiRoundRetirementResult.payload_bytes` now accounts for actual cumulative communication volume.
+- `democracy_mrta/protocol.py`:
+  - `apply_announced_retirement_commits` continues owning the ONLY persistent membership transition. Optional `attempted_task_id` checks the queue head, rejects committing the wrong task, removes an announced executor/task after success, and rotates a failed task to the end of the pending queue WITHOUT retiring anyone; increments epoch ID in either case. Without the new argument, legacy membership behavior is unchanged.
+- `experiments/run_e2_retirement.py`:
+  - `run_retirement_experiment` now explicitly invokes `voting_strategy="greedy_task"` and produces a separate `results/e2_greedy_retirement_100r50t` evidence family with 100-paired-seed cost-loss sweep.
+  - `retirement_result_row` reports first attempted task success, final task coverage, both Greedy-reference and Hungarian-reference executor correctness, cost gaps only for fully completed assignments, cumulative payloads and wall-clock simulation events.
+  - `summarize_retirement_results` distinguishes `mean_greedy_correct_executor_rate`, `mean_greedy_correctness_among_committed`, legacy Hungarian-oracle CER, full-assignment global optimal rate, Greedy-relative final cost gap and Hungarian-global-relative final cost gap.
+  - `retirement_round_rows` includes attempted task ID and full pending queue; `main` defaults to `2 * tasks` maximum attempts (100 for 50 tasks) unless explicitly overridden. The full sweep is 0%-70% cost loss in 2-point steps, reliable vote transport at 0% unless overridden.
+- `tests/test_greedy_retirement.py` (new): local visible candidate selection, deterministic ties, single-task validation, batch equivalence, batch count validation, Greedy-vs-Hungarian counterexample, retirement and changing quorum, initial cost exchange only once, queue rotation on no quorum, vote-channel full loss, cap on total attempted tasks, and separate Greedy/global-oracle metrics.
+- `tests/test_retirement.py`: queue rotation and queue-head rejection boundary tests.
+- `docs/EXPERIMENT_PROTOCOL.md`: section 13 replaces the previous experimental Hungarian-retirement definition with canonical **sequential Greedy** semantics and both offline reference metrics. Original E2 still formally uses Hungarian.
+- `README.md`: new commands and separate evidence path; this experimental runner does not use Hungarian for planning.
+- `results/e2_greedy_retirement_100r50t/README.md`: new experiment output and risk ledger.
+- `docs/CHANGE_CONTINUITY.md`: this record.
+
+### Responsibility movement
+No communication, packet sampler, majority voting, or safety responsibility was moved. Cost-data visibility and per-round vote/commit remain owned by coordination. Greedy choice and baseline reference are exclusively owned by optimizer. Membership/retirement and failed-task queue transitions remain exclusively owned by protocol. The experiment script orchestrates, does not vote or decide quorum. No alternate voting state machine exists.
+
+### Preserved behavior
+- Original `python3 -m experiments.run_e2`, E0/E1/E2 Hungarian benchmark methods, former single-round and multi-task Hungarian semantics, network latency profile, packet keys and old output paths remain unchanged on their default call paths.
+- `simulate_democracy_hungarian_lossy` defaults to `voting_strategy="hungarian"` without a cost snapshot; `simulate_democracy_hungarian_retirement` likewise defaults to `hungarian` for compatibility.
+- Voter's own row always present; cost rows lost at each receiver never silently restored; self-votes are local; remote votes have separately sampled Bernoulli loss; quorum is strict majority of the current epoch's FULL eligible robot list; reliable commit announcements precede retirement; duplicate executor/task commits are rejected; stale round IDs cannot be counted.
+- Existing legacy `CER` continues to mean executor matches full-information Hungarian, not Greedy.
+
+### Intentionally changed behavior in Greedy retirement mode ONLY
+1. Single initial cost-row broadcast across the full original task matrix; each voter persists its independent incomplete local row set. No cost retransmissions in later task-voting epochs.
+2. ONE pending task at a time; local vote = cheapest currently active robot in THIS voter's visible set, ties by original robot ID. No Hungarian used to form votes.
+3. Upon reliable majority commit, the executor exits all subsequent votes/candidate lists; the task leaves the queue; new quorum uses remaining electorate.
+4. On no-quorum, task rotates to back, eligible robots remain unchanged, and the next epoch moves on to the next pending task with fresh vote-transport keys.
+5. `max_rounds` counts task attempts, not global multi-task rounds. Need at least T successful rounds to finish T tasks even when loss=0.
+6. Zero-loss Greedy MUST match full-information sequential Greedy, but is NOT promised to match global Hungarian; offline Hungarian used only for explicit cost-quality comparison.
+7. The new runner's summary reports both offline references and uses a new results folder so earlier E2 curves cannot be overwritten.
+
+### Diagnostic contract
+- `optimizer.require_one_greedy_task / planning / GREEDY_REQUIRES_ONE_TASK`
+- `optimizer.select_cheapest_visible_greedy_row / state / NO_VISIBLE_GREEDY_CANDIDATES`
+- `optimizer.select_cheapest_visible_greedy_row / data / GREEDY_VISIBLE_ROBOT_OUT_OF_RANGE`
+- `optimizer.solve_all_visible_greedy_task_votes / contract / GREEDY_LOCAL_VIEW_COUNT_MISMATCH`
+- `coordination.resolve_retirement_cost_view / state / INVALID_RETAINED_COST_ELECTORATE`
+- `coordination.validate_epoch_voting_strategy / data / UNKNOWN_VOTING_STRATEGY`
+- `coordination.validate_epoch_voting_strategy / planning / GREEDY_EPOCH_REQUIRES_SINGLE_TASK`
+- `protocol.apply_announced_retirement_commits / state / RETIREMENT_TASK_NOT_QUEUE_HEAD`
+- `protocol.apply_announced_retirement_commits / contract / GREEDY_COMMIT_WRONG_TASK`
+- Existing `protocol.apply_announced_retirement_commits / state / RETIREMENT_COMMIT_NOT_ELIGIBLE`, `protocol.validate_one_to_one_commits / safety / DUPLICATE_ROBOT_COMMIT`, existing round-limit and Bernoulli validation diagnostics are preserved.
+
+### Verification status
+GitHub source/tests/canonical updates were committed. The assistant environment has no DNS access to github.com for checkout, so **the expanded unit suite and 100R/50T Greedy smoke have not yet run here**. Tests must pass on the user's Mac before accepting numerical claims. The previous user's 39-test passing report preceded this change and cannot be used as verification for Greedy.
+
+### Open risks
+- New cached Cost Loss means a failed task with unchanged voters and Vote Loss 0% will not gain information by immediate retry; queue rotation and retirement of robots on OTHER tasks are the only ways local proposals can change. The experiment does not implement periodic cost re-broadcast/recovery.
+- One reliable cost row broadcast from each robot transmits all T costs once, but the static cost vectors can become stale as real robots move; robot motion and physical task execution are not modeled.
+- Reliable task/commit announcements are assumed. If commit announcements are lost, membership may diverge and require a separate agreement/safety protocol.
+- Greedy can be MUCH worse than full-information Hungarian even at zero loss. Greedy-relative correctness must never be confused with global cost optimality.
+- Max-round cap can leave tasks incomplete even with arbitrarily many available robots, and reduction of the electorate is not a convergence guarantee.
+- 100-seed, 36-cost-level, 50-task sequential processing may have appreciable runtime and message volume; initial 3-seed smoke required. Dedicated CPU solver wall-clock timing has not yet been benchmarked.
+- Original E2 30%/30% per-ballot forensic audit is still outstanding and not solved by switching strategies.
+
+### Next steps
+1. On Mac: `git pull && python3 -m unittest discover -s tests -v`.
+2. Greedy smoke: 100 robots, 50 tasks, 3 seeds, cost-loss 0, 0.3, 0.5, vote-loss 0, max 100 task attempts, isolated output root. Confirm 0% loss reaches full coverage in 50 attempts and yields 100% GREEDY-reference CER; nonzero global-optimal gap is permitted.
+3. Review each epoch's `active_robot_ids`, `pending_task_ids`, `voted_task_id`, quorum and commit broadcasts; assert no cost broadcast after round 0 and no retired IDs in later voters/candidates.
+4. Only after tests/smoke pass, run the paired 100-seed 0%-70% cost-loss sweep. Compare coverage, Greedy-reference CER, both cost gaps, rounds, time and traffic to E2. No paper conclusions prior to results.
+
+### Implementation commit SHAs
+- Greedy per-task optimizer and offline baseline: `0c076f8258031678f87daa2d42725a866a362ab3`
+- Shared E2 vote owner supports retained cost snapshots and Greedy proposal strategy: `20f58192be8d1d5fa9c6539e4ad81dc0db926522`
+- Failed task rotates to tail in protocol: `9956a40e0a2cb250affb04b0c4df6c423efbdfd0`
+- Retirement scheduling selects one task: `ee7f723d4ecbdb2ed3161da1fc5aa47a215b073e`
+- New runner dual-oracle Greedy metrics: `a2a86a686c1a1d917b2f13d79a94979886397373`, `7a9eb95538199a757b2ba218001d5143913202e9`, `604db60c0a256b538e07551d867024f0f97fb97a`
+- New Greedy retirement tests: `edd2ce0c8cadda822313a027cf59be6e3160fcad`
+- Canonical section 13 rewrite: `ba8733c71fb3289330820833f2c27c8737081df7`
+- README / Greedy result ledger: `fc366de54751475cae83d21369eaa6201dec0f4d`, `042187e07c1fcb452ec045f612f5b9aacbab85c4`
+- Protocol queue tests: `5599d153bf42029a83408de86a2fdb0d8637d646`
+- Data payload accounting and adaptive round default: `7cea24502de7a16720d176d979b896d12d146adf`, `986bc94e8255172bb34e2f0793fe5534360330f4`
+- Greedy matrix batch-validation refactor: `196b63c0b31125d7686de3770f5418f679ebcca1`, `7693c8715ca7ce5aa78317b9da12f028d46f4898`
+- Batch per-voter regression tests: `fc6673087fcf6db43bcd923bf4f84f3c5545dbe1`
+- Separate conditional Greedy correctness summary: `cc70005f8589e4ee5a42d4100a6d41d09a2e80f0`
