@@ -510,21 +510,21 @@ All curves use 100 robots, 50 tasks and the **same 100 scenario and network seed
 For a coarse **two-dimensional interaction surface**, optionally also run a full grid with each probability in {0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7}: 8*8 = 64 cells, 100 seeds each, in results/e2_joint_loss_grid_100r50t. This optional grid measures interactions; do not accidentally substitute a 36*36 full-factorial sweep (129,600 seed-condition simulations) without an explicit compute and storage budget.
 
 The experiment CLI supports:
-- \`--vote-loss-probability 0.3\`: existing fixed Vote Loss behavior (unchanged);
-- \`--vote-loss-probabilities 0,0.02,...\`: NEW Vote Loss axis independent of the Cost Loss axis (mutually exclusive with fixed Vote Loss);
-- \`--loss-pairing grid\`: Cartesian product of the two loss axes (default; also used for a single fixed cost level);
-- \`--loss-pairing diagonal\`: one pair for each loss level, **requiring exactly identical cost and vote axes**. Without a Vote Loss axis the implementation uses the Cost Loss axis automatically; a simultaneous fixed Vote Loss is rejected.
+- `--vote-loss-probability 0.3`: existing fixed Vote Loss behavior (unchanged);
+- `--vote-loss-probabilities 0,0.02,...`: NEW Vote Loss axis independent of the Cost Loss axis (mutually exclusive with fixed Vote Loss);
+- `--loss-pairing grid`: Cartesian product of the two loss axes (default; also used for a single fixed cost level);
+- `--loss-pairing diagonal`: one pair for each loss level, **requiring exactly identical cost and vote axes**. Without a Vote Loss axis the implementation uses the Cost Loss axis automatically; a simultaneous fixed Vote Loss is rejected.
 - Missing axes, duplicate pairs, invalid probabilities and mismatched diagonal axes MUST fail with explicit diagnostic codes before running simulations.
 
-Outputs continue to include \`p_cost_loss\` and \`p_vote_loss\` separately on raw/round/event and summary rows; the raw rows include paired seed, git SHA, timestamp, and the method \`democracy_greedy_retirement\`. Additionally report:
-- \`cost_packet_attempts\`, \`cost_packet_dropped\`, \`observed_cost_drop_rate\` for actual cost deliveries in the initial epoch;
-- \`remote_vote_attempts\`, \`remote_vote_dropped\`, \`observed_vote_drop_rate\`, \`self_votes\` for actual vote packets, excluding self-votes from the wireless Vote Loss denominator;
-- \`quorum_failed_attempts\`, mean rounds/elapsed time, final task commit rate and full 50-task success rate;
+Outputs continue to include `p_cost_loss` and `p_vote_loss` separately on raw/round/event and summary rows; the raw rows include paired seed, git SHA, timestamp, and the method `democracy_greedy_retirement`. Additionally report:
+- `cost_packet_attempts`, `cost_packet_dropped`, `observed_cost_drop_rate` for actual cost deliveries in the initial epoch;
+- `remote_vote_attempts`, `remote_vote_dropped`, `observed_vote_drop_rate`, `self_votes` for actual vote packets, excluding self-votes from the wireless Vote Loss denominator;
+- `quorum_failed_attempts`, mean rounds/elapsed time, final task commit rate and full 50-task success rate;
 - Greedy-oracle executor correctness, global Hungarian-oracle executor correctness, and **complete-assignment only** cost gap to both full-information references.
 
 In aggregate summaries, observed packet-loss rate is **the number of dropped packets divided by attempted packets across all seeds at that condition** (not an unweighted average of per-seed loss rates). Cost and Vote Loss counts plus delivery counts must reconcile exactly with the underlying coordination observations, otherwise fail with a diagnostic.
 
-The core figure should show \`mean_task_commit_rate\`, \`full_assignment_success_rate\`, \`mean_greedy_correct_executor_rate\` versus \`p_vote_loss\` separately for VOTE_ONLY and COST30_VOTE_SWEEP, plus a JOINT_DIAGONAL curve. Plot mean rounds, mean elapsed time, and vote drop audit as separate supporting panels. Do not label Hungarian-based CER as Greedy reference accuracy.
+The core figure should show `mean_task_commit_rate`, `full_assignment_success_rate`, `mean_greedy_correct_executor_rate` versus `p_vote_loss` separately for VOTE_ONLY and COST30_VOTE_SWEEP, plus a JOINT_DIAGONAL curve. Plot mean rounds, mean elapsed time, and vote drop audit as separate supporting panels. Do not label Hungarian-based CER as Greedy reference accuracy.
 
 Do NOT conclude "30% loss is safe" from a Vote Loss-only curve with 0% Cost Loss, or from task commit rate alone. Under 100 voting attempts there is a material difference between a single task reaching quorum and all 50 tasks completing. The user must inspect full-task success and cost among completed runs.
 
@@ -534,20 +534,20 @@ All tests for these new sweep parameters and stage delivery accounting must pass
 
 After pulling and running unit tests, begin with a 3-seed two-axis smoke (cost 0/30%, vote 0/30/70%); then run three separated 100-seed sweeps:
 
-\`\`\`bash
+```bash
 python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 3 --cost-loss-probabilities 0,0.30 --vote-loss-probabilities 0,0.30,0.70 --max-rounds 100 --output-root results/e2_vote_loss_smoke
 
 LEVELS="$(python3 -c 'print(",".join(f"{i/100:.2f}" for i in range(0, 71, 2)))')"
 python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 100 --cost-loss-probabilities 0 --vote-loss-probabilities "$LEVELS" --max-rounds 100 --output-root results/e2_vote_only_100r50t
 python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 100 --cost-loss-probabilities 0.30 --vote-loss-probabilities "$LEVELS" --max-rounds 100 --output-root results/e2_cost30_vote_sweep_100r50t
 python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 100 --cost-loss-probabilities "$LEVELS" --loss-pairing diagonal --max-rounds 100 --output-root results/e2_joint_loss_diagonal_100r50t
-\`\`\`
+```
 
 Optional 8x8 grid:
 
-\`\`\`bash
+```bash
 GRID="0,0.10,0.20,0.30,0.40,0.50,0.60,0.70"
 python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 100 --cost-loss-probabilities "$GRID" --vote-loss-probabilities "$GRID" --max-rounds 100 --output-root results/e2_joint_loss_grid_100r50t
-\`\`\`
+```
 
 Separate output roots are REQUIRED to prevent overwriting the prior 100-seed Cost-only evidence and to preserve condition-specific summary.csv files. The experiment prints condition count before running, which must equal 6 for smoke, 36 for each line sweep, and 64 for the optional interaction grid.
