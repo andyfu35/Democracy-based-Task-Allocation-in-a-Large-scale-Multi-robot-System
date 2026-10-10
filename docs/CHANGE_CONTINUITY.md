@@ -939,3 +939,104 @@ Run unit regressions. Smoke the independent loss flags, then run the 100R/50T 0-
 - canonical protocol: `57b60f016b8d817db8ce640434bab18b371d0441`
 - README commands: `ebafa19b428c1f5f5376ecde9ca4d88b5b66d23b`
 - E2 result ledger: `e1a740c78f194f985e02a8263700658166e71b06`
+
+
+## 2026-10-10 — Opt-in multi-round Democracy with committed executor retirement
+
+### Purpose
+Implement the user's corrected multi-task lifecycle: a robot that wins a task by majority reliably broadcasts a commit, becomes unavailable as both a future voter and candidate, and immediately starts executing its assigned task in the abstract protocol. Remaining unassigned robots continue voting only on remaining tasks in a new epoch. This is a NEW multi-round protocol mode, not a correction to the original one-round E2 benchmark.
+
+### Files changed
+- `democracy_mrta/protocol.py`
+- `democracy_mrta/coordination.py`
+- `experiments/run_e2_retirement.py`
+- `tests/test_retirement.py`
+- `docs/EXPERIMENT_PROTOCOL.md`
+- `README.md`
+- `results/e2_retirement_100r50t/README.md`
+- `docs/CHANGE_CONTINUITY.md`
+
+### Exact owner modules and named functions
+- `protocol.initialize_retirement_membership`: validates fleet/task sizes and creates the initial immutable per-epoch eligibility snapshot.
+- `protocol.apply_announced_retirement_commits`: exclusively owns the epoch-to-epoch membership transition. After reliable commit announcements, removes the committing executor from eligible voters and candidates and removes its assigned task from the pending task pool. Rejects an ineligible executor/task, and invokes the existing `protocol.validate_one_to_one_commits` safety boundary on the aggregate assignment.
+- `coordination.validate_epoch_identity_mapping`: validates original physical/global robot/task IDs for a compact active epoch. Does not permit duplicate IDs.
+- `coordination.map_epoch_local_proposal`: maps compact optimizer row/task indices to stable physical robot/task IDs before a proposal becomes a vote.
+- `coordination._lossy_broadcast_deliveries` and `coordination._simulate_lossy_cost_broadcasts`: broadcast cost rows only among active robots, sampling each physical sender/receiver link independently per epoch. Internally convert physical recipient IDs to compact local-visible-row indices.
+- `coordination._unicast_event`, `coordination._broadcast_event`: append the epoch ID to empirical latency sampling keys **only for rounds >0**, retaining E2's round-0 bootstrap keys unchanged.
+- `coordination._lossy_unicast_delivery`: records epoch ID in vote delivery observations while maintaining the existing keyed Bernoulli sampling contract.
+- `coordination._summarize_lossy_result`: computes actual physical commit costs from compact-row/task matrices when original ID mapping was provided, while preserving the default unmodified path.
+- `coordination.simulate_democracy_hungarian_lossy`: remains the ONLY owner of per-round Hungarian/packet/vote/quorum/commit execution. Optional physical robot/task identity mappings let this existing owner run on a shrinking team with fresh epoch ID and a strict majority of the frozen current electorate. All prior default arguments still mean the same single-round E2.
+- `coordination.build_retirement_round_cost_matrix`: constructs exactly the active-row/pending-column submatrix for the next epoch; never re-inserts retired robots or completed tasks.
+- `coordination.require_retirement_commit_announcements`: checks each newly committed pair is represented by a reliable commit broadcast before retirement.
+- `coordination.simulate_democracy_hungarian_retirement`: genuinely new owner of bounded multi-round scheduling and cumulative timing; delegates every epoch to `simulate_democracy_hungarian_lossy` and membership changes to `protocol.apply_announced_retirement_commits`. Does not duplicate the vote/majority state machine.
+- `experiments.run_e2_retirement.retirement_result_row`: per-seed final oracle/CER/coverage/latency comparisons including the original first-round E2 result.
+- `experiments.run_e2_retirement.retirement_round_rows`: per-epoch voter IDs, pending tasks, dynamic quorum, committed pairs and timing evidence.
+- `experiments.run_e2_retirement.summarize_retirement_results`: grouped paired-seed summary.
+- `experiments.run_e2_retirement.write_retirement_audit_events`: designated seed 0 physical-ID/logical-transmission/receiver-delivery audit with round IDs and absolute time offsets.
+- `experiments.run_e2_retirement.run_retirement_experiment`: standalone experiment orchestration, provenance, CSV outputs. Does not alter E2's official runner.
+
+### Responsibility movement
+No prior responsibility moved. Existing packet loss/delay owners remain network; partial optimization remains optimizer; distinct ballot counting/strict majority remain protocol. Protocol now additionally owns persistent membership eligibility, while coordination owns the new per-round scheduling lifecycle. No second vote ledger or state machine is introduced.
+
+### Preserved behavior
+- Original E2 CLI, its fixed electorate, one-round/no-retry contract, published results, prior output paths, Hungarian solver, strict majority, losses, benchmark comparison methods and measurements remain unchanged unless the new entrypoint is explicitly invoked.
+- First retirement epoch with identical seed/loss/latency input is *exactly* the original E2 Democracy epoch in vote counts, events and decisions; the zero-loss path completes in one round.
+- Independent Cost Loss and Vote Loss remain controlled by their own Bernoulli draws. Task announcement and post-quorum commit remain reliable for this experiment.
+- No changing of the quorum denominator in the middle of an epoch, no accepting stale votes from prior epochs, no duplicate robot or task assignment.
+
+### Intentionally changed behavior (new experimental mode only)
+- Each epoch starts from a frozen set of active voters/candidates and pending tasks. Its majority is `floor(active_robots/2)+1`.
+- Once a candidate wins a task, the simulator records its reliable commit; **only after the entire epoch finishes and all commits are broadcast** does the next epoch exclude the assigned robot and task.
+- Unresolved tasks are reconsidered in the next epoch using fresh cost broadcasts and fresh independently keyed losses. If no task commits, the same eligible population retries with a higher round ID until `max_rounds`.
+- New rounds use original physical robot/task IDs for sampling, votes and announces; compact optimizer indices never leak as public IDs.
+- The main objective is eventual task coverage / final oracle-matched executors and the cost/time/message penalty compared with the paired first-round baseline.
+- Physical task motion, execution duration, return to duty and later rejoining are NOT represented; 'start executing' means committed/unavailable for further allocations.
+
+### Diagnostic contract
+- `protocol.initialize_retirement_membership / data / INVALID_RETIREMENT_TEAM_SIZE`
+- `protocol.apply_announced_retirement_commits / state / RETIREMENT_COMMIT_NOT_ELIGIBLE`
+- `protocol.validate_one_to_one_commits / safety / DUPLICATE_ROBOT_COMMIT` and `DUPLICATE_TASK_COMMIT` retained and applied to aggregate epochs.
+- `coordination.validate_epoch_identity_mapping / data / INVALID_EPOCH_ID_MAPPING`
+- `coordination.require_retirement_commit_announcements / contract / RETIREMENT_COMMIT_ANNOUNCEMENT_MISMATCH`
+- `coordination.simulate_democracy_hungarian_retirement / data / INVALID_RETIREMENT_ROUND_LIMIT`
+- Existing `network.validate_packet_loss_probability / data / INVALID_PACKET_LOSS_PROBABILITY` reused.
+- Existing no-quorum outcome is still an expected state, NOT a raised exception.
+
+### Tests / verification
+Added `tests/test_retirement.py` covering:
+1. announced commit removes exactly its executor/task for next round;
+2. retired robot cannot commit again;
+3. a single robot cannot be committed to two tasks;
+4. controlled 4R/2T first round with only one task committed, then subsequent 3R/1T quorum shrinking 3 -> 2 and avoiding the retired robot in packets;
+5. a no-quorum epoch followed by successful re-vote with a higher epoch ID;
+6. zero-loss first epoch exactly equals original E2 behavior;
+7. one-epoch cap preserves pending tasks;
+8. invalid max-round limit raises correct diagnostic;
+9. independent keyed Bernoulli first round matches original E2 packet events/decisions exactly.
+There were 39 passing local tests BEFORE this change according to the user; the added 9 tests have NOT been run in this assistant's environment. External GitHub checkout fails DNS in the assistant's container; user-side local execution is required. Do not claim correctness of new implementation until tests and smoke pass.
+
+### Open risks
+- Dynamic membership relies on the strong E2 assumption that commit announcements reach everybody before the next epoch. Distributed delivery loss/partitions can create divergent voter membership and need a separate membership-agreement protocol.
+- Each epoch has a frozen voting population; opportunistic asynchronous mid-epoch retirement is intentionally NOT implemented.
+- Quorum shrinking does not mathematically guarantee new agreement, and can weaken agreement thresholds; packet retransmission/retry count and latency may be expensive. Terminate after `max_rounds` even if pending tasks remain.
+- Sequential irreversible commits can reach full task coverage but cost more than the one-shot full-information Hungarian oracle. Compute total-cost gaps only for full final assignments.
+- Static assignment simulator cannot verify real execution/movement/completion or robot later becoming available.
+- Bernoulli delivery independence and pinned E1 empirical latency omit shared-radio contention, burst loss, and commit loss.
+- Existing 30%/30% E2 forensic ledger audit is still outstanding and unaffected by the new mode.
+- Runtime SHA and UTC time are recorded by the new experiment runner, but the source network dataset pin is documented in canonical experiment spec rather than repeated in every raw row.
+
+### Next step
+Run the full Mac local test suite and then the 3-seed smoke. Verify first-round results agree with the existing E2 under paired Cost Loss/Vote Loss and confirm round records have decreasing eligible/pending populations, updated quorum, no duplicate assignments, and no stale voter packets. Only then run a 100-seed Cost-only loss sweep and evaluate final coverage, CER, full-assignment optimality, message cost and elapsed time against the original single-round E2.
+
+### Commit SHA
+- persistent protocol membership: `b5b09b5043a8b29406da819a2d48d13504dc1acc`
+- round-keyed physical identity and event support: `a7044db33f013da96e2e26821fc4b6b34afbf72b`
+- physical-ID local proposal/majority integration: `58a51a6848f24fda10390537c7ae37122b5894cf`
+- bounded multi-round coordinator: `133724ee15df933a2204f0b26e82fbe3341c538c`
+- paired identity mapping/diagnostic cleanup: `9b4d2c4a8d3bba35f29c6e58f3794f1ff702674e`
+- experiments runner: `53813d69116e5c16a49c2eefb755ce9c55ed4062`
+- safety/transition/rounding regression tests: `dfc1e7b2aa3ab216e1cf0c2e77a3c11e3f3c66bc`
+- first-round exact E2 regression: `ed7805790d2459189a4e1f941aae92a0e70fb82`
+- canonical spec: `e19e83d2074eaaf4ddfe2c47ae609df65487a6fd`
+- README: `4f2f39510e2aa6c373cbd4748f1c09d100acb215`
+- result ledger: `6320ab35e7290fe362a9d5f76e64d41f2fb50c1b`
