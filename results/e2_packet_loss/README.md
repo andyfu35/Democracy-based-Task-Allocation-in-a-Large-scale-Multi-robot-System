@@ -68,3 +68,14 @@ The current runner additionally records:
 - `correctness_among_committed`
 
 Only the CER-instrumented rerun is eligible to become the formal E2 paper result.
+
+
+## Cost-only packet-loss ablation
+
+In the E2 CLI, `--loss-probabilities` controls cost-row delivery loss. Optional `--vote-loss-probability 0` makes vote transmission reliable for Democracy while preserving independently missing cost rows at each receiver.
+
+Legacy E2 default: vote loss follows cost loss when no override is passed.
+
+The raw/summary/event CSVs include `p_vote_loss` as an additional numeric column; `p_loss` remains the cost loss. Use `--output-root results/e2_cost_only_100r50t` to preserve prior E2 evidence. With 100 paired seeds per point, track task commit rate, CER, full assignment success, and global optimality as different outcomes.
+
+This is an **additional ablation**, not a reinterpretation of the earlier two-stage 30%/30% experiment. No result is certified until the new code's regression tests and local run pass.
