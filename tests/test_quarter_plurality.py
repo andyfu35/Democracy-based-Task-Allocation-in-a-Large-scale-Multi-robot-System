@@ -1,6 +1,12 @@
 from __future__ import annotations
 
 import unittest
+import csv
+import gzip
+from pathlib import Path
+import tempfile
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from democracy_mrta.coordination import (
     simulate_democracy_hungarian_lossy,
@@ -17,6 +23,7 @@ from democracy_mrta.optimizer import solve_hungarian_assignment
 from experiments.run_e2_retirement import (
     retirement_result_row,
     retirement_plurality_diagnostics,
+    run_retirement_experiment,
 )
 
 
@@ -202,6 +209,54 @@ class QuarterPluralityCoordinationTests(unittest.TestCase):
         )
         diag = retirement_plurality_diagnostics(result)
         self.assertEqual(diag["fallback_commit_tasks"], 0)
+
+    def test_runner_writes_distinct_plurality_evidence_and_fallback_audit(self) -> None:
+        costs = ((9.0,), (1.0,), (2.0,), (3.0,))
+        with tempfile.TemporaryDirectory() as root:
+            out = Path(root) / "quarter_plurality"
+            with (
+                patch("experiments.run_e2_retirement.ensure_rady_dataset", return_value=Path(root) / "unused"),
+                patch("experiments.run_e2_retirement.load_rady_latency_profile", return_value=object()),
+                patch("experiments.run_e2_retirement.summarize_latency_profile", return_value={"max_ms": 10.0}),
+                patch("experiments.run_e2_retirement.EmpiricalLatencySampler", side_effect=lambda *a, **kw: FixedLatency()),
+                patch("experiments.run_e2_retirement.generate_e0_scenario", side_effect=lambda *a, **kw: SimpleNamespace(cost_matrix=costs)),
+                patch("experiments.run_e2_retirement.read_retirement_revision", return_value="quarter-test-sha"),
+            ):
+                summaries = run_retirement_experiment(
+                    robots=4, tasks=1, seeds=2,
+                    cost_losses=(1.0,), p_vote_loss=1.0,
+                    vote_losses=(1.0,), loss_pairing="diagonal",
+                    max_rounds=1,
+                    vote_decision_rule="quarter_plurality_fallback",
+                    dataset_path=Path(root) / "unused",
+                    output_root=out, allow_download=False,
+                )
+            self.assertEqual(len(summaries), 1)
+            summary = summaries[0]
+            self.assertEqual(summary["method"], "democracy_greedy_quarter_plurality_retirement")
+            self.assertEqual(summary["full_assignment_success_rate"], 1.0)
+            self.assertEqual(summary["mean_fallback_commit_rate"], 1.0)
+            self.assertEqual(summary["mean_fallback_self_claims"], 4.0)
+            self.assertEqual(summary["mean_qualified_announcements"], 0.0)
+            self.assertEqual(summary["safety_failures"], 0)
+
+            raw = next((out / "raw").glob("retirement_*.csv"))
+            with raw.open(newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+            self.assertEqual(len(rows), 2)
+            self.assertEqual({r["git_sha"] for r in rows}, {"quarter-test-sha"})
+            self.assertEqual({r["vote_decision_rule"] for r in rows}, {"quarter_plurality_fallback"})
+
+            audit = next((out / "events").glob("*.csv.gz"))
+            with gzip.open(audit, "rt", newline="", encoding="utf-8") as handle:
+                events = list(csv.DictReader(handle))
+            claimed = [e for e in events if e["phase"] == "fallback_self_claim"]
+            self.assertEqual(len(claimed), 4)
+            self.assertEqual({e["announced_vote_count"] for e in claimed}, {"1"})
+            self.assertEqual(
+                len([e for e in events if e["phase"] == "commit"]), 1
+            )
+
 
     def test_original_majority_default_is_unchanged(self) -> None:
         costs = ((1.0,), (2.0,), (3.0,), (4.0,))
