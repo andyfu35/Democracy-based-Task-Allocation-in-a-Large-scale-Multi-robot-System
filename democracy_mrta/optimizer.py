@@ -192,3 +192,78 @@ def solve_visible_hungarian_assignment(
         assigned_pairs=assigned_pairs,
         total_cost=total_cost,
     )
+
+
+def solve_visible_greedy_task(
+    cost_matrix: tuple[tuple[float, ...], ...],
+    visible_robot_ids: frozenset[int] | set[int] | tuple[int, ...],
+) -> AssignmentSolution:
+    """Select the cheapest visible ACTIVE executor for exactly one task.
+
+    No joint assignment, no Hungarian, no unavailable-row imputation.
+    Ties are broken deterministically by active row index.
+    """
+    num_robots, num_tasks = validate_cost_matrix(cost_matrix)
+    if num_tasks != 1:
+        raise ProtocolError(
+            Diagnostic(
+                owner="optimizer",
+                function="solve_visible_greedy_task",
+                category="planning",
+                code="GREEDY_REQUIRES_ONE_TASK",
+                expected=1,
+                actual=num_tasks,
+            )
+        )
+    visible = tuple(sorted(set(visible_robot_ids)))
+    if not visible:
+        raise ProtocolError(
+            Diagnostic(
+                owner="optimizer",
+                function="solve_visible_greedy_task",
+                category="state",
+                code="NO_VISIBLE_GREEDY_CANDIDATES",
+                expected="one or more eligible cost rows",
+                actual=0,
+            )
+        )
+    bad = tuple(r for r in visible if not isinstance(r, int) or r < 0 or r >= num_robots)
+    if bad:
+        raise ProtocolError(
+            Diagnostic(
+                owner="optimizer",
+                function="solve_visible_greedy_task",
+                category="data",
+                code="GREEDY_VISIBLE_ROBOT_OUT_OF_RANGE",
+                expected=f"integer 0 <= robot_id < {num_robots}",
+                actual=bad,
+            )
+        )
+    robot_id = min(visible, key=lambda r: (cost_matrix[r][0], r))
+    return AssignmentSolution(
+        assigned_pairs=((robot_id, 0),),
+        total_cost=float(cost_matrix[robot_id][0]),
+    )
+
+
+def solve_sequential_greedy_reference(
+    cost_matrix: tuple[tuple[float, ...], ...],
+) -> AssignmentSolution:
+    """Offline full-information oracle for ascending-task sequential Greedy.
+
+    Unlike Hungarian, this is not globally optimal. It is only used to
+    assess whether lossy-vote Greedy reproduced the *Greedy* decision rule.
+    """
+    num_robots, num_tasks = validate_cost_matrix(cost_matrix)
+    available = set(range(num_robots))
+    pairs: list[tuple[int, int]] = []
+    for task_id in range(num_tasks):
+        robot_id = min(
+            available, key=lambda r: (cost_matrix[r][task_id], r)
+        )
+        pairs.append((robot_id, task_id))
+        available.remove(robot_id)
+    return AssignmentSolution(
+        assigned_pairs=tuple(pairs),
+        total_cost=float(sum(cost_matrix[r][t] for r, t in pairs)),
+    )
