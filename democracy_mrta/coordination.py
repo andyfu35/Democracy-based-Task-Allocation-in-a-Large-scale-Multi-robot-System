@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from .diagnostics import Diagnostic, ProtocolError
 
-from .network import validate_packet_loss_probability
+from .network import validate_packet_loss_probability, validate_vote_repetitions
 
 from .optimizer import (
     AssignmentSolution,
@@ -50,6 +50,7 @@ class CommunicationEvent:
     task_id: int | None = None
     round_id: int = 0
     announced_vote_count: int | None = None
+    transmission_index: int = 0
 
     @property
     def is_broadcast(self) -> bool:
@@ -89,6 +90,7 @@ def _unicast_event(
     sampler,
     task_id: int | None = None,
     round_id: int = 0,
+    transmission_index: int = 0,
 ) -> CommunicationEvent:
     key = (
         f"unicast|{phase}|{sender_id}|{receiver_id}|"
@@ -96,6 +98,8 @@ def _unicast_event(
     )
     if round_id:
         key += f"|round={round_id}"
+    if transmission_index:
+        key += f"|copy={transmission_index}"
     latency_ms = float(sampler.sample_ms(key))
     return CommunicationEvent(
         phase=phase,
@@ -107,6 +111,7 @@ def _unicast_event(
         payload_bytes=payload_bytes,
         task_id=task_id,
         round_id=round_id,
+        transmission_index=transmission_index,
     )
 
 
@@ -362,6 +367,7 @@ class DeliveryObservation:
     arrival_time_ms: float | None
     task_id: int | None = None
     round_id: int = 0
+    transmission_index: int = 0
 
 
 @dataclass(frozen=True)
@@ -449,6 +455,8 @@ def _lossy_unicast_delivery(
         f"unicast|{event.phase}|{event.sender_id}|{event.receiver_id}|"
         f"{event.task_id if event.task_id is not None else '-'}|round={round_id}"
     )
+    if event.transmission_index:
+        key += f"|copy={event.transmission_index}"
     delivered = bool(loss_sampler.is_delivered(key, p_loss))
     return DeliveryObservation(
         phase=event.phase,
@@ -458,7 +466,59 @@ def _lossy_unicast_delivery(
         arrival_time_ms=event.arrival_time_ms if delivered else None,
         task_id=event.task_id,
         round_id=round_id,
+        transmission_index=event.transmission_index,
     )
+
+
+
+def transmit_repeated_remote_vote(
+    *,
+    voter_id: int,
+    candidate_id: int,
+    task_id: int,
+    round_id: int,
+    send_time_ms: float,
+    phase_timeout_ms: float,
+    vote_repetitions: int,
+    sampler,
+    loss_sampler,
+    p_vote_loss: float,
+) -> tuple[list[CommunicationEvent], list[DeliveryObservation], DeliveryObservation | None]:
+    """Send independent fixed copies, return FIRST delivered physical ballot.
+
+    This is open-loop packet repetition, NOT stop-and-wait ARQ. Every copy
+    consumes a physical unicast event and one packet-loss observation.
+    Copies are time-slotted one original packet-timeout apart. The candidate
+    ledger still receives at most one logical vote, regardless of successes.
+    """
+    copies = validate_vote_repetitions(vote_repetitions)
+    events: list[CommunicationEvent] = []
+    observations: list[DeliveryObservation] = []
+    for copy_index in range(copies):
+        event = _unicast_event(
+            phase="vote",
+            sender_id=voter_id,
+            receiver_id=candidate_id,
+            send_time_ms=send_time_ms + copy_index * phase_timeout_ms,
+            payload_bytes=VOTE_PAYLOAD_BYTES,
+            sampler=sampler,
+            task_id=task_id,
+            round_id=round_id,
+            transmission_index=copy_index,
+        )
+        obs = _lossy_unicast_delivery(
+            event=event,
+            loss_sampler=loss_sampler,
+            p_loss=p_vote_loss,
+            round_id=round_id,
+        )
+        events.append(event)
+        observations.append(obs)
+    delivered = [obs for obs in observations if obs.delivered]
+    first_delivery = min(
+        delivered, key=lambda obs: float(obs.arrival_time_ms)
+    ) if delivered else None
+    return events, observations, first_delivery
 
 
 def _summarize_lossy_result(
