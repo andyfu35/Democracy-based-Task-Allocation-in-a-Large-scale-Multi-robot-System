@@ -111,6 +111,7 @@ def retirement_transport_stage_metrics(
     """Observe real delivery outcomes without changing cost or vote sampling."""
     cost_attempts = cost_drops = vote_attempts = vote_drops = 0
     logical_remote_ballots: set[tuple[int, int, int, int | None]] = set()
+    vote_copies_by_ballot: dict[tuple[int, int, int, int | None], list[int]] = {}
     for trace in result.rounds:
         for observation in trace.coordination.deliveries:
             if observation.phase == "cost":
@@ -119,10 +120,14 @@ def retirement_transport_stage_metrics(
             elif observation.phase == "vote":
                 vote_attempts += 1
                 vote_drops += int(not observation.delivered)
-                logical_remote_ballots.add((
+                ballot_key = (
                     trace.round_id, observation.sender_id,
                     observation.receiver_id, observation.task_id,
-                ))
+                )
+                logical_remote_ballots.add(ballot_key)
+                vote_copies_by_ballot.setdefault(ballot_key, []).append(
+                    observation.transmission_index
+                )
             else:
                 raise ProtocolError(
                     Diagnostic(
@@ -151,6 +156,24 @@ def retirement_transport_stage_metrics(
                     cost_attempts + vote_attempts - cost_drops - vote_drops,
                     cost_drops + vote_drops,
                 ),
+            )
+        )
+    expected_copies = list(range(result.vote_repetitions))
+    invalid_copies = {
+        key: sorted(indices)
+        for key, indices in vote_copies_by_ballot.items()
+        if sorted(indices) != expected_copies
+    }
+    if invalid_copies:
+        raise ProtocolError(
+            Diagnostic(
+                owner="experiments.run_e2_retirement",
+                function="retirement_transport_stage_metrics",
+                category="contract",
+                code="REPEATED_VOTE_PHYSICAL_COPIES_MISMATCH",
+                expected=expected_copies,
+                actual=invalid_copies,
+                details="each remote logical ballot must have exactly K physical attempts",
             )
         )
     # A single-task Greedy epoch generates one ballot per eligible voter;
