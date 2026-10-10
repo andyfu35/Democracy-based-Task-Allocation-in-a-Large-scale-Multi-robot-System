@@ -334,3 +334,75 @@ def run_zero_loss_allocation_epoch(
         ledgers_by_task=ledgers_by_task,
         round_id=round_id,
     )
+
+
+
+@dataclass(frozen=True)
+class RetirementMembership:
+    """Eligibility snapshot between completed, reliably announced voting rounds."""
+    active_robot_ids: tuple[int, ...]
+    pending_task_ids: tuple[int, ...]
+    committed_pairs: tuple[tuple[int, int], ...]
+    epoch_index: int = 0
+
+
+def initialize_retirement_membership(
+    *,
+    num_robots: int,
+    num_tasks: int,
+) -> RetirementMembership:
+    if num_robots <= 0 or num_tasks <= 0 or num_tasks > num_robots:
+        raise ProtocolError(
+            Diagnostic(
+                owner="protocol",
+                function="initialize_retirement_membership",
+                category="data",
+                code="INVALID_RETIREMENT_TEAM_SIZE",
+                expected="1 <= num_tasks <= num_robots",
+                actual=(num_robots, num_tasks),
+            )
+        )
+    return RetirementMembership(
+        active_robot_ids=tuple(range(num_robots)),
+        pending_task_ids=tuple(range(num_tasks)),
+        committed_pairs=(),
+    )
+
+
+def apply_announced_retirement_commits(
+    *,
+    membership: RetirementMembership,
+    announced_pairs: tuple[tuple[int, int], ...],
+) -> RetirementMembership:
+    """Advance membership only after the prior epoch's reliable commits finish."""
+    active = set(membership.active_robot_ids)
+    pending = set(membership.pending_task_ids)
+
+    for robot_id, task_id in announced_pairs:
+        if robot_id not in active or task_id not in pending:
+            raise ProtocolError(
+                Diagnostic(
+                    owner="protocol",
+                    function="apply_announced_retirement_commits",
+                    category="state",
+                    code="RETIREMENT_COMMIT_NOT_ELIGIBLE",
+                    expected={
+                        "active_robot_ids": membership.active_robot_ids,
+                        "pending_task_ids": membership.pending_task_ids,
+                    },
+                    actual=(robot_id, task_id),
+                    details=f"epoch_index={membership.epoch_index}",
+                )
+            )
+
+    combined = membership.committed_pairs + announced_pairs
+    validate_one_to_one_commits(combined)
+
+    retired = {robot_id for robot_id, _task_id in announced_pairs}
+    completed = {task_id for _robot_id, task_id in announced_pairs}
+    return RetirementMembership(
+        active_robot_ids=tuple(r for r in membership.active_robot_ids if r not in retired),
+        pending_task_ids=tuple(t for t in membership.pending_task_ids if t not in completed),
+        committed_pairs=tuple(sorted(combined, key=lambda pair: (pair[1], pair[0]))),
+        epoch_index=membership.epoch_index + 1,
+    )
