@@ -522,11 +522,18 @@ In that output, `p_loss` is cost-row loss and `p_vote_loss` is zero. Track Democ
 
 
 
-### Experimental multi-round Democracy: retire committed executors
+### New sequential Greedy Democracy with executor retirement
 
-This is a **new opt-in protocol experiment**, not a correction to or replacement for the single-round E2 results. In each round, all currently active robots vote using their own incomplete local Hungarian solution. Only after a candidate earns majority and its reliable commit announcement completes is that robot removed from **future voters and future executor candidates**, and its task removed from the pending pool. The next round uses a freshly sampled communication epoch and a quorum of `floor(active_robots/2) + 1`. A `--max-rounds` cap prevents infinite retries.
+**Active experimental optimizer: Greedy — not Hungarian.** Original E0/E1/E2 Hungarian results remain untouched and are used only as existing controls / offline global-optimal cost references.
 
-Smoke test:
+- Broadcast all task costs once; every receiver independently keeps only delivered peer cost rows, plus its own row.
+- Vote on **one pending task at a time**: each active robot chooses the lowest-cost visible active executor (ties: lowest original robot ID).
+- Winner with strict majority broadcasts a reliable commit and is removed from all later voter/candidate sets; the task leaves the queue.
+- With no majority, move the failed task to the end of the queue; keep the same incomplete local views and retry with a new vote-round ID. No cost rebroadcast.
+- Recalculate strict majority from the **remaining unassigned robots** at each new voting round; stop at `--max-rounds`.
+- `max_rounds` counts task-vote attempts. To finish 50 tasks at zero loss you need at least 50 rounds; the new default is 100.
+
+Run the regression suite and a **3-seed smoke** first:
 
 ```bash
 git pull
@@ -534,22 +541,22 @@ python3 -m unittest discover -s tests -v
 python3 -m experiments.run_e2_retirement \
   --robots 100 --tasks 50 --seeds 3 \
   --cost-loss-probabilities 0,0.3,0.5 \
-  --vote-loss-probability 0 --max-rounds 5 \
-  --output-root results/e2_retirement_smoke
+  --vote-loss-probability 0 --max-rounds 100 \
+  --output-root results/e2_greedy_retirement_smoke
 ```
 
-100-seed formal-sized diagnostic comparison with Cost Loss 0%-70% in 2-point increments, and Vote Loss fixed to 0%:
+After that passes, 100 paired seeds / 36 Cost Loss levels (0–70% in 2% steps), Vote Loss fixed 0:
 
 ```bash
 python3 -m experiments.run_e2_retirement \
   --robots 100 --tasks 50 --seeds 100 \
-  --vote-loss-probability 0 --max-rounds 10 \
-  --output-root results/e2_retirement_100r50t
+  --vote-loss-probability 0 --max-rounds 100 \
+  --output-root results/e2_greedy_retirement_100r50t
 ```
 
-This generates a summary, raw per-seed rows, per-epoch active membership / pending-task / quorum / commit rows and a seed-0 delivery audit log. It reports the **identical first-round E2 baseline** next to the bounded multi-round outcome, so added retries cannot be mislabeled as better one-round packet-loss robustness.
+Results include `summary.csv`, timestamped raw per-seed CSV, per-round attempted-task/active-voter/quorum/commit CSV, and seed-0 network event evidence. The summary separates **Greedy-reference correctness** from **Hungarian global-optimal cost gap**. A Greedy outcome need not have zero global cost gap even with 0% loss.
 
-**Research status: PENDING LOCAL VERIFICATION.** The simulator records task assignment and executor retirement, not physical task execution; it assumes reliable commits and does not model robot return, burst loss, or MAC contention.
+**Status: CODE COMMITTED, LOCAL TEST / FORMAL RESULTS PENDING.** No physical task execution, rejoining, or unreliable commit announcements are modeled. See `docs/EXPERIMENT_PROTOCOL.md` §13 for the complete new protocol.
 
 
 ---
