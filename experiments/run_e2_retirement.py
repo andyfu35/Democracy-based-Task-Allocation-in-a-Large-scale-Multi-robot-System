@@ -185,25 +185,28 @@ def read_retirement_revision() -> str:
 def retirement_plurality_diagnostics(
     result: MultiRoundRetirementResult,
 ) -> dict[str, int | float]:
-    """Audit announcement-vs-fallback outcomes without altering votes."""
+    """Report qualified announcements and attempts with no 25%-qualified winner."""
     qualified_announcements = sum(
         trace.coordination.qualified_announcement_count for trace in result.rounds
-    )
-    fallback_claims = sum(
-        trace.coordination.fallback_self_claim_count for trace in result.rounds
-    )
-    fallback_decisions = sum(
-        trace.coordination.fallback_used_task_count for trace in result.rounds
     )
     tie_breaks = sum(
         trace.coordination.plurality_tie_break_count for trace in result.rounds
     )
-    qualified_decisions = sum(
-        int(trace.coordination.qualified_announcement_count > 0)
-        for trace in result.rounds
-    )
-    if result.method == "democracy_greedy_quarter_plurality_retirement":
-        if fallback_decisions + qualified_decisions != len(result.rounds):
+    is_plurality = result.method == "democracy_greedy_quarter_plurality_retirement"
+    if is_plurality:
+        qualified_decisions = sum(
+            int(trace.coordination.qualified_announcement_count > 0)
+            for trace in result.rounds
+        )
+        no_qualified_attempts = len(result.rounds) - qualified_decisions
+        invalid = tuple(
+            (trace.round_id, trace.coordination.qualified_announcement_count,
+             trace.newly_committed_pairs)
+            for trace in result.rounds
+            if (trace.coordination.qualified_announcement_count > 0)
+            != bool(trace.newly_committed_pairs)
+        )
+        if invalid:
             from democracy_mrta.diagnostics import Diagnostic, ProtocolError
 
             raise ProtocolError(
@@ -211,18 +214,23 @@ def retirement_plurality_diagnostics(
                     owner="experiments.run_e2_retirement",
                     function="retirement_plurality_diagnostics",
                     category="contract",
-                    code="PLURALITY_RESOLUTION_NOT_ACCOUNTED",
-                    expected=len(result.rounds),
-                    actual=fallback_decisions + qualified_decisions,
+                    code="PLURALITY_ANNOUNCEMENT_COMMIT_MISMATCH",
+                    expected="one commit iff at least one candidate reached the 25% threshold",
+                    actual=invalid,
                 )
             )
+    else:
+        qualified_decisions = 0
+        no_qualified_attempts = 0
+
     return {
         "qualified_announcement_count": qualified_announcements,
         "qualified_commit_tasks": qualified_decisions,
-        "fallback_self_claim_count": fallback_claims,
-        "fallback_commit_tasks": fallback_decisions,
-        "fallback_commit_rate": fallback_decisions / len(result.rounds)
-        if result.rounds else 0.0,
+        "no_qualified_announcement_attempts": no_qualified_attempts,
+        "no_qualified_announcement_rate": (
+            no_qualified_attempts / len(result.rounds)
+            if is_plurality and result.rounds else 0.0
+        ),
         "plurality_tie_breaks": tie_breaks,
         "mean_winning_received_votes": (
             sum(trace.coordination.plurality_winner_vote_count for trace in result.rounds)
@@ -339,8 +347,10 @@ def retirement_round_rows(
             "quorum": item.quorum,
             "announcement_threshold": item.announcement_threshold,
             "qualified_announcements": item.coordination.qualified_announcement_count,
-            "fallback_self_claims": item.coordination.fallback_self_claim_count,
-            "fallback_used": item.coordination.fallback_used_task_count,
+            "no_qualified_announcement": int(
+                item.coordination.vote_decision_rule == "quarter_plurality"
+                and item.coordination.qualified_announcement_count == 0
+            ),
             "winner_received_votes": item.coordination.plurality_winner_vote_count,
             "plurality_tie_break": item.coordination.plurality_tie_break_count,
             "new_committed_tasks": len(item.newly_committed_pairs),
@@ -451,9 +461,8 @@ def summarize_retirement_results(
             "mean_quorum_failed_attempts": mean("quorum_failed_attempts"),
             "mean_qualified_announcements": mean("qualified_announcement_count"),
             "mean_qualified_commit_tasks": mean("qualified_commit_tasks"),
-            "mean_fallback_self_claims": mean("fallback_self_claim_count"),
-            "mean_fallback_commit_tasks": mean("fallback_commit_tasks"),
-            "mean_fallback_commit_rate": mean("fallback_commit_rate"),
+            "mean_no_qualified_announcement_attempts": mean("no_qualified_announcement_attempts"),
+            "mean_no_qualified_announcement_rate": mean("no_qualified_announcement_rate"),
             "mean_plurality_tie_breaks": mean("plurality_tie_breaks"),
             "mean_winning_received_votes": mean("mean_winning_received_votes"),
             "safety_failures": int(sum(int(r["safety_failures"]) for r in selected)),
@@ -637,9 +646,8 @@ def run_retirement_experiment(
             f"global_gap={float(row['mean_optimality_gap_percent_successful']):.4f}% "
             f"greedy_gap={float(row['mean_greedy_gap_percent_successful']):.4f}% "
             f"rounds_mean={float(row['mean_rounds_executed']):.2f} "
-            f"fallback_commit_rate={float(row['mean_fallback_commit_rate']):.4f} "
             f"qualified_announcements={float(row['mean_qualified_announcements']):.2f} "
-            f"fallback_self_claims={float(row['mean_fallback_self_claims']):.2f} "
+            f"no_qualified_attempts={float(row['mean_no_qualified_announcement_attempts']):.2f} "
             f"vote_drop_actual={float(row['observed_vote_drop_rate']):.4f} "
             f"cost_drop_actual={float(row['observed_cost_drop_rate']):.4f} "
             f"elapsed_ms={float(row['mean_elapsed_ms']):.2f} "
@@ -701,7 +709,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--vote-decision-rule",
-        choices=("strict_majority", "quarter_plurality_fallback"),
+        choices=("strict_majority", "quarter_plurality"),
         default="strict_majority",
         help="Experiment-only commit rule; default retains the original 51-vote majority",
     )
@@ -717,10 +725,17 @@ def main() -> None:
     )
     args = parser.parse_args()
     if (
-        args.vote_decision_rule == "quarter_plurality_fallback"
-        and args.output_root == Path("results/e2_greedy_retirement_100r50t")
+        args.vote_decision_rule == "quarter_plurality"
+        and args.output_root in (
+            Path("results/e2_greedy_retirement_100r50t"),
+            Path("results/e2_joint_loss_diagonal_100r50t"),
+            Path("results/e2_greedy_quarter_plurality_100r50t"),
+        )
     ):
-        parser.error("25pct plurality mode requires a separate --output-root; do not overwrite majority evidence")
+        parser.error(
+            "pure 25pct plurality requires a NEW --output-root; "
+            "do not overwrite the majority or archived fallback experiments"
+        )
 
     max_rounds = args.max_rounds if args.max_rounds is not None else 2 * args.tasks
     vote_losses = resolve_retirement_vote_loss_axis(
