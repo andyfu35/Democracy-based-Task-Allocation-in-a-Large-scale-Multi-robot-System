@@ -171,6 +171,11 @@ def summarize_retirement_results(
             for r in selected
             if math.isfinite(float(r["optimality_gap_percent_successful"]))
         ]
+        greedy_gaps = [
+            float(r["greedy_gap_percent_successful"])
+            for r in selected
+            if math.isfinite(float(r["greedy_gap_percent_successful"]))
+        ]
 
         def mean(key: str) -> float:
             return statistics.fmean(float(r[key]) for r in selected)
@@ -182,11 +187,13 @@ def summarize_retirement_results(
             "p_cost_loss": cost_loss,
             "p_vote_loss": vote_loss,
             "max_rounds": selected[0]["max_rounds"],
-            "method": "democracy_hungarian_retirement",
-            "first_round_task_commit_rate": mean("first_round_task_commit_rate"),
-            "first_round_correct_executor_rate": mean("first_round_correct_executor_rate"),
+            "method": "democracy_greedy_retirement",
+            "local_optimizer": "greedy_min_visible_cost_per_task",
+            "mean_first_task_vote_success": mean("first_task_vote_success"),
+            "mean_first_task_matches_full_greedy": mean("first_task_matches_full_greedy"),
             "mean_task_commit_rate": mean("task_commit_rate"),
             "mean_correct_executor_rate": mean("correct_executor_rate"),
+            "mean_greedy_correct_executor_rate": mean("greedy_correct_executor_rate"),
             "mean_correctness_among_committed": (
                 statistics.fmean(
                     float(r["correctness_among_committed"]) for r in selected
@@ -202,6 +209,9 @@ def summarize_retirement_results(
             "optimal_solution_rate": mean("optimal_solution"),
             "mean_optimality_gap_percent_successful": (
                 statistics.fmean(gaps) if gaps else float("nan")
+            ),
+            "mean_greedy_gap_percent_successful": (
+                statistics.fmean(greedy_gaps) if greedy_gaps else float("nan")
             ),
             "mean_rounds_executed": mean("rounds_executed"),
             "mean_rounds_with_commits": mean("rounds_with_commits"),
