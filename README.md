@@ -531,7 +531,7 @@ In that output, `p_loss` is cost-row loss and `p_vote_loss` is zero. Track Democ
 - Winner with strict majority broadcasts a reliable commit and is removed from all later voter/candidate sets; the task leaves the queue.
 - With no majority, move the failed task to the end of the queue; keep the same incomplete local views and retry with a new vote-round ID. No cost rebroadcast.
 - Recalculate strict majority from the **remaining unassigned robots** at each new voting round; stop at `--max-rounds`.
-- `max_rounds` counts task-vote attempts. To finish 50 tasks at zero loss you need at least 50 rounds; the new default is 100.
+- `max_rounds` counts task-vote attempts. To finish 50 tasks at zero loss you need at least 50 rounds; the default is twice the requested task count (100 for 50 tasks).
 
 Run the regression suite and a **3-seed smoke** first:
 
