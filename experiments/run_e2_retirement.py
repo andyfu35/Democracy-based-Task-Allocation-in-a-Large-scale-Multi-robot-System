@@ -195,6 +195,18 @@ def summarize_retirement_results(
             "mean_task_commit_rate": mean("task_commit_rate"),
             "mean_correct_executor_rate": mean("correct_executor_rate"),
             "mean_greedy_correct_executor_rate": mean("greedy_correct_executor_rate"),
+            "mean_greedy_correctness_among_committed": (
+                statistics.fmean(
+                    float(r["greedy_correctness_among_committed"])
+                    for r in selected
+                    if math.isfinite(float(r["greedy_correctness_among_committed"]))
+                )
+                if any(
+                    math.isfinite(float(r["greedy_correctness_among_committed"]))
+                    for r in selected
+                )
+                else float("nan")
+            ),
             "mean_correctness_among_committed": (
                 statistics.fmean(
                     float(r["correctness_among_committed"]) for r in selected
