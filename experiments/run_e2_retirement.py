@@ -26,6 +26,7 @@ from democracy_mrta.network import (
     load_rady_latency_profile,
     summarize_latency_profile,
     validate_packet_loss_probability,
+    validate_vote_repetitions,
 )
 from democracy_mrta.optimizer import (
     solve_hungarian_assignment,
@@ -109,6 +110,7 @@ def retirement_transport_stage_metrics(
 ) -> dict[str, float | int]:
     """Observe real delivery outcomes without changing cost or vote sampling."""
     cost_attempts = cost_drops = vote_attempts = vote_drops = 0
+    logical_remote_ballots: set[tuple[int, int, int, int | None]] = set()
     for trace in result.rounds:
         for observation in trace.coordination.deliveries:
             if observation.phase == "cost":
@@ -117,6 +119,10 @@ def retirement_transport_stage_metrics(
             elif observation.phase == "vote":
                 vote_attempts += 1
                 vote_drops += int(not observation.delivered)
+                logical_remote_ballots.add((
+                    trace.round_id, observation.sender_id,
+                    observation.receiver_id, observation.task_id,
+                ))
             else:
                 raise ProtocolError(
                     Diagnostic(
@@ -150,7 +156,7 @@ def retirement_transport_stage_metrics(
     # A single-task Greedy epoch generates one ballot per eligible voter;
     # self-votes are counted locally and deliberately have no transport event.
     voter_ballots = sum(len(trace.active_robot_ids) for trace in result.rounds)
-    self_votes = voter_ballots - vote_attempts
+    self_votes = voter_ballots - len(logical_remote_ballots)
     if self_votes < 0:
         raise ProtocolError(
             Diagnostic(
@@ -291,6 +297,7 @@ def retirement_result_row(
         "max_rounds": max_rounds,
         "method": result.method,
         "vote_decision_rule": result.rounds[0].coordination.vote_decision_rule,
+        "vote_repetitions": result.vote_repetitions,
         "local_optimizer": "greedy_min_visible_cost_per_task",
         "task_order": "ascending_task_id_with_failed_tasks_rotated",
         "cost_exchange_count": 1,
@@ -344,6 +351,7 @@ def retirement_round_rows(
             "pending_task_count": len(item.pending_task_ids),
             "voted_task_id": item.voted_task_id,
             "vote_decision_rule": item.coordination.vote_decision_rule,
+            "vote_repetitions": result.vote_repetitions,
             "quorum": item.quorum,
             "announcement_threshold": item.announcement_threshold,
             "qualified_announcements": item.coordination.qualified_announcement_count,
@@ -406,6 +414,7 @@ def summarize_retirement_results(
             "max_rounds": selected[0]["max_rounds"],
             "method": selected[0]["method"],
             "vote_decision_rule": selected[0]["vote_decision_rule"],
+            "vote_repetitions": selected[0]["vote_repetitions"],
             "local_optimizer": "greedy_min_visible_cost_per_task",
             "mean_first_task_vote_success": mean("first_task_vote_success"),
             "mean_first_task_matches_full_greedy": mean("first_task_matches_full_greedy"),
@@ -489,6 +498,8 @@ def write_retirement_audit_events(
                 "active_robots": len(trace.active_robot_ids),
                 "quorum": trace.quorum,
                 "vote_decision_rule": trace.coordination.vote_decision_rule,
+                "vote_repetitions": result.vote_repetitions,
+                "transmission_index": event.transmission_index,
                 "announcement_threshold": trace.announcement_threshold,
                 "announced_vote_count": (
                     "" if event.announced_vote_count is None else event.announced_vote_count
@@ -511,6 +522,8 @@ def write_retirement_audit_events(
                 "active_robots": len(trace.active_robot_ids),
                 "quorum": trace.quorum,
                 "vote_decision_rule": trace.coordination.vote_decision_rule,
+                "vote_repetitions": result.vote_repetitions,
+                "transmission_index": obs.transmission_index,
                 "announcement_threshold": trace.announcement_threshold,
                 "announced_vote_count": "",
                 "phase": obs.phase,
@@ -540,9 +553,11 @@ def run_retirement_experiment(
     vote_losses: tuple[float, ...] | None = None,
     loss_pairing: str = "grid",
     vote_decision_rule: str = "strict_majority",
+    vote_repetitions: int = 1,
 ) -> list[dict[str, object]]:
     if seeds < 1:
         raise ValueError("seeds must be >= 1")
+    validate_vote_repetitions(vote_repetitions)
     validate_vote_decision_rule(
         rule=vote_decision_rule,
         voting_strategy="greedy_task",
@@ -572,6 +587,7 @@ def run_retirement_experiment(
     fields = [
         "kind", "seed", "p_cost_loss", "p_vote_loss", "round_id",
         "active_robots", "quorum", "vote_decision_rule",
+        "vote_repetitions", "transmission_index",
         "announcement_threshold", "announced_vote_count",
         "phase", "sender_id", "receiver_id",
         "task_id", "delivered", "send_ms", "arrival_ms",
@@ -596,6 +612,7 @@ def run_retirement_experiment(
                     max_rounds=max_rounds,
                     voting_strategy="greedy_task",
                     vote_decision_rule=vote_decision_rule,
+                    vote_repetitions=vote_repetitions,
                 )
                 raw_rows.append(retirement_result_row(
                     seed=seed, robots=robots, tasks=tasks,
@@ -622,6 +639,7 @@ def run_retirement_experiment(
     write_csv(summary_path, summary_rows)
 
     print(f"RETIREMENT_VOTE_DECISION_RULE={vote_decision_rule}")
+    print(f"RETIREMENT_VOTE_REPETITIONS={vote_repetitions}")
     print(f"RETIREMENT_LOSS_PAIRING={loss_pairing}")
     print(f"RETIREMENT_LOSS_CONDITIONS={len(conditions)}")
     print(f"RETIREMENT_TOTAL_SCENARIOS={len(conditions) * seeds}")
@@ -637,6 +655,7 @@ def run_retirement_experiment(
             f"p_cost_loss={float(row['p_cost_loss']):.2f} "
             f"p_vote_loss={float(row['p_vote_loss']):.2f} "
             f"method={row['method']} "
+            f"vote_copies={row['vote_repetitions']} "
             f"first_task_success={float(row['mean_first_task_vote_success']):.6f} "
             f"eventual_commit={float(row['mean_task_commit_rate']):.6f} "
             f"hungarian_cer={float(row['mean_correct_executor_rate']):.6f} "
@@ -715,6 +734,10 @@ def main() -> None:
     )
     parser.add_argument("--max-rounds", type=int, default=None)
     parser.add_argument(
+        "--vote-repetitions", type=int, choices=(1, 2, 3), default=1,
+        help="Opt-in open-loop vote copies; physical packets/bytes and slot delay charged",
+    )
+    parser.add_argument(
         "--dataset", type=Path,
         default=Path("data/external/rady/perama_range_testing.json"),
     )
@@ -737,6 +760,16 @@ def main() -> None:
             "do not overwrite the majority or archived fallback experiments"
         )
 
+    if args.vote_repetitions > 1 and args.output_root in (
+        Path("results/e2_greedy_retirement_100r50t"),
+        Path("results/e2_joint_loss_diagonal_100r50t"),
+        Path("results/e2_greedy_quarter_plurality_no_fallback_100r50t"),
+        Path("results/e2_greedy_quarter_plurality_100r50t"),
+    ):
+        parser.error(
+            "repeated-vote baselines require a NEW --output-root; "
+            "do not overwrite historical 1-copy evidence"
+        )
     max_rounds = args.max_rounds if args.max_rounds is not None else 2 * args.tasks
     vote_losses = resolve_retirement_vote_loss_axis(
         cost_losses=args.cost_loss_probabilities,
@@ -753,6 +786,7 @@ def main() -> None:
         f"GREEDY_RETIREMENT_CONFIG tasks={args.tasks} max_rounds={max_rounds} "
         f"min_rounds_without_retries={args.tasks} initial_cost_exchange_once=true "
         f"vote_rule={args.vote_decision_rule} "
+        f"vote_copies={args.vote_repetitions} "
         f"pairing={args.loss_pairing} conditions={len(conditions)} "
         f"total_seed_conditions={args.seeds * len(conditions)}",
         flush=True,
@@ -766,6 +800,7 @@ def main() -> None:
         vote_losses=vote_losses,
         loss_pairing=args.loss_pairing,
         vote_decision_rule=args.vote_decision_rule,
+        vote_repetitions=args.vote_repetitions,
         max_rounds=max_rounds,
         dataset_path=args.dataset,
         output_root=args.output_root,
