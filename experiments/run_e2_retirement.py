@@ -318,6 +318,7 @@ def run_retirement_experiment(
         for seed in range(seeds):
             scenario = generate_e0_scenario(seed, robots, tasks)
             oracle = solve_hungarian_assignment(scenario.cost_matrix)
+            greedy_oracle = solve_sequential_greedy_reference(scenario.cost_matrix)
 
             for p_loss in cost_losses:
                 result = simulate_democracy_hungarian_retirement(
@@ -328,11 +329,13 @@ def run_retirement_experiment(
                     p_vote_loss=p_vote_loss,
                     phase_timeout_ms=phase_timeout_ms,
                     max_rounds=max_rounds,
+                    voting_strategy="greedy_task",
                 )
                 raw_rows.append(retirement_result_row(
                     seed=seed, robots=robots, tasks=tasks,
                     p_cost_loss=p_loss, p_vote_loss=p_vote_loss,
-                    max_rounds=max_rounds, oracle=oracle, result=result,
+                    max_rounds=max_rounds, oracle=oracle,
+                    greedy_oracle=greedy_oracle, result=result,
                     git_sha=git_sha, timestamp=timestamp,
                 ))
                 round_rows.extend(retirement_round_rows(
@@ -344,6 +347,8 @@ def run_retirement_experiment(
                         writer, seed=seed, p_cost_loss=p_loss,
                         p_vote_loss=p_vote_loss, result=result,
                     )
+            if (seed + 1) % 10 == 0 or seed + 1 == seeds:
+                print(f"GREEDY_RETIREMENT_PROGRESS seeds={seed + 1}/{seeds}", flush=True)
 
     write_csv(raw_path, raw_rows)
     write_csv(round_path, round_rows)
@@ -361,11 +366,14 @@ def run_retirement_experiment(
             f"robots={row['robots']} tasks={row['tasks']} "
             f"p_cost_loss={float(row['p_cost_loss']):.2f} "
             f"p_vote_loss={float(row['p_vote_loss']):.2f} "
-            f"first_round_commit={float(row['first_round_task_commit_rate']):.6f} "
+            f"first_task_success={float(row['mean_first_task_vote_success']):.6f} "
             f"eventual_commit={float(row['mean_task_commit_rate']):.6f} "
-            f"cer={float(row['mean_correct_executor_rate']):.6f} "
+            f"hungarian_cer={float(row['mean_correct_executor_rate']):.6f} "
+            f"greedy_cer={float(row['mean_greedy_correct_executor_rate']):.6f} "
             f"full_success={float(row['full_assignment_success_rate']):.6f} "
-            f"optimal_rate={float(row['optimal_solution_rate']):.6f} "
+            f"global_optimal_rate={float(row['optimal_solution_rate']):.6f} "
+            f"global_gap={float(row['mean_optimality_gap_percent_successful']):.4f}% "
+            f"greedy_gap={float(row['mean_greedy_gap_percent_successful']):.4f}% "
             f"rounds_mean={float(row['mean_rounds_executed']):.2f} "
             f"elapsed_ms={float(row['mean_elapsed_ms']):.2f} "
             f"safety_failures={row['safety_failures']}"
@@ -375,7 +383,7 @@ def run_retirement_experiment(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Compare original one-shot E2 voting with announced executor retirement"
+        description="Sequential Greedy task voting with executor retirement"
     )
     parser.add_argument("--robots", type=int, default=100)
     parser.add_argument("--tasks", type=int, default=50)
@@ -385,7 +393,7 @@ def main() -> None:
         default=DEFAULT_COST_LOSSES,
     )
     parser.add_argument("--vote-loss-probability", type=float, default=0.0)
-    parser.add_argument("--max-rounds", type=int, default=10)
+    parser.add_argument("--max-rounds", type=int, default=100)
     parser.add_argument(
         "--dataset", type=Path,
         default=Path("data/external/rady/perama_range_testing.json"),
@@ -393,10 +401,15 @@ def main() -> None:
     parser.add_argument("--no-download", action="store_true")
     parser.add_argument(
         "--output-root", type=Path,
-        default=Path("results/e2_retirement_100r50t"),
+        default=Path("results/e2_greedy_retirement_100r50t"),
     )
     args = parser.parse_args()
 
+    print(
+        f"GREEDY_RETIREMENT_CONFIG tasks={args.tasks} max_rounds={args.max_rounds} "
+        f"min_rounds_without_retries={args.tasks} initial_cost_exchange_once=true",
+        flush=True,
+    )
     run_retirement_experiment(
         robots=args.robots,
         tasks=args.tasks,
