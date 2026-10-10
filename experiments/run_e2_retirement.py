@@ -546,7 +546,7 @@ def run_retirement_experiment(
             f"rounds_mean={float(row['mean_rounds_executed']):.2f} "
             f"vote_drop_actual={float(row['observed_vote_drop_rate']):.4f} "
             f"cost_drop_actual={float(row['observed_cost_drop_rate']):.4f} "
-            f"elapsed_ms={float(row['mean_elapsed_ms']):.2f} 
+            f"elapsed_ms={float(row['mean_elapsed_ms']):.2f} "
             f"safety_failures={row['safety_failures']}"
         )
     return summary_rows
