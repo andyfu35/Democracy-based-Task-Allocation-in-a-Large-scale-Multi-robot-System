@@ -231,7 +231,7 @@ class VoteRepetitionRunnerTests(unittest.TestCase):
             logical = [r for r in audit if r["kind"] == "logical_message" and r["phase"] == "vote"]
             self.assertEqual({r["transmission_index"] for r in logical}, {"0", "1"})
             cost_msgs = [r for r in audit if r["kind"] == "logical_message" and r["phase"] == "cost"]
-            self.assertEqual(len(cost_msgs), 4)
+            self.assertEqual(len(cost_msgs), 8)  # 4 senders × 2 loss conditions
             self.assertFalse(any(
                 r["phase"] == "fallback_self_claim" for r in audit
             ))
