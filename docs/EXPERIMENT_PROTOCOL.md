@@ -687,3 +687,97 @@ Formal default:
 Expect 30 cells x 2 losses x 100 seeds = 6,000 runs. On interruption, repeat the identical command with --resume. Compare the 100R/50T 30% cell against the previously validated standalone E2 result, with matching method, seed set and max_rounds=100.
 
 The earlier 89/89 tests and 3,600-run E2 no-fallback curve were verified by the user on a PRE-scaling commit. New scaling tests and full formal scaling runs are pending Mac execution and may NOT be presented as completed results.
+
+
+## 16. Greedy-only communication comparison: fixed optimizer, varying packet loss and vote rule
+
+### 16.1 Research question and explicit scope
+
+The user explicitly chose **communication robustness and decentralized coordination**, NOT global multi-task optimization, as the contribution of the study. The experimental objective is to quantify performance loss induced by Cost/Vote packet loss, with local Sequential Greedy held fixed, and to compare the **51% strict-majority communication protocol** with the **pure, no-fallback >25% final-score-announcement protocol**.
+
+No Hungarian solver, global-optimum reference, additional greedy planner, new task scheduler, or new packet transport is needed in this DERIVED REPORT. Previously generated Hungarian raw/oracle fields are preserved as historical evidence in their original E2 files; this analysis ignores those columns entirely and does not modify or delete any old data. Do not conflate this with an algorithmic claim of global optimality.
+
+The experiment is evidence-only: consume the two completed and separately stored **100R/50T, 100-seed, max_rounds=100, Cost Loss = Vote Loss 0..70% step2%** E2 raw CSVs (not just rounded summary curves):
+
+- source A, majority: results/e2_joint_loss_diagonal_100r50t/raw/retirement_*.csv; method=democracy_greedy_retirement; voting rule=strict_majority;
+- source B, current pure 25%: results/e2_greedy_quarter_plurality_no_fallback_100r50t/raw/retirement_*.csv; method=democracy_greedy_quarter_plurality_retirement; voting rule=quarter_plurality;
+- **forbidden source**: results/e2_greedy_quarter_plurality_100r50t (historic rejected self-claim fallback version).
+
+Both inputs must have exactly one raw CSV each, valid source git SHA, the SAME robot/task dimensions, complete seed×loss coverage, matching per-seed **full-information zero-loss Sequential Greedy reference cost** and fully committed/Greedy-matching 0% controls. A historical majority raw dataset may legitimately lack the later-added vote_decision_rule column; accept ONLY method=democracy_greedy_retirement as a grounded indication of that legacy rule. Reject any wrong method or explicit obsolete fallback rule.
+
+### 16.2 Controlled condition axes and paired measurement semantics
+
+Primary figure selection: p_cost_loss = p_vote_loss = p for p ∈ {0.00,0.10,0.20,0.30,0.40,0.50}. These six points already exist in the historical 36-level 2%-step raw runs. No re-simulation is needed and **no different random scenario should be substituted**. An extended analysis can use the entire originally tested p=0.00,0.02,...,0.70 axis; the 0% level must always be present.
+
+For each rule separately, compare each seed/loss scenario to THE SAME seed/rule's 0% loss run. The cost-loss degradation on a fully assigned batch is:
+
+    Delta_GreedyCost(rule, seed, p) =
+        100 * [Cost(rule, seed, p) / Cost(rule, seed, 0) - 1]
+
+By validation, Cost(rule, seed, 0) is that seed's full-information Sequential Greedy cost, and is the same across majority and pure-25% archives.
+
+- The batch **must** have committed ALL T requested tasks before reporting a full-task-set cost delta. For any partial allocation, record cost_comparison_eligible=0 and the cost delta as NaN; do NOT compute a misleading low partial cost, infer a penalty, or erase that seed from assignment-completion statistics.
+- Curves report mean cost degradation **only among fully assigned runs** AND the exact number of successful cost-eligible seeds. The selection effect when loss is high must be disclosed prominently.
+- For a directly paired cross-protocol cost delta, include ONLY those same seeds where BOTH protocols fully committed. If that intersection is empty, output NaN with both_completed_count=0; do NOT substitute a zero difference or unpaired successful-only means.
+- For each seed and p, record task Commit fraction, full T-task success, Greedy executor identity agreement measured against full-information per-task Sequential Greedy (with a per-requested-task denominator), agreement AMONG committed tasks separately when available, failed vote attempts, total simulated coordination milliseconds, number of logical messages and payload bytes.
+- Compare elapsed time/messages/bytes both as absolute magnitudes and as per-seed changes from THAT PROTOCOL's own 0% loss run; this preserves the known very different zero-loss timing model for majority vs final-score-announcement plurality.
+- Pair protocols by the SAME seed and p. Record batch success percentage-point difference (quarter - majority), counts of both completed / quarter-only completed / majority-only completed / neither completed; Greedy executor rate difference, elapsed time/message/byte difference, and cost difference ONLY over BOTH-complete seeds.
+- Observed Cost/Vote packet drop rates are **aggregate number of drops / physical attempts**, not naive averaging of seed-level ratios; a zero-attempt vote stage yields NaN (no evidence), not an arbitrary claim of zero packet loss.
+
+The new report does NOT recompute any task decisions or call solve_hungarian_assignment. It must not be mistaken for a controlled comparison of protocol delivery mechanisms beyond the model's reliable qualified-score announcements and reliable Commit assumption. Historical raw sources may have different code SHAs; require a single SHA within each source and independently verify per-seed Greedy reference costs. Source revision equality BETWEEN the two protocol implementations is not required because their formal runs were committed at different revisions, but this is an explicit limitation.
+
+### 16.3 Reporting owner and diagnostic contract
+
+New read-only analysis owner: experiments.compare_greedy_communication. It consumes the original E2 evidence, which remains append-only, and writes a separate derived report root without editing either input.
+
+Named-function ownership:
+- validate_comparison_configuration: data validation for requested R/T/seeds/attempt cap/strictly sorted diagonal loss axis containing p=0.
+- locate_single_raw_evidence: dependency/contract validation of exactly one timestamped raw input CSV per protocol.
+- validate_greedy_evidence_row: per-row data, rule, method, seed, R/T, packet loss, success/commit accounting and safety-contract validation.
+- read_greedy_raw_evidence: source integrity/coverage: no duplicate seed/loss, one SHA per source, full selected seed×loss Cartesian coverage, no fallback methods.
+- validate_paired_greedy_scenarios: verify equal scenario Greedy-reference costs across both inputs and all p; zero-loss batch fully complete with Greedy score 100%, cost identical to reference.
+- build_greedy_per_seed_rows: compare to own rule/seed p=0, excluding partial batches from full cost gaps.
+- summarize_greedy_rule_curves: per-rule mean task/full success, Greedy executor accuracy, cost delta on completed subsets with n, attempts/latency/messages/bytes and physical stage drop rates.
+- summarize_paired_protocol_differences: same-seed cross-rule success disagreement and ONLY both-complete cost delta; missing shared completion stays NaN.
+- write_greedy_only_comparison: immutable separated output guard, three CSVs and timestamp/source SHA/SHA256 manifest.
+- compare_existing_greedy_evidence: orchestrates only these read/validation/analysis steps; it does not own physical voting, planner or Hungarian computations.
+
+First-failure diagnostic codes with owner/function/category/expected/actual:
+- INVALID_GREEDY_COMPARISON_SHAPE / validate_comparison_configuration / data
+- INVALID_GREEDY_COMPARISON_LOSS_AXIS / validate_comparison_configuration / data
+- MISSING_GREEDY_RAW_EVIDENCE / locate_single_raw_evidence / dependency
+- AMBIGUOUS_GREEDY_RAW_EVIDENCE / locate_single_raw_evidence / contract
+- MISSING_GREEDY_RAW_COLUMNS / read_greedy_raw_evidence / dependency
+- INVALID_GREEDY_RAW_VALUE / validate_greedy_evidence_row / data
+- GREEDY_RAW_CONTRACT_MISMATCH / validate_greedy_evidence_row / contract
+- DUPLICATE_GREEDY_SEED_CONDITION / read_greedy_raw_evidence / contract
+- GREEDY_SEED_LOSS_COVERAGE_MISMATCH / read_greedy_raw_evidence / contract
+- PAIRED_GREEDY_SCENE_MISMATCH / validate_paired_greedy_scenarios / contract
+- ZERO_LOSS_GREEDY_BASELINE_MISMATCH / validate_paired_greedy_scenarios / contract
+- GREEDY_ANALYSIS_SOURCE_OUTPUT_COLLISION / write_greedy_only_comparison / state
+- GREEDY_ANALYSIS_OUTPUT_EXISTS / write_greedy_only_comparison / state
+
+No voting, cost exchange, packet sampling, membership/retirement, optimizer or runtime execution owner is modified; no new wrapper, hidden fallback, or second state machine.
+
+### 16.4 Outputs, acceptance and Mac commands
+
+New derived report root: results/e2_greedy_only_communication_comparison. Expected generated outputs:
+- greedy_per_seed.csv: 2 protocols × 100 seeds × 6 selected loss points = 1,200 rows for the primary axis (with a full-completion indicator and NaN full cost for failures).
+- greedy_rule_curve.csv: 2 × 6 = 12 aggregate rows.
+- greedy_protocol_delta.csv: 6 paired condition rows.
+- manifest.json: exact inputs, source git SHAs, source raw SHA256 hashes, analysis git SHA, UTC time, selected seeds/loss axis and statistical limitations.
+
+Preflight and primary comparison (from Mac checkout where BOTH previous E2 raw archives already exist):
+
+    git pull
+    python3 -m unittest discover -s tests -v
+    python3 -m experiments.compare_greedy_communication
+
+Extended full 36-point Greedy-only curves can be generated to a DISTINCT new root by providing an explicit 2% axis, leaving the primary report unchanged:
+
+    LEVELS="$(python3 -c 'print(",".join(f"{i/100:.2f}" for i in range(0, 71, 2)))')"
+    python3 -m experiments.compare_greedy_communication --loss-probabilities "$LEVELS" --output-root results/e2_greedy_only_communication_comparison_36point
+
+Acceptance requires exact source SHA/seed/scene matching, zero baseline cost differences at p0, no references to Hungarian in any GENERATED CSV column, all 0% scenario controls valid, no incomplete allocation included in a full-batch cost mean, and counts of paired successes reconciling to seeds for every p. Historical raw E2 roots and E3/E4 6,000-run scaling results must remain untouched.
+
+Status when authored: source and regression tests committed; actual run on user's Mac pending. Do not claim the newly derived report has been generated until its files and console results are observed.
