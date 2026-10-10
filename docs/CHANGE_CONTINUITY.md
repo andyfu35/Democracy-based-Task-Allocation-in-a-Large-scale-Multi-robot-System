@@ -1230,3 +1230,15 @@ The user-supplied 62-test pass and completed Cost-only 100-seed run are confirme
 - Canonical Vote Loss spec: `1017b293ac2b84233c73cf2a44a0d2fa4f562f24`, formatting `bf896985de82479f304c8d0dfc4bc9c075d37ee8`
 - README benchmark commands: `1a2908294b695afabb5dc9c61f2df2a4de389b16`, formatting `8440651fb022f8df5211a17c8434cc9d479fc14b`
 - New Vote Loss evidence ledger: `9447935b49d3e338ceb95bba4d2e93a723d4e7cf`
+
+
+### Follow-up continuity — user-verified Cost-only baseline record (2026-10-10)
+
+The existing result ledger `results/e2_greedy_retirement_100r50t/README.md` was updated to remove its outdated `LOCAL VERIFICATION PENDING` claim. The user's log confirms that the PRE-NEW-VOTE-SWEEP HEAD `d0596a1417a30b90854a21161170c34ee599b845` passed 62/62 unit tests, then ran the 100R/50T, 100-seed Cost-only 0–70% sweep (at 30% Cost and 0% Vote: all-task success 0.99, task commit 0.9998). The raw results remain on the user's Mac; this record does not claim those bytes were committed to GitHub or that the new Vote Loss axis was validated.
+
+This update preserves all earlier results and changes no algorithm, validation, sampler, or state behavior. Separate Vote Loss experimental output roots remain pending. There is no responsibility transfer or new diagnostic contract in this documentation-only follow-up.
+
+Changed file: `results/e2_greedy_retirement_100r50t/README.md`.
+Commit SHA: `af964bd31d289786d1c13f7d1e9455ae76bdc91f`.
+
+Next step remains: run new suite/unit/smoke and the three formal 100-seed Vote Loss sweeps in separate output directories.
