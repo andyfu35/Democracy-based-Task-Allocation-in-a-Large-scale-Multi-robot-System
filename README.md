@@ -503,6 +503,24 @@ This independently checks each local view against cost deliveries, each ballot a
 
 **Paper result:** pending vote-level audit acceptance.
 
+### E2 cost-information-loss threshold sweep (vote channel reliable)
+
+The optional runner flag `--vote-loss-probability 0` fixes Democracy vote packet loss to **zero**, while the existing `--loss-probabilities` sweep changes only the independently lost cost rows received by each robot. The original E2 experiment is **unchanged when the override flag is omitted**.
+
+Run a 100R/50T paired-seed sweep from 0% through 70% cost loss at 2-point increments (100 seeds per point):
+
+```bash
+python3 -m experiments.run_e2 \
+  --seeds 100 \
+  --conditions 100x50 \
+  --loss-probabilities "$(python3 -c 'print(",".join(f"{i/100:.2f}" for i in range(0, 71, 2)))')" \
+  --vote-loss-probability 0 \
+  --output-root results/e2_cost_only_100r50t
+```
+
+In that output, `p_loss` is cost-row loss and `p_vote_loss` is zero. Track Democracy `mean_task_commit_rate`, `mean_correct_executor_rate`, `optimal_solution_rate`, and `full_assignment_success_rate` separately. Declare the operational usability threshold explicitly; report the first sampled loss where task commit falls below selected cutoffs rather than inferring it from full-assignment optimality alone.
+
+
 ---
 
 ## E3 — Robot Scalability
