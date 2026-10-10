@@ -866,3 +866,76 @@ Follow-up commits:
 - tests individual ballots: `759586fa8852e46412ef348c4fb212534e4b346b`
 - canonical ballot evidence: `202c9f47144852d92e234d3a475e330cd622a9ab`
 - modular metrics audit functions: `aa0a5d582359b4ee61a3ef027b9e6cf61288b338`
+
+
+## 2026-10-10 — E2 controlled cost-row-loss threshold sweep (independent vote loss override)
+
+### Purpose
+Support a loss-threshold experiment where each robot receives independently incomplete local cost information as cost packet loss grows, while Democracy vote transmission remains fully reliable. This isolates local-Hungarian proposal disagreement from a second lossy transport hop without changing the earlier E2 experiment.
+
+### Files changed
+- `democracy_mrta/coordination.py`
+- `experiments/run_e2.py`
+- `tests/test_coordination.py`
+- `tests/test_run_e2.py`
+- `docs/EXPERIMENT_PROTOCOL.md`
+- `README.md`
+- `results/e2_packet_loss/README.md`
+- `docs/CHANGE_CONTINUITY.md`
+
+### Named functions / owner boundaries
+- `coordination.simulate_democracy_hungarian_lossy`: optional `p_vote_loss` override applies only to remote vote unicast Bernoulli delivery; original `p_loss` still applies to each robot's peer cost reception. When `p_vote_loss is None`, vote loss inherits `p_loss` exactly as before.
+- `network.validate_packet_loss_probability`: existing data validation owner; reused by the coordinator for a non-None override and by the runner for CLI-configured probabilities.
+- `experiments.run_e2.simulate_methods`: E2 method orchestration forwards the optional vote loss to Democracy, leaving Leader/Full-View unchanged.
+- `experiments.run_e2.result_row`: records effective `p_vote_loss` along with legacy `p_loss` (cost loss).
+- `experiments.run_e2.summarize_rows`: groups results by robot count, task count, cost loss, effective vote loss, and method.
+- `experiments.run_e2.write_audit_records`: adds `p_vote_loss` to emitted per-seed network audit CSV records.
+- `experiments.run_e2.main`: parses `--vote-loss-probability` and selects the effective vote loss per cost-loss point; same paired seed, scenario and latency/profile behavior.
+
+### Responsibility movement
+None. Packet loss sampling and probability validation remain in `network`; proposal, voting and quorum stay in existing `coordination`/`protocol`; the E2 runner controls experiment parameters and reporting. No wrapper or second voting/state machine.
+
+### Preserved behaviors
+- Legacy `python3 -m experiments.run_e2 --seeds 100` produces the same decisions and packet outcomes: cost and vote loss each equal the swept `p_loss`, sampled independently with distinct keyed events.
+- Hungarian, quorum, self-vote, commit reliability, event timing, no retries, seed handling and cost-row visibility unchanged.
+- Leader, Full-View and Ideal method algorithms unchanged.
+- Existing `p_loss` column, existing output fields and their meanings unchanged.
+
+### Intentionally changed behaviors
+- Optional CLI argument `--vote-loss-probability 0` makes Democracy's remote vote channel lossless across the cost-loss sweep.
+- More generally, any fixed `--vote-loss-probability` in [0,1] can be used.
+- E2 outputs add `p_vote_loss` to raw CSV, summary, designated event logs, and concise console result lines; the legacy `p_loss` field now remains explicitly identified as the cost-loss variable.
+- Recommended separate output root `results/e2_cost_only_100r50t` prevents overwriting prior formal E2 outputs.
+- Cost-only sweep 100R/50T, 100 paired seeds, 0%-70% cost loss in 2-point increments, vote loss 0%.
+
+### Diagnostic contract
+Existing network validation error is preserved and reused:
+- `network.validate_packet_loss_probability / data / INVALID_PACKET_LOSS_PROBABILITY`.
+
+New regression tests check:
+- cost-only delivery leaves local views and proposals unchanged relative to equal-p-loss E2;
+- vote-only 100% loss preserves full cost information but destroys majority;
+- absent vote override is byte/decision-equivalent to explicitly setting `p_vote_loss=p_loss`;
+- runner transports the override to the actual coordinator and summarizes the two independent rates separately.
+
+### Verification
+GitHub commits completed. The assistant execution container cannot resolve github.com for a repository checkout. New tests and the sweep have **not been executed** here; the user must run the unit suite and a small smoke before accepting results. Do not claim a loss threshold until the new simulation outputs have been reviewed.
+
+### Open risks
+- First-loss-rate classified unusable depends on the explicitly chosen operational threshold (e.g. task commit <90%, <50%, <10%). Full-assignment optimality alone becomes too strict for multi-task cases.
+- The earlier 30%/30% E2 results remain under ballot audit; the cost-only sweep does not retroactively validate them.
+- Possible adversarial multi-task duplicate executor commitments remain a separate safety-contract risk; no repair or new coordination state was added.
+- Existing E2 ignores MAC contention, commit loss, burst loss and retries, so the observed one-round threshold is not a deployed-network availability guarantee.
+- The existing formal runner does not embed its Git SHA in every CSV row; capture the actual HEAD externally along with output paths.
+
+### Next step
+Run unit regressions. Smoke the independent loss flags, then run the 100R/50T 0-70%-cost-loss sweep with vote loss set to zero in an isolated output root; inspect task commit, CER and global optimality independently and report all predefined practical cutoffs.
+
+### Commit SHA
+- coordinator loss override: `2357c35dac5983c31ee73d6bd808dc578bb52f5a`
+- E2 runner independent parameters: `e749ffef49155755a497a39b8e054c3684292094`
+- coordinator regression tests: `30c575be44a5db9bb3790fba7c8a7cb35db6b6c5`
+- E2 runner regression test: `7259e20692ac6fe0b5f21be52452ea2b085c44a4`
+- canonical protocol: `57b60f016b8d817db8ce640434bab18b371d0441`
+- README commands: `ebafa19b428c1f5f5376ecde9ca4d88b5b66d23b`
+- E2 result ledger: `e1a740c78f194f985e02a8263700658166e71b06`
