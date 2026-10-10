@@ -551,3 +551,84 @@ python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 100 --c
 ```
 
 Separate output roots are REQUIRED to prevent overwriting the prior 100-seed Cost-only evidence and to preserve condition-specific summary.csv files. The experiment prints condition count before running, which must equal 6 for smoke, 36 for each line sweep, and 64 for the optional interaction grid.
+
+
+## 14. E2 Greedy 25%-Announcement / Plurality with safe self-claim fallback
+
+**Opt-in experimental contract:** `quarter_plurality_fallback`. This is a NEW voting decision rule, not a replacement for the original `strict_majority` Greedy result or any Hungarian E2 baseline. The local optimizer stays per-task Greedy and the membership/retirement owner stays unchanged.
+
+### 14.1 Qualified announcement and highest received vote count
+
+For each task and frozen active electorate A of size N, use the strict announcement threshold:
+
+    announcement_threshold = floor(N / 4) + 1
+
+This is **strictly more than 25% of all eligible active voters**, NOT 25% of successfully delivered vote messages. With N=100 it is 26, N=99 it is 25, and N=4 it is 2.
+
+As before, every active robot casts a single vote for the lowest-cost currently visible eligible executor; its self-vote is local and reliable, and a non-self vote is independently dropped with `p_vote_loss`. Cost-row messages retain the original independently missing per-receiver local information and are transmitted only once at the beginning.
+
+After the existing vote-collection deadline, each candidate whose own received ballot count reaches this threshold broadcasts a reliable **final-score announcement**. Each announcement includes original candidate ID, current task/round IDs, and the candidate's own actual **counted** votes. An eligible candidate must not announce another candidate's private tally. An announcement is a claim, not a commit. Every active robot receives all qualified score announcements (RELIABLE control announcement assumption) and independently selects the largest announced received-vote count. Ties choose the lowest original candidate ID. Only that one winner makes a reliable task commit, and only then retires.
+
+We intentionally close voting before the final-count announcement: an early threshold-crossing message would not necessarily reflect subsequent received votes. The earliest actual task execution is **after all final-score announcements arrive and the unique winner is resolved**, never at the first threshold crossing.
+
+### 14.2 No one qualifies: provisional self-victory claims and arbitration
+
+The user's proposed fallback of `no qualified announcement -> declare oneself winner` would be unsafe if every active robot could physically start its task immediately. Under sufficiently lossy voting, dozens of robots might all believe they won the same task.
+
+To preserve one-task/one-executor safety, this experiment explicitly treats "I win" as a **PROVISIONAL self-claim**, not permission to execute. If nobody exceeds 25%, **every eligible active robot** sends a reliable `fallback_self_claim` announcement containing its own currently received vote count (which may be zero). After **all such messages** arrive, every participant applies exactly the same final ranking: highest received-vote count, lowest original robot ID on ties. The unique resolved winner commits and retires; all others do not execute. This is a reliable-announcement, deterministic decentralized arbitration model; it does **not** reproduce unsafe unilateral execution.
+
+Only actual candidate-local received votes are disclosed. No full-information cost lookup is allowed to improve the fallback selection. A full task may be assigned to a very costly robot when everyone has received few votes.
+
+### 14.3 Important fairness limitation and failure-mode accounting
+
+In this first implementation **candidate score announcements, fallback self-claims, and final commit broadcasts are reliable**. Cost-row packets and remote vote packets alone experience Bernoulli loss. The added reliable announcement/claim channel is therefore a **stronger assumption than the original majority-only protocol**. It may make full task coverage trivially 100%, even when Cost Loss and Vote Loss are extremely high or 100%; such success would be due to the fallback channel, NOT evidence that packet-loss robustness of voting improved.
+
+All reliable score/claim broadcasts are charged to the message count, payload bytes and simulated coordination latency. No self-claim may produce more than ONE physical task executor. The one-to-one safety invariant and checked original IDs remain unchanged.
+
+Raw, per-epoch and aggregate summaries MUST show:
+- selected decision rule and strict 25% announcement threshold;
+- count of qualified `vote_score_announcement` messages;
+- count of provisional `fallback_self_claim` messages;
+- number and proportion of tasks resolved via fallback (versus qualified announcements);
+- winner's actual received-vote score and number of plurality ties;
+- overall task Commit and 50-task Full Assignment success, Greedy-oracle CER, Hungarian-oracle CER, costs against full-information Greedy and global Hungarian only for fully assigned scenarios;
+- number of decision attempts, simulated coordination latency, transmitted messages and payload, and actual Cost/Vote packet drop proportions.
+
+**Do not interpret 100% Full Assignment Success alone as increased fault tolerance**. Inspect the new `mean_fallback_commit_rate`, `mean_qualified_announcements`, `mean_winning_received_votes`, `mean_logical_message_count` and `mean_payload_bytes` first.
+
+This is still a static assignment simulator: physical execution timing, message loss on reliable announcements, identity spoofing, malicious score reports, and inconsistently received fallback claims are NOT modeled. Such failures require separately specified message/state reconciliation; arbitrary execution on private self-claims is unsafe.
+
+### 14.4 Controlled formal benchmark and run commands
+
+Use the SAME underlying scenario generator, task order, static Cost exchange, deterministic Bernoulli packet keys, initial Cost/Vote Loss values, seeds 0..99, Rady Wi-Fi empirical latency sample, and 100 maximum voting attempts as the previous 51-vote Majority Greedy formal benchmark:
+
+- 100 robots, 50 tasks, 100 seeds
+- `p_cost_loss = p_vote_loss = p` (the same numerical probability with separate independent physical packet draws)
+- p in {0.00,0.02,0.04,...,0.70} (36 conditions, 3,600 seed-conditions)
+- **only changed decision rule:** strict majority -> 25%-announcement plurality + safe fallback arbitration
+- previous completed baseline remains at `results/e2_joint_loss_diagonal_100r50t`
+- new output root: `results/e2_greedy_quarter_plurality_100r50t`
+- separate historical Cost-only root is unchanged.
+
+Before full benchmark run regression suite and 3-seed smoke:
+
+```bash
+git pull
+python3 -m unittest discover -s tests -v
+python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 3 --cost-loss-probabilities 0,0.30,0.70 --loss-pairing diagonal --max-rounds 100 --vote-decision-rule quarter_plurality_fallback --output-root results/e2_greedy_quarter_plurality_smoke
+```
+
+Formal command:
+
+```bash
+LEVELS="$(python3 -c 'print(",".join(f"{i/100:.2f}" for i in range(0, 71, 2)))')"
+python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 100 --cost-loss-probabilities "$LEVELS" --loss-pairing diagonal --max-rounds 100 --vote-decision-rule quarter_plurality_fallback --output-root results/e2_greedy_quarter_plurality_100r50t
+```
+
+The runner rejects use of the historical majority output root for this mode. Raw rows include the decision rule, git SHA and timestamp; summary.csv uses the distinct method `democracy_greedy_quarter_plurality_retirement`. Per-round CSV includes the effective threshold and whether a task was resolved through fallback. Seed 0's event CSV records the phase and the candidate's announced final vote count, allowing a score-vs-winner comparison independent of the summary.
+
+### 14.5 Verification and interpretation
+
+Existing 73/73 unit-test success at HEAD `5ac7600` and the old 100-seed diagonal-majority curve were completed BEFORE this modification. New voting-rule regression and integration tests cover threshold strictness, competing qualified candidates, ties, all-candidates self-claim arbitration, exact one physical commit, Greedy retirement, and unchanged majority default. The new tests and formal experiment are pending local execution; no new numeric improvement is presumed.
+
+At Cost=Vote=100% in a small deterministic test, the fallback can still allocate all tasks while selecting markedly worse robots than full-information Greedy or Hungarian. This is intentional diagnostic evidence of the reliable fallback's effect, not proof that 100%-loss communication is survivable.
