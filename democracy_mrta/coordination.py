@@ -15,6 +15,10 @@ from .optimizer import (
 from .protocol import (
     assignment_to_votes,
     find_unique_majority,
+    CandidateVoteAnnouncement,
+    PluralityResolution,
+    quarter_vote_announcement_threshold,
+    resolve_unique_plurality_claims,
     quorum_size,
     record_vote,
     validate_one_to_one_commits,
@@ -31,6 +35,7 @@ BROADCAST_RECEIVER_ID = -1
 
 VOTE_PAYLOAD_BYTES = APP_HEADER_BYTES + 4 * ID_BYTES
 COMMIT_PAYLOAD_BYTES = APP_HEADER_BYTES + 3 * ID_BYTES
+VOTE_SCORE_ANNOUNCEMENT_BYTES = APP_HEADER_BYTES + 4 * ID_BYTES
 
 
 @dataclass(frozen=True)
@@ -44,6 +49,7 @@ class CommunicationEvent:
     payload_bytes: int
     task_id: int | None = None
     round_id: int = 0
+    announced_vote_count: int | None = None
 
     @property
     def is_broadcast(self) -> bool:
@@ -113,6 +119,7 @@ def _broadcast_event(
     sampler,
     task_id: int | None = None,
     round_id: int = 0,
+    announced_vote_count: int | None = None,
 ) -> CommunicationEvent:
     key = (
         f"broadcast|{phase}|{sender_id}|"
@@ -131,6 +138,7 @@ def _broadcast_event(
         payload_bytes=payload_bytes,
         task_id=task_id,
         round_id=round_id,
+        announced_vote_count=announced_vote_count,
     )
 
 
@@ -377,6 +385,12 @@ class LossyCoordinationResult:
     audit_visible_rows_by_voter: tuple[frozenset[int], ...] = ()
     audit_proposals_by_voter: tuple[AssignmentSolution, ...] = ()
     audit_counted_vote_ledgers: tuple[tuple[int, int, tuple[int, ...]], ...] = ()
+    vote_decision_rule: str = "strict_majority"
+    announcement_threshold: int = 0
+    qualified_announcement_count: int = 0
+    fallback_self_claim_count: int = 0
+    fallback_used_task_count: int = 0
+    plurality_tie_break_count: int = 0
 
     @property
     def committed_tasks(self) -> int:
@@ -465,6 +479,12 @@ def _summarize_lossy_result(
     audit_counted_vote_ledgers: tuple[tuple[int, int, tuple[int, ...]], ...] = (),
     robot_ids: tuple[int, ...] | None = None,
     task_ids: tuple[int, ...] | None = None,
+    vote_decision_rule: str = "strict_majority",
+    announcement_threshold: int = 0,
+    qualified_announcement_count: int = 0,
+    fallback_self_claim_count: int = 0,
+    fallback_used_task_count: int = 0,
+    plurality_tie_break_count: int = 0,
 ) -> LossyCoordinationResult:
     pairs = tuple(sorted(tuple(assigned_pairs), key=lambda pair: (pair[1], pair[0])))
     validate_one_to_one_commits(pairs)
@@ -505,6 +525,12 @@ def _summarize_lossy_result(
         audit_visible_rows_by_voter=audit_visible_rows_by_voter,
         audit_proposals_by_voter=audit_proposals_by_voter,
         audit_counted_vote_ledgers=audit_counted_vote_ledgers,
+        vote_decision_rule=vote_decision_rule,
+        announcement_threshold=announcement_threshold,
+        qualified_announcement_count=qualified_announcement_count,
+        fallback_self_claim_count=fallback_self_claim_count,
+        fallback_used_task_count=fallback_used_task_count,
+        plurality_tie_break_count=plurality_tie_break_count,
     )
 
 
