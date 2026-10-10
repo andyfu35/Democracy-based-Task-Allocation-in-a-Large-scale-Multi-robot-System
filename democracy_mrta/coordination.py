@@ -1127,6 +1127,7 @@ class MultiRoundRetirementResult:
     rounds: tuple[RetirementRoundTrace, ...]
     global_agreement_ms: float
     logical_message_count: int
+    payload_bytes: int
     lossy_delivered: int
     lossy_dropped: int
 
@@ -1306,6 +1307,7 @@ def simulate_democracy_hungarian_retirement(
         logical_message_count=sum(
             item.coordination.logical_message_count for item in rounds
         ),
+        payload_bytes=sum(item.coordination.payload_bytes for item in rounds),
         lossy_delivered=sum(item.coordination.lossy_delivered for item in rounds),
         lossy_dropped=sum(item.coordination.lossy_dropped for item in rounds),
     )
