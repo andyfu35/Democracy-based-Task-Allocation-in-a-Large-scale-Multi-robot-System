@@ -26,6 +26,7 @@ from democracy_mrta.network import (
     load_rady_latency_profile,
     percentile,
     summarize_latency_profile,
+    validate_packet_loss_probability,
 )
 from democracy_mrta.optimizer import solve_hungarian_assignment
 from democracy_mrta.scenario import generate_e0_scenario
@@ -69,6 +70,7 @@ def simulate_methods(
     loss_sampler,
     p_loss: float,
     phase_timeout_ms: float,
+    p_vote_loss: float | None = None,
 ) -> tuple[LossyCoordinationResult, ...]:
     return (
         simulate_ideal_full_information_lossy_reference(
@@ -96,6 +98,7 @@ def simulate_methods(
             loss_sampler=loss_sampler,
             p_loss=p_loss,
             phase_timeout_ms=phase_timeout_ms,
+            p_vote_loss=p_vote_loss,
         ),
     )
 
@@ -106,6 +109,7 @@ def result_row(
     num_robots: int,
     num_tasks: int,
     p_loss: float,
+    p_vote_loss: float,
     oracle,
     result: LossyCoordinationResult,
 ) -> dict[str, object]:
@@ -127,6 +131,7 @@ def result_row(
         "robots": num_robots,
         "tasks": num_tasks,
         "p_loss": p_loss,
+        "p_vote_loss": p_vote_loss,
         "method": result.method,
         "committed_tasks": result.committed_tasks,
         "task_commit_rate": result.task_commit_rate,
@@ -161,6 +166,7 @@ def summarize_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 int(row["robots"]),
                 int(row["tasks"]),
                 float(row["p_loss"]),
+                float(row["p_vote_loss"]),
                 str(row["method"]),
             )
             for row in rows
@@ -168,13 +174,14 @@ def summarize_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     )
     summaries: list[dict[str, object]] = []
 
-    for robots, tasks, p_loss, method in groups:
+    for robots, tasks, p_loss, p_vote_loss, method in groups:
         selected = [
             row
             for row in rows
             if int(row["robots"]) == robots
             and int(row["tasks"]) == tasks
             and float(row["p_loss"]) == p_loss
+            and float(row["p_vote_loss"]) == p_vote_loss
             and str(row["method"]) == method
         ]
         successful_gaps = [
@@ -189,6 +196,7 @@ def summarize_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
                 "robots": robots,
                 "tasks": tasks,
                 "p_loss": p_loss,
+                "p_vote_loss": p_vote_loss,
                 "method": method,
                 "seeds": len(selected),
                 "mean_task_commit_rate": statistics.fmean(
@@ -258,6 +266,7 @@ def write_audit_records(
     num_robots: int,
     num_tasks: int,
     p_loss: float,
+    p_vote_loss: float,
     result: LossyCoordinationResult,
 ) -> None:
     for event in result.events:
@@ -268,6 +277,7 @@ def write_audit_records(
                 "robots": num_robots,
                 "tasks": num_tasks,
                 "p_loss": p_loss,
+                "p_vote_loss": p_vote_loss,
                 "method": result.method,
                 "phase": event.phase,
                 "sender_id": event.sender_id,
@@ -289,6 +299,7 @@ def write_audit_records(
                 "robots": num_robots,
                 "tasks": num_tasks,
                 "p_loss": p_loss,
+                "p_vote_loss": p_vote_loss,
                 "method": result.method,
                 "phase": observation.phase,
                 "sender_id": observation.sender_id,
@@ -323,6 +334,12 @@ def main() -> None:
         default=DEFAULT_LOSS_PROBABILITIES,
     )
     parser.add_argument(
+        "--vote-loss-probability",
+        type=float,
+        default=None,
+        help="Override Democracy vote packet loss; default is the current cost loss",
+    )
+    parser.add_argument(
         "--dataset",
         type=Path,
         default=Path("data/external/rady/perama_range_testing.json"),
@@ -345,6 +362,12 @@ def main() -> None:
 
     if args.seeds <= 0:
         raise ValueError("--seeds must be positive")
+    if not args.loss_probabilities:
+        parser.error("--loss-probabilities must not be empty")
+    for cost_loss_probability in args.loss_probabilities:
+        validate_packet_loss_probability(cost_loss_probability)
+    if args.vote_loss_probability is not None:
+        validate_packet_loss_probability(args.vote_loss_probability)
 
     dataset_path = ensure_rady_dataset(
         args.dataset,
@@ -362,6 +385,18 @@ def main() -> None:
         "E2_LOSS_PROBABILITIES="
         + ",".join(f"{value:.3f}" for value in args.loss_probabilities)
     )
+    print(
+        "E2_COST_LOSS_PROBABILITIES="
+        + ",".join(f"{value:.3f}" for value in args.loss_probabilities)
+    )
+    print(
+        "E2_VOTE_LOSS_MODE="
+        + (
+            "same_as_cost"
+            if args.vote_loss_probability is None
+            else f"fixed:{args.vote_loss_probability:.3f}"
+        )
+    )
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     raw_path = args.output_root / "raw" / f"e2_{timestamp}.csv"
@@ -377,6 +412,7 @@ def main() -> None:
         "robots",
         "tasks",
         "p_loss",
+        "p_vote_loss",
         "method",
         "phase",
         "sender_id",
@@ -399,6 +435,10 @@ def main() -> None:
                 oracle = solve_hungarian_assignment(scenario.cost_matrix)
 
                 for p_loss in args.loss_probabilities:
+                    p_vote_loss = (
+                        p_loss if args.vote_loss_probability is None
+                        else args.vote_loss_probability
+                    )
                     latency_sampler = EmpiricalLatencySampler(profile, seed=seed)
                     loss_sampler = BernoulliLossSampler(seed=seed)
 
@@ -409,6 +449,7 @@ def main() -> None:
                         loss_sampler=loss_sampler,
                         p_loss=p_loss,
                         phase_timeout_ms=phase_timeout_ms,
+                        p_vote_loss=p_vote_loss,
                     ):
                         raw_rows.append(
                             result_row(
@@ -416,6 +457,7 @@ def main() -> None:
                                 num_robots=num_robots,
                                 num_tasks=num_tasks,
                                 p_loss=p_loss,
+                                p_vote_loss=p_vote_loss,
                                 oracle=oracle,
                                 result=result,
                             )
@@ -427,6 +469,7 @@ def main() -> None:
                                 num_robots=num_robots,
                                 num_tasks=num_tasks,
                                 p_loss=p_loss,
+                                p_vote_loss=p_vote_loss,
                                 result=result,
                             )
 
@@ -444,7 +487,8 @@ def main() -> None:
         print(
             "E2_RESULT "
             f"robots={row['robots']} tasks={row['tasks']} "
-            f"p_loss={float(row['p_loss']):.1f} method={row['method']} "
+            f"p_loss={float(row['p_loss']):.2f} "
+            f"p_vote_loss={float(row['p_vote_loss']):.2f} method={row['method']} "
             f"task_commit={float(row['mean_task_commit_rate']):.6f} "
             f"full_success={float(row['full_assignment_success_rate']):.6f} "
             f"optimal_rate={float(row['optimal_solution_rate']):.6f} "
