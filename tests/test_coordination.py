@@ -163,5 +163,95 @@ class CoordinationTests(unittest.TestCase):
         self.assertEqual(result.task_timeout_count, 2)
 
 
+    def test_cost_loss_only_does_not_drop_remote_votes(self) -> None:
+        cost_matrix = (
+            (1.0, 5.0),
+            (5.0, 1.0),
+            (3.0, 4.0),
+        )
+        cost_only = simulate_democracy_hungarian_lossy(
+            cost_matrix=cost_matrix,
+            sampler=self.sampler,
+            loss_sampler=BernoulliLossSampler(seed=5),
+            p_loss=0.3,
+            p_vote_loss=0.0,
+            phase_timeout_ms=10.0,
+            capture_vote_audit=True,
+        )
+        original = simulate_democracy_hungarian_lossy(
+            cost_matrix=cost_matrix,
+            sampler=self.sampler,
+            loss_sampler=BernoulliLossSampler(seed=5),
+            p_loss=0.3,
+            phase_timeout_ms=10.0,
+            capture_vote_audit=True,
+        )
+        self.assertEqual(
+            cost_only.audit_visible_rows_by_voter,
+            original.audit_visible_rows_by_voter,
+        )
+        self.assertEqual(
+            cost_only.audit_proposals_by_voter,
+            original.audit_proposals_by_voter,
+        )
+        cost_only_vote_deliveries = [
+            obs for obs in cost_only.deliveries if obs.phase == "vote"
+        ]
+        self.assertTrue(cost_only_vote_deliveries)
+        self.assertTrue(all(obs.delivered for obs in cost_only_vote_deliveries))
+
+    def test_vote_only_full_loss_blocks_quorum_without_hiding_cost_rows(self) -> None:
+        cost_matrix = (
+            (1.0, 5.0),
+            (5.0, 1.0),
+            (3.0, 4.0),
+        )
+        result = simulate_democracy_hungarian_lossy(
+            cost_matrix=cost_matrix,
+            sampler=self.sampler,
+            loss_sampler=BernoulliLossSampler(seed=5),
+            p_loss=0.0,
+            p_vote_loss=1.0,
+            phase_timeout_ms=10.0,
+            capture_vote_audit=True,
+        )
+        self.assertEqual(
+            tuple(len(rows) for rows in result.audit_visible_rows_by_voter),
+            (3, 3, 3),
+        )
+        self.assertEqual(result.committed_tasks, 0)
+        self.assertEqual(result.task_timeout_count, 2)
+        self.assertTrue(all(
+            not obs.delivered
+            for obs in result.deliveries if obs.phase == "vote"
+        ))
+
+    def test_unspecified_vote_loss_matches_legacy_shared_loss(self) -> None:
+        cost_matrix = (
+            (1.0, 5.0),
+            (5.0, 1.0),
+            (3.0, 4.0),
+        )
+        def simulate(vote_loss):
+            return simulate_democracy_hungarian_lossy(
+                cost_matrix=cost_matrix,
+                sampler=self.sampler,
+                loss_sampler=BernoulliLossSampler(seed=7),
+                p_loss=0.3,
+                p_vote_loss=vote_loss,
+                phase_timeout_ms=10.0,
+                capture_vote_audit=True,
+            )
+        inherited = simulate(None)
+        explicit = simulate(0.3)
+        self.assertEqual(inherited.assigned_pairs, explicit.assigned_pairs)
+        self.assertEqual(inherited.events, explicit.events)
+        self.assertEqual(inherited.deliveries, explicit.deliveries)
+        self.assertEqual(
+            inherited.audit_counted_vote_ledgers,
+            explicit.audit_counted_vote_ledgers,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
