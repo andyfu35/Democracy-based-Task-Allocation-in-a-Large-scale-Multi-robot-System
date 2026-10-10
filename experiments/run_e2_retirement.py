@@ -13,6 +13,7 @@ from democracy_mrta.coordination import (
     MultiRoundRetirementResult,
     simulate_democracy_hungarian_retirement,
 )
+from democracy_mrta.diagnostics import Diagnostic, ProtocolError
 from democracy_mrta.metrics import (
     evaluate_assignment_correctness,
     optimality_gap_percent,
@@ -35,6 +36,143 @@ from experiments.run_e2 import parse_probabilities, write_csv
 
 DEFAULT_COST_LOSSES = tuple(i / 100 for i in range(0, 71, 2))
 
+
+
+def build_retirement_loss_conditions(
+    *,
+    cost_losses: tuple[float, ...],
+    vote_losses: tuple[float, ...],
+    pairing: str,
+) -> tuple[tuple[float, float], ...]:
+    """Choose independent grid or genuinely equal cost/vote loss pairs."""
+    if not cost_losses or not vote_losses:
+        raise ProtocolError(
+            Diagnostic(
+                owner="experiments.run_e2_retirement",
+                function="build_retirement_loss_conditions",
+                category="data",
+                code="EMPTY_PACKET_LOSS_SWEEP",
+                expected="nonempty cost and vote loss axes",
+                actual=(cost_losses, vote_losses),
+            )
+        )
+    for probability in (*cost_losses, *vote_losses):
+        validate_packet_loss_probability(probability)
+
+    if pairing not in ("grid", "diagonal"):
+        raise ProtocolError(
+            Diagnostic(
+                owner="experiments.run_e2_retirement",
+                function="build_retirement_loss_conditions",
+                category="data",
+                code="INVALID_PACKET_LOSS_PAIRING",
+                expected=("grid", "diagonal"),
+                actual=pairing,
+            )
+        )
+    if pairing == "diagonal":
+        if cost_losses != vote_losses:
+            raise ProtocolError(
+                Diagnostic(
+                    owner="experiments.run_e2_retirement",
+                    function="build_retirement_loss_conditions",
+                    category="contract",
+                    code="DIAGONAL_LOSS_AXES_DIFFER",
+                    expected=cost_losses,
+                    actual=vote_losses,
+                    details="diagonal requires p_cost_loss = p_vote_loss at every point",
+                )
+            )
+        conditions = tuple(zip(cost_losses, vote_losses))
+    else:
+        conditions = tuple(
+            (cost, vote) for cost in cost_losses for vote in vote_losses
+        )
+
+    if len(conditions) != len(set(conditions)):
+        raise ProtocolError(
+            Diagnostic(
+                owner="experiments.run_e2_retirement",
+                function="build_retirement_loss_conditions",
+                category="data",
+                code="DUPLICATE_PACKET_LOSS_CONDITION",
+                expected="unique (p_cost_loss, p_vote_loss) conditions",
+                actual=conditions,
+            )
+        )
+    return conditions
+
+
+def retirement_transport_stage_metrics(
+    result: MultiRoundRetirementResult,
+) -> dict[str, float | int]:
+    """Observe real delivery outcomes without changing cost or vote sampling."""
+    cost_attempts = cost_drops = vote_attempts = vote_drops = 0
+    for trace in result.rounds:
+        for observation in trace.coordination.deliveries:
+            if observation.phase == "cost":
+                cost_attempts += 1
+                cost_drops += int(not observation.delivered)
+            elif observation.phase == "vote":
+                vote_attempts += 1
+                vote_drops += int(not observation.delivered)
+            else:
+                raise ProtocolError(
+                    Diagnostic(
+                        owner="experiments.run_e2_retirement",
+                        function="retirement_transport_stage_metrics",
+                        category="contract",
+                        code="UNKNOWN_RETIREMENT_DELIVERY_PHASE",
+                        expected=("cost", "vote"),
+                        actual=observation.phase,
+                    )
+                )
+
+    if (
+        cost_attempts + vote_attempts
+        != result.lossy_delivered + result.lossy_dropped
+        or cost_drops + vote_drops != result.lossy_dropped
+    ):
+        raise ProtocolError(
+            Diagnostic(
+                owner="experiments.run_e2_retirement",
+                function="retirement_transport_stage_metrics",
+                category="contract",
+                code="RETIREMENT_DELIVERY_TOTAL_MISMATCH",
+                expected=(result.lossy_delivered, result.lossy_dropped),
+                actual=(
+                    cost_attempts + vote_attempts - cost_drops - vote_drops,
+                    cost_drops + vote_drops,
+                ),
+            )
+        )
+    # A single-task Greedy epoch generates one ballot per eligible voter;
+    # self-votes are counted locally and deliberately have no transport event.
+    voter_ballots = sum(len(trace.active_robot_ids) for trace in result.rounds)
+    self_votes = voter_ballots - vote_attempts
+    if self_votes < 0:
+        raise ProtocolError(
+            Diagnostic(
+                owner="experiments.run_e2_retirement",
+                function="retirement_transport_stage_metrics",
+                category="contract",
+                code="RETIREMENT_NEGATIVE_SELF_VOTE_COUNT",
+                expected="self_votes >= 0",
+                actual=self_votes,
+            )
+        )
+    return {
+        "cost_packet_attempts": cost_attempts,
+        "cost_packet_dropped": cost_drops,
+        "observed_cost_drop_rate": cost_drops / cost_attempts if cost_attempts else 0.0,
+        "remote_vote_attempts": vote_attempts,
+        "remote_vote_dropped": vote_drops,
+        "observed_vote_drop_rate": vote_drops / vote_attempts if vote_attempts else 0.0,
+        "self_votes": self_votes,
+        "quorum_failed_attempts": sum(
+            int(not trace.newly_committed_pairs) for trace in result.rounds
+        ),
+    }
 
 def read_retirement_revision() -> str:
     return subprocess.check_output(
