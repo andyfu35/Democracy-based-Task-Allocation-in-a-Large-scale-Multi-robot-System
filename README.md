@@ -715,6 +715,53 @@ The model remains static ONE-TO-ONE assignment with retired executors: it does n
 
 ---
 
+## Official Greedy-only communication comparison (historical E2 re-analysis)
+
+**Research scope:** The optimizer is always **Sequential Greedy**; the subject of the paper is decentralized coordination and robustness to communication loss, NOT finding a new Hungarian/global minimum-cost assignment algorithm. Previous Hungarian output may remain in original historical CSVs for audit, but it is NOT used or plotted by the new primary comparison.
+
+The two already-completed formal E2 experiments provide matched 100R/50T raw evidence:
+
+- strict-majority (51% of the active electorate), results/e2_joint_loss_diagonal_100r50t/raw/retirement_*.csv;
+- pure >25%-announcement Greedy, **NO fallback**, results/e2_greedy_quarter_plurality_no_fallback_100r50t/raw/retirement_*.csv.
+
+Do NOT substitute the rejected 25%-with-self-claim-fallback experiment.
+
+The Greedy-only read-only analysis uses the **same 100 seeds and same scenarios**, max_rounds=100, Cost Loss = Vote Loss (equal numeric p, independently sampled packets). The main figure uses the existing 0%, 10%, 20%, 30%, 40%, 50% points; all six are subsets of the original full 0–70%/2%-step runs. **No new simulation or Hungarian calculation is necessary.**
+
+For each seed and each rule, use that rule's 0%-Loss full-information Greedy as the only performance reference. Show task Commit fraction, full T-task success, Greedy executor identity match, mean voting attempts, physical packet drops, simulated coordinator time, messages/bytes, and **loss-induced added cost among fully completed allocations ONLY**. Unfinished assignments are always counted as failures and have NaN full-assignment cost rather than an artificially cheap partial-cost score. Cross-rule cost is compared only on the exact seed intersection where both rules complete; report that sample size.
+
+### Run after existing full E2 raw CSV files are present on your Mac
+
+~~~bash
+git pull
+python3 -m unittest discover -s tests -v
+
+# Pure evidence analysis — NO simulator / Hungarian / new seeds
+python3 -m experiments.compare_greedy_communication
+~~~
+
+Results are written under results/e2_greedy_only_communication_comparison (README.md is preserved):
+
+- greedy_per_seed.csv — expected 1,200 rows for 2 rules × 100 seeds × 6 losses.
+- greedy_rule_curve.csv — expected 12 rows, including complete-case cost sample sizes.
+- greedy_protocol_delta.csv — expected 6 rows showing paired 25%-minus-51% success and cost/traffic differences.
+- manifest.json — source SHA256 hashes, source historical Git SHAs, current analysis commit SHA, UTC timestamp and full benchmark parameters.
+
+To compare all previous 36 Cost/Vote loss points in a separate new derived directory:
+
+~~~bash
+LEVELS="$(python3 -c 'print(",".join(f"{i/100:.2f}" for i in range(0, 71, 2)))')"
+python3 -m experiments.compare_greedy_communication \
+  --loss-probabilities "$LEVELS" \
+  --output-root results/e2_greedy_only_communication_comparison_36point
+~~~
+
+The analysis **rejects** mismatched per-seed Greedy reference costs, missing seeds, nonmatching dimensions, incorrect method IDs, fallback data, duplicate source files, false zero-loss baselines and overwriting already-derived results. It cannot compare raw E2 results if the previous experiments were run elsewhere and their files have not been copied into the same checkout. The known assumption that qualified score announcements and Commit are reliable is unchanged.
+
+**Verification:** Earlier E2 runs and E3/E4 6,000-run scale sweep were completed by the user. This derived analysis code is NEW and its unit tests/output on the Mac are pending; no fresh output curves have been asserted yet. Full definitions: docs/EXPERIMENT_PROTOCOL.md Section 16 and results/e2_greedy_only_communication_comparison/README.md.
+
+---
+
 ## E5 — Bursty Packet Loss
 
 Purpose: determine whether conclusions from independent Bernoulli loss survive correlated outages.
