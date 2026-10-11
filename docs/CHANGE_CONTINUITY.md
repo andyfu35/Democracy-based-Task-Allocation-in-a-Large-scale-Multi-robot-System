@@ -1993,3 +1993,27 @@ Implementation code, unit tests, canonical specification and this continuity ent
 
 ### E9B-2 source regression fixture accuracy note
 The dedicated new E9B-2 regression test fixture must actually drop physical Cost/Vote packets when labeling the scenario "complete loss": test_greedy_sender_budget adds AllLoss and checks physically emitted Commit only. The opt-out regression compares the legacy function call with NO send_budget keyword to the explicit send_budget=None call (rather than comparing two identical calls). This affects tests only and does not change scientific raw results or runtime behavior.
+
+
+## 2026-10-11 — E9B-3 original CBAA physical sender Bytes cap
+
+### Verification and objective
+The user's Mac output for the E9B-2 branch at exact SHA 9c24de1aa8c345536dccfab19db595c3850b3275 confirms 7/7 targeted Greedy budget tests and 159/159 total regression tests passed. Prior standalone E9A calibration is NOT a common hard-cap comparison. This single bounded code block activates existing E9B-1 per-SEND reservation within original CBAA own local auction/consensus transport, preserving incomplete partial iterations rather than censoring completed runs.
+
+### Modified files / exact functions and ownership
+- democracy_mrta/cbaa.py: CBAAResult (opt-in stop fields); validate_cbaa_sender_budget (data/CBAA_INVALID_SEND_BUDGET early validation); exchange_cbaa_consensus_packets (original CBAA physical packet emission, loop break on SenderBudgetExhausted, preserve already sent/received prefix); simulate_cbaa (original 2-phase local auction/consensus, count partial barrier when >=1 SEND, retain previous state when no SEND, stop after budget denial and still external observer audit only); require_cbaa_sender_budget_accounting (contract/CBAA_SEND_BUDGET_LEDGER_MISMATCH).
+- tests/test_cbaa_sender_budget.py: 9 named tests for cap zero, undersized first packet, single-sender prefix and exact local inbox, completed round then next attempt abort, second partial barrier, exact-fit old-run parity, audit-off physical ledger, total packet loss conflict preservation, malformed budget type.
+- docs/EXPERIMENT_PROTOCOL.md: canonical Section 22.
+- docs/CHANGE_CONTINUITY.md: this precise change description in same implementation tree.
+
+### Responsibility movement and deliberately changed behavior
+NO responsibility movement across original network / coordination / CBAA modules. network.reserve_sender_payload remains first physical admission owner and provides original runtime/SEND_PAYLOAD_BUDGET_EXHAUSTED diagnostic, coordination._broadcast_event remains physical event and sample constructor, cbaa.exchange_cbaa_consensus_packets retains independent receiver losses, cbaa.cbaa_auction_phase/cbaa_consensus_phase own only local state. simulate_cbaa itself remains the sole iteration owner, external audit remains a read-only observer. Only opt-in send_budget changes behavior: deny before packet emission, preserve actually delivered local packets, break without later iterations or fake global Commit, and record stop diagnostic. No change to E8 CLI or E9A saved raw, unbudgeted old SHA behavior or packet key sampling.
+
+### First failing diagnostic boundaries
+- network.reserve_sender_payload / runtime / SEND_PAYLOAD_BUDGET_EXHAUSTED (original expected next-packet remaining Bytes, actual attempted Bytes, phase/used/limit); preserved verbatim as CBAAResult.budget_stop_diagnostic.
+- democracy_mrta.cbaa.validate_cbaa_sender_budget / data / CBAA_INVALID_SEND_BUDGET.
+- democracy_mrta.cbaa.require_cbaa_sender_budget_accounting / contract / CBAA_SEND_BUDGET_LEDGER_MISMATCH.
+- Existing CBAA_DELIVERED_PACKET_WITHOUT_TIME and CBAA_DUPLICATE_OBSERVER_AGREEMENT unchanged.
+
+### Verified / pending / risks / next
+User-Mac 159/159 refers to PREVIOUS E9B-2 revision only. NEW E9B-3 source and test suite are pending local Mac tests; assistant execution has no checked-out GitHub repository and did not execute numerical E9B-3 experiments. Byte cap is sender application payload only, not physical radio airtime, and differing message reliability / success semantics still forbid claiming protocol superiority. Future E9B-4 must build separate paired immutable evidence runner with identical cap, seed, loss, R/T and no result censorship; run 3 seeds first, then 100 seeds after verifying independent network assumptions. Exact code commit SHA must be appended in a continuity-only follow-up after implementation is committed; never fabricate it.
