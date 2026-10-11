@@ -175,7 +175,7 @@ def validate_budget_source_row(
                 and 0 <= unconfirmed <= t
                 and agreed + unconfirmed == t
                 and 0 <= conflict <= unconfirmed
-                and 0 <= claims <= r
+                and 0 <= agreed <= claims <= r
                 and full == int(unconfirmed == 0 and conflict == 0)
                 and math.isfinite(task_rate)
                 and math.isclose(task_rate, agreed / t, abs_tol=1e-9)
