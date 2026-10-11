@@ -1,0 +1,31 @@
+name: E9F Cost Source Repetition
+
+on:
+  push:
+    branches:
+      - experiment/e9f-cost-redundancy
+    paths:
+      - democracy_mrta/coordination.py
+      - tests/test_e9f_cost_repetition.py
+      - .github/workflows/e9f_cost_repetition.yml
+
+permissions:
+  contents: read
+
+jobs:
+  original-cost-repetition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install project dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Test true Cost transmission source and backward compatibility
+        run: python -m unittest discover -s tests -p 'test_e9f_cost_repetition.py' -v
+      - name: Full repository unittest regression
+        run: python -m unittest discover -s tests -v > /tmp/e9f_regression.log 2>&1 || { tail -n 220 /tmp/e9f_regression.log; exit 1; }

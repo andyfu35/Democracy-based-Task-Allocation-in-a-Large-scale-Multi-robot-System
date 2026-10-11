@@ -2470,3 +2470,32 @@ NO code change; therefore no first-failure owner/function/category/code changes.
 
 ### Commit SHA
 Base HEAD at README rewrite: 130161646ed09c37071fe3a4742273983f232979. Exact README.md source-results restructuring + same-tree docs/CHANGE_CONTINUITY.md record commit: 30c28b5f5b9978ef784e313b3bf0ce031840da8f. This follow-up only pins the real SHA in continuity; it does not alter any source code, README table, figures, experimental data or canonical protocol.
+
+
+## 2026-10-11 — E9F-1 ORIGINAL Greedy Cost-source repetition, sender-paid and opt-in
+
+### Reason for this one bounded change
+User asked for the next experiment after verified E9E 100R50T 100 seeds ×52 sampled Packet Loss levels. Observed Democracy Commit collapses around 52–55%, while CBAA keeps rebroadcasting consensus vectors. E9F-1 modifies ONLY the true original Cost communication owner to test whether once-only initial Greedy Cost transmission drives the cliff, rather than masking the issue by a new wrapper/second state machine. Explicit planned Cost copies m=1/2/3/5; every byte/packet and physically independent per-receiver loss must be paid. The E9F-2 experiment/evidence owner is a later bounded concern.
+
+### Exact files, true owner and named functions
+- democracy_mrta/coordination.py:
+  - validate_cost_repetitions / data / INVALID_COST_REPETITIONS rejects noninteger, bool and outside 1..5, with expected/actual.
+  - validate_repeated_cost_scope / contract / REPEATED_COST_REQUIRES_GREEDY_COST_SOURCE rejects repeat>1 for Hungarian and peer-pose preknown_cost_snapshot, ensuring the variant uses the original Cost source.
+  - transmit_cost_row_copies is the sole physically sending owner of additional initial Cost packets, with copy-specific event/loss keys, physically reserved payload including every dropped packet and correct send_budget exhaustion.
+  - _broadcast_event and _lossy_broadcast_deliveries preserve EXACT original zero-copy keys by default and add transmission_index only for actual additional sender Cost copies.
+  - _simulate_lossy_cost_broadcasts remains the same cost visibility owner: only union physically received copies for each source, always self locally available; duplicate Cost receipts do NOT add extra visible rows or extra votes.
+  - capture_retirement_cost_snapshot forwards m once at run beginning and retains its actual paid Cost event+delivery proof across all later retirement epochs.
+  - simulate_democracy_hungarian_retirement exposes opt-in cost_repetitions=1 default, validates source/data and otherwise calls the SAME E2 Greedy voting/quorum/Score/Commit/membership owners.
+- tests/test_e9f_cost_repetition.py: 8 named regression and source-contract tests; runs along with entire old unittest regression in CI.
+- docs/EXPERIMENT_PROTOCOL.md canonical Section 33 freezes cost-packet schema/clock/copy-specific loss keys, statistical premise/limitations and legacy defaults.
+- .github/workflows/e9f_cost_repetition.yml tests original owner plus whole regression; CI success must be OBSERVED not asserted in advance.
+- docs/CHANGE_CONTINUITY.md this same implementation commit entry and SHA follow-up.
+
+### Preserved and deliberately changed behavior
+Original E0–E9E algorithms and source-faithful original CBAA, all Cost/Vote one-copy sender/receiver keys, default E9D/E9E 100-seed result pipeline, original Cost once, original per-voter votes, >25% Greedy plurality, reliability of Score/Commit, membership retirement, and observed source data all remain unchanged for m=1. Only m>1 pays a Cost packet of 16+8*T B per sender per extra copy, with separate Bernoulli loss keyed per physical copy. Original Cost readyness timer is retained EXACTLY for m=1; m>1 deliberately waits through m consecutive Cost timeout windows so future votes cannot use a late copy before it is physically delivered. One Cost source remains at round_id=0 no matter how many later voting rounds happen. No hidden robot states, no other owner bypass, no duplicate packet state machine. If a hard byte budget denies a Cost copy, that packet is NOT emitted, and no false Commit occurs.
+
+### First-failure diagnostic contract, risk and next
+New coordination.validate_cost_repetitions / data / INVALID_COST_REPETITIONS with expected integer [1,5] and actual value. New coordination.validate_repeated_cost_scope / contract / REPEATED_COST_REQUIRES_GREEDY_COST_SOURCE with expected actual source and copy inputs. Prior network.validate_packet_loss_probability, SenderPayloadBudget/denied physical SEND, original Greedy and CBAA diagnostics unchanged. Copy-specific loss keys ensure independent potential receipts, though random outcomes in 100 finite seeds are still statistical observations. Main risks: per-Cost m>1 open-loop timeout overhead, one-time source snapshot cannot change after announcement, CBAA stopping criteria still optimistic and not a paid distributed Commit. This code does NOT prove 55% success recovery; only the next 100seed measured Cost repetition sweep can conclude that. E9F-2 must re-run same paired seeds / loss conditions and retain actual Cost bytes, Vote, Score, Commit, CBAA local and external agreement, effective Cost reach and guard censor; then user runs on Mac, sends raw ZIP; publish only after independent SHA checking and user-approved new results.
+
+### Commit SHA
+E9F branch base exact SHA f39c6adc2951409354eb484dc79329c1039150cb. E9F-1 code+tests+canonical+continuity exact SHA to pin after GitHub commit via documentation-only follow-up. Tests not yet executed at time of writing.

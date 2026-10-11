@@ -78,6 +78,40 @@ class CoordinationTimingResult:
         return self.global_agreement_ms
 
 
+
+def validate_cost_repetitions(cost_repetitions: int) -> int:
+    """Cost transport data boundary: fixed sender-paid physical copies."""
+    if type(cost_repetitions) is not int or not 1 <= cost_repetitions <= 5:
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="validate_cost_repetitions",
+            category="data", code="INVALID_COST_REPETITIONS",
+            expected="integer in [1,5]", actual=cost_repetitions,
+        ))
+    return cost_repetitions
+
+
+def validate_repeated_cost_scope(
+    *,
+    cost_repetitions: int,
+    voting_strategy: str,
+    preknown_cost_snapshot: RetirementCostSnapshot | None,
+) -> None:
+    """Only the original Greedy once-per-run Cost source can repeat."""
+    if cost_repetitions != 1 and (
+        voting_strategy != "greedy_task" or preknown_cost_snapshot is not None
+    ):
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="validate_repeated_cost_scope",
+            category="contract", code="REPEATED_COST_REQUIRES_GREEDY_COST_SOURCE",
+            expected="greedy_task with physically emitted original Cost packets",
+            actual={
+                "voting_strategy": voting_strategy,
+                "preknown_snapshot": preknown_cost_snapshot is not None,
+                "cost_repetitions": cost_repetitions,
+            },
+        ))
+
+
 def cost_row_payload_bytes(num_tasks: int) -> int:
     return APP_HEADER_BYTES + num_tasks * FLOAT64_BYTES
 
@@ -136,6 +170,7 @@ def _broadcast_event(
     task_id: int | None = None,
     round_id: int = 0,
     announced_vote_count: int | None = None,
+    transmission_index: int = 0,
     send_budget: SenderPayloadBudget | None = None,
 ) -> CommunicationEvent:
     key = (
@@ -144,6 +179,10 @@ def _broadcast_event(
     )
     if round_id:
         key += f"|round={round_id}"
+    if transmission_index:
+        if round_id == 0:
+            key += "|round=0"
+        key += f"|copy={transmission_index}"
     if send_budget is not None:
         reserve_sender_payload(send_budget, payload_bytes=payload_bytes, phase=phase)
     latency_ms = float(sampler.sample_ms(key))
@@ -158,6 +197,7 @@ def _broadcast_event(
         task_id=task_id,
         round_id=round_id,
         announced_vote_count=announced_vote_count,
+        transmission_index=transmission_index,
     )
 
 
@@ -446,6 +486,8 @@ def _lossy_broadcast_deliveries(
             f"broadcast|{event.phase}|{event.sender_id}|{receiver_id}|"
             f"{event.task_id if event.task_id is not None else '-'}|round={round_id}"
         )
+        if event.transmission_index:
+            key += f"|copy={event.transmission_index}"
         delivered = bool(loss_sampler.is_delivered(key, p_loss))
         observations.append(
             DeliveryObservation(
@@ -456,6 +498,7 @@ def _lossy_broadcast_deliveries(
                 arrival_time_ms=event.arrival_time_ms if delivered else None,
                 task_id=event.task_id,
                 round_id=round_id,
+                transmission_index=event.transmission_index,
             )
         )
     return tuple(observations)
@@ -727,6 +770,53 @@ def simulate_leader_hungarian_lossy(
     )
 
 
+def transmit_cost_row_copies(
+    *,
+    sender_id: int,
+    receiver_ids: tuple[int, ...],
+    num_tasks: int,
+    num_robots: int,
+    sampler,
+    loss_sampler,
+    p_loss: float,
+    phase_timeout_ms: float,
+    round_id: int,
+    cost_repetitions: int,
+    send_budget: SenderPayloadBudget | None,
+) -> tuple[list[CommunicationEvent], list[DeliveryObservation]]:
+    """Physically emit each paid Cost copy; independent receiver loss per copy.
+
+    This is fixed open-loop sender repetition, NOT reliable ACK/ARQ. Repeat
+    copies never create extra cost rows, each copy has a unique physical key.
+    """
+    events: list[CommunicationEvent] = []
+    deliveries: list[DeliveryObservation] = []
+    for copy_index in range(cost_repetitions):
+        try:
+            event = _broadcast_event(
+                phase="cost",
+                sender_id=sender_id,
+                send_time_ms=copy_index * phase_timeout_ms,
+                payload_bytes=cost_row_payload_bytes(num_tasks),
+                sampler=sampler,
+                round_id=round_id,
+                transmission_index=copy_index,
+                send_budget=send_budget,
+            )
+        except SenderBudgetExhausted:
+            break
+        events.append(event)
+        deliveries.extend(_lossy_broadcast_deliveries(
+            event=event,
+            num_robots=num_robots,
+            loss_sampler=loss_sampler,
+            p_loss=p_loss,
+            round_id=round_id,
+            receiver_ids=receiver_ids,
+        ))
+    return events, deliveries
+
+
 def _simulate_lossy_cost_broadcasts(
     *,
     num_robots: int,
@@ -738,12 +828,15 @@ def _simulate_lossy_cost_broadcasts(
     round_id: int,
     robot_ids: tuple[int, ...] | None = None,
     send_budget: SenderPayloadBudget | None = None,
+    cost_repetitions: int = 1,
 ) -> tuple[
     list[CommunicationEvent],
     list[DeliveryObservation],
     tuple[frozenset[int], ...],
     tuple[float, ...],
 ]:
+    """Own each receiver's union of physically received Cost rows."""
+    copies = validate_cost_repetitions(cost_repetitions)
     physical_ids = tuple(range(num_robots)) if robot_ids is None else robot_ids
     local_index = {robot_id: idx for idx, robot_id in enumerate(physical_ids)}
     events: list[CommunicationEvent] = []
@@ -755,47 +848,50 @@ def _simulate_lossy_cost_broadcasts(
         [] for _ in range(num_robots)
     ]
 
-    for sender_local_id, sender_id in enumerate(physical_ids):
-        try:
-            event = _broadcast_event(
-                phase="cost",
-                sender_id=sender_id,
-                send_time_ms=0.0,
-                payload_bytes=cost_row_payload_bytes(num_tasks),
-                sampler=sampler,
-                round_id=round_id,
-                send_budget=send_budget,
-            )
-        except SenderBudgetExhausted:
-            # The denied packet was never emitted; previously sent Costs stay observable.
-            break
-        events.append(event)
-        observations = _lossy_broadcast_deliveries(
-            event=event,
+    for sender_id in physical_ids:
+        sent, observed = transmit_cost_row_copies(
+            sender_id=sender_id,
+            receiver_ids=physical_ids,
+            num_tasks=num_tasks,
             num_robots=num_robots,
+            sampler=sampler,
             loss_sampler=loss_sampler,
             p_loss=p_loss,
+            phase_timeout_ms=phase_timeout_ms,
             round_id=round_id,
-            receiver_ids=physical_ids,
+            cost_repetitions=copies,
+            send_budget=send_budget,
         )
-        deliveries.extend(observations)
-        for observation in observations:
+        events.extend(sent)
+        deliveries.extend(observed)
+        for observation in observed:
             if observation.delivered:
                 receiver_local_id = local_index[observation.receiver_id]
-                visible_by_receiver[receiver_local_id].add(sender_local_id)
+                visible_by_receiver[receiver_local_id].add(local_index[sender_id])
                 arrivals_by_receiver[receiver_local_id].append(
                     float(observation.arrival_time_ms)
                 )
+        if send_budget is not None and send_budget.denied_messages:
+            break
 
     visible = tuple(frozenset(rows) for rows in visible_by_receiver)
-    ready_times = tuple(
-        max(arrivals_by_receiver[receiver_id], default=0.0)
-        if len(visible[receiver_id]) == num_robots
-        else phase_timeout_ms
-        for receiver_id in range(num_robots)
-    )
+    if copies == 1:
+        # Preserve EXACT original one-Cost-copy vote-ready deadline semantics.
+        ready_times = tuple(
+            max(arrivals_by_receiver[receiver_id], default=0.0)
+            if len(visible[receiver_id]) == num_robots
+            else phase_timeout_ms
+            for receiver_id in range(num_robots)
+        )
+    else:
+        # All open-loop copies run through the final Cost phase timeout window.
+        # Never vote using a peer Cost that was not physically delivered.
+        deadline = copies * phase_timeout_ms
+        ready_times = tuple(
+            max(deadline, max(arrivals_by_receiver[receiver_id], default=0.0))
+            for receiver_id in range(num_robots)
+        )
     return events, deliveries, visible, ready_times
-
 
 def simulate_full_view_hungarian_lossy(
     *,
@@ -925,8 +1021,9 @@ def capture_retirement_cost_snapshot(
     p_loss: float,
     phase_timeout_ms: float,
     send_budget: SenderPayloadBudget | None = None,
+    cost_repetitions: int = 1,
 ) -> RetirementCostSnapshot:
-    """Disseminate every task's costs only once at the beginning of the run."""
+    """Build retained snapshot from only physically delivered original Costs."""
     num_robots, num_tasks = validate_cost_matrix(cost_matrix)
     events, deliveries, visible, ready_times = _simulate_lossy_cost_broadcasts(
         num_robots=num_robots,
@@ -937,6 +1034,7 @@ def capture_retirement_cost_snapshot(
         phase_timeout_ms=phase_timeout_ms,
         round_id=0,
         send_budget=send_budget,
+        cost_repetitions=cost_repetitions,
     )
     return RetirementCostSnapshot(
         robot_ids=tuple(range(num_robots)),
@@ -1696,6 +1794,7 @@ def simulate_democracy_hungarian_retirement(
     vote_repetitions: int = 1,
     send_budget: SenderPayloadBudget | None = None,
     preknown_cost_snapshot: RetirementCostSnapshot | None = None,
+    cost_repetitions: int = 1,
 ) -> MultiRoundRetirementResult:
     """Multi-round membership owner; reuses the same E2 single-round vote engine.
 
@@ -1719,6 +1818,12 @@ def simulate_democracy_hungarian_retirement(
     validate_packet_loss_probability(p_loss)
     validate_packet_loss_probability(p_vote_loss)
     validate_vote_repetitions(vote_repetitions)
+    validate_cost_repetitions(cost_repetitions)
+    validate_repeated_cost_scope(
+        cost_repetitions=cost_repetitions,
+        voting_strategy=voting_strategy,
+        preknown_cost_snapshot=preknown_cost_snapshot,
+    )
     validate_budgeted_retirement_scope(
         send_budget=send_budget, voting_strategy=voting_strategy,
         vote_decision_rule=vote_decision_rule, vote_repetitions=vote_repetitions,
@@ -1746,6 +1851,7 @@ def simulate_democracy_hungarian_retirement(
                 p_loss=p_loss,
                 phase_timeout_ms=phase_timeout_ms,
                 send_budget=send_budget,
+                cost_repetitions=cost_repetitions,
             )
             if voting_strategy == "greedy_task" else None
         )
