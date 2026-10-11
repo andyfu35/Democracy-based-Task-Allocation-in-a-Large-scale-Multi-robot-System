@@ -2253,3 +2253,28 @@ Existing config/data/planning errors E9C2_INVALID_SCENARIO_GRID/E9C2_INVALID_K_G
 
 ### Exact implementation commit SHA
 Source branch before E9C-2r1 code edits: e9856098774963b71ce6fb708b57eff213a57e22. Exact implementation source+tests+canonical+same-tree continuity+workflow commit: d673c00d01c9e1d4b865f1ff2139e8e56f32f893. This follow-up updates only the continuity file; no code changes or retrospective claims about yet-unverified 100-seed CI results.
+
+
+## 2026-10-11 — E9C-2r1 corrected ORIGINAL-ONLY CBAA 100-seed CI successfully verified (docs-only)
+
+### Exact tested revision, artifacts and SHA verification
+GitHub Actions execution run 38112992924 concluded SUCCESS, with original-only executable SHA d673c00d01c9e1d4b865f1ff2139e8e56f32f893. Link: https://github.com/andyfu35/Democracy-based-Task-Allocation-in-a-Large-scale-Multi-robot-System/actions/runs/38112992924 . Dedicated test_e9c_100seed_comms.py 8/8 pass, full unittest regression succeeded, and all 100 seeds (0..99) of 100 Robots / 50 Tasks / zero packet loss / fixed synthetic 1ms latency / original CBAA K=(1,2,3,4,5,6,8) completed.
+
+New GitHub Actions artifact ID 11692341928 is e9c-100seed-original-cbaa-only-evidence. Its extracted files were independently verified in the container, not merely read from CI printouts: manifest.json reports tested Git SHA, seeds=100, expected_rows=all_rows=800, no_optional_nonstandard_cbaa_variants=true, no_peer_robot_position_broadcast=true. Actual CSV parsing confirmed 800 raw rows (100 distinct seed rows per method), 8 distinct methods EXACTLY democracy_task_cost_vote + original CBAA K1,K2,K3,K4,K5,K6,K8, summary.csv 8 rows, offline_min_cbaa_k_per_seed.csv 100 rows, all sender peer-robot pose Bytes=0, all TASK announcement sender Bytes=1632, and every supplied CSV SHA256 matches actual extracted file bytes. Old previously uploaded 1500-row historical CI artifact and original E9B/E9C experiments stay immutable and should NOT be used as corrected primary raw.
+
+### Actual primary method results, preserved original algorithms
+- Democracy original Task + original Cost + Vote + Score + reliable Commit: 165432 sender payload B per seed, 100/100 FULL actual Commit.
+- Original CBAA K1: 63232 B, 0/100 full POST-HOC observer agreement.
+- Original CBAA K2: 124832 B, 29/100 full observer agreement.
+- Original CBAA K3: 186432 B, 86/100 full observer agreement.
+- Original CBAA K4: 248032 B, 98/100 full observer agreement.
+- Original CBAA K5: 309632 B, 99/100 full observer agreement.
+- Original CBAA K6: 371232 B, 100/100 full observer agreement.
+- Original CBAA K8: 494432 B, 100/100 full observer agreement.
+Offline earliest K distribution is K2=29, K3=57, K4=12, K5=1, K6=1; this is NOT implementable CBAA distributed stop, and full observer agreement is NOT an actual final Commit. Actual original-only results coincide with the original method rows in the earlier E9C-2 mixed-method report, verifying that the removed NONSTANDARD robot-POSE ablation did not influence the original CBAA computation.
+
+### Source-change ownership and diagnostic contract
+This successful verification is documentation ONLY. No source, original CBAA owner/auction/consensus, Greedy election/Commit owner, task information owner, first failing diagnostic categories/codes, or canonical specifications change. Section 26 remains current governing protocol, and Section 25 is prior historical design. All original CBAA K variants require just their own locally reconstructed cost row and physically counted Bid/Winner broadcasts after a common TASK announcement. No other robot state broadcast was introduced. Remaining research constraints: synchronous fully connected fixed-K CBAA reference adaptation; observer-versus-actual-Commit distinction; sender application payload modeled for Cost/Vote/Score/Commit/Bid despite TASK actually packed; no packet loss in this specific 100-seed result, no ACK/retransmit/MAC/PHY airtime and no decentralized termination. Do not assert all-packets raw-wire full realism or universal sample-free algorithm superiority.
+
+### Exact SHA
+Executed source SHA d673c00d01c9e1d4b865f1ff2139e8e56f32f893, CI run 38112992924 completed success. This continuity-only follow-up is NOT a code modification or new tested executable.
