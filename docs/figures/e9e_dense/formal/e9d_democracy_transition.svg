@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="710" viewBox="0 0 1200 710" role="img">
+<title>High-resolution transition: 40-65% packet loss</title>
+<desc>Only measured probability points, not simulated interpolation. 100 paired seeds; pointwise Wilson 95% CI; CBAA local stop is optimistic, not a distributed Commit</desc>
+<rect x="0" y="0" width="1200" height="710" fill="#ffffff"/>
+<text x="80" y="52" font-family="Arial,sans-serif" font-size="27" font-weight="700" fill="#1b2838">High-resolution transition: 40-65% packet loss</text>
+<text x="80" y="81" font-family="Arial,sans-serif" font-size="15" fill="#4e5d6d">Only measured probability points, not simulated interpolation</text>
+<line x1="85" y1="118" x2="114" y2="118" stroke="#2164B5" stroke-width="4"/>
+<circle cx="99" cy="118" r="4" fill="#2164B5"/>
+<text x="123" y="123" font-family="Arial,sans-serif" font-size="15" fill="#253548">Democracy: actual Commit</text>
+<line x1="445" y1="118" x2="474" y2="118" stroke="#D07B21" stroke-width="4"/>
+<circle cx="459" cy="118" r="4" fill="#D07B21"/>
+<text x="483" y="123" font-family="Arial,sans-serif" font-size="15" fill="#253548">CBAA: local certificate</text>
+<line x1="110" y1="590.00" x2="1140" y2="590.00" stroke="#e3e8ef" stroke-width="1"/>
+<text x="98" y="595.00" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">0</text>
+<line x1="110" y1="485.75" x2="1140" y2="485.75" stroke="#e3e8ef" stroke-width="1"/>
+<text x="98" y="490.75" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">25</text>
+<line x1="110" y1="381.50" x2="1140" y2="381.50" stroke="#e3e8ef" stroke-width="1"/>
+<text x="98" y="386.50" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">50</text>
+<line x1="110" y1="277.25" x2="1140" y2="277.25" stroke="#e3e8ef" stroke-width="1"/>
+<text x="98" y="282.25" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">75</text>
+<line x1="110" y1="173.00" x2="1140" y2="173.00" stroke="#e3e8ef" stroke-width="1"/>
+<text x="98" y="178.00" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">100</text>
+<line x1="110.00" y1="173" x2="110.00" y2="590" stroke="#f0f3f6" stroke-width="1"/>
+<text x="110.00" y="617" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">40%</text>
+<line x1="316.00" y1="173" x2="316.00" y2="590" stroke="#f0f3f6" stroke-width="1"/>
+<text x="316.00" y="617" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">45%</text>
+<line x1="522.00" y1="173" x2="522.00" y2="590" stroke="#f0f3f6" stroke-width="1"/>
+<text x="522.00" y="617" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">50%</text>
+<line x1="728.00" y1="173" x2="728.00" y2="590" stroke="#f0f3f6" stroke-width="1"/>
+<text x="728.00" y="617" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">55%</text>
+<line x1="934.00" y1="173" x2="934.00" y2="590" stroke="#f0f3f6" stroke-width="1"/>
+<text x="934.00" y="617" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">60%</text>
+<line x1="1140.00" y1="173" x2="1140.00" y2="590" stroke="#f0f3f6" stroke-width="1"/>
+<text x="1140.00" y="617" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">65%</text>
+<line x1="110" y1="590" x2="1140" y2="590" stroke="#9ca9b8" stroke-width="1.5"/>
+<line x1="110" y1="173" x2="110" y2="590" stroke="#9ca9b8" stroke-width="1.5"/>
+<text x="80" y="151" font-family="Arial,sans-serif" font-size="14" font-weight="600" fill="#415467">Complete rate (%)</text>
+<text x="625" y="651" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" fill="#344558">Packet loss probability</text>
+<polygon points="110.00,188.43 151.20,188.43 192.40,188.43 233.60,188.43 274.80,188.43 316.00,188.43 357.20,188.43 398.40,188.43 439.60,195.72 480.80,195.72 522.00,188.43 563.20,195.72 604.40,240.66 645.60,359.59 686.80,554.45 728.00,590.00 769.20,590.00 810.40,590.00 851.60,590.00 892.80,590.00 934.00,590.00 975.20,590.00 1016.40,590.00 1057.60,590.00 1098.80,590.00 1140.00,590.00 1140.00,574.57 1098.80,574.57 1057.60,574.57 1016.40,574.57 975.20,574.57 934.00,574.57 892.80,574.57 851.60,574.57 810.40,574.57 769.20,574.57 728.00,574.57 686.80,497.69 645.60,282.94 604.40,193.05 563.20,173.74 522.00,173.00 480.80,173.74 439.60,173.74 398.40,173.00 357.20,173.00 316.00,173.00 274.80,173.00 233.60,173.00 192.40,173.00 151.20,173.00 110.00,173.00" fill="#2164B5" opacity="0.11"/>
+<polyline points="110.00,173.00 151.20,173.00 192.40,173.00 233.60,173.00 274.80,173.00 316.00,173.00 357.20,173.00 398.40,173.00 439.60,177.17 480.80,177.17 522.00,173.00 563.20,177.17 604.40,210.53 645.60,318.95 686.80,531.62 728.00,590.00 769.20,590.00 810.40,590.00 851.60,590.00 892.80,590.00 934.00,590.00 975.20,590.00 1016.40,590.00 1057.60,590.00 1098.80,590.00 1140.00,590.00" fill="none" stroke="#2164B5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="110.00" cy="173.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="151.20" cy="173.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="192.40" cy="173.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="233.60" cy="173.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="274.80" cy="173.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="316.00" cy="173.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="357.20" cy="173.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="398.40" cy="173.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="439.60" cy="177.17" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="480.80" cy="177.17" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="522.00" cy="173.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="563.20" cy="177.17" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="604.40" cy="210.53" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="645.60" cy="318.95" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="686.80" cy="531.62" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="728.00" cy="590.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="769.20" cy="590.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="810.40" cy="590.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="851.60" cy="590.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="892.80" cy="590.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="934.00" cy="590.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="975.20" cy="590.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="1016.40" cy="590.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="1057.60" cy="590.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="1098.80" cy="590.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="1140.00" cy="590.00" r="3.2" fill="#2164B5" stroke="#ffffff" stroke-width=".8"/>
+<polygon points="110.00,188.43 151.20,188.43 192.40,188.43 233.60,188.43 274.80,188.43 316.00,188.43 357.20,188.43 398.40,188.43 439.60,188.43 480.80,188.43 522.00,188.43 563.20,188.43 604.40,188.43 645.60,188.43 686.80,188.43 728.00,188.43 769.20,188.43 810.40,188.43 851.60,188.43 892.80,188.43 934.00,188.43 975.20,188.43 1016.40,188.43 1057.60,188.43 1098.80,188.43 1140.00,188.43 1140.00,173.00 1098.80,173.00 1057.60,173.00 1016.40,173.00 975.20,173.00 934.00,173.00 892.80,173.00 851.60,173.00 810.40,173.00 769.20,173.00 728.00,173.00 686.80,173.00 645.60,173.00 604.40,173.00 563.20,173.00 522.00,173.00 480.80,173.00 439.60,173.00 398.40,173.00 357.20,173.00 316.00,173.00 274.80,173.00 233.60,173.00 192.40,173.00 151.20,173.00 110.00,173.00" fill="#D07B21" opacity="0.11"/>
+<polyline points="110.00,173.00 151.20,173.00 192.40,173.00 233.60,173.00 274.80,173.00 316.00,173.00 357.20,173.00 398.40,173.00 439.60,173.00 480.80,173.00 522.00,173.00 563.20,173.00 604.40,173.00 645.60,173.00 686.80,173.00 728.00,173.00 769.20,173.00 810.40,173.00 851.60,173.00 892.80,173.00 934.00,173.00 975.20,173.00 1016.40,173.00 1057.60,173.00 1098.80,173.00 1140.00,173.00" fill="none" stroke="#D07B21" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="110.00" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="151.20" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="192.40" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="233.60" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="274.80" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="316.00" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="357.20" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="398.40" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="439.60" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="480.80" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="522.00" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="563.20" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="604.40" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="645.60" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="686.80" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="728.00" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="769.20" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="810.40" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="851.60" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="892.80" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="934.00" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="975.20" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="1016.40" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="1057.60" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="1098.80" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="1140.00" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<text x="80" y="683" font-family="Arial,sans-serif" font-size="13" fill="#68778a">100 paired seeds; pointwise Wilson 95% CI; CBAA local stop is optimistic, not a distributed Commit</text>
+</svg>
