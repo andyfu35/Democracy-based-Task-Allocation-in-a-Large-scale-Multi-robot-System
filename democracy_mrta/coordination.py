@@ -853,6 +853,70 @@ class RetirementCostSnapshot:
     budget_exhausted: bool = False
 
 
+
+def build_received_pose_retirement_snapshot(
+    *,
+    per_robot_positions: tuple[tuple[tuple[float, float], ...], ...],
+) -> RetirementCostSnapshot:
+    """Original Greedy cost-visibility owner: accept only physically full peer poses.
+
+    Information transport must have decoded every peer pose for every voter
+    BEFORE calling this function. No Cost rows are then transmitted: each
+    voter can locally derive every cost from the received tasks and poses.
+    """
+    robots = len(per_robot_positions)
+    full = frozenset(range(robots))
+    if not robots or any(len(view) != robots for view in per_robot_positions):
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="build_received_pose_retirement_snapshot",
+            category="dependency", code="INCOMPLETE_PEER_POSE_VIEWS",
+            expected=f"complete {robots}x{robots} physically received robot poses",
+            actual=tuple(len(view) for view in per_robot_positions),
+        ))
+    for voter_id, view in enumerate(per_robot_positions):
+        for owner_id, claimed_pose in enumerate(view):
+            if claimed_pose != per_robot_positions[owner_id][owner_id]:
+                raise ProtocolError(Diagnostic(
+                    owner="coordination", function="build_received_pose_retirement_snapshot",
+                    category="contract", code="INCONSISTENT_PEER_POSE_SOURCE",
+                    expected=per_robot_positions[owner_id][owner_id],
+                    actual=claimed_pose,
+                    details=f"voter={voter_id}; source={owner_id}",
+                ))
+    return RetirementCostSnapshot(
+        robot_ids=tuple(range(robots)),
+        visible_by_voter=tuple(full for _ in range(robots)),
+        ready_times_ms=tuple(0.0 for _ in range(robots)),
+        events=(),
+        deliveries=(),
+    )
+
+
+def validate_preknown_retirement_cost_snapshot(
+    *,
+    snapshot: RetirementCostSnapshot,
+    num_robots: int,
+    voting_strategy: str,
+) -> None:
+    """Require an all-peer, sender-accounted external information provenance."""
+    expected_ids = tuple(range(num_robots))
+    if (
+        type(snapshot) is not RetirementCostSnapshot
+        or voting_strategy != "greedy_task"
+        or snapshot.robot_ids != expected_ids
+        or snapshot.visible_by_voter != tuple(frozenset(expected_ids) for _ in expected_ids)
+        or snapshot.ready_times_ms != tuple(0.0 for _ in expected_ids)
+        or snapshot.events or snapshot.deliveries or snapshot.budget_exhausted
+    ):
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="validate_preknown_retirement_cost_snapshot",
+            category="contract", code="INVALID_PREKNOWN_COST_PROVENANCE",
+            expected="Greedy all-robot physically received poses; no unpaid Cost events",
+            actual=(type(snapshot).__name__, voting_strategy,
+                    getattr(snapshot, "robot_ids", None)),
+        ))
+
+
 def capture_retirement_cost_snapshot(
     *,
     cost_matrix: tuple[tuple[float, ...], ...],
@@ -1631,6 +1695,7 @@ def simulate_democracy_hungarian_retirement(
     vote_decision_rule: str = "strict_majority",
     vote_repetitions: int = 1,
     send_budget: SenderPayloadBudget | None = None,
+    preknown_cost_snapshot: RetirementCostSnapshot | None = None,
 ) -> MultiRoundRetirementResult:
     """Multi-round membership owner; reuses the same E2 single-round vote engine.
 
@@ -1666,17 +1731,24 @@ def simulate_democracy_hungarian_retirement(
         voting_strategy=voting_strategy,
         num_tasks=(1 if voting_strategy == "greedy_task" else num_tasks),
     )
-    snapshot = (
-        capture_retirement_cost_snapshot(
-            cost_matrix=cost_matrix,
-            sampler=sampler,
-            loss_sampler=loss_sampler,
-            p_loss=p_loss,
-            phase_timeout_ms=phase_timeout_ms,
-            send_budget=send_budget,
+    if preknown_cost_snapshot is not None:
+        validate_preknown_retirement_cost_snapshot(
+            snapshot=preknown_cost_snapshot, num_robots=num_robots,
+            voting_strategy=voting_strategy,
         )
-        if voting_strategy == "greedy_task" else None
-    )
+        snapshot = preknown_cost_snapshot
+    else:
+        snapshot = (
+            capture_retirement_cost_snapshot(
+                cost_matrix=cost_matrix,
+                sampler=sampler,
+                loss_sampler=loss_sampler,
+                p_loss=p_loss,
+                phase_timeout_ms=phase_timeout_ms,
+                send_budget=send_budget,
+            )
+            if voting_strategy == "greedy_task" else None
+        )
     membership = initialize_retirement_membership(
         num_robots=num_robots,
         num_tasks=num_tasks,
