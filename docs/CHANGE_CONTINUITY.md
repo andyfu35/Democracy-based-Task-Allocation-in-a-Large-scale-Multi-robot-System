@@ -1953,4 +1953,4 @@ An explicit opt-in budget at one physical unicast/broadcast constructor makes an
 - Next: run python3 -m unittest discover -s tests -v on this branch and inspect any diagnostics. Only then integrate ONE runtime owner at a time, with new continuity record and tests, before formal experiments.
 
 ### Commit SHA
-Code/tests/canonical implementation SHA will be recorded in a following continuity-only commit. This entry accompanies the implementation tree; branch base is 68499c9c631b54f2d95cb5b66786525e382a68b3.
+Code/test/canonical implementation SHA: `82bd91e36a2c4ef94d356196da7fe4eb9d68bc27`. This continuity-only follow-up commit records that exact implementation SHA; branch base was `68499c9c631b54f2d95cb5b66786525e382a68b3`.
