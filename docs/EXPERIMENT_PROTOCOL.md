@@ -1243,3 +1243,34 @@ Formal:
 All files go only to brand-new results/e9d_* roots. raw per_seed_loss_method.csv includes both original method rows per seed/p, task/cost/vote/score/commit/bid Bytes, delivered/dropped, rounds, current actual Commit or local-CBAA certify and post-hoc full observer, explicit stop_reason and guard; summary_by_loss.csv aggregates all seeds and guard-censored cases; manifest.json has reproducible full SHA and Sha256. When stopped during the run, per_seed_loss_method.partial.csv is flushed and can be inspected but the current version does not automatically resume; restart in a NEW root or smaller seed partition, never overwrite partial. A future resume protocol is another bounded evidence-owner concern.
 
 E9D-2 is first a short smoke and user-Mac 3-seed pilot, NOT a claim that 70%-90% packet loss yields full consensus. If 160-round guard masks high-p results, rerun the SAME methods with a clearly different, explicitly documented guard and distinct output root; DO NOT reinterpret guard as a physical packet-loss impossibility. Zero packet loss vs higher loss may also differ due the necessary Cost single-send and CBAA repeated bid transmission, which is the actual algorithmic robustness comparison under the specified controls.
+
+
+## 29. E9E-1 loss-axis density presets: unchanged E9D algorithm and evidence contract
+
+### 29.1 Purpose and boundaries
+
+The user wants denser experimentally sampled curves near the Democracy abrupt drop around 50%-60% and CBAA high-loss guard censoring near 90%-99%, before posting independently verified figures and data into README. E9E-1 changes only the experiment loss sampling grid, NEVER the original CBAA auction/consensus or peer-local certificate, original Democracy Cost/Vote/Commit, network sampler or any packet sizes.
+
+The one named data owner experiments.run_e9d_natural_loss.resolve_e9d_loss_grid_profile(profile, explicit_losses) builds an ascending unique integer-percent-based probability tuple. Named profiles:
+- legacy: EXACT original 11-point E9D-2 default (0,.10,.20,.30,.40,.50,.60,.70,.80,.90,.95). Unchanged existing CLI defaults.
+- transition: 5%-spaced global baseline 0 to 95% PLUS every 1% in 40..65% inclusive: 40 unique levels.
+- tail: 5%-spaced global baseline 0 to 95% PLUS every 1% in 85..99% inclusive: 32 unique levels.
+- dense: union of transition/tail: 52 unique levels (base 5% plus both high-density bands). For 100 paired seeds and 2 original algorithms exactly 52*100*2=10400 method runs. Every profile contains p=0 baseline.
+
+CLI --loss-grid-profile accepts legacy,transition,tail,dense; former --loss-probabilities comma-list stays available. With no selection existing behavior remains byte-for-byte identical; explicit probabilities in legacy mode override the default as before. Explicit --loss-probabilities together with nonlegacy profile is rejected by TRUE data owner resolve_e9d_loss_grid_profile, category=data, code=E9D_CONFLICTING_LOSS_GRID_CHOICES, expected named profile OR explicit list, actual both. Unknown programmatic profile fails at the SAME owner/function/data/E9D_UNKNOWN_LOSS_GRID_PROFILE. No silent precedence and no duplicate experimental state machine. Existing validate_e9d_natural_loss_axes retains final probability checks.
+
+### 29.2 Experimental controls and runnable Mac command
+
+Keep 100R/50T, 100 paired seeds, original independent per-receiver Bernoulli packet loss, original true Democracy Commit and original CBAA external observer agreement versus peer-local certification separate, TASK announcements guaranteed/charged, original CBAA optimistic simulation aggregate stop, and default CBAA safety guard160 and Democracy retry guard300. A guard-limited failure is censored, NOT mathematical impossibility. A 100/100 empirical success count is a finite-sample fact, NOT general guaranteed reliability. Do not interpolate between sampled p levels as if directly measured. Reusing old results in README without noting original coarser sampling is forbidden.
+
+3-seed pilot (52 p values):
+    python3 -m experiments.run_e9d_natural_loss --robots 100 --tasks 50 --seeds 3 --loss-grid-profile dense --output-root results/e9d_e9e_dense_pilot_3seed
+
+100-seed formal (10400 original protocol simulations):
+    python3 -m experiments.run_e9d_natural_loss --robots 100 --tasks 50 --seeds 100 --loss-grid-profile dense --cbaa-safety-round-limit 160 --democracy-safety-round-limit 300 --output-root results/e9d_e9e_dense_formal_100seed
+
+Smaller focus datasets: transition has 40 p levels; tail has 32. Each independently produces immutable E9D per_seed_loss_method.csv, summary_by_loss.csv, manifest.json with original per-seed raw and provenance; a fresh output root is mandatory. Figure generation and README update occur ONLY after formal evidence verification in a separate bounded change.
+
+### 29.3 Named functions, diagnostic and tests
+
+Changed experiments/run_e9d_natural_loss.py ONLY for resolve_e9d_loss_grid_profile (experiment data owner) and CLI main (arguments only); run_e9d_natural_loss and original algorithm owners are unchanged. NEW tests/test_e9e_dense_grid.py has 6 named tests for legacy parity, 52/40/32 profiles, conflict/unknown first-failure diagnostics and original canonical validation. docs/CHANGE_CONTINUITY.md documents this change in the same commit. No new dense numerical results are claimed until local execution.

@@ -43,6 +43,45 @@ DEFAULT_ROOT = Path("results/e9d_natural_loss")
 EXPECTED_METHODS = ("democracy_cost_vote", "cbaa_original_local_certified")
 
 
+
+def resolve_e9d_loss_grid_profile(
+    *, profile: str, explicit_losses: tuple[float, ...] | None,
+) -> tuple[float, ...]:
+    """Experiment data owner: deterministic integer-percent dense loss levels.
+
+    The existing legacy default and explicit --loss-probabilities remain
+    byte-for-byte compatible. A named dense profile cannot silently override
+    explicit probabilities. Profiles are inclusive 1%-step near both knees:
+    - transition: baseline 5%-steps plus 40..65% at 1%
+    - tail: baseline 5%-steps plus 85..99% at 1%
+    - dense: union of both (52 distinct loss levels)
+    """
+    named = ("legacy", "transition", "tail", "dense")
+    if profile not in named:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="resolve_e9d_loss_grid_profile",
+            category="data", code="E9D_UNKNOWN_LOSS_GRID_PROFILE",
+            expected=named, actual=profile,
+        ))
+    if explicit_losses is not None and profile != "legacy":
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="resolve_e9d_loss_grid_profile",
+            category="data", code="E9D_CONFLICTING_LOSS_GRID_CHOICES",
+            expected="named profile OR explicit --loss-probabilities",
+            actual={"profile": profile, "explicit_losses": explicit_losses},
+        ))
+    if explicit_losses is not None:
+        return explicit_losses
+    if profile == "legacy":
+        return DEFAULT_GRID
+    percents = set(range(0, 100, 5))
+    if profile in ("transition", "dense"):
+        percents.update(range(40, 66))
+    if profile in ("tail", "dense"):
+        percents.update(range(85, 100))
+    return tuple(percent / 100.0 for percent in sorted(percents))
+
+
 def validate_e9d_natural_loss_axes(
     *,
     robots: int, tasks: int, seeds: int, first_seed: int,
@@ -440,7 +479,10 @@ def main() -> None:
     parser.add_argument("--seeds",type=int,default=100)
     parser.add_argument("--first-seed",type=int,default=0)
     parser.add_argument("--loss-probabilities",type=parse_probabilities,
-                        default=DEFAULT_GRID)
+                        default=None)
+    parser.add_argument("--loss-grid-profile",
+                        choices=("legacy", "transition", "tail", "dense"),
+                        default="legacy")
     parser.add_argument("--cbaa-safety-round-limit",type=int,default=160)
     parser.add_argument("--democracy-safety-round-limit",type=int,default=300)
     parser.add_argument("--latency-mode",choices=("constant","rady"),default="constant")
@@ -449,9 +491,13 @@ def main() -> None:
     parser.add_argument("--no-download",action="store_true")
     parser.add_argument("--output-root",type=Path,default=DEFAULT_ROOT)
     args=parser.parse_args()
+    selected_losses = resolve_e9d_loss_grid_profile(
+        profile=args.loss_grid_profile,
+        explicit_losses=args.loss_probabilities,
+    )
     run_e9d_natural_loss(
         robots=args.robots,tasks=args.tasks,seeds=args.seeds,
-        first_seed=args.first_seed,loss_probabilities=args.loss_probabilities,
+        first_seed=args.first_seed,loss_probabilities=selected_losses,
         cbaa_safety_round_limit=args.cbaa_safety_round_limit,
         democracy_safety_round_limit=args.democracy_safety_round_limit,
         latency_mode=args.latency_mode,dataset_path=args.dataset,
