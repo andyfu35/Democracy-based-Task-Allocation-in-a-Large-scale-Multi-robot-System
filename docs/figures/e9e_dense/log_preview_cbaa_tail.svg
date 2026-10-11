@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 590" width="1040" height="590" role="img">
+<title>CBAA local readiness above 85% loss</title>
+<desc>Received-peer certificate vs safety guard hit; not an assignment Commit. Terminal-log preview only. Raw archive not independently verified.</desc>
+<rect width="1040" height="590" fill="white"/>
+<text x="65" y="46" font-family="Arial,sans-serif" font-size="25" fill="#182c40" font-weight="700">CBAA local readiness above 85% loss</text>
+<text x="65" y="77" font-family="Arial,sans-serif" font-size="15" fill="#516274">Received-peer certificate vs safety guard hit; not an assignment Commit</text>
+<text x="65" y="110" font-family="Arial,sans-serif" font-size="13" fill="#ab561f" font-weight="600">PREVIEW FROM MAC TERMINAL LOG — ORIGINAL CSV / MANIFEST NOT YET UPLOADED</text>
+<line x1="93" y1="479.00" x2="1009" y2="479.00" stroke="#e9edf1"/>
+<text x="80" y="483.00" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#617182">0%</text>
+<line x1="93" y1="411.60" x2="1009" y2="411.60" stroke="#e9edf1"/>
+<text x="80" y="415.60" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#617182">20%</text>
+<line x1="93" y1="344.20" x2="1009" y2="344.20" stroke="#e9edf1"/>
+<text x="80" y="348.20" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#617182">40%</text>
+<line x1="93" y1="276.80" x2="1009" y2="276.80" stroke="#e9edf1"/>
+<text x="80" y="280.80" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#617182">60%</text>
+<line x1="93" y1="209.40" x2="1009" y2="209.40" stroke="#e9edf1"/>
+<text x="80" y="213.40" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#617182">80%</text>
+<line x1="93" y1="142.00" x2="1009" y2="142.00" stroke="#e9edf1"/>
+<text x="80" y="146.00" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#617182">100%</text>
+<line x1="93.00" y1="142" x2="93.00" y2="479.00" stroke="#f2f4f6"/>
+<text x="93.00" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">85%</text>
+<line x1="223.86" y1="142" x2="223.86" y2="479.00" stroke="#f2f4f6"/>
+<text x="223.86" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">87%</text>
+<line x1="354.71" y1="142" x2="354.71" y2="479.00" stroke="#f2f4f6"/>
+<text x="354.71" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">89%</text>
+<line x1="485.57" y1="142" x2="485.57" y2="479.00" stroke="#f2f4f6"/>
+<text x="485.57" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">91%</text>
+<line x1="616.43" y1="142" x2="616.43" y2="479.00" stroke="#f2f4f6"/>
+<text x="616.43" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">93%</text>
+<line x1="747.29" y1="142" x2="747.29" y2="479.00" stroke="#f2f4f6"/>
+<text x="747.29" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">95%</text>
+<line x1="878.14" y1="142" x2="878.14" y2="479.00" stroke="#f2f4f6"/>
+<text x="878.14" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">97%</text>
+<line x1="1009.00" y1="142" x2="1009.00" y2="479.00" stroke="#f2f4f6"/>
+<text x="1009.00" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">99%</text>
+<polyline fill="none" stroke="#cf782a" stroke-width="3" points="93.0,142.0 158.4,142.0 223.9,142.0 289.3,142.0 354.7,142.0 420.1,142.0 485.6,142.0 551.0,152.1 616.4,185.8 681.9,317.2 747.3,472.3 812.7,479.0 878.1,479.0 943.6,479.0 1009.0,479.0"/>
+<circle cx="93.0" cy="142.0" r="3" fill="#cf782a"/>
+<circle cx="158.4" cy="142.0" r="3" fill="#cf782a"/>
+<circle cx="223.9" cy="142.0" r="3" fill="#cf782a"/>
+<circle cx="289.3" cy="142.0" r="3" fill="#cf782a"/>
+<circle cx="354.7" cy="142.0" r="3" fill="#cf782a"/>
+<circle cx="420.1" cy="142.0" r="3" fill="#cf782a"/>
+<circle cx="485.6" cy="142.0" r="3" fill="#cf782a"/>
+<circle cx="551.0" cy="152.1" r="3" fill="#cf782a"/>
+<circle cx="616.4" cy="185.8" r="3" fill="#cf782a"/>
+<circle cx="681.9" cy="317.2" r="3" fill="#cf782a"/>
+<circle cx="747.3" cy="472.3" r="3" fill="#cf782a"/>
+<circle cx="812.7" cy="479.0" r="3" fill="#cf782a"/>
+<circle cx="878.1" cy="479.0" r="3" fill="#cf782a"/>
+<circle cx="943.6" cy="479.0" r="3" fill="#cf782a"/>
+<circle cx="1009.0" cy="479.0" r="3" fill="#cf782a"/>
+<line x1="70" y1="485" x2="99" y2="485" stroke="#cf782a" stroke-width="3"/>
+<circle cx="84" cy="485" r="3" fill="#cf782a"/>
+<text x="109" y="490" font-size="14" font-family="Arial,sans-serif" fill="#283e55">CBAA: local certification</text>
+<polyline fill="none" stroke="#8191a2" stroke-width="3" points="93.0,479.0 158.4,479.0 223.9,479.0 289.3,479.0 354.7,479.0 420.1,479.0 485.6,479.0 551.0,468.9 616.4,435.2 681.9,303.8 747.3,148.7 812.7,142.0 878.1,142.0 943.6,142.0 1009.0,142.0"/>
+<circle cx="93.0" cy="479.0" r="3" fill="#8191a2"/>
+<circle cx="158.4" cy="479.0" r="3" fill="#8191a2"/>
+<circle cx="223.9" cy="479.0" r="3" fill="#8191a2"/>
+<circle cx="289.3" cy="479.0" r="3" fill="#8191a2"/>
+<circle cx="354.7" cy="479.0" r="3" fill="#8191a2"/>
+<circle cx="420.1" cy="479.0" r="3" fill="#8191a2"/>
+<circle cx="485.6" cy="479.0" r="3" fill="#8191a2"/>
+<circle cx="551.0" cy="468.9" r="3" fill="#8191a2"/>
+<circle cx="616.4" cy="435.2" r="3" fill="#8191a2"/>
+<circle cx="681.9" cy="303.8" r="3" fill="#8191a2"/>
+<circle cx="747.3" cy="148.7" r="3" fill="#8191a2"/>
+<circle cx="812.7" cy="142.0" r="3" fill="#8191a2"/>
+<circle cx="878.1" cy="142.0" r="3" fill="#8191a2"/>
+<circle cx="943.6" cy="142.0" r="3" fill="#8191a2"/>
+<circle cx="1009.0" cy="142.0" r="3" fill="#8191a2"/>
+<line x1="500" y1="485" x2="529" y2="485" stroke="#8191a2" stroke-width="3"/>
+<circle cx="514" cy="485" r="3" fill="#8191a2"/>
+<text x="539" y="490" font-size="14" font-family="Arial,sans-serif" fill="#283e55">CBAA: guard reached</text>
+<text x="551" y="541" font-family="Arial,sans-serif" font-size="15" text-anchor="middle" fill="#526377">Packet loss (%)</text>
+<text x="520" y="556" font-family="Arial,sans-serif" font-size="13" text-anchor="middle" fill="#6e7e8e">100 paired seeds | 100 robots, 50 tasks | Original CBAA uses optimistic local-ready stop</text>
+<text x="520" y="578" font-family="Arial,sans-serif" font-size="12" text-anchor="middle" fill="#7b8793">Log-derived values only; points between sampled loss levels were not tested; sender payload excludes MAC/PHY/ACK</text>
+</svg>

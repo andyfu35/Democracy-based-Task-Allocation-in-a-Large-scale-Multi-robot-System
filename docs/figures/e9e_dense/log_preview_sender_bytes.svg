@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 590" width="1040" height="590" role="img">
+<title>Mean emitted application payload vs packet loss</title>
+<desc>Logarithmic MB scale; failed/censored runs included. Terminal-log preview only. Raw archive not independently verified.</desc>
+<rect width="1040" height="590" fill="white"/>
+<text x="65" y="46" font-family="Arial,sans-serif" font-size="25" fill="#182c40" font-weight="700">Mean emitted application payload vs packet loss</text>
+<text x="65" y="77" font-family="Arial,sans-serif" font-size="15" fill="#516274">Logarithmic MB scale; failed/censored runs included</text>
+<text x="65" y="110" font-family="Arial,sans-serif" font-size="13" fill="#ab561f" font-weight="600">PREVIEW FROM MAC TERMINAL LOG — ORIGINAL CSV / MANIFEST NOT YET UPLOADED</text>
+<line x1="93" y1="479.00" x2="1009" y2="479.00" stroke="#e9edf1"/>
+<text x="80" y="483.00" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#617182">0.1 MB</text>
+<line x1="93" y1="434.91" x2="1009" y2="434.91" stroke="#e9edf1"/>
+<text x="80" y="438.91" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#617182">0.2 MB</text>
+<line x1="93" y1="376.63" x2="1009" y2="376.63" stroke="#e9edf1"/>
+<text x="80" y="380.63" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#617182">0.5 MB</text>
+<line x1="93" y1="332.54" x2="1009" y2="332.54" stroke="#e9edf1"/>
+<text x="80" y="336.54" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#617182">1 MB</text>
+<line x1="93" y1="288.46" x2="1009" y2="288.46" stroke="#e9edf1"/>
+<text x="80" y="292.46" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#617182">2 MB</text>
+<line x1="93" y1="230.18" x2="1009" y2="230.18" stroke="#e9edf1"/>
+<text x="80" y="234.18" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#617182">5 MB</text>
+<line x1="93" y1="186.09" x2="1009" y2="186.09" stroke="#e9edf1"/>
+<text x="80" y="190.09" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#617182">10 MB</text>
+<line x1="93" y1="142.00" x2="1009" y2="142.00" stroke="#e9edf1"/>
+<text x="80" y="146.00" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#617182">20 MB</text>
+<line x1="93.00" y1="142" x2="93.00" y2="479.00" stroke="#f2f4f6"/>
+<text x="93.00" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">0%</text>
+<line x1="185.53" y1="142" x2="185.53" y2="479.00" stroke="#f2f4f6"/>
+<text x="185.53" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">10%</text>
+<line x1="278.05" y1="142" x2="278.05" y2="479.00" stroke="#f2f4f6"/>
+<text x="278.05" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">20%</text>
+<line x1="370.58" y1="142" x2="370.58" y2="479.00" stroke="#f2f4f6"/>
+<text x="370.58" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">30%</text>
+<line x1="463.10" y1="142" x2="463.10" y2="479.00" stroke="#f2f4f6"/>
+<text x="463.10" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">40%</text>
+<line x1="555.63" y1="142" x2="555.63" y2="479.00" stroke="#f2f4f6"/>
+<text x="555.63" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">50%</text>
+<line x1="648.15" y1="142" x2="648.15" y2="479.00" stroke="#f2f4f6"/>
+<text x="648.15" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">60%</text>
+<line x1="740.68" y1="142" x2="740.68" y2="479.00" stroke="#f2f4f6"/>
+<text x="740.68" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">70%</text>
+<line x1="833.20" y1="142" x2="833.20" y2="479.00" stroke="#f2f4f6"/>
+<text x="833.20" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">80%</text>
+<line x1="925.73" y1="142" x2="925.73" y2="479.00" stroke="#f2f4f6"/>
+<text x="925.73" y="505" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#617182">90%</text>
+<polyline fill="none" stroke="#2470b3" stroke-width="3" points="93.0,447.0 139.3,447.0 185.5,447.1 231.8,447.1 278.1,447.1 324.3,447.2 370.6,447.2 416.8,447.3 463.1,446.7 472.4,446.2 481.6,445.3 490.9,444.2 500.1,442.4 509.4,439.9 518.6,436.3 527.9,431.2 537.1,423.9 546.4,416.7 555.6,404.4 564.9,392.6 574.1,377.3 583.4,363.1 592.6,352.4 601.9,347.0 611.1,343.0 620.4,340.0 629.6,337.6 638.9,336.1 648.2,335.3 657.4,334.6 666.7,334.3 675.9,334.1 685.2,334.1 694.4,334.1 740.7,334.4 786.9,334.8 833.2,335.5 879.5,336.5 888.7,336.8 898.0,337.2 907.2,337.6 916.5,338.1 925.7,338.7 935.0,339.5 944.2,340.3 953.5,341.6 962.7,343.2 972.0,345.5 981.2,349.2 990.5,355.3 999.7,366.1 1009.0,391.0"/>
+<circle cx="93.0" cy="447.0" r="3" fill="#2470b3"/>
+<circle cx="139.3" cy="447.0" r="3" fill="#2470b3"/>
+<circle cx="185.5" cy="447.1" r="3" fill="#2470b3"/>
+<circle cx="231.8" cy="447.1" r="3" fill="#2470b3"/>
+<circle cx="278.1" cy="447.1" r="3" fill="#2470b3"/>
+<circle cx="324.3" cy="447.2" r="3" fill="#2470b3"/>
+<circle cx="370.6" cy="447.2" r="3" fill="#2470b3"/>
+<circle cx="416.8" cy="447.3" r="3" fill="#2470b3"/>
+<circle cx="463.1" cy="446.7" r="3" fill="#2470b3"/>
+<circle cx="472.4" cy="446.2" r="3" fill="#2470b3"/>
+<circle cx="481.6" cy="445.3" r="3" fill="#2470b3"/>
+<circle cx="490.9" cy="444.2" r="3" fill="#2470b3"/>
+<circle cx="500.1" cy="442.4" r="3" fill="#2470b3"/>
+<circle cx="509.4" cy="439.9" r="3" fill="#2470b3"/>
+<circle cx="518.6" cy="436.3" r="3" fill="#2470b3"/>
+<circle cx="527.9" cy="431.2" r="3" fill="#2470b3"/>
+<circle cx="537.1" cy="423.9" r="3" fill="#2470b3"/>
+<circle cx="546.4" cy="416.7" r="3" fill="#2470b3"/>
+<circle cx="555.6" cy="404.4" r="3" fill="#2470b3"/>
+<circle cx="564.9" cy="392.6" r="3" fill="#2470b3"/>
+<circle cx="574.1" cy="377.3" r="3" fill="#2470b3"/>
+<circle cx="583.4" cy="363.1" r="3" fill="#2470b3"/>
+<circle cx="592.6" cy="352.4" r="3" fill="#2470b3"/>
+<circle cx="601.9" cy="347.0" r="3" fill="#2470b3"/>
+<circle cx="611.1" cy="343.0" r="3" fill="#2470b3"/>
+<circle cx="620.4" cy="340.0" r="3" fill="#2470b3"/>
+<circle cx="629.6" cy="337.6" r="3" fill="#2470b3"/>
+<circle cx="638.9" cy="336.1" r="3" fill="#2470b3"/>
+<circle cx="648.2" cy="335.3" r="3" fill="#2470b3"/>
+<circle cx="657.4" cy="334.6" r="3" fill="#2470b3"/>
+<circle cx="666.7" cy="334.3" r="3" fill="#2470b3"/>
+<circle cx="675.9" cy="334.1" r="3" fill="#2470b3"/>
+<circle cx="685.2" cy="334.1" r="3" fill="#2470b3"/>
+<circle cx="694.4" cy="334.1" r="3" fill="#2470b3"/>
+<circle cx="740.7" cy="334.4" r="3" fill="#2470b3"/>
+<circle cx="786.9" cy="334.8" r="3" fill="#2470b3"/>
+<circle cx="833.2" cy="335.5" r="3" fill="#2470b3"/>
+<circle cx="879.5" cy="336.5" r="3" fill="#2470b3"/>
+<circle cx="888.7" cy="336.8" r="3" fill="#2470b3"/>
+<circle cx="898.0" cy="337.2" r="3" fill="#2470b3"/>
+<circle cx="907.2" cy="337.6" r="3" fill="#2470b3"/>
+<circle cx="916.5" cy="338.1" r="3" fill="#2470b3"/>
+<circle cx="925.7" cy="338.7" r="3" fill="#2470b3"/>
+<circle cx="935.0" cy="339.5" r="3" fill="#2470b3"/>
+<circle cx="944.2" cy="340.3" r="3" fill="#2470b3"/>
+<circle cx="953.5" cy="341.6" r="3" fill="#2470b3"/>
+<circle cx="962.7" cy="343.2" r="3" fill="#2470b3"/>
+<circle cx="972.0" cy="345.5" r="3" fill="#2470b3"/>
+<circle cx="981.2" cy="349.2" r="3" fill="#2470b3"/>
+<circle cx="990.5" cy="355.3" r="3" fill="#2470b3"/>
+<circle cx="999.7" cy="366.1" r="3" fill="#2470b3"/>
+<circle cx="1009.0" cy="391.0" r="3" fill="#2470b3"/>
+<line x1="70" y1="485" x2="99" y2="485" stroke="#2470b3" stroke-width="3"/>
+<circle cx="84" cy="485" r="3" fill="#2470b3"/>
+<text x="109" y="490" font-size="14" font-family="Arial,sans-serif" fill="#283e55">Democracy: sender MB</text>
+<polyline fill="none" stroke="#cf782a" stroke-width="3" points="93.0,416.1 139.3,378.4 185.5,369.7 231.8,362.3 278.1,355.3 324.3,349.4 370.6,343.8 416.8,337.3 463.1,331.6 472.4,330.1 481.6,329.2 490.9,328.0 500.1,327.0 509.4,326.0 518.6,324.8 527.9,323.5 537.1,322.6 546.4,320.9 555.6,320.0 564.9,318.4 574.1,316.0 583.4,314.5 592.6,312.6 601.9,311.1 611.1,310.0 620.4,308.3 629.6,306.6 638.9,305.3 648.2,303.1 657.4,301.6 666.7,300.1 675.9,298.8 685.2,296.8 694.4,295.4 740.7,286.0 786.9,274.2 833.2,260.5 879.5,241.2 888.7,237.0 898.0,233.0 907.2,227.5 916.5,222.0 925.7,217.3 935.0,210.1 944.2,202.7 953.5,194.4 962.7,188.8 972.0,187.0 981.2,187.0 990.5,187.0 999.7,187.0 1009.0,187.0"/>
+<circle cx="93.0" cy="416.1" r="3" fill="#cf782a"/>
+<circle cx="139.3" cy="378.4" r="3" fill="#cf782a"/>
+<circle cx="185.5" cy="369.7" r="3" fill="#cf782a"/>
+<circle cx="231.8" cy="362.3" r="3" fill="#cf782a"/>
+<circle cx="278.1" cy="355.3" r="3" fill="#cf782a"/>
+<circle cx="324.3" cy="349.4" r="3" fill="#cf782a"/>
+<circle cx="370.6" cy="343.8" r="3" fill="#cf782a"/>
+<circle cx="416.8" cy="337.3" r="3" fill="#cf782a"/>
+<circle cx="463.1" cy="331.6" r="3" fill="#cf782a"/>
+<circle cx="472.4" cy="330.1" r="3" fill="#cf782a"/>
+<circle cx="481.6" cy="329.2" r="3" fill="#cf782a"/>
+<circle cx="490.9" cy="328.0" r="3" fill="#cf782a"/>
+<circle cx="500.1" cy="327.0" r="3" fill="#cf782a"/>
+<circle cx="509.4" cy="326.0" r="3" fill="#cf782a"/>
+<circle cx="518.6" cy="324.8" r="3" fill="#cf782a"/>
+<circle cx="527.9" cy="323.5" r="3" fill="#cf782a"/>
+<circle cx="537.1" cy="322.6" r="3" fill="#cf782a"/>
+<circle cx="546.4" cy="320.9" r="3" fill="#cf782a"/>
+<circle cx="555.6" cy="320.0" r="3" fill="#cf782a"/>
+<circle cx="564.9" cy="318.4" r="3" fill="#cf782a"/>
+<circle cx="574.1" cy="316.0" r="3" fill="#cf782a"/>
+<circle cx="583.4" cy="314.5" r="3" fill="#cf782a"/>
+<circle cx="592.6" cy="312.6" r="3" fill="#cf782a"/>
+<circle cx="601.9" cy="311.1" r="3" fill="#cf782a"/>
+<circle cx="611.1" cy="310.0" r="3" fill="#cf782a"/>
+<circle cx="620.4" cy="308.3" r="3" fill="#cf782a"/>
+<circle cx="629.6" cy="306.6" r="3" fill="#cf782a"/>
+<circle cx="638.9" cy="305.3" r="3" fill="#cf782a"/>
+<circle cx="648.2" cy="303.1" r="3" fill="#cf782a"/>
+<circle cx="657.4" cy="301.6" r="3" fill="#cf782a"/>
+<circle cx="666.7" cy="300.1" r="3" fill="#cf782a"/>
+<circle cx="675.9" cy="298.8" r="3" fill="#cf782a"/>
+<circle cx="685.2" cy="296.8" r="3" fill="#cf782a"/>
+<circle cx="694.4" cy="295.4" r="3" fill="#cf782a"/>
+<circle cx="740.7" cy="286.0" r="3" fill="#cf782a"/>
+<circle cx="786.9" cy="274.2" r="3" fill="#cf782a"/>
+<circle cx="833.2" cy="260.5" r="3" fill="#cf782a"/>
+<circle cx="879.5" cy="241.2" r="3" fill="#cf782a"/>
+<circle cx="888.7" cy="237.0" r="3" fill="#cf782a"/>
+<circle cx="898.0" cy="233.0" r="3" fill="#cf782a"/>
+<circle cx="907.2" cy="227.5" r="3" fill="#cf782a"/>
+<circle cx="916.5" cy="222.0" r="3" fill="#cf782a"/>
+<circle cx="925.7" cy="217.3" r="3" fill="#cf782a"/>
+<circle cx="935.0" cy="210.1" r="3" fill="#cf782a"/>
+<circle cx="944.2" cy="202.7" r="3" fill="#cf782a"/>
+<circle cx="953.5" cy="194.4" r="3" fill="#cf782a"/>
+<circle cx="962.7" cy="188.8" r="3" fill="#cf782a"/>
+<circle cx="972.0" cy="187.0" r="3" fill="#cf782a"/>
+<circle cx="981.2" cy="187.0" r="3" fill="#cf782a"/>
+<circle cx="990.5" cy="187.0" r="3" fill="#cf782a"/>
+<circle cx="999.7" cy="187.0" r="3" fill="#cf782a"/>
+<circle cx="1009.0" cy="187.0" r="3" fill="#cf782a"/>
+<line x1="500" y1="485" x2="529" y2="485" stroke="#cf782a" stroke-width="3"/>
+<circle cx="514" cy="485" r="3" fill="#cf782a"/>
+<text x="539" y="490" font-size="14" font-family="Arial,sans-serif" fill="#283e55">CBAA: sender MB</text>
+<text x="551" y="541" font-family="Arial,sans-serif" font-size="15" text-anchor="middle" fill="#526377">Packet loss (%)</text>
+<text x="520" y="556" font-family="Arial,sans-serif" font-size="13" text-anchor="middle" fill="#6e7e8e">100 paired seeds | 100 robots, 50 tasks | Original CBAA uses optimistic local-ready stop</text>
+<text x="520" y="578" font-family="Arial,sans-serif" font-size="12" text-anchor="middle" fill="#7b8793">Log-derived values only; points between sampled loss levels were not tested; sender payload excludes MAC/PHY/ACK</text>
+</svg>
