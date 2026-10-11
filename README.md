@@ -904,6 +904,50 @@ Exact source adaptation/diagnostic contracts: docs/EXPERIMENT_PROTOCOL.md §18; 
 
 ---
 
+## E9E — Dense packet-loss experiment and reproducible figures
+
+This follow-up keeps the **original Democracy Cost/Vote protocol** and the **original CBAA local auction/max-consensus messages** unchanged. It increases the measured loss probability density, especially around the observed Democracy transition and CBAA local-stop guard region.
+
+- Global reference: every 5% packet loss from 0% to 95%.
+- Democracy transition: every 1% from 40% to 65%.
+- CBAA high-loss tail: every 1% from 85% to 99%.
+- Union: **52 unique measured loss levels**, 100 paired seeds and two methods = **10,400 actual protocol runs**.
+- Figures: verified CSV-derived SVG curves for complete outcomes, 40%-65% zoom, CBAA observer-vs-local-stop, 85%-99% zoom, logarithmic sender payload, and guard censoring.
+
+The CBAA stop is an **optimistic simulator aggregation of all nodes' locally received evidence**, not a paid distributed termination handshake. Democracy complete means actual reliable Commit; CBAA local certification and external observer agreement are separate. Bytes are emitted application payload, not measured Wi-Fi MAC/PHY airtime.
+
+Run on Mac after selecting branch experiment/e9e-dense-loss-figures:
+
+~~~bash
+python3 -m unittest discover -s tests -p 'test_e9e_dense_grid.py' -v
+python3 -m unittest discover -s tests -p 'test_e9e_figures.py' -v
+
+# Quick preflight: 3 seeds, all 52 independently sampled loss probabilities
+python3 -m experiments.run_e9d_natural_loss \
+  --robots 100 --tasks 50 --seeds 3 --loss-grid-profile dense \
+  --output-root "results/e9d_e9e_pilot_$(date -u +%Y%m%dT%H%M%SZ)"
+
+# Formal: 100 seeds, 52 loss probabilities (run into a fresh output directory)
+RUN_ROOT="results/e9d_e9e_dense_formal_$(date -u +%Y%m%dT%H%M%SZ)"
+python3 -m experiments.run_e9d_natural_loss \
+  --robots 100 --tasks 50 --seeds 100 --loss-grid-profile dense \
+  --cbaa-safety-round-limit 160 \
+  --democracy-safety-round-limit 300 \
+  --output-root "$RUN_ROOT"
+
+# Only after the full run completes, validate SHA256 + all paired rows and draw SVGs
+python3 -m experiments.plot_e9d_results --run-root "$RUN_ROOT"
+zip -r e9e_dense_formal_evidence.zip "$RUN_ROOT"
+~~~
+
+Upload the completed ZIP to this conversation. The results and charts are published below **only after verifying the completed formal evidence**. Never substitute partial or three-seed pilot values for 100-seed results.
+
+<!-- E9E_DENSE_RESULTS_BEGIN -->
+**Formal dense results pending user-side 100-seed execution and evidence verification.** This text will be replaced with measured tables and committed figures from the exact source SHA after the full original raw is provided.
+<!-- E9E_DENSE_RESULTS_END -->
+
+---
+
 ## E5 — Bursty Packet Loss
 
 Purpose: determine whether conclusions from independent Bernoulli loss survive correlated outages.

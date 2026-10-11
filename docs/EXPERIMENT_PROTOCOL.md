@@ -1274,3 +1274,35 @@ Smaller focus datasets: transition has 40 p levels; tail has 32. Each independen
 ### 29.3 Named functions, diagnostic and tests
 
 Changed experiments/run_e9d_natural_loss.py ONLY for resolve_e9d_loss_grid_profile (experiment data owner) and CLI main (arguments only); run_e9d_natural_loss and original algorithm owners are unchanged. NEW tests/test_e9e_dense_grid.py has 6 named tests for legacy parity, 52/40/32 profiles, conflict/unknown first-failure diagnostics and original canonical validation. docs/CHANGE_CONTINUITY.md documents this change in the same commit. No new dense numerical results are claimed until local execution.
+
+
+## 30. E9E-2 read-only SVG figure derivation + README publication boundary
+
+### 30.1 User intent and scientific constraints
+
+The user requests denser plotted sampled Packet Loss levels and later direct publication of REAL tested data and figures into the repository README after they supply complete local run outputs. This is a SEPARATE experiment-reporting concern. The figure owner MUST NOT rerun simulations, alter raw results, claim unmeasured points or auto-publish incomplete/pilot/guard-censored results as universal reliability thresholds. Original E9D-2 + E9E-1 algorithm and input sampling remain unchanged. The formal dense profile contains 52 measured p levels; global plots place x at exact numeric p and draw markers for each measured p; line segments between adjacent independently measured p are visual guides, NOT evidence of experiments at intermediate values. No smoothing/regression/extrapolation is permitted.
+
+Original E9D full Commit (Democracy) and CBAA per-robot local-receipt certificate are DISTINCT success metrics. CBAA external post-hoc observer assignment agreement is shown separately from local certificate on its own chart, especially at high packet loss, to avoid reporting a 160-round stopping guard as task inconsistency. A safety-guard hit is a censored runtime limit, not a mathematical algorithm upper bound. CBAA simulator aggregate all-ready halt is optimistic and has no paid distributed termination handshake. The graph title/subtitle/footnote MUST disclose these nuances. Every sender-byte chart counts physically emitted application payload even for incomplete attempts and uses explicit logarithmic MB scale, NOT bandwidth or actual Wi-Fi airtime.
+
+### 30.2 One evidence/reporting owner, no duplicate algorithm state
+
+New pure experiment reporting owner experiments.plot_e9d_results has named functions and first diagnostic boundaries:
+- load_e9d_plot_evidence: load immutable E9D raw per_seed_loss_method.csv, summary_by_loss.csv and manifest.json; dependency/E9E_PLOT_EVIDENCE_MISSING for incomplete/missing run; data/E9E_PLOT_EVIDENCE_UNREADABLE for malformed CSV/JSON.
+- verify_e9d_plot_provenance: contract/E9E_PLOT_SHA256_MISMATCH for changed raw/summary; contract/E9E_PLOT_RAW_SUMMARY_CONTRACT for incomplete/duplicate paired seed*p*method cells, missing source SHA, mismatching raw robots/tasks, mismatching summary values or differing success semantics. The original experiment owner summarize_e9d_loss_results is used as an independent existing report-summary recomputation, NOT a separate result state machine.
+- prepare_e9d_figure_root: state/E9E_PLOT_OUTPUT_NOT_EMPTY to avoid destructive regeneration over historical plots; no source/raw writes.
+- wilson_interval: pure pointwise binomial 95% Wilson interval from actual full success count and N of seeds; no causal claims.
+- build_e9d_plot_series: pure CSV projection for actual measured p, no smoothing.
+- render_e9d_svg_chart: one reusable native SVG line/marker renderer, exact x position, axis/tick labels, log y option, explicit legends/disclaimers.
+- e9d_chart_traces: pure legend/plot-series selection that cannot relabel an observer-success count as a real Commit.
+- e9d_log_ticks: original positive payload number scaling; data/E9E_NO_POSITIVE_BYTES for invalid zero-byte-only data.
+- compose_e9d_figures: generate up to SIX SVGs named e9d_full_success.svg, e9d_democracy_transition.svg (40%-65% if >=2 measured points), e9d_cbaa_agreement_vs_stop.svg, e9d_cbaa_high_loss_zoom.svg (85%-99% if >=2 actual points), e9d_sender_payload.svg (logarithmic MB), e9d_guard_censoring.svg (two method guard-hit curves). Zooms NEVER interpolate new point data.
+- write_e9d_figure_evidence: create only new SVGs and figure_manifest.json with source SHA, raw/summary hashes, precise measured loss list, figure names and SHA256. Never edits README or old raw.
+- plot_e9d_results: read-only orchestrator after verification, then state gate, figures and printed paths; main: CLI only.
+
+New tests/test_e9e_figures.py: six tests use actually run tiny E9D evidence, render parseable standalone SVG and verify each SHA, both zoom scopes, refuse missing evidence, refuse raw tampering, refuse forged summary even with updated SHA, refuse output overwrite and confirm raw unchanged. No heavy renderer dependency required (Python stdlib emits SVG). New workflow .github/workflows/e9e_dense_figures.yml runs full original regression and E9E tests, small dense 5R/3T 2-seed smoke and SVG generation, uploads only small smoke evidence. Formal 100R/50T 100-seed results NOT claimed until completed on Mac and uploaded by the user.
+
+### 30.3 Publication boundary and commands
+
+README section has BEGIN/END markers for future E9E verified formal figure/result material, but initially says PENDING and contains NO fabricated numbers/images. User should run formal E9E-1 dense study in unique results/e9d_* root with 100 seeds, then:
+    python3 -m experiments.plot_e9d_results --run-root <YOUR_FORMAL_RESULT_ROOT>
+The plot command refuses incomplete raw and any summary/manifest inconsistency; exports figures/ SVGs and figure_manifest.json within that result directory. User then uploads the result directory as ZIP including original raw/summary/manifest and figures for assistant verification. Once received, update the REAL README result block inside markers, commit the verified SVG files to docs/figures/e9e_dense and cite them via normal relative Markdown image links; include 100 seeds, p grid, SHA and numerically grounded results, separate success semantics, specific empirical guard censoring and Bytes. Publishing is a separate bounded change with canonical+continuity updates and exact image/raw SHA. Never publish charts based on old 11-point study as new 52-point results or on pilot alone.

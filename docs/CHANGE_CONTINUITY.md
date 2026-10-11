@@ -2347,4 +2347,36 @@ Both original algorithm owners democracy_mrta.cbaa.simulate_cbaa and democracy_m
 
 ### Verification/risk/next step/commit SHA
 6 new tests to execute via full GitHub workflow regression; do not claim code passed before CI. Dense 100seed run may be computation-heavy especially high-loss 160-round censored cells, and results are NOT currently available. User runs Mac formal once tests pass, sends raw per_seed_loss_method.csv, summary_by_loss.csv, manifest.json; next separately bounded E9E-2 change adds reproducible numeric plotting and README figure evidence validation. README numerical outcomes cannot be populated from assumptions or the historical coarse grid.
-Source base: 92e0ef64bceb59dde092a5816452c9884e582575. Actual code commit SHA to be recorded in documentation-only follow-up after GitHub creates it.
+Source base: 92e0ef64bceb59dde092a5816452c9884e582575. Actual E9E-1 dense-grid input owner, 6 focused tests, canonical Section 29 and same-tree continuity implementation SHA: 1242fc98577c44a5be2aff7f16d6b2a54a8481b7. This was the immediately previous code commit on this branch.
+
+
+## 2026-10-11 — E9E-2 evidence-verified SVG plotting and README-pending formal publication
+
+### Purpose, source basis and one concern
+The user wants a MUCH denser experimental graph and to send the resulting source CSV once local execution finishes, after which the assistant should directly commit those verified real results and chart images into README. The earlier 100R50T 100-seed E9D formal loss points already exist for 11 points, but must NOT be relabelled as the new E9E-1 52-point data. This change implements pure presentation/reporting and prepares a README evidence slot. No simulation, vote, CBAA original bid/consensus/stop, physical network loss, new p, safety guard or success semantics is changed. The new automated 2-seed CI smoke does NOT constitute a formal 100-seed result.
+
+### Files, owner, named functions and exact responsibility
+- NEW experiments/plot_e9d_results.py: one read-only experimental evidence/figure owner. Named function and boundary:
+  - load_e9d_plot_evidence: dependency/E9E_PLOT_EVIDENCE_MISSING for absent original raw+summary+manifest; data/E9E_PLOT_EVIDENCE_UNREADABLE for malformed files.
+  - verify_e9d_plot_provenance: contract/E9E_PLOT_SHA256_MISMATCH for altered raw/summary; contract/E9E_PLOT_RAW_SUMMARY_CONTRACT for incomplete/duplicate seeds x numeric p x original 2 methods, incorrect Git source SHA, ungrounded summary, altered context or metadata mismatch. Uses original existing evidence owner summarize_e9d_loss_results ONLY to independently recompute summary, no second algorithm or state machine.
+  - prepare_e9d_figure_root: state/E9E_PLOT_OUTPUT_NOT_EMPTY prevents overwrite of previous SVGs/raw.
+  - wilson_interval: pointwise 95% binomial Wilson CI based on actual full counts and seed denominator.
+  - build_e9d_plot_series: pure measured-source data projection, no interpolated unsampled p.
+  - render_e9d_svg_chart: original exact-X, visible markers, accessible title/subtitle and separate condition legends, source-only SVG; logarithmic MB enabled for physical sender payload chart.
+  - e9d_chart_traces: separate true Democracy Commit, optimistic CBAA local certificates and post-hoc observer agreement labels.
+  - e9d_log_ticks: data/E9E_NO_POSITIVE_BYTES for meaningless byte-positive axis.
+  - compose_e9d_figures: up to 6 images, including main 0%-99% success, 40%-65% transition zoom, original CBAA observer versus local certificate, 85%-99% high loss zoom, logarithmic sender application payload, explicit 160/300 guard censoring.
+  - write_e9d_figure_evidence: ONLY new SVGs + figure_manifest.json with SHA256 and source manifest SHA; never write or rename any raw.
+  - plot_e9d_results: read -> validate checksum+paired cells -> output state gate -> plots; main CLI only.
+- NEW tests/test_e9e_figures.py: 6 targeted tests that actually generate small E9D experiment raw and validate native SVG XML/parsing, both zooms, exact raw/summary hashes, refusal to draw from missing/tampered/inconsistent data, refusal to overwrite existing charts while keeping raw immutable.
+- NEW .github/workflows/e9e_dense_figures.yml: E9E tests and full repository regression, 5R3T/2seed 52-p actual smoke, verifies SVG generation, uploads smoke-only evidence. Do NOT claim formal result from CI.
+- README.md: adds E9E experiment instructions and BEGIN/END markers for future evidence-based chart/table publication. It **does not include any unverified new numerical result or image now**, and explicitly says formal evidence is pending. Once the user's complete ZIP is shared, update the actual README block and commit images via a new scoped publication change.
+- docs/EXPERIMENT_PROTOCOL.md: canonical Section 30 freezes plotting correctness/provenance, no fake interpolation, distinct CBAA observer vs local certification, 100seed publication boundary.
+- docs/CHANGE_CONTINUITY.md: this same-tree record of purpose/files/functions/risk/next step; update actual commit SHA after GitHub reports it.
+
+### Preserved behavior and intentionally introduced functionality
+All existing experiment loss grid (legacy unchanged, dense provided by earlier E9E-1), original E9D algorithm owners, default 160/300 safety guard, TASK reliable messaging, raw CSV write and immutable manifest, physical sender message sizes and old historical E9D data unchanged. New figures display numeric p on true linear axis with every measured point marked and no smoothing, giving dense detail only where E9E actually measured 1% increments; success plot explicitly compares true reliable Commit with CBAA optimistic all-node local-certificate, while another plot separates CBAA post-hoc full observer agreement. Sender payload plot includes unsuccessful attempts and uses logarithmic MB scale (1 MB=1e6 Bytes), not MAC/PHY/ACK airtime. Figure metadata records source SHA, source CSV SHA256, exact p list, figure SHA256. Output directory must be new/empty, previous raw NEVER rewritten. README is a PENDING result record, not a claim of 52-point experimental success.
+
+### Verification, risks, future action, SHA
+E9E-1 source commit 1242fc98577c44a5be2aff7f16d6b2a54a8481b7 was committed prior to this plotting-only code addition. Six new plotting tests and whole regression require CI acceptance. Main risk: 100 seeds x 52 p x 2 methods=10400 method simulations, high p guard160 censoring; if interrupted raw partial exists but E9E plotting refuses it until a successful complete run. Native SVG is supported by GitHub README relative images; graphs from 3seed pilot must NOT replace formal 100seed outcomes. User should run first 3seed pilot, then 100seed dense formal, then plots, zip the full output and share. Assistant next verifies complete source ZIP, source SHA/hash, and commits the generated SVGs to docs/figures/e9e_dense and actual tables/figures into README with clear sampled and guard limitations, canonical publication evidence and continuity SHA in separate bounded commit. No asynchronous work or silent future claim; next user message must supply actual evidence.
+Source base at plotting change: 1242fc98577c44a5be2aff7f16d6b2a54a8481b7. Exact plotting implementation SHA to record after GitHub creates it via continuity-only doc commit.
