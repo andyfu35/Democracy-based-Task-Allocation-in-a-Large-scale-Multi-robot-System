@@ -42,13 +42,15 @@ For Democracy-based allocation:
 1. a task set / allocation epoch is reliably announced;
 2. robot $i$ computes its own cost row;
 3. each robot broadcasts its cost row once to peers;
-4. every robot builds its local cost matrix $\hat C_i$;
-5. every robot runs the same deterministic Hungarian implementation on $\hat C_i$;
+4. every robot builds its local cost matrix $C_{i,\mathrm{local}}$;
+5. every robot runs the same deterministic Hungarian implementation on $C_{i,\mathrm{local}}$;
 6. its local assignment proposal is converted into one vote per task;
 7. each vote is sent directly as a unicast to the robot proposed for that task;
 8. a robot commits a task only after a strict-majority quorum;
 9. the winner broadcasts one commit announcement for that task;
 10. if quorum is not reached before timeout, the allocation round fails and is retried.
+
+Here, $C_{i,\mathrm{local}}$ denotes the cost matrix reconstructed locally by robot $i$, not merely the robot's own cost row.
 
 Strict-majority quorum for an eligible voter set of size $N$:
 

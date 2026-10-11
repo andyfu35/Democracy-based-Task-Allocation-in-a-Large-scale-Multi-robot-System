@@ -1929,3 +1929,24 @@ No Python, test, owner module, exact runtime function, state machine, network be
 ### Verification, open risk, next step, commit SHA
 Actual main README had 48,387 characters before the formatting change and 48,369 afterward (only delimiter width changed). Confirmed there are 14 standalone pairs converted to 28 dollar-dollar lines, 9 inline pairs migrated and no remaining original slash bracket or slash parenthesis delimiters. The first original LaTeX formula contents remained identical. Main default-branch source is not the separate short research-facing E9E README; combining branches or switching the repository default branch is a separate explicitly authorized documentation integration task, not silently performed as part of a typesetting fix.
 Base default main head SHA: 68499c9c631b54f2d95cb5b66786525e382a68b3. Formatting implementation commit SHA: 0d29e3d40598f4b48d3f1c76c12724ee5b5e575a. This follow-up pins the exact verified main documentation implementation SHA only, with no README, source-code, canonical-contract, or other behavior changes.
+
+
+## 2026-10-11 — Main README local cost-matrix glyph height / GitHub rendering fix (documentation only)
+
+### Purpose
+User supplied an image of README Section 1.2 showing the raised wide gap between a hat accent and the local cost-matrix glyph in GitHub's MathJax rendering of \hat C_i, and explicitly requested the symbol not display so high. The aim is clear readable notation, NOT a different meaning for the cost or optimizer.
+
+### Scope and owner
+- README.md, Section 1.2 "Communication / agreement layer", original named local-matrix presentation: replace both instances of GitHub inline math $\hat C_i$ with visually lower, subscript-only $C_{i,\mathrm{local}}$. Add one short sentence explicitly defining $C_{i,\mathrm{local}}$ as robot i's LOCALLY reconstructed matrix, distinct from that robot's single cost row.
+- docs/CHANGE_CONTINUITY.md: this mandatory evidence of what was changed and why.
+- docs/EXPERIMENT_PROTOCOL.md: canonical mathematical meaning of locally incomplete \hat C_i, the matrix-input requirements and original voting state machine remain UNCHANGED. The presentation alias $C_{i,\mathrm{local}}$ refers to exactly that same local matrix and does not claim a new dataset, cost axis or optimization.
+- experiment/e9e-dense-loss-figures README: intentionally not touched because the user screenshot matches main's Section 1.2, and branch README already uses a different report layout.
+
+### Preserved vs intentional behavior; first failure and diagnostic contract
+NO Python code, test, optimizer, voting, CBAA, physical network, packet loss, runtime behavior, owner function, diagnostic code, schema, source experiment or results changed. The only deliberate change is display notation: the offending high-floating hat disappears, robot index/local status moves underneath C, and the existing two references remain consistent. This is a documentation-presentation concern; no runtime diagnostic failure applies and the existing data/time/state/dependency/planning/safety/runtime/contract diagnostic categories all remain untouched. No wrapper, reimplementation or duplicate algorithm owner introduced.
+
+### Verification, open risks and next step
+Before commit, independently read AGENTS.md, docs/AI_CHANGE_PROTOCOL.md, this continuity, docs/EXPERIMENT_PROTOCOL.md and owner README.md from main. Confirmed exactly TWO source occurrences of $\hat C_i$ and replaced both with the same $C_{i,\mathrm{local}}$, plus one explicit sentence. Other 14 GitHub-compatible display-math and 9 original inline-math delimiters retained unchanged. Rendering position varies by browser, but subscript-only math eliminates the raised accent. Source cost-matrix content and all experimental statistics unchanged. Next: user reloads the main README and checks the symbol appearance; no experiment rerun required.
+
+### Commit SHA
+Base main HEAD: 8b8e50ab595ac58269d93ac3cb516d5a1e0a94a5. Actual joint README/continuity presentation-fix commit SHA to be inserted by a documentation-only follow-up after GitHub creates the commit.
