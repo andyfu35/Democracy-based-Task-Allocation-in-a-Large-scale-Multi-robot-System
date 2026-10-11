@@ -89,6 +89,18 @@ class CBAASingleAssignmentTests(unittest.TestCase):
         self.assertEqual(result.logical_message_count, 12)
         self.assertEqual(result.delivery_attempts, 24)
 
+    def test_reused_e0_random_scenes_reach_zero_loss_agreement(self):
+        from democracy_mrta.scenario import generate_e0_scenario
+        for robots, tasks in ((10, 5), (10, 10)):
+            for seed in range(3):
+                with self.subTest(robots=robots, tasks=tasks, seed=seed):
+                    scenario = generate_e0_scenario(seed, robots, tasks)
+                    result = self.simulate(scenario.cost_matrix, iterations=20)
+                    self.assertTrue(result.full_observer_agreement)
+                    self.assertEqual(len(result.observer_agreed_pairs), tasks)
+                    self.assertEqual(result.conflicting_task_ids, ())
+                    self.assertEqual(result.delivery_drops, 0)
+
     def test_total_packet_loss_preserves_conflicts_and_disagreed_views(self):
         costs = ((1.0, 10.0), (1.1, 100.0))
         result = self.simulate(costs, p=1.0, iterations=4, capture_audit=True)
