@@ -16,18 +16,18 @@ The system is intentionally separated into two layers.
 
 Every evaluated coordination method uses the **same deterministic Hungarian optimizer**.
 
-For one static allocation epoch with robot set \(R\), task set \(T\), and fixed cost matrix \(C=[c_{ij}]\):
+For one static allocation epoch with robot set $R$, task set $T$, and fixed cost matrix $C=[c_{ij}]$:
 
-\[
+$$
 X^*=\arg\min_X\sum_i\sum_j c_{ij}x_{ij}
-\]
+$$
 
 subject to the one-to-one assignment constraints
 
-\[
+$$
 \sum_j x_{ij}\le1,\qquad
 \sum_i x_{ij}=1.
-\]
+$$
 
 The Hungarian algorithm is used because it returns a global optimum for this linear assignment problem.
 
@@ -40,21 +40,21 @@ Each robot computes its own cost row and communicates cost information according
 For Democracy-based allocation:
 
 1. a task set / allocation epoch is reliably announced;
-2. robot \(i\) computes its own cost row;
+2. robot $i$ computes its own cost row;
 3. each robot broadcasts its cost row once to peers;
-4. every robot builds its local cost matrix \(\hat C_i\);
-5. every robot runs the same deterministic Hungarian implementation on \(\hat C_i\);
+4. every robot builds its local cost matrix $\hat C_i$;
+5. every robot runs the same deterministic Hungarian implementation on $\hat C_i$;
 6. its local assignment proposal is converted into one vote per task;
 7. each vote is sent directly as a unicast to the robot proposed for that task;
 8. a robot commits a task only after a strict-majority quorum;
 9. the winner broadcasts one commit announcement for that task;
 10. if quorum is not reached before timeout, the allocation round fails and is retried.
 
-Strict-majority quorum for an eligible voter set of size \(N\):
+Strict-majority quorum for an eligible voter set of size $N$:
 
-\[
+$$
 Q=\left\lfloor\frac{N}{2}\right\rfloor+1.
-\]
+$$
 
 ### Required invariants
 
@@ -120,19 +120,19 @@ Primary paper experiments will use an explicitly pinned Wi-Fi 6 trace/profile fr
 
 Do **not** replace real communication with a single fixed delay.
 
-For each successfully transmitted simulated protocol message \(m\):
+For each successfully transmitted simulated protocol message $m$:
 
-\[
+$$
 L_m \sim \text{EmpiricalBootstrap}(D_{WiFi6}),
-\]
+$$
 
-where \(D_{WiFi6}\) is the selected paper-derived array of measured ROS application delays.
+where $D_{WiFi6}$ is the selected paper-derived array of measured ROS application delays.
 
 Then:
 
-\[
+$$
 t_{arrival}(m)=t_{send}(m)+L_m.
-\]
+$$
 
 Packet loss is applied separately in experiments that sweep a controlled loss probability. This isolates the effect of packet loss from the empirical latency distribution.
 
@@ -142,9 +142,9 @@ A later trace-replay experiment will use both the paper-derived latency and loss
 
 Messages sent concurrently are not charged as
 
-\[
+$$
 N_{messages}\times E[L].
-\]
+$$
 
 The simulator is event-driven.
 
@@ -156,15 +156,15 @@ Examples:
 
 Per run, record:
 
-\[
+$$
 T_{total}=T_{compute}+T_{communication}+T_{retry}.
-\]
+$$
 
 The main quantity for the communication-cost claim is:
 
-\[
+$$
 T_{communication}.
-\]
+$$
 
 Also record message count and bytes so latency improvements cannot be hidden by excessive network traffic.
 
@@ -176,27 +176,27 @@ Also record message count and bytes so latency improvements cannot be hidden by 
 
 Central complete-information Hungarian optimum:
 
-\[
+$$
 J^*.
-\]
+$$
 
 Evaluated final assignment:
 
-\[
+$$
 J.
-\]
+$$
 
 Optimality gap:
 
-\[
+$$
 Gap=\frac{J-J^*}{J^*}\times100\%.
-\]
+$$
 
 At zero packet loss with complete information, the canonical implementation must satisfy:
 
-\[
+$$
 Gap=0.
-\]
+$$
 
 ## Agreement / success
 
@@ -253,15 +253,15 @@ Conditions:
 
 Required result:
 
-\[
+$$
 X_1=X_2=\cdots=X_N=X^*
-\]
+$$
 
 and
 
-\[
+$$
 Gap=0,\quad ASR=1,\quad SafetyFailures=0.
-\]
+$$
 
 The previous sequential-greedy E0 implementation/results are retained only as **legacy invalid evidence from an obsolete problem definition** and must not be cited as the paper algorithm.
 

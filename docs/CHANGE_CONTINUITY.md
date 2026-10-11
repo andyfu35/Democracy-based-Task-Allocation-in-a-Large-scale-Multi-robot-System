@@ -1910,3 +1910,22 @@ All errors use owner=experiments.compare_cbaa_budget; category ∈ {data,time,st
 - 32b2d1b40c4a88caf0f1856ab87916dabad532ce: README.md preflight and selected-configuration Mac commands.
 
 This continuity entry's own commit SHA will be the next resulting Git HEAD; subsequent code changes must append a new continuity entry before they can be called complete.
+
+
+## 2026-10-11 — Default-branch README GitHub mathematical typesetting compatibility (documentation only)
+
+### Purpose and first source of the failure
+The user reported a GitHub screenshot of the original default-branch README.md "1. Canonical paper architecture / 1.1 Fixed optimization layer" in which the mathematical cost matrix C=[c_{ij}], the X*=arg min sum_i sum_j c_{ij}x_{ij} objective and the assignment constraints were displayed as literal bracketed strings with missing MathJax rendering. Inspection showed GitHub's default branch main still contains the older architectural README, while the much shorter research-facing README from 2026-10-11 lives in experiment/e9e-dense-loss-figures. The screenshot therefore originates from main, not the already updated experiment branch. Fix the TRUE user-visible file on main without incorrectly claiming that the research README has been merged to main.
+
+### Files, responsibilities and exact presentation concern
+- README.md ONLY: migrate all existing 14 standalone display-math pairs from backslash-square-delimiter notation to GitHub Flavored Markdown own-line dollar-dollar math blocks. Migrate all 9 inline backslash-parenthesis pairs to single-dollar inline math. These are syntax-only substitutions; **the underlying objective, constraints, cost matrix, variables, voter quorum, timing equations, experimental settings and result numbers are byte-for-byte unchanged**. Notably the 1.1 cost matrix now reads inline dollar math, the objective renders as a separate block, and both one-to-one constraints remain a separate math block.
+- docs/CHANGE_CONTINUITY.md: this corresponding doc-only change record; no canonical spec or result data changes.
+- docs/EXPERIMENT_PROTOCOL.md: read and retained unchanged because the mathematical contract and canonical algorithm semantics do NOT change.
+- experiment/e9e-dense-loss-figures/README.md: intentionally UNCHANGED; it already contains the reorganized results that the user previously requested and can be viewed through the explicit branch URL.
+
+### Preserved behavior, deliberate change and diagnostic boundary
+No Python, test, owner module, exact runtime function, state machine, network behavior, algorithm, loss model, publisher workflow, data validation or experiment record is modified. No new diagnostic category, code or exception. This changes only how GitHub's Markdown/MathJax frontend recognizes and typesets the existing LaTeX formulas. The display-equation delimiter count remains paired (14 opening + 14 closing markers replaced by 28 standalone $$ lines), and 9 inline pairs become dollar-delimited. Non-GitHub Markdown viewers with disabled MathJax may still show raw markup, which does NOT imply optimizer error.
+
+### Verification, open risk, next step, commit SHA
+Actual main README had 48,387 characters before the formatting change and 48,369 afterward (only delimiter width changed). Confirmed there are 14 standalone pairs converted to 28 dollar-dollar lines, 9 inline pairs migrated and no remaining original slash bracket or slash parenthesis delimiters. The first original LaTeX formula contents remained identical. Main default-branch source is not the separate short research-facing E9E README; combining branches or switching the repository default branch is a separate explicitly authorized documentation integration task, not silently performed as part of a typesetting fix.
+Base default main head SHA: 68499c9c631b54f2d95cb5b66786525e382a68b3. Formatting implementation commit SHA to be recorded in a later continuity-only follow-up once the new GitHub commit exists.
