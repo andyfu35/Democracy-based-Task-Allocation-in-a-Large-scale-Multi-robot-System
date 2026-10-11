@@ -2017,3 +2017,45 @@ NO responsibility movement across original network / coordination / CBAA modules
 
 ### Verified / pending / risks / next
 User-Mac 159/159 refers to PREVIOUS E9B-2 revision only. NEW E9B-3 source and test suite are pending local Mac tests; assistant execution has no checked-out GitHub repository and did not execute numerical E9B-3 experiments. Byte cap is sender application payload only, not physical radio airtime, and differing message reliability / success semantics still forbid claiming protocol superiority. Future E9B-4 must build separate paired immutable evidence runner with identical cap, seed, loss, R/T and no result censorship; run 3 seeds first, then 100 seeds after verifying independent network assumptions. Implementation + 9 new tests + canonical Section 22 + continuity were committed together at `eb7a5565774a3ef6d48109db5a5f811ffe7c8860` (parent `9c24de1aa8c345536dccfab19db595c3850b3275`). This follow-up documentation-only commit records that exact implementation SHA; the new E9B-3 tests are still PENDING the user's local Mac execution.
+
+
+## 2026-10-11 — E9B-4 paired equal physical sender payload cap benchmark owner
+
+### Purpose / predecessor
+On the exact E9B-3 branch HEAD bcb4f2483e106dacfb0a63636e0d3a99db9eddf3, the user's Mac passed nine targeted CBAA hard-cap unit tests and the entire 168/168 regression suite; the preexisting unrelated ResourceWarning in test_greedy_communication_comparison remains nonfatal. E9A's past 3-seed nearest K=3 observed traffic comparison was NOT equal-hard-budget. This code change introduces ONE bounded new experiments runner to test true pre-SEND admission for both independent algorithm owners under identical limit B and paired E0 scenario seeds; it is NOT another election algorithm or a new decentralized termination state machine.
+
+### Exact files / functions / ownership
+- NEW experiments/run_e9b_equal_budget.py:
+  - parse_sender_budgets: command-line integer caps.
+  - validate_equal_budget_config: grid shape and sorted unique axes; data/E9B_INVALID_DIMENSIONS, E9B_INVALID_LOSS_GRID, E9B_INVALID_BUDGET_GRID.
+  - prepare_equal_budget_output: immutable output path guards; state/E9B_OUTPUT_SOURCE_COLLISION and E9B_OUTPUT_ALREADY_EXISTS.
+  - run_budgeted_greedy_trial: separate fresh SenderPayloadBudget and original coordination.simulate_democracy_hungarian_retirement in pure 25%, no-fallback, K1 mode.
+  - run_budgeted_cbaa_trial: separate fresh SenderPayloadBudget and original cbaa.simulate_cbaa, no observer winner feedback.
+  - validate_paired_sender_accounting: experiment-contract exact ledger vs physical event accounting and original-task coverage; contract/E9B_PAIRED_SENDER_ACCOUNTING_MISMATCH or E9B_INCOMPLETE_OUTCOME_ACCOUNTING.
+  - budget_stop_fields: format original first-failing network diagnostic without relabeling owner/function/category/code.
+  - build_equal_budget_pair_row: paired primary raw and complete-only cost; contract/E9B_INVALID_GREEDY_REFERENCE_COST.
+  - summarize_equal_budget_conditions: full seed denominators, p/cap groups and completion-only costs.
+  - write_equal_budget_evidence: dedicated immutable raw CSV, summary CSV, SHA256 manifest, pinned data provenance.
+  - run_e9b_equal_budget_experiment: enumerate (seed,p,B) and call original algorithms independently. main: CLI only.
+- NEW tests/test_e9b_equal_budget.py: 10 regression tests for invalid axes, output protection, full paired manifest with SHA256, zero cap, distinct packet-size boundaries, large-cap zero loss, idempotent rejection, seeded replay, independent ledgers, first-failure accounting diagnostics.
+- docs/EXPERIMENT_PROTOCOL.md: canonical §23 added for this E9B-4 paired protocol.
+- docs/CHANGE_CONTINUITY.md: this exact same-change continuity record; no other source modules changed.
+
+### Responsibility movement / behaviors preserved
+No original responsibility moved. Network physical SEND/Bytes and first failure remains exclusively network.reserve_sender_payload. Greedy independent optimizer/vote/safety/Commit and already-bounded retirement remains coordination.simulate_democracy_hungarian_retirement. Original CBAA independent auction/bid consensus and read-only external observer remain cbaa.simulate_cbaa. Previous E2/E3/E4/E8/E9A evidence and their CLI/defaults are unmodified. E9B-4 is the new experiment/evidence OWNER, not a separate protocol state machine, second winner or corrective wrapper.
+
+### Deliberately changed behavior and fairness limitations
+Only NEW E9B runner calls both existing owners under the same configured Byte ceiling, paired seed/scenario/p, and independent fresh ledgers. Persist actual sender Bytes even when different under the shared ceiling, reported separately from physical receiver delivery attempts and elapsed ms. Full outcome types stay different: Greedy full actual Commit vs CBAA full observer agreement (no distributed Commit). All incomplete/conflicted runs count toward failure and are excluded only from completed-only batch-cost means, never discarded. CSV records task IDs, physical accounting, original stop Diagnostic, losses and fixed method-specific round/iteration budgets. Numeric p and caps do not equalize message loss-stage structure, packet sizes, channel airtime, wireless contention, reliable controls or algorithm optimizer quality. No tuning based on CBAA success or performance. Pilot default R100 T50 3seeds 3losses 6caps = 54 paired conditions = 108 method executions; no E9B-4 numerical results have run yet.
+
+### Diagnostic contract / error categories
+- experiments.run_e9b_equal_budget.validate_equal_budget_config / data / E9B_INVALID_DIMENSIONS / E9B_INVALID_LOSS_GRID / E9B_INVALID_BUDGET_GRID; individual network.validate_packet_loss_probability / data / INVALID_PACKET_LOSS_PROBABILITY and network.validate_sender_payload_budget / data / INVALID_SENDER_PAYLOAD_BUDGET preserved.
+- experiments.run_e9b_equal_budget.prepare_equal_budget_output / state / E9B_OUTPUT_SOURCE_COLLISION / E9B_OUTPUT_ALREADY_EXISTS.
+- experiments.run_e9b_equal_budget.validate_paired_sender_accounting / contract / E9B_PAIRED_SENDER_ACCOUNTING_MISMATCH / E9B_INCOMPLETE_OUTCOME_ACCOUNTING with expected/actual cap and SEND ledger.
+- experiments.run_e9b_equal_budget.build_equal_budget_pair_row / contract / E9B_INVALID_GREEDY_REFERENCE_COST.
+- network.reserve_sender_payload / runtime / SEND_PAYLOAD_BUDGET_EXHAUSTED, expected remaining SEND Bytes and actual attempted payload; source Diagnostic owner/function/category/code/expected/actual/details retained verbatim in paired raw output.
+
+### Tests, unresolved risks, next actions
+Only user's 168/168 Mac pass on PREVIOUS revision bcb4f2483e106dacfb0a63636e0d3a99db9eddf3 is verified. NEW E9B-4 runner/tests have NOT executed on Mac or this connector runtime: no fabricated successful test count, no fabricated pilot results. Remote GitHub connector cannot execute the user's Python runtime or inspect locally stored historical evidence. User should run targeted tests, full unittest suite, then 100R/50T 3-seed new-root smoke and verify CSV pairing, SHA256, all cap limits, genuine incomplete outcomes and p=0 cap controls. Formal 100-seed 36-loss sweep must use its own independent fresh root and should not be launched before 3-seed review. Additional remaining concern is harmonization of reliable score/Commit vs CBAA no-Commit, packet-stage loss probability, actual wireless airtime and distributed stopping. A future research paper must disclose these limitations.
+
+### Commit SHA
+Original branch base bcb4f2483e106dacfb0a63636e0d3a99db9eddf3. This continuity paragraph accompanies the new runner, its ten tests and canonical §23 in the SAME tree/commit; append exact implementation SHA via a subsequent continuity-only commit immediately after it is created.
