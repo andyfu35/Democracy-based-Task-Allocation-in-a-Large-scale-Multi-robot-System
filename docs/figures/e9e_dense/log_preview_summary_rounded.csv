@@ -1,5 +1,3 @@
-# GENERATED FROM USER-PASTED MAC TERMINAL STDOUT; NOT ORIGINAL RAW EVIDENCE
-# rounded mean bytes to integer; do not use for paper numerical precision
 loss_percent,democracy_full_count,cbaa_local_certified_count,democracy_mean_sender_bytes_rounded,cbaa_mean_sender_bytes_rounded,democracy_guard_hit_count,cbaa_guard_hit_count
 0,100,100,165432,268976,0,0
 5,100,100,165346,486424,0,0
