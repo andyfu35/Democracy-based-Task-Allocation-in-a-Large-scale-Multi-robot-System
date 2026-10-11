@@ -856,3 +856,74 @@ The legacy E2 experiment runner still computes a Hungarian oracle for backward-c
 This fixed K-copy scheme assumes independent Bernoulli losses, ignores shared airtime/collision and correlated outages, and does not repair initial Cost packet loss or test loss of reliably modeled announcement/Commit messages. It is a fundamental communications-control baseline, not yet a fair published MRTA algorithm-to-algorithm comparison. Next separately implement true ACBBA/CBAA if feasible under a validated 1 robot : 1 task policy and a distributed winner/conflict state model, keeping score/travel costs and communication accounting comparable.
 
 Source and new tests are committed, but tests and K>1 experiments have NOT yet been run on the user's Mac. The last 111/111 test pass was for the previous code revision. Do not claim any new packet-loss success rates until evidence is observed.
+
+
+## 18. External published-family baseline: synchronous single-assignment CBAA (E8)
+
+### 18.1 Source fidelity, research scope and explicit adaptations
+
+Published source: Han-Lim Choi, Luc Brunet and Jonathan P. How, "Consensus-Based Decentralized Auctions for Robust Task Allocation," IEEE Transactions on Robotics 25(4), 912–926 (2009), DOI https://doi.org/10.1109/TRO.2009.2022423, publicly archived MIT https://dspace.mit.edu/entities/publication/b0bf0a05-be3b-433b-9f4b-ce314ed5178b . CBAA Section III comprises an iterative **single-assignment auction** (each robot chooses at most ONE task for which its own score beats known winning bids) followed by a **bid maximum-consensus** process through neighbor communication; a robot releases its currently claimed task when outbid. CBBA in Section IV builds multi-task bundles and has different conflict-handling and timestamp logic: this baseline DOES NOT implement or claim to be CBBA/ACBBA.
+
+This standalone CBAA implementation uses the published two-phase mechanism, with transparently documented engineering restrictions/adaptations:
+- synchronous iteration barriers with a COMPLETE communication topology; there is no simulated asynchrony or sparse topology in this first milestone;
+- score=c_ij=1/(1+Euclidean distance cost_ij)>0, a strictly decreasing nonnegative-cost utility. No Hungarian, own 25% election, own Greedy one-task voting, global optimal assignment, or global bid normalization drives the CBAA decisions. Any difference in cost vs sequential Greedy may reflect a different assignment optimizer, not packet-loss performance;
+- deterministic tie-breaking by lower task ID (own task choice) and lower robot ID (equal winning scores). A winner-origin ID accompanies each winning-bid vector entry so a relay cannot wrongly claim to be the original winning bidder. This extra metadata is explicit, and message length includes it: one broadcast payload APP_HEADER_BYTES + Nt*(FLOAT64_BYTES + ID_BYTES);
+- every robot broadcasts its entire bid and winner-origin vector once per iteration; independently sampled Bernoulli physical loss at EACH receiver for every one of the other N-1 nodes; local self information is always available;
+- phase delay sampled from the exact same pinned Rady Wi-Fi empirical-delay profile as E2, and each iteration is fixed at one profile-maximum phase timeout. A physically delivered packet arriving after this deadline is accounted as late but NOT ingested. The initial test uses a fixed number of iterations; **there is currently NO decentralised network-wide stop-detection protocol** and no hidden global inspector used to terminate the iteration loop early. Fixed-budget time/message overhead is a deliberate conservative study control, not a claim of optimized CBAA runtime;
+- **no centralized rescue, arbitration or reliable final Commit**. Only a separate external evaluation observer, AFTER the fixed iteration budget, can assess whether ALL local nodes agree on task winning bid and owner, and whether exactly that agent has an unconflicted local task claim. If beliefs disagree, the task is UNCONFIRMED; if multiple robots claim it, the task is in a raw split-brain conflict. No global observer winner is broadcast or fed back into any robot. Observer agreement is NOT equivalent to an actual distributed Commit or physical task execution;
+- CBAA consensus-message loss probability p is numerically compared with the old E2 Cost Loss = Vote Loss = p, but CBAA has ONE physical consensus-packet stage per iteration, while old E2 has a one-time Cost and repeated Vote stage with reliably modeled Commit. These are NOT equivalent packet-message workload or reliable control-message assumptions. Do NOT ascribe all differences to a single "packet-loss algorithm" without reporting message semantics and byte/time accounting.
+
+This is explicitly a synchronous single-assignment CBAA **reference implementation** rather than an exact reproduction of the original paper's asynchronous network scheduling, termination control or multi-assignment CBBA. It is the FIRST bounded source-based baseline. Actual CBAA zero-loss convergence must pass tests and a 100R/50T smoke before the results may be used as a paper headline. A later bounded concern can add a proper distributed termination protocol, direct sparse/burst networks, or separate CBBA/ACBBA owners.
+
+### 18.2 Exact source/owner/function and data lifecycle
+
+New CBAA auction-consensus owner: democracy_mrta.cbaa. It holds only the CBAA local state; the original democracy_mrta.coordination multi-round Vote quorum/quarter-plurality membership state machine is untouched.
+
+- CBAALocalState(robot_id, assigned_task, winning_bids, winning_robots): local ONLY. x_i is at most one task, y_i is per-task max known bid and origin; starts empty.
+- validate_cbaa_configuration: check original optimizer.validate_cost_matrix and network.validate_packet_loss_probability owners first; then CBAA score's nonnegative costs, exact integer max_iterations>=1 and valid positive finite phase_timeout_ms. New first-failure data/CBAA_NEGATIVE_COST, data/CBAA_INVALID_ITERATION_BUDGET and time/CBAA_INVALID_PHASE_TIMEOUT.
+- initial_cbaa_states: initialize independent per-agent state at no assignments / zero bids / None owners.
+- cbaa_score: locally transform Euclidean cost to positive descending reward, independent of other agents' private costs.
+- cbaa_bid_outbids: deterministic max bid / lower origin-ID tie-break, called by both CBAA auction and CBAA consensus phases; no centrally assumed winning agent.
+- cbaa_auction_phase: published Phase 1 owner; agents with assigned tasks keep them; unassigned agents only bid for tasks where their own reward beats stored bid, then choose their own maximum reward / lower task ID.
+- exchange_cbaa_consensus_packets: physical CBAA one-broadcast-per-agent transport stage, reuse existing coordination._broadcast_event and _lossy_broadcast_deliveries so sender message count, one-sender latency and per-receiver drops are charged consistently with E2. Returns each receiver's OWN received local-state snapshots, N sent broadcasts, N*(N-1) physical reception opportunities, bytes, physical drops and late arrivals, plus seed-0 audit when requested. No global winner selection inside it. A delivered packet without an arrival time fails contract/CBAA_DELIVERED_PACKET_WITHOUT_TIME.
+- cbaa_consensus_phase: published Phase 2 owner; per agent update each bid entry with maximum from RECEIVED neighbors and itself, propagate real winner origin metadata, release its own assignment if outbid.
+- audit_cbaa_local_agreement: EXTERNAL observer after protocol, not called by agents to elect or Commit. Reports ALL local task claims, per-task conflicts, unanimous winner origin+score confirmation and still-unconfirmed tasks. Never arbitrates a split-brain task or creates a new valid robot allocation.
+- simulate_cbaa: runs original CBAA two named phases for exactly max_iterations, counts physical broadcasts/bytes/delivery attempts/late messages and performs one post-hoc read-only audit. Safety/CBAA_DUPLICATE_OBSERVER_AGREEMENT guards an impossible duplicate robot in observer-confirmed pairs. Never calls solve_hungarian_assignment, the Greedy task-vote engine, or the 25% Commit/score owner.
+
+New independent experiment/evidence owner: experiments.run_cbaa_baseline:
+- validate_cbaa_benchmark_axes: data / INVALID_CBAA_BENCHMARK_AXES, INVALID_CBAA_LOSS_AXIS. Current user-approved R<=100, T<=R, seeds>=1, iterations>=1, increasing loss levels.
+- prepare_cbaa_output: state / CBAA_OUTPUT_SOURCE_COLLISION or CBAA_OUTPUT_ALREADY_EXISTS. Never overwrite historical E2 strict/25%, K2/K3 or E3/E4 raw. Permit dedicated ledger README-only output. Partial abort requires manual new output path instead of overwriting.
+- cbaa_result_row: per seed and p, include ALL raw local claims, conflicts, observer confirmed tasks, unconfirmed tasks, task agreement, physical packets/drops, bytes, elapsed time, fixed iterations, SHA, Greedy offline reference for evaluation only, timestamp.
+- cbaa_full_batch_cost: only FULL observer agreed task batches receive total cost. Missing/conflicted batches have NaN cost, never bogus cheap partial assignment; this is POST-HOC evaluation, not a CBAA decision.
+- summarize_cbaa_conditions: per-p results with full-agreement sample count, task agreement, conflicts, completed-only cost, actual physical drops/attempts, bytes and time.
+- write_cbaa_seed_zero_audit: compressed seed-0 per-sender broadcasts, per-receiver physical deliveries and each final local CBAA bid/owner vector, with NO fake consensus Commit.
+- run_cbaa_baseline: independent benchmarking orchestration; same generate_e0_scenario cost rows/seed, same pinned Rady Wi-Fi latency sampler, independent Bernoulli loss per physical consensus reception, source git SHA, deterministic seed and separate output root.
+- main: CLI only.
+
+No existing Vote owner, quorum, runner, optimizer, packet-loss keyed behavior, E2/E3/E4 historical data or K-copy baseline is modified in this first CBAA block.
+
+### 18.3 Study design and acceptance
+
+**Primary current acceptance is algorithm correctness, not best-performance claims.** First run all existing/new unit tests, then small realistic CBAA smoke on Mac:
+
+    git pull
+    python3 -m unittest discover -s tests -v
+    python3 -m experiments.run_cbaa_baseline --robots 10 --tasks 5 --seeds 3 --loss-probabilities 0,0.30,0.50 --max-iterations 20 --output-root results/e8_cbaa_single_assignment_smoke
+
+Expected one new root with:
+- raw/cbaa_<UTC>.csv — 3 seeds x 3 p = 9 rows; no Hungarian metrics/solver calls, no fabricated Commit;
+- summary.csv — one line per p, complete-only batch cost count and full observer agreement, task consensus, local split-brain metrics, packet/byte/time;
+- events/cbaa_audit_<UTC>.csv.gz — all physical consensus-broadcast send/reception events for seed 0, and final local winner bid and ID vectors;
+- manifest.json — original publication DOI, pinned Rady dataset and Git SHA, exact R/T/seeds/max_iterations/loss axis/timeout, score and adaptation disclosures.
+
+After SMALL smoke and unit suite pass, run a 100R/50T 3-seed pilot into a DIFFERENT evidence root; confirm p=0 achieves whole-team observer agreement, no hidden global arbitration, and physical drop ~p for finite samples:
+
+    python3 -m experiments.run_cbaa_baseline --robots 100 --tasks 50 --seeds 3 --loss-probabilities 0,0.30,0.50 --max-iterations 20 --output-root results/e8_cbaa_100r50t_pilot
+
+If 0%-loss full observer agreement fails, treat as a convergence/iteration-budget contract or algorithm bug to investigate BEFORE formal comparison; do NOT accept a fragmented CBAA method in a paper comparison or quietly promote post-hoc observer assignments to authoritative Commit. If p>0 creates duplicated local claims, report them directly as failure/unsafe convergence, do not censor them by selecting one global winning robot.
+
+Only after validating CBAA's 0%-loss convergence, independent loss protocol, message byte/time policy, and distributed stopping fairness should we design and launch formal 100 seeds x 36 p levels and compare with the already user-completed Greedy 51%, Greedy 25%, and Vote K2/K3 baselines. Unlike previous fixed-Greedy-only ablations, an algorithm-level CBAA comparison MUST disclose that the CBAA local auction optimizes a distinct task-selection objective and its packet semantics differ from the original E2 Cost+Vote model.
+
+### 18.4 Verification limits / next concern
+
+User already completed prior 51%-majority K1, K2, K3 and pure 25% K1 100R/50T, 36 levels, 100 seeds each; new CBAA code/tests have only been committed through GitHub, not executed on the user's Mac as of this change. There is currently no proof of zero-loss full agreement at 100R/50T and no actual new CBAA baseline numerical results. The fixed iteration budget deliberately does not include an implementable fully distributed "all agents stopped" detection; a subsequent bounded change and its own continuity record are required before claiming general fair latency comparisons with the old E2 termination model or published original's asynchronous scheduling. Published CBBA/ACBBA faithfully implemented as separate standalone algorithms remains subsequent work.
