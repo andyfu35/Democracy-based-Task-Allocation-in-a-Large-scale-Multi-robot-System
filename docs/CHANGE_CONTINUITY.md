@@ -2220,3 +2220,36 @@ This completed verification entry updates docs/CHANGE_CONTINUITY.md ONLY: no sou
 
 ### Commit SHA
 Observed runnable source Git SHA 2bcf23ac1b25bf9cad059c7d132a796901601c1b; CI run 38112565303 completed success. This is a docs-only verification record added afterward and cannot change that executable SHA.
+
+
+## 2026-10-11 — E9C-2r1 correction: ONLY original published-family CBAA, remove invented raw-robot-info method
+
+### User requirement and purpose
+The user explicitly said to use original CBAA only and NOT the previous mistaken suggestion to make CBAA transmit every robot's raw position/state. The previous primary original CBAA rows were valid, but the optional nonstandard cbaa_raw_robot_information_K rows unnecessarily complicated the formal data and could be mistaken for original CBAA. This concern removes THAT OPTIONAL METHOD FROM THE ORIGINAL 100-SEED EXPERIMENT OWNER rather than changing CBAA itself.
+
+### Files, owner, named functions and boundary
+- experiments/run_e9c_100seed_comms.py:
+  - capture_seed_information: single original TASK binary dissemination and own-cost-row reconstruction only; no pose-trace construction and no paid remote-pose SEND simulation.
+  - run_cbaa_100seed_cases: only original cbaa.simulate_cbaa per fixed K, emits and counts original Bid/Winner payload via original CBAA owner, returns ONLY cbaa_original_local_bid_K.
+  - require_complete_seed_pairing: strict exact list original Democracy + original CBAA K methods. Any unexpected raw-state alternative fails original named function with owner=experiments.run_e9c_100seed_comms, function=require_complete_seed_pairing, category=contract, code=E9C2_PAIRED_OUTCOME_COVERAGE and expected/actual method IDs.
+  - summarize_100seed_conditions: no deprecated is_nonstandard flag.
+  - calculate_offline_minimum_k: no invented raw-robot sender-byte counterfactual, retains one true post-hoc optimistic minimum K per seed.
+  - write_100seed_comms_evidence: only original method metadata and no_peer_robot_position_broadcast=true, no_optional_nonstandard_cbaa_variants=true, expected_rows=seeds*(1+len(K)).
+  - run_e9c_100seed_comms: no extra robot-info stage; per seed exactly original Democracy + original CBAA K output. Former optional include_raw_robot_info input removed entirely.
+  - main: obsolete --no-cbaa-raw-robot-info flag REMOVED because no wrong method exists to toggle.
+- tests/test_e9c_100seed_comms.py: updated 2R/2T multi-seed real original-method emitted-byte and manifest coverage; new regression check asserting unexpected cbaa_raw_robot_information_K fails original pairing contract (8 named tests in this runner suite).
+- .github/workflows/e9c_100seed_comms.yml: CI name and artifact changed to clearly say ORIGINAL CBAA ONLY, runs the existing full and targeted unit suite then 100 actual 100R/50T seed scenarios without the extraneous data.
+- docs/EXPERIMENT_PROTOCOL.md: new canonical Section 26 supersedes only historical E9C-2 optional raw-pose variant; previous historical Section 25 and its finished evidence remain traceable.
+- docs/CHANGE_CONTINUITY.md: this same-commit entry, followed by a docs-only exact implementation SHA update.
+
+### Responsibility movement, preservation and intentional behavior
+Only experimental selection/evidence responsibility changes; NO original state machine, planner, optimizer, network owner, packet encoder, or on-wire original CBAA/Greedy algorithm is modified. Original cbaa.simulate_cbaa and cbaa_auction_phase, exchange_cbaa_consensus_packets, cbaa_consensus_phase remain EXACTLY unchanged, with synchronous published-family one-task assignment, local own bid, vector max consensus and origin IDs. Original coordination.simulate_democracy_hungarian_retirement, one initial Cost row, 25% vote, score, Commit and retirement remain unchanged. Original common 50-TASK 1632-B physically serialized announcement preserved. Own 2D robot pose is local to each robot; raw OTHER robot pose is NEVER sent in the new corrected runner. Zero loss, same seed grid, K grid, constant latency, original physical sender message-length model, report-only offline CBAA min K and observer-vs-real Commit distinction all preserved. The optional extra CBAA raw-data condition, optional CLI switch, redundant 3600-B per-scenario robot-pose SENDs and summary/meta fields are INTENTIONALLY removed. Correct raw has 8 method rows *100 seeds = 800, 8 summary conditions, 100 offline paired rows. Historical 1500-row previous artifact remains intact rather than overwritten.
+
+### Diagnostic contract and verification status
+Existing config/data/planning errors E9C2_INVALID_SCENARIO_GRID/E9C2_INVALID_K_GRID/E9C2_UNKNOWN_LATENCY_MODE, output state E9C2_PROTECTED_OUTPUT_ROOT/E9C2_OUTPUT_EXISTS and original network/task dependency errors stay unchanged. The no-longer-reachable E9C2_ROBOT_INFO_NOT_TRANSMITTED dependency failure was removed along with the invalid raw-robot variant; it is not reassigned to another owner. Missing/rogue method is explicitly trapped at require_complete_seed_pairing/contract/E9C2_PAIRED_OUTCOME_COVERAGE with expected/actual. Previous 100-seed original-CBAA CI source SHA 2bcf23ac1b25bf9cad059c7d132a796901601c1b did pass its 7 unit tests and full suite; THIS changed source and new 8th test are NOT YET EXECUTED at the time of this commit. A pushed GitHub Actions workflow should rerun full tests and 100 seeds and retain correct SHA256/raw evidence separately. No numerical claims are made until new run verification.
+
+### Remaining risks and next actions
+100 Seeds and 0% loss do not prove global guarantees; original CBAA is a DOCUMENTED synchronous complete-network reference adaptation, not byte-level original-paper PHY reproduction. Bid/Cost/Vote/Score/Commit use existing modeled original physically SEND event sizes, while TASK itself is actual encoded bytes. CBAA still has no distributed stop/Commit, so compare external observer agreement separately from actual Greedy Commit and treat offline earliest K as non-implementable bound. Future work: paid retry/reliable TASK under packet loss, precise all-message wire serialization, and common terminal agreement semantics, each as a separate bounded code concern. Do NOT reintroduce inflated remote robot-info cost.
+
+### Exact implementation commit SHA
+Base branch before E9C-2r1 source edits: e9856098774963b71ce6fb708b57eff213a57e22. Insert exact resulting implementation SHA in subsequent documentation-only continuity update once GitHub reports it.

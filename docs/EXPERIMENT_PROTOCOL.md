@@ -1146,3 +1146,37 @@ Mac local run:
 
 Optional repeat using the pinned Rady profile:
     python3 -m experiments.run_e9c_100seed_comms --latency-mode rady --output-root results/e9c_100seed_rady_100r50t
+
+
+## 26. E9C-2r1 ORIGINAL CBAA ONLY correction — supersedes E9C-2 nonstandard ablation (2026-10-11)
+
+### 26.1 User-confirmed scope and strict admissible method set
+
+The user's explicit correction is: **USE ORIGINAL CBAA, DO NOT USE the mistaken CBAA + all robots' raw-information transmission variant**. This section supersedes only the extra cbaa_raw_robot_information_K option and reporting within historical Section 25. Historical E9C-2 original-source measurements remain valid and immutable. From this correction onward the ONE comparison owner experiments.run_e9c_100seed_comms admits ONLY the following method rows:
+- democracy_task_cost_vote: common physically binary TASK announcement, own Cost rows computed locally, original once-per-owner COST broadcast, one Vote per active voter for chosen task, original Score announcements, reliable Commit and executor retirement. Existing pure25 election/optimizer owner completely unchanged.
+- cbaa_original_local_bid_K{K}: the original E8 published-family **synchronous single-assignment CBAA** auction/maximum-consensus reference implementation for each prespecified fixed K. Every agent locally computes its own bid from its own task-cost row and transmits its current bid/winning-origin vector in each round, **without broadcasting raw robot locations, global robot capabilities, or other private Cost rows**. No new derived winner or alternative algorithm is introduced. Important E8 restrictions STILL APPLY: synchronous complete network, fixed K, explicit origin ID, post-hoc observer agreement not a distributed Commit/stop. Do not call it a byte-identical reproduction of every packet in the 2009 paper.
+
+The old optional CLI flag --no-cbaa-raw-robot-info is REMOVED; there is no raw-robot-info variant to enable OR disable. The physical broadcast of robot POSE packets is REMOVED from the E9C-2r1 100-seed runner; the baseline common TASK framing is retained. Thus 100R50T K=(1,2,3,4,5,6,8), seeds 0..99, p=0, max_rounds=300 creates exactly 100*(1+7)=800 **original-only** raw rows, eight summary method conditions, and 100 paired offline earliest-K rows. A full-original protocol run is not equivalent to the extra synthetic raw-robot-data intervention. Existing E9C-1 optional pose information mode remains in its earlier independent experiment; it is NOT part of this corrected run.
+
+### 26.2 Information and Bytes contract
+
+Common information: 50 tasks physically sent as two actual binary TASK v1 packets totaling 1632 sender application Bytes, received and decoded by every robot. Local robot ID/x/y is own state and is not a SEND; neither method obtains full other-robot state. The original Democracy **physically** emits 100 original Cost packets of 416 sender Bytes each (50 float64 values plus 16-B original modeled header), then physically emitted Vote, Score, Commit with prior sender payload accounting. The original CBAA physically emits exactly 100 bid/winner-origin vector packets of 616 modeled sender Bytes each per predeclared iteration, with no extra robot info packets. A broadcast is counted once at the sender, not 99 times. TASK is actually binary serialized and received, while the original Cost/Vote/Score/Commit/Bid stages are accounted by their original communication-event payload sizes, not separately serialized full IP/802.11 frames. The zero-loss deterministic one-ms latency mode and optional Rady empirical latency mode remain documented; no packet loss and no on-air wireless PHY claim.
+
+Evidence root remains immutable, outputs remain per_seed_method_bytes.csv, summary.csv, offline_min_cbaa_k_per_seed.csv, manifest.json with SHA256 and source Git SHA. Metadata now explicitly records no_optional_nonstandard_cbaa_variants=true, no_peer_robot_position_broadcast=true. No cbaa_raw_robot_information_K row, no raw robot POSE bytes, no incorrect offline-raw-CBAA bound. The historical 1500-row pre-correction dataset remains as immutable prior evidence but is not the corrected 800-row raw analysis.
+
+### 26.3 Ownership / diagnostics / acceptance
+
+ONLY the existing experiment evidence owner experiments.run_e9c_100seed_comms is changed:
+- capture_seed_information now only broadcasts TASK and reconstructs each own Cost row. No optional peer pose transport or synthetic CBAA data required.
+- run_cbaa_100seed_cases now invokes the unchanged cbaa.simulate_cbaa for each fixed K and produces ONLY cbaa_original_local_bid_K rows.
+- require_complete_seed_pairing rejects ANY unexpected method or nonstandard variant using the existing experiment / require_complete_seed_pairing / contract / E9C2_PAIRED_OUTCOME_COVERAGE diagnostic with explicit expected/actual. No new wrapper or alternate CBAA state machine.
+- summarize_100seed_conditions, calculate_offline_minimum_k, write_100seed_comms_evidence and run_e9c_100seed_comms eliminate nonstandard input/output fields and adapt expected row coverage.
+- main removes the obsolete optional robot-information flag. Original algorithm and transport owners unchanged: democracy_mrta.cbaa.simulate_cbaa / auction / consensus / physical SEND; coordination.simulate_democracy_hungarian_retirement; task_information.broadcast_task_information; all previous first-failure boundaries remain intact.
+- tests/test_e9c_100seed_comms.py now tests original-only 3-seed rows, explicitly rejects any cbaa_raw_robot_information_K row, ensures peer POSE sender Bytes ==0, checks 8-method deterministic 100-seed shape via manifest, SHA256, no-overwrite, and all existing diagnostics. GitHub Actions .github/workflows/e9c_100seed_comms.yml runs dedicated/full regression and 100-seed source-only experiment with a distinctly named artifact.
+
+Execute on Mac or trusted CI:
+    python3 -m unittest discover -s tests -p 'test_e9c_100seed_comms.py' -v
+    python3 -m unittest discover -s tests -v
+    python3 -m experiments.run_e9c_100seed_comms --robots 100 --tasks 50 --seeds 100 --first-seed 0 --cbaa-iterations 1,2,3,4,5,6,8 --max-rounds 300 --latency-mode constant --output-root results/e9c_original_cbaa_only_100seed
+
+Do not claim results from this new executable SHA until new CI run or user Mac execution confirms them. The earlier 100-seed p0 results for original method rows SHOULD be numerically identical at the same seed/K/timing assumptions; verify by actual re-run, do not assume a pass. Future fairness research remains separate (actual serialized Cost/Vote/CBAA fields, paid retransmissions and distributed termination/Commit under packet loss).

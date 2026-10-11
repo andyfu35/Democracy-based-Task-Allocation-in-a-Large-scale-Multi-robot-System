@@ -1,4 +1,4 @@
-name: E9C 100-Seed Communication Bytes
+name: E9C Original CBAA Only - 100-Seed Communication Bytes
 
 on:
   push:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   communication-100seed:
-    name: E9C 100R 50T 100 seeds zero-loss real sender bytes
+    name: E9C 100R 50T 100 seeds original CBAA, no raw robot transfer
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -48,7 +48,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e9c-100seed-real-communication-evidence
+          name: e9c-100seed-original-cbaa-only-evidence
           path: results/e9c_100seed_ci/
           if-no-files-found: warn
           retention-days: 30

@@ -12,6 +12,7 @@ from unittest.mock import patch
 from democracy_mrta.diagnostics import ProtocolError
 from experiments.run_e9c_100seed_comms import (
     calculate_offline_minimum_k,
+    require_complete_seed_pairing,
     prepare_100seed_comms_output,
     run_e9c_100seed_comms,
     summarize_100seed_conditions,
@@ -21,11 +22,11 @@ from experiments.run_e9c_100seed_comms import (
 
 class Real100SeedCommsTests(unittest.TestCase):
 
-    def defaults(self, root, *, include_raw_robot_info=True, seeds=3, k=(1,2)):
+    def defaults(self, root, *, seeds=3, k=(1,2)):
         return dict(
             robots=2, tasks=2, seeds=seeds, first_seed=0,
             cbaa_iterations=k, max_rounds=5,
-            latency_mode="constant", include_raw_robot_info=include_raw_robot_info,
+            latency_mode="constant",
             output_root=root, allow_download=False,
         )
 
@@ -40,16 +41,15 @@ class Real100SeedCommsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)/"e9c_data"
             rows = self.run_small(**self.defaults(root))
-            self.assertEqual(len(rows), 15)
+            self.assertEqual(len(rows), 9)
             by_seed = {}
             for row in rows:
                 by_seed.setdefault(row["seed"], {})[row["method"]] = row
             self.assertEqual(set(by_seed), {0,1,2})
             for trial in by_seed.values():
-                self.assertEqual(len(trial), 5)
+                self.assertEqual(len(trial), 3)
                 democracy = trial["democracy_task_cost_vote"]
                 cbaa1 = trial["cbaa_original_local_bid_K1"]
-                raw1 = trial["cbaa_raw_robot_information_K1"]
                 cbaa2 = trial["cbaa_original_local_bid_K2"]
                 self.assertEqual(democracy["task_announcement_sender_bytes"], 80)
                 self.assertEqual(democracy["democracy_cost_rows_sender_bytes"], 64)
@@ -58,10 +58,10 @@ class Real100SeedCommsTests(unittest.TestCase):
                 self.assertEqual(cbaa1["cbaa_bid_vector_sender_bytes"], 80)
                 self.assertEqual(cbaa1["end_to_end_sender_application_bytes"], 160)
                 self.assertEqual(cbaa2["end_to_end_sender_application_bytes"], 240)
-                self.assertEqual(raw1["end_to_end_sender_application_bytes"], 232)
-                self.assertEqual(raw1["peer_robot_position_sender_bytes"], 72)
-                self.assertEqual(raw1["completed_or_observer_agreed_tasks"], cbaa1["completed_or_observer_agreed_tasks"])
-                self.assertEqual(raw1["full_result_of_own_semantics"], cbaa1["full_result_of_own_semantics"])
+                self.assertTrue(all(
+                    item["peer_robot_position_sender_bytes"] == 0
+                    for item in trial.values()
+                ))
                 self.assertEqual(democracy["success_semantics"], "actual_reliable_commit")
                 self.assertEqual(cbaa1["success_semantics"], "posthoc_observer_unanimity_not_distributed_commit")
 
@@ -81,25 +81,30 @@ class Real100SeedCommsTests(unittest.TestCase):
             self.assertTrue(manifest["cbaa_no_final_commit"])
             self.assertTrue(manifest["offline_minimum_K_is_not_runtime_stopping"])
             self.assertEqual(manifest["information"]["task_record_bytes"], 32)
+            self.assertTrue(manifest["no_optional_nonstandard_cbaa_variants"])
+            self.assertTrue(manifest["no_peer_robot_position_broadcast"])
+            self.assertEqual(
+                set(manifest["methods"]),
+                {"democracy_task_cost_vote", "cbaa_original_local_bid_K"},
+            )
             for path in paths[:3]:
                 self.assertEqual(
                     manifest["sha256"][path.name],
                     hashlib.sha256(path.read_bytes()).hexdigest(),
                 )
             with paths[0].open(newline="", encoding="utf-8") as handle:
-                self.assertEqual(len(list(csv.DictReader(handle))), 15)
+                self.assertEqual(len(list(csv.DictReader(handle))), 9)
             with paths[1].open(newline="", encoding="utf-8") as handle:
-                self.assertEqual(len(list(csv.DictReader(handle))), 5)
+                self.assertEqual(len(list(csv.DictReader(handle))), 3)
             with paths[2].open(newline="", encoding="utf-8") as handle:
                 pairs = list(csv.DictReader(handle))
             self.assertEqual(len(pairs), 3)
             self.assertTrue(all(item["offline_oracle_cannot_stop_distributed_algorithm"] == "1" for item in pairs))
 
-    def test_source_faithful_cbaa_alone_does_not_pay_poses(self):
+    def test_only_original_cbaa_and_no_unpaid_peer_robot_poses(self):
         with tempfile.TemporaryDirectory() as folder:
             rows = self.run_small(
-                **self.defaults(Path(folder)/"e9c_source_faithful",
-                                include_raw_robot_info=False, seeds=2)
+                **self.defaults(Path(folder)/"e9c_original_cbaa_only", seeds=2)
             )
             self.assertEqual(len(rows), 6)
             self.assertTrue(all("raw_robot_information" not in row["method"] for row in rows))
@@ -112,7 +117,7 @@ class Real100SeedCommsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             rows = self.run_small(**self.defaults(Path(folder)/"e9c_oracle"))
             pairs = calculate_offline_minimum_k(
-                rows=rows, cbaa_iterations=(1, 2), include_raw_robot_info=True,
+                rows=rows, cbaa_iterations=(1, 2),
             )
             self.assertEqual(len(pairs), 3)
             self.assertTrue(all(int(item["democracy_actual_commit_full"]) == 1 for item in pairs))
@@ -132,6 +137,28 @@ class Real100SeedCommsTests(unittest.TestCase):
             self.assertEqual(cm.exception.diagnostic.code,"E9C2_OUTPUT_EXISTS")
             self.assertEqual(before, (root/"per_seed_method_bytes.csv").read_bytes())
 
+    def test_nonstandard_cbaa_method_cannot_pass_pairing_contract(self):
+        with self.assertRaises(ProtocolError) as cm:
+            require_complete_seed_pairing(
+                rows=[
+                    {"method": "democracy_task_cost_vote", "seed": 0,
+                     "completed_or_observer_agreed_tasks": 2,
+                     "full_result_of_own_semantics": 1},
+                    {"method": "cbaa_raw_robot_information_K1", "seed": 0,
+                     "completed_or_observer_agreed_tasks": 2,
+                     "full_result_of_own_semantics": 1},
+                ],
+                seed=0, tasks=2, k_grid=(1,),
+            )
+        diagnostic = cm.exception.diagnostic
+        self.assertEqual(
+            (diagnostic.owner, diagnostic.function,
+             diagnostic.category, diagnostic.code),
+            ("experiments.run_e9c_100seed_comms",
+             "require_complete_seed_pairing",
+             "contract", "E9C2_PAIRED_OUTCOME_COVERAGE"),
+        )
+
     def test_old_result_roots_protected(self):
         for root in (Path("results"), Path("results/e9b_equal_sender_budget_pilot"),
                      Path("results/e8_cbaa_pilot")):
@@ -144,7 +171,7 @@ class Real100SeedCommsTests(unittest.TestCase):
         for altered in ({"robots":0}, {"tasks":3}, {"seeds":0},
                         {"seeds":True}, {"first_seed":-1},
                         {"max_rounds":1}):
-            x=dict(baseline);x.update(altered);x.pop("output_root");x.pop("include_raw_robot_info");x.pop("allow_download")
+            x=dict(baseline);x.update(altered);x.pop("output_root");x.pop("allow_download")
             with self.subTest(altered=altered),self.assertRaises(ProtocolError) as cm:
                 validate_100seed_comms_config(**x)
             self.assertEqual(cm.exception.diagnostic.code,"E9C2_INVALID_SCENARIO_GRID")
