@@ -120,12 +120,7 @@ def cbaa_result_row(
 ) -> dict[str, object]:
     """An external observer reports agreement, never an invented actual Commit."""
     full = result.full_observer_agreement
-    confirmed_cost = (
-        sum(cost_matrix_value for cost_matrix_value in ())
-    ) if False else float("nan")
-    # Use the separately provided assignment cost from the CBAA result's
-    # own local states? No: the caller owns the scene cost matrix and supplies
-    # the per-pair costs below via a named observer metric function.
+    # Full-batch cost belongs to cbaa_full_batch_cost and is NaN if incomplete.
     return {
         "timestamp_utc": timestamp,
         "git_sha": git_sha,
