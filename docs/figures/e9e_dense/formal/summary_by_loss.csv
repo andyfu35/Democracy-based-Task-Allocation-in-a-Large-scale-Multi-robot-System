@@ -1,0 +1,105 @@
+loss_probability,method,seeds,full_protocol_result_count,full_protocol_result_rate,mean_tasks_confirmed,mean_total_sender_bytes,min_total_sender_bytes,max_total_sender_bytes,mean_rounds_executed,guard_hit_count,cbaa_full_observer_agreement_count,cbaa_all_locally_certified_count,primary_semantics
+0.0,cbaa_original_local_certified,100,100,1.0,50,268976,186432,494432,4.34,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.0,democracy_cost_vote,100,100,1.0,50,165432,165432,165432,50,0,,,actual_reliable_commit
+0.05,cbaa_original_local_certified,100,100,1.0,50,486424,371232,740832,7.87,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.05,democracy_cost_vote,100,100,1.0,50,165345.6,165208,165432,50,0,,,actual_reliable_commit
+0.1,cbaa_original_local_certified,100,100,1.0,50,557880,432832,802432,9.03,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.1,democracy_cost_vote,100,100,1.0,50,165249.92,165080,165432,50,0,,,actual_reliable_commit
+0.15,cbaa_original_local_certified,100,100,1.0,50,626256,494432,802432,10.14,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.15,democracy_cost_vote,100,100,1.0,50,165151.36,164888,165336,50,0,,,actual_reliable_commit
+0.2,cbaa_original_local_certified,100,100,1.0,50,698944,556032,925632,11.32,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.2,democracy_cost_vote,100,100,1.0,50,165041.6,164664,165272,50,0,,,actual_reliable_commit
+0.25,cbaa_original_local_certified,100,100,1.0,50,767320,617632,1110432,12.43,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.25,democracy_cost_vote,100,100,1.0,50,164905.92,164472,165208,50,0,,,actual_reliable_commit
+0.3,cbaa_original_local_certified,100,100,1.0,50,838160,679232,1356832,13.58,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.3,democracy_cost_vote,100,100,1.0,50,164750.08,164280,165080,50,0,,,actual_reliable_commit
+0.35,cbaa_original_local_certified,100,100,1.0,50,927480,740832,1356832,15.03,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.35,democracy_cost_vote,100,100,1.0,50,164609.92,164120,166840,50.02,0,,,actual_reliable_commit
+0.4,cbaa_original_local_certified,100,100,1.0,50,1015568,802432,1480032,16.46,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.4,democracy_cost_vote,100,100,1.0,50,166167.68,163928,172888,50.85,0,,,actual_reliable_commit
+0.41,cbaa_original_local_certified,100,100,1.0,50,1039592,864032,1480032,16.85,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.41,democracy_cost_vote,100,100,1.0,50,167471.04,163864,173848,51.47,0,,,actual_reliable_commit
+0.42,cbaa_original_local_certified,100,100,1.0,50,1054376,864032,1480032,17.09,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.42,democracy_cost_vote,100,100,1.0,50,169763.84,163832,182360,52.56,0,,,actual_reliable_commit
+0.43,cbaa_original_local_certified,100,100,1.0,50,1074088,864032,1480032,17.41,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.43,democracy_cost_vote,100,100,1.0,50,172820.48,163800,192408,53.96,0,,,actual_reliable_commit
+0.44,cbaa_original_local_certified,100,100,1.0,50,1091336,925632,1480032,17.69,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.44,democracy_cost_vote,100,100,1.0,50,177823.36,165784,201592,56.31,0,,,actual_reliable_commit
+0.45,cbaa_original_local_certified,100,100,1.0,50,1109200,925632,1480032,17.98,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.45,democracy_cost_vote,100,100,1.0,50,185011.52,168312,219832,59.6,0,,,actual_reliable_commit
+0.46,cbaa_original_local_certified,100,100,1.0,50,1128912,925632,1480032,18.3,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.46,democracy_cost_vote,100,100,1.0,50,195697.28,171032,292504,64.63,0,,,actual_reliable_commit
+0.47,cbaa_original_local_certified,100,100,1.0,50,1152936,987232,1480032,18.69,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.47,democracy_cost_vote,100,100,1.0,50,211952.64,177272,280344,72.33,0,,,actual_reliable_commit
+0.48,cbaa_original_local_certified,100,100,1.0,50,1168952,987232,1480032,18.95,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.48,democracy_cost_vote,100,99,0.99,49.98,237854.48,183064,574752,85.53,1,,,actual_reliable_commit
+0.49,cbaa_original_local_certified,100,100,1.0,50,1200984,987232,1541632,19.47,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.49,democracy_cost_vote,100,99,0.99,49.98,266484.24,192536,594528,98.08,1,,,actual_reliable_commit
+0.5,cbaa_original_local_certified,100,100,1.0,50,1217616,987232,1603232,19.74,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.5,democracy_cost_vote,100,100,1.0,50,323076.16,225624,560952,126.19,0,,,actual_reliable_commit
+0.51,cbaa_original_local_certified,100,100,1.0,50,1249032,987232,1603232,20.25,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.51,democracy_cost_vote,100,99,0.99,49.99,389149.48,262584,646748,157.68,1,,,actual_reliable_commit
+0.52,cbaa_original_local_certified,100,100,1.0,50,1297080,987232,1849632,21.03,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.52,democracy_cost_vote,100,91,0.91,49.82,494399.44,310552,693964,207.55,9,,,actual_reliable_commit
+0.53,cbaa_original_local_certified,100,100,1.0,50,1328496,1048832,1849632,21.54,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.53,democracy_cost_vote,100,65,0.65,48.55,618515.24,392248,769364,262.15,35,,,actual_reliable_commit
+0.54,cbaa_original_local_certified,100,100,1.0,50,1368536,1110432,1972832,22.19,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.54,democracy_cost_vote,100,14,0.14,43.2,731611.2,579160,840660,295.75,86,,,actual_reliable_commit
+0.55,cbaa_original_local_certified,100,100,1.0,50,1401800,1110432,2096032,22.73,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.55,democracy_cost_vote,100,0,0.0,34.41,796597.72,705032,877576,300,100,,,actual_reliable_commit
+0.56,cbaa_original_local_certified,100,100,1.0,50,1426440,1110432,2096032,23.13,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.56,democracy_cost_vote,100,0,0.0,24.93,848241.72,746728,919592,300,100,,,actual_reliable_commit
+0.57,cbaa_original_local_certified,100,100,1.0,50,1464632,1110432,2096032,23.75,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.57,democracy_cost_vote,100,0,0.0,17.27,889314.92,805772,950044,300,100,,,actual_reliable_commit
+0.58,cbaa_original_local_certified,100,100,1.0,50,1504672,1172032,2096032,24.4,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.58,democracy_cost_vote,100,0,0.0,11,923237.28,880000,964724,300,100,,,actual_reliable_commit
+0.59,cbaa_original_local_certified,100,100,1.0,50,1534240,1172032,2096032,24.88,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.59,democracy_cost_vote,100,0,0.0,6.51,945358.28,906832,980576,300,100,,,actual_reliable_commit
+0.6,cbaa_original_local_certified,100,100,1.0,50,1588448,1233632,2096032,25.76,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.6,democracy_cost_vote,100,0,0.0,4.06,957845.52,925168,982112,300,100,,,actual_reliable_commit
+0.61,cbaa_original_local_certified,100,100,1.0,50,1627872,1356832,2096032,26.4,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.61,democracy_cost_vote,100,0,0.0,2.23,967558.76,938952,981884,300,100,,,actual_reliable_commit
+0.62,cbaa_original_local_certified,100,100,1.0,50,1664832,1356832,2157632,27,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.62,democracy_cost_vote,100,0,0.0,1.08,973003.04,950512,982496,300,100,,,actual_reliable_commit
+0.63,cbaa_original_local_certified,100,100,1.0,50,1698712,1418432,2342432,27.55,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.63,democracy_cost_vote,100,0,0.0,0.42,975381.36,954292,981728,300,100,,,actual_reliable_commit
+0.64,cbaa_original_local_certified,100,100,1.0,50,1753536,1418432,2404032,28.44,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.64,democracy_cost_vote,100,0,0.0,0.24,975638.08,966396,980960,300,100,,,actual_reliable_commit
+0.65,cbaa_original_local_certified,100,100,1.0,50,1792344,1480032,2404032,29.07,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.65,democracy_cost_vote,100,0,0.0,0.12,975326.56,965788,980960,300,100,,,actual_reliable_commit
+0.7,cbaa_original_local_certified,100,100,1.0,50,2080016,1664832,2896832,33.74,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.7,democracy_cost_vote,100,0,0.0,0,971233.28,963872,975584,300,100,,,actual_reliable_commit
+0.75,cbaa_original_local_certified,100,100,1.0,50,2501976,2034432,3451232,40.59,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.75,democracy_cost_vote,100,0,0.0,0,964904.96,957728,970592,300,100,,,actual_reliable_commit
+0.8,cbaa_original_local_certified,100,100,1.0,50,3106272,2404032,4498432,50.4,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.8,democracy_cost_vote,100,0,0.0,0,955114.88,948896,963488,300,100,,,actual_reliable_commit
+0.85,cbaa_original_local_certified,100,100,1.0,50,4206448,3020032,5853632,68.26,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.85,democracy_cost_vote,100,0,0.0,0,939449.6,929120,947360,300,100,,,actual_reliable_commit
+0.86,cbaa_original_local_certified,100,100,1.0,50,4492888,3636032,7393632,72.91,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.86,democracy_cost_vote,100,0,0.0,0,934682.24,924512,942560,300,100,,,actual_reliable_commit
+0.87,cbaa_original_local_certified,100,100,1.0,50,4781792,3882432,7393632,77.6,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.87,democracy_cost_vote,100,0,0.0,0,929271.68,916640,938720,300,100,,,actual_reliable_commit
+0.88,cbaa_original_local_certified,100,100,1.0,50,5212992,4128832,8748832,84.6,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.88,democracy_cost_vote,100,0,0.0,0,923012.48,907616,934304,300,100,,,actual_reliable_commit
+0.89,cbaa_original_local_certified,100,100,1.0,50,5683616,4498432,8748832,92.24,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.89,democracy_cost_vote,100,0,0.0,0,916136.96,899744,928352,300,100,,,actual_reliable_commit
+0.9,cbaa_original_local_certified,100,100,1.0,50,6118512,4744832,8748832,99.3,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.9,democracy_cost_vote,100,0,0.0,0,907393.28,889568,921440,300,100,,,actual_reliable_commit
+0.91,cbaa_original_local_certified,100,100,1.0,50,6859560,5545632,9364832,111.33,0,100,100,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.91,democracy_cost_vote,100,0,0.0,0,897102.08,874208,914336,300,100,,,actual_reliable_commit
+0.92,cbaa_original_local_certified,100,97,0.97,50,7706560,6038432,9857632,125.08,3,100,97,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.92,democracy_cost_vote,100,0,0.0,0,884545.28,860768,902816,300,100,,,actual_reliable_commit
+0.93,cbaa_original_local_certified,100,87,0.87,50,8779016,7270432,9857632,142.49,13,100,87,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.93,democracy_cost_vote,100,0,0.0,0,867758.72,836960,890912,300,100,,,actual_reliable_commit
+0.94,cbaa_original_local_certified,100,48,0.48,50,9577968,7948032,9857632,155.46,52,100,48,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.94,democracy_cost_vote,100,0,0.0,0,845290.88,811040,872096,300,100,,,actual_reliable_commit
+0.95,cbaa_original_local_certified,100,2,0.02,50,9854552,9611232,9857632,159.95,98,100,2,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.95,democracy_cost_vote,100,0,0.0,0,815265.92,782240,850784,300,100,,,actual_reliable_commit
+0.96,cbaa_original_local_certified,100,0,0.0,50,9857632,9857632,9857632,160,100,100,0,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.96,democracy_cost_vote,100,0,0.0,0,770184.32,730976,815840,300,100,,,actual_reliable_commit
+0.97,cbaa_original_local_certified,100,0,0.0,50,9857632,9857632,9857632,160,100,100,0,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.97,democracy_cost_vote,100,0,0.0,0,699557.12,641888,760544,300,100,,,actual_reliable_commit
+0.98,cbaa_original_local_certified,100,0,0.0,50,9857632,9857632,9857632,160,100,100,0,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.98,democracy_cost_vote,100,0,0.0,0,590339.84,519776,678176,300,100,,,actual_reliable_commit
+0.99,cbaa_original_local_certified,100,0,0.0,50,9857632,9857632,9857632,160,100,100,0,all_peer_local_evidence_and_posthoc_observer; optimistic_simulator_halt_not_distributed_commit
+0.99,democracy_cost_vote,100,0,0.0,0,399013.76,318944,475232,300,100,,,actual_reliable_commit

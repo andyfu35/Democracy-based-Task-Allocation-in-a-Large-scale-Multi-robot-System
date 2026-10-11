@@ -1,0 +1,106 @@
+name: E9E Publish Verified Six Formal SVGs
+
+on:
+  push:
+    branches:
+      - experiment/e9e-dense-loss-figures
+    paths:
+      - .github/workflows/e9e_publish_verified_figures.yml
+      - docs/figures/e9e_dense/formal/summary_by_loss.csv
+
+permissions:
+  contents: write
+
+jobs:
+  publish-verified-svg:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout revision with trusted original summary
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Python runtime for existing deterministic renderer
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install existing original project dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Verify published source summary and regenerate exact 6 original SVGs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from collections import Counter
+          import csv
+          import hashlib
+          import json
+          from pathlib import Path
+          from experiments.plot_e9d_results import build_e9d_plot_series, compose_e9d_figures
+
+          root=Path('docs/figures/e9e_dense/formal')
+          summary=root/'summary_by_loss.csv'
+          expected_source_sha256='3408ccd1978ca66d58ff4dd195d3b31b8e2805c798e1adfa872d5d45ea6706db'
+          actual_summary_sha256=hashlib.sha256(summary.read_bytes()).hexdigest()
+          if actual_summary_sha256!=expected_source_sha256:
+              raise SystemExit('SUMMARY SHA CONTRACT FAILED '+actual_summary_sha256)
+          with summary.open(encoding='utf-8',newline='') as handle:
+              rows=list(csv.DictReader(handle))
+          methods={'democracy_cost_vote','cbaa_original_local_certified'}
+          probabilities=sorted({float(r['loss_probability']) for r in rows})
+          counts=Counter((float(r['loss_probability']),r['method']) for r in rows)
+          if (len(rows)!=104 or len(probabilities)!=52
+              or probabilities[0]!=0.0 or probabilities[-1]!=0.99
+              or len(counts)!=104
+              or any(n!=1 for n in counts.values())
+              or set(r['method'] for r in rows)!=methods
+              or any(int(r['seeds'])!=100 for r in rows)):
+              raise SystemExit('EXACT PAIRED SUMMARY COVERAGE CONTRACT FAILED')
+          expected_svg_sha256={
+             'e9d_cbaa_agreement_vs_stop.svg':'a70e7db23fcfb1f3c778e0246a23e311d1ba44ec035684be26b61b2e1c4c1aad',
+             'e9d_cbaa_high_loss_zoom.svg':'23dee05effe7afa2d8808fc1465b2bf1b7fab9a1943a7726e3bcbf12259a3a92',
+             'e9d_democracy_transition.svg':'84a403ccd9092e0292f4a4340741c3f24363e97c881526366a96b17eca8ab51f',
+             'e9d_full_success.svg':'3b923f849e045d74efcedabb6b122b1e0e95e071b7ef9f882c1b19c9b55c9697',
+             'e9d_guard_censoring.svg':'3343e63cbbd45dec8ae21fda29125b61da6ec49a32b41585b89cca333172d654',
+             'e9d_sender_payload.svg':'b6b1c0f637c1dfd5476a3e6c9e76212c3cf4b2284310ebcd918e91d8de780b5d',
+          }
+          rendered=compose_e9d_figures(build_e9d_plot_series(rows),seed_count=100)
+          if set(rendered)!=set(expected_svg_sha256):
+              raise SystemExit('SIX SOURCE FIGURE COVERAGE CONTRACT FAILED')
+          for name,svg in sorted(rendered.items()):
+              content=svg.encode('utf-8')
+              digest=hashlib.sha256(content).hexdigest()
+              if digest!=expected_svg_sha256[name]:
+                  raise SystemExit('ORIGINAL FIGURE SHA256 MISMATCH '+name+' actual='+digest)
+              (root/name).write_bytes(content)
+              print('VERIFIED_ORIGINAL_SVG',name,digest)
+          verified_manifest={
+              'publication_kind': 'independently_sha256_verified_original_mac_six_svg_reproduction',
+              'original_source_git_sha': '2808fa12fcd89aa8c2251e7e6438312a95a9df8f',
+              'seeds':100,'robots':100,'tasks':50,
+              'loss_probabilities':probabilities,
+              'raw_per_seed_rows_independently_verified_by_assistant':10400,
+              'original_per_seed_raw_sha256':'e2337a157b96593d441c143b19d5b2b9b1c64604b4bc0a651da1e566c060c727',
+              'original_summary_sha256':expected_source_sha256,
+              'original_mac_figure_manifest_sha256':'3292484251ff11157c191029c06822c77526875f97ce667fa394751c08691e31',
+              'original_mac_run_manifest_sha256':'eaffa7a9be1dfe034443bc8004280689f7b3d67228b57bbe0feb1fc4c8735876',
+              'figure_sha256':expected_svg_sha256,
+              'cbaa_global_stop_is_optimistic_no_paid_stop_ack':True,
+              'cbaa_observer_not_a_distributed_commit':True,
+              'sender_bytes_are_application_payload_not_wifi_airtime':True,
+          }
+          (root/'publication_manifest.json').write_text(
+              json.dumps(verified_manifest,ensure_ascii=False,sort_keys=True,indent=2)+'\n',
+              encoding='utf-8'
+          )
+          PY
+      - name: Commit byte-identical original six SVGs and verified summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/figures/e9e_dense/formal/
+          git diff --cached --quiet && exit 0
+          git commit -m "Publish 6 verified E9E original SVG charts with source SHA manifest"
+          git push origin HEAD:experiment/e9e-dense-loss-figures
