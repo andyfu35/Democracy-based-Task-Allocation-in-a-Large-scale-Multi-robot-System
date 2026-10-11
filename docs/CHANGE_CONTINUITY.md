@@ -2059,3 +2059,28 @@ Only user's 168/168 Mac pass on PREVIOUS revision bcb4f2483e106dacfb0a63636e0d3a
 
 ### Commit SHA
 Original branch base: `bcb4f2483e106dacfb0a63636e0d3a99db9eddf3`. E9B-4 implementation + ten new tests + canonical §23 + this continuity entry were committed together at `bc13d00b394cba1936dd70ef895074b83f434440`. This follow-up documentation-only commit records the exact implementation SHA; new E9B-4 tests and pilot remain pending Mac verification.
+
+
+## 2026-10-11 — E9B-4 Mac pilot results verified; round-limit sensitivity gate (documentation only)
+
+### Purpose and source
+User Mac verification of E9B-4 SHA 41d9c8e19b28536bb83fe83ae8a58c87757033f2: targeted E9B runner tests 10/10 PASS, full unittest discovery 178/178 PASS. A separate preexisting unclosed-file ResourceWarning from tests/test_greedy_communication_comparison.py is nonfatal. Pilot 100R/50T, seeds 0..2, p=(0,.30,.50), B=(100000,163800,184800,250000,500000,1000000), max_greedy_rounds=100, max_cbaa_iterations=40: all 54 paired conditions completed (108 independent method evaluations). Terminal reports Mac-local results/e9b_equal_sender_budget_pilot/raw/e9b_pairs_20261011T015151Z.csv, summary.csv and manifest.json. This documentation evidence is from the user's printed terminal log: neither raw per-seed CSV nor manifest SHA256 has been independently obtained here. No code is changed in this documentation-only follow-up.
+
+### Matched physical actual transmitted traffic, B=163800
+- p=0: original Greedy 163800 actual sender Bytes, CBAA 163240; full Greedy actual Commit 3/3, full CBAA POST-HOC observer agreement 1/3; partial task ratios Greedy 1.0000 vs CBAA .9867.
+- p=.30: Greedy 163149 Bytes vs CBAA 163240; full Commit 3/3 vs full observer agreement 0/3; task ratios 1.0000 vs .9200.
+- p=.50: Greedy 163779 Bytes vs CBAA 163240; both full outcomes 0/3; task ratios .3600 actual Commit vs .8933 observer agreement.
+All three conditions have <0.35% difference in mean actual sender payload Bytes. This is the strongest close-ACTUAL-BYTES pilot evidence, NOT yet a formal 100-seed study or equivalent Commit semantics.
+
+### Higher caps expose resource and termination confounds
+- B=184800 p=0: Greedy 3/3 full Commit vs CBAA 3/3 full observer agreement, but Greedy actual Bytes 163800 and CBAA 184800 (+12.82%), so this cap is NOT identical actual traffic. At p=.30: Greedy 3/3 vs CBAA 0/3.
+- B=250000 p=.30: Greedy 3/3 vs CBAA 2/3, but actual 163149 vs 249480 Bytes; p=.50 Greedy 0/3 vs CBAA 1/3, close actual 249992 vs 249480 Bytes.
+- B=500000 p=.30: both methods 3/3 on their distinct metrics, but actual 163149 vs 499576 Bytes, not matched.
+- p=.50 at B=500000 and B=1000000: Greedy 0/3 full with mean 0.8267 committed task ratio and 289915 actual Bytes, Greedy budget_exhausted=0.0. Greedy thus terminates by max_rounds=100, not a hard Bytes ceiling. This is a material experimental limit: no evidence yet that p=.50 prevents eventual completion when max_rounds increases while cap remains fixed.
+- CBAA p=.50 at B=500000 and B=1000000 obtains full external observer agreement in 3/3, but CBAA budget_exhausted=1.0; it retains fixed repeated broadcasts with no proper decentralized convergence stop and NEVER an actual reliable Commit.
+
+### Immediate research next steps, without algorithm changes
+First run an explicitly bounded 3-seed sensitivity: p=.50, B=(500000,1000000), Greedy max_rounds=200 and max_rounds=300 separately, retain original CBAA max_iterations=40, and use NEW immutable output roots. Compare full Commit, remaining tasks, actual Bytes, Greedy cap exhaustion and elapsed time to previous 100-round pilot. Do not claim 50% Packet Loss algorithm superiority from the previous 100-round stop. The eventual 100-seed p0..70 step2 formal experiment must have separate roots and ideally an independent checkpoint/resume evidence concern: current runner writes raw CSV only after every paired condition has executed, so interruption loses the current run's unwritten evidence.
+
+### Owner and diagnostic contracts unchanged
+Documentation only. Original network.reserve_sender_payload / runtime / SEND_PAYLOAD_BUDGET_EXHAUSTED remains physical admission owner, coordination.simulate_democracy_hungarian_retirement remains unique Greedy election/Commit/retirement owner, cbaa.simulate_cbaa remains unique local auction/consensus owner, and experiments.run_e9b_equal_budget remains experiment-only owner. No functional edits, no new diagnostics, no changed canonical specifications or historical raw, no responsibility movement. Source SHA for user-measured behavior remains 41d9c8e19b28536bb83fe83ae8a58c87757033f2.
