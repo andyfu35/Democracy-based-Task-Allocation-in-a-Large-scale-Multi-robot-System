@@ -7,9 +7,13 @@ and it never uses a central winner to correct a robot's local state.
 Explicit engineering choices (see docs/EXPERIMENT_PROTOCOL.md Sec. 18):
 - score = 1/(1+nonnegative Euclidean cost), shared deterministic ID tie break;
 - winning bid origin ID accompanies y to preserve max-consensus provenance;
-- complete graph and fixed number of synchronous auction/consensus iterations;
-- broadcasts can be independently lost at each receiver, no hidden reliable
-  assignment/Commit or centralized early-termination decision.
+- complete graph; fixed iteration mode retained, opt-in local evidence stop added;
+- broadcasts can be independently lost at each receiver; there is no reliable
+  final Commit or distributed shared halt/stop handshake.
+- new local-certification mode is an explicitly labeled simulator stopping
+  approximation: each robot uses only PHYSICALLY RECEIVED peer bids/claims
+  to decide readiness; the scheduler terminates after every robot is ready.
+  This is NOT a fully implemented distributed termination protocol.
 """
 from __future__ import annotations
 
@@ -66,6 +70,9 @@ class CBAAResult:
     budget_exhausted: bool = False
     budget_stop_phase: str | None = None
     budget_stop_diagnostic: Diagnostic | None = None
+    stop_mode: str = "fixed"
+    stop_reason: str = "fixed_iteration_budget"
+    locally_certified_count: int = 0
 
     @property
     def full_observer_agreement(self) -> bool:
@@ -151,6 +158,79 @@ def require_cbaa_sender_budget_accounting(
             expected={"messages": expected[0], "bytes": expected[1]},
             actual={"messages": actual[0], "bytes": actual[1]},
         ))
+
+
+
+def validate_cbaa_stop_mode(stop_mode: str) -> None:
+    """Own convergence-policy configuration; legacy fixed mode is default."""
+    if stop_mode not in ("fixed", "local_certification"):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="validate_cbaa_stop_mode",
+            category="data", code="CBAA_UNKNOWN_STOP_MODE",
+            expected="fixed or local_certification", actual=stop_mode,
+        ))
+
+
+def update_cbaa_received_peer_evidence(
+    *,
+    receiver_views: list[dict[int, tuple[int, CBAALocalState]]],
+    received: tuple[tuple[CBAALocalState, ...], ...],
+    iteration: int,
+) -> None:
+    """Store ONLY each receiver's physically delivered peer states and epoch."""
+    for receiver_id, remote_states in enumerate(received):
+        for remote in remote_states:
+            if remote.robot_id == receiver_id:
+                raise ProtocolError(Diagnostic(
+                    owner=OWNER, function="update_cbaa_received_peer_evidence",
+                    category="contract", code="CBAA_SELF_ON_WIRE",
+                    expected="received states only from other robots",
+                    actual=(receiver_id, remote.robot_id),
+                ))
+            receiver_views[receiver_id][remote.robot_id] = (iteration, remote)
+
+
+def cbaa_local_convergence_certified(
+    *,
+    state: CBAALocalState,
+    peer_view: dict[int, tuple[int, CBAALocalState]],
+    peers: int,
+    own_last_change_iteration: int,
+) -> bool:
+    """Local evidence only: complete conflict-free claims and fresh peer proofs.
+
+    Required peer packet must postdate THIS node's most recent bid/claim
+    change. A missing packet never proves that a remote node is settled.
+    This is a local diagnostic convergence certificate, not a network halt ACK.
+    """
+    owners = state.winning_robots
+    if (any(owner is None or not 0 <= owner < peers for owner in owners)
+        or len(set(owners)) != len(owners)
+        or any(bid <= 0.0 for bid in state.winning_bids)):
+        return False
+    own_claims = [task_id for task_id, owner in enumerate(owners)
+                  if owner == state.robot_id]
+    if state.assigned_task != (own_claims[0] if own_claims else None):
+        return False
+    if len(peer_view) != peers - 1:
+        return False
+    for peer_id in range(peers):
+        if peer_id == state.robot_id:
+            continue
+        evidence = peer_view.get(peer_id)
+        if evidence is None:
+            return False
+        evidence_iteration, remote = evidence
+        if evidence_iteration <= own_last_change_iteration:
+            return False
+        if (remote.winning_bids != state.winning_bids
+            or remote.winning_robots != state.winning_robots):
+            return False
+        remote_claims = [task for task, owner in enumerate(owners)
+                         if owner == peer_id]
+        if remote.assigned_task != (remote_claims[0] if remote_claims else None):
+            return False
+    return True
 
 
 def initial_cbaa_states(num_robots: int, num_tasks: int) -> tuple[CBAALocalState, ...]:
@@ -381,11 +461,15 @@ def simulate_cbaa(
     max_iterations: int,
     capture_audit: bool = False,
     send_budget: SenderPayloadBudget | None = None,
+    stop_mode: str = "fixed",
 ) -> CBAAResult:
-    """Fixed-budget, synchronous TWO-PHASE CBAA; no global termination feedback.
+    """Original TWO-PHASE CBAA with opt-in local-evidence convergence monitor.
 
-    The omniscient observer runs only AFTER all local auctions/consensus. It
-    never fills missing messages, chooses assignments or sends a final Commit.
+    The observer never supplies bids/winners; in opt-in local_certification,
+    each node only sees delivered peer snapshots, while the simulation
+    scheduler uses all independent local-ready flags to finish. The latter
+    is an optimistic shared halt and NOT a real distributed stop protocol.
+    max_iterations is only a safety guard in the opt-in mode.
     """
     robots, tasks = validate_cbaa_configuration(
         cost_matrix=cost_matrix, loss_probability=loss_probability,
@@ -393,14 +477,22 @@ def simulate_cbaa(
         max_iterations=max_iterations,
     )
     validate_cbaa_sender_budget(send_budget)
+    validate_cbaa_stop_mode(stop_mode)
     states = initial_cbaa_states(robots, tasks)
     logical_messages = payload_bytes = attempts = drops = late = 0
     processed_iterations = 0
     budget_exhausted = False
     audit_events: list[CommunicationEvent] = []
     audit_deliveries: list[DeliveryObservation] = []
+    receiver_views: list[dict[int, tuple[int, CBAALocalState]]] = [
+        {} for _ in range(robots)
+    ]
+    own_last_change = [-1] * robots
+    locally_certified_count = 0
+    stop_reason = "fixed_iteration_budget" if stop_mode == "fixed" else "iteration_safety_guard"
 
     for iteration in range(max_iterations):
+        previous_states = states
         bidding = tuple(
             cbaa_auction_phase(state=state, cost_row=cost_matrix[state.robot_id])
             for state in states
@@ -429,6 +521,16 @@ def simulate_cbaa(
                 for robot_id in range(robots)
             )
             processed_iterations += 1
+            if stop_mode == "local_certification":
+                update_cbaa_received_peer_evidence(
+                    receiver_views=receiver_views,
+                    received=received,
+                    iteration=iteration,
+                )
+                for robot_id in range(robots):
+                    if (states[robot_id] != previous_states[robot_id]
+                        or bidding[robot_id] != previous_states[robot_id]):
+                        own_last_change[robot_id] = iteration
         logical_messages += nmessages
         payload_bytes += nbytes
         attempts += nattempts
@@ -439,7 +541,22 @@ def simulate_cbaa(
             audit_deliveries.extend(observations)
         if send_budget is not None and send_budget.denied_messages:
             budget_exhausted = True
+            stop_reason = "sender_budget_exhausted"
             break
+        if stop_mode == "local_certification":
+            ready = tuple(
+                cbaa_local_convergence_certified(
+                    state=states[robot_id],
+                    peer_view=receiver_views[robot_id],
+                    peers=robots,
+                    own_last_change_iteration=own_last_change[robot_id],
+                )
+                for robot_id in range(robots)
+            )
+            locally_certified_count = sum(ready)
+            if locally_certified_count == robots:
+                stop_reason = "all_local_evidence_certified"
+                break
 
     require_cbaa_sender_budget_accounting(
         send_budget=send_budget,
@@ -475,4 +592,7 @@ def simulate_cbaa(
         budget_stop_diagnostic=(
             send_budget.last_denied_diagnostic if budget_exhausted else None
         ),
+        stop_mode=stop_mode,
+        stop_reason=stop_reason,
+        locally_certified_count=locally_certified_count,
     )
