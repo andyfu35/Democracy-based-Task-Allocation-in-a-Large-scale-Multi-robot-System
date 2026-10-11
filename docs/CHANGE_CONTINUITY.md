@@ -1989,3 +1989,7 @@ This is a normal 'budget exhausted' experimental outcome, not a crash; incorrect
 
 ### Commit SHA
 Implementation files plus canonical+continuity appear together in one Git tree based on be401f520ff2c2eb4ae419dea8be017dfa278123. Exact code commit SHA must be written in a follow-up continuity-only commit after creation, never claimed in advance.
+
+
+### E9B-2 source regression fixture accuracy note
+The dedicated new E9B-2 regression test fixture must actually drop physical Cost/Vote packets when labeling the scenario "complete loss": test_greedy_sender_budget adds AllLoss and checks physically emitted Commit only. The opt-out regression compares the legacy function call with NO send_budget keyword to the explicit send_budget=None call (rather than comparing two identical calls). This affects tests only and does not change scientific raw results or runtime behavior.
