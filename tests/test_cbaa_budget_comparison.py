@@ -69,7 +69,7 @@ def cbaa_row(seed: int, loss: float, iterations: int) -> dict[str, object]:
         "observer_agreed_task_count": agreed,
         "observer_unconfirmed_task_count": unconfirmed,
         "local_duplicate_claim_task_count": 0,
-        "local_claim_count": 1,
+        "local_claim_count": 2 if full else 1,
         "greedy_reference_cost": 100 + seed,
         "payload_bytes": nmsg * (16 + 2 * 12),
         "logical_message_count": nmsg,
