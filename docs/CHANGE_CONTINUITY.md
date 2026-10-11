@@ -1828,3 +1828,85 @@ Committed source and docs (exact SHAs):
 - 4cb68360170ee6461dd5e7f8232db5b23cb74a8f: E0 seed-based 10R5T & 10R10T deterministic zero-loss convergence regression tests.
 
 When this continuity entry is committed, use that resulting HEAD as the final SHA for the user's next Mac git pull. No script should claim to have tested commit SHA prior to running those Mac tests.
+
+
+## 2026-10-11 — E9A bounded concern: immutable source-calibrated CBAA-vs-25% SEND-Bytes comparison
+
+### User decision and research purpose
+
+After the 2026-10-11 CBAA reference succeeded in 3-seed 10R/5T and 100R/50T pilot at p=0,.30,.50 with 135/135 tests passing, the user challenged the fairness of comparing a 20-round CBAA with our 25%-qualified Greedy Vote. The user explicitly requested that competing algorithms be compared under equal or near-equal **communication resource** instead of arbitrary common packet-loss percentages with unlimited repeated CBAA propagation. The assistant agreed that comparing 20 CBAA bid-vector broadcasts per sender with a Greedy retirement run with Cost/Vote/score/Commit is not an equal-communication intervention.
+
+One bounded stage is approved here: E9A is a **read-only source-audited sender-payload byte budget calibration**. We do not change any algorithm runtime, add any second communication state machine, or invent a false hard-cap result. E9A reuses already completed historical 100R/50T Greedy pure25 raw and existing 3-seed K20 CBAA pilot, plus new 3-seed CBAA K=1,2,3,4,5,8,10 runs made by the original E8 runner with its EXISTING max-iterations flag. E9A studies how closely the CBAA generated SEND payload approximates pure25 Greedy; later E9B will enforce actual budgets before transmission in real physical-message owners.
+
+### Precise files and named-function responsibilities
+
+1. NEW experiments/compare_cbaa_budget.py (sole analysis/report owner; no runtime policy modifications)
+   - budget_error: produces ProtocolError(Diagnostic(owner=experiments.compare_cbaa_budget,function/category/code/expected/actual/details)). Allowed categories only.
+   - validate_budget_calibration_config: validate R,T,seeds,max_rounds, sorted distinct loss levels including 0, tolerance in [0,1) and distinct source roots (data).
+   - locate_budget_source_file: require exactly one raw retirement CSV for pure25 or CBAA CSV for each K root (dependency/contract).
+   - validate_budget_source_row: validate one original row's algorithm identity and measured physical SEND/RECEIVE accounting; E2 must be pure quarter_plurality without fallback and original 1-copy Vote; CBAA must be synchronous full-vector with one SEND per R per iteration, per-recipient independent reception counts and R*K*(16+12*T) charged SEND Bytes, with coherent full/partial observer rates/claims. Missing Cost/Vote/Commit cannot be invented by this analyzer (data/contract).
+   - read_budget_source: loads selected paired seed×p subset of a larger historical RAW source, validates exact requested coverage, one SHA/source and one CBAA iteration budget/source (dependency/contract); never fabricates source p or seed.
+   - validate_paired_budget_scenes: requires identical same-seed full-information Greedy reference cost in all CBAA K and pure25 p conditions. Greedy p0 must fully Commit all T tasks with 100% Greedy executor reference matching. CBAA p0 may NOT converge at insufficient K; that outcome must remain visible.
+   - calibrate_cbaa_send_budget: chooses nearest available K using ONLY 0%-loss Greedy mean physical sender payload and CBAA 0%-loss sender payload; never uses CBAA success or high-loss results to choose K. Tie-break favors fewer iterations. Marks unmatched if relative gap > predeclared tolerance (default 10%).
+   - build_budget_observation_rows: reports all K/p/seed values for task/whole-batch success, external observer agreement and duplicate conflicting claims, actual sender Bytes, messages, CBAA receiver opportunities/drops, simulated time, per-seed byte ratios and near-budget flags. No result censorship or post-hoc reallocation.
+   - write_budget_calibration: new source-separated raw-derived budget_options.csv, budget_per_seed.csv, budget_curve.csv and manifest.json. Includes exact original raw SHA256, original Git SHA, current analysis SHA, p axis, seed count, tolerance, selected K and mandatory NO_HARD_CAP disclaimer. Reject source tree overlap and output overwrite, so historical evidence stays immutable.
+   - compare_cbaa_communication_budget: named orchestration only; rejects duplicated K across multiple independent source roots, validates scene and calibration before write, prints E9_BUDGET_CALIBRATION / E9_BUDGET_OBSERVATION / E9_BUDGET_OUTPUT_ROOT and E9_BUDGET_INTERPRETATION=OBSERVED_SEND_BYTE_CALIBRATION_ONLY_NOT_HARD_CAPPED.
+   - main: CLI allows --quarter-root, --cbaa-roots, --robots, --tasks, --seeds, --max-rounds, --loss-probabilities, --tolerance and a distinct --output-root. Defaults 100R/50T, seeds 3, p=0/.30/.50, tolerance 10%, source old pure25 + existing K20 pilot.
+2. NEW tests/test_cbaa_budget_comparison.py
+   - Synthetic 2R2T p0/.30/.50 source fixture, plus extra fourth E2 historical seed to prove correct selected subset without source mutations.
+   - Confirms correct choice of K=2 on p0 traffic EVEN when synthetic K=1 has higher CBAA p0 success; selection MUST NOT cherry-pick to favor research hypothesis.
+   - Confirms p0 budget match but p50 observed traffic mismatch is disclosed, all originally incomplete Greedy and failed CBAA cases stay included and observer agreement is labeled separately from actual Commit.
+   - Confirms source SHA256 in manifest and original CSV contents byte-identical, no Hungarian/global-oracle columns in derived evidence.
+   - Rejects previous report overwrites, output source-tree nesting, duplicate K roots, fake reference scenario, missing selected cells, corrupted physical sending accounting, missing/ambiguous source raw and invalid shapes/loss axes.
+3. docs/EXPERIMENT_PROTOCOL.md
+   - NEW canonical Section 19 (required due to experimental protocol change) defines the p0-only closest K selection, physical SEND byte unit, never treating per-recipient receive opportunities as broadcast SEND packets, independent p-specific tolerance flags, source SHA/seed conditions and exact diagnostics; explicitly differentiates E9A observational calibration from future true runtime-capped E9B.
+4. README.md
+   - NEW user-facing E9A section before existing E8: plain science caveats, unit test, using K20 preflight without overwriting pilot, 3-seed CBAA K=1/2/3/4/5/8/10 sweep with existing runner, final one-line multi-input calibration and separate result root. Explicitly warns p0-matched observed bytes may NOT match p>0 bytes, and E2 reliable Commit ≠ CBAA observer consensus.
+5. results/e9_cbaa_budget_calibration/README.md (NEW)
+   - Distinct evidence ledger and chronological user-Mac instructions; unlike earlier E2/CBAA source roots, no simulations are written here, only optionally derived report files if user explicitly chooses this output root. All results status PENDING.
+6. docs/CHANGE_CONTINUITY.md
+   - THIS required continuity section; records ownership, functionality, diagnostic contract, risks, next steps, exact source commits and true current SHA.
+
+### Responsibility movement and preserved behavior
+
+NO responsibility moved into another existing owner. experiments.run_e2_retirement retains original physically emitted Cost/Vote/score/Commit packet and task-retirement owners; democracy_mrta.coordination and protocol retain unique Greedy Vote/announcement/Commit state machines; democracy_mrta.cbaa retains its own per-robot bid/state, local max-consensus and external observer (NO central coordinator); experiments.run_cbaa_baseline retains CBAA raw event/summary/manifest and max-iterations runner; network retains original Bernoulli reception and empirical Wi-Fi latency sampling. E9A uses ONLY previously recorded per-seed evidence and DOES NOT call these simulators, change any original seed, packet key, source result, election threshold, Greedy cost reference, sender event or winner. Historical CBAA K20 and Greedy 25%-K1/51%-K1/K2/K3 100-seed completed 36-point results remain untouched.
+
+Deliberate behavior newly added (report-only):
+- Choose K by p=0 MEAN SEND Bytes only; no selection on success, loss, cost, p50 or Hungarian. If no K within ±10%, closest gets UNMATCHED status.
+- On EVERY p report actual Greedy and CBAA Bytes and per-seed closeness. Repeated Greedy retries can make p30 and p50 bytes exceed the selected K0-matched CBAA configuration; do NOT silently rename those to equal-budget runs.
+- Every task-full success/observer-agreement rate uses all selected paired seeds. CBAA unsafe conflicting task claims and incomplete Greedy Commit must still count as failed allocations, not cheap optimal solutions.
+- Broadcast sender bytes counted ONCE versus per-recipient delivery count tracked separately; logical messages, external observer task agreement and modeled latency are different metrics.
+
+### Exact first-failure diagnostics
+
+All errors use owner=experiments.compare_cbaa_budget; category ∈ {data,time,state,dependency,planning,safety,runtime,contract}, named function and expected/actual (+details when useful):
+- validate_budget_calibration_config / data / INVALID_BUDGET_CALIBRATION_SHAPE; INVALID_BUDGET_CALIBRATION_GRID.
+- locate_budget_source_file / dependency / MISSING_BUDGET_SOURCE_CSV; contract / AMBIGUOUS_BUDGET_SOURCE_CSV.
+- validate_budget_source_row / data / INVALID_BUDGET_SOURCE_VALUE; contract / BUDGET_SOURCE_CONTRACT_MISMATCH.
+- read_budget_source / dependency / MISSING_BUDGET_SOURCE_COLUMNS; contract / DUPLICATE_BUDGET_SEED_LOSS; BUDGET_SOURCE_COVERAGE_MISMATCH.
+- validate_paired_budget_scenes / contract / BUDGET_PAIRED_SCENARIO_MISMATCH; BUDGET_ZERO_LOSS_GREEDY_FAILURE.
+- calibrate_cbaa_send_budget / contract / BUDGET_ZERO_TRANSMISSION_REFERENCE.
+- compare_cbaa_communication_budget / contract / DUPLICATE_CBAA_BUDGET_CONFIGURATION.
+- write_budget_calibration / state / BUDGET_REPORT_SOURCE_COLLISION; BUDGET_REPORT_ALREADY_EXISTS.
+
+### Evidence status, scientific limitations and follow-up
+
+- Most recent independently verified user-Mac tests BEFORE E9A: 135/135 old+E8 core/runner tests passed on HEAD 6cea7d632798941960ed3d6b9b1d4d851edaed0b. User observed 3/3 completed observer consensus at 50% loss for CBAA with 20 full-vector iterations, not a statistical estimate of general loss resilience.
+- Current assistant has committed E9A code/tests/docs using GitHub connector. Repo checkout is NOT present in this execution environment; container cannot reach github.com (DNS failure), so newly added E9A tests are NOT yet run and no new E9A numerical results are claimed. Do not misreport the prior 135/135 run as certifying E9A.
+- User next: git pull, python3 -m unittest discover -s tests -v, then E9A read-only K20 source preflight using distinct output root results/e9_cbaa_budget_calibration_20only; inspect any contract failure at exact named owner before changing anything.
+- After preflight: execute the seven new 100R/50T CBAA short 3-seed×3-p configurations K=1,2,3,4,5,8,10 using EXISTING E8 runner into distinct source roots results/e8_cbaa_budgetK_100r50t_smoke. Do not run full 100-seed/36-level formal scan until budget closeness and zero-loss convergence are checked.
+- Run one multi-K E9A report with all seven new roots plus existing K20 into NEW results/e9_cbaa_budget_calibration_3seed root. Verify the p0-selected K, actual p30/p50 byte closeness, CBAA p0 task agreement and packet accounting. A mismatched p0 selection means scan more nearby K values, NOT invent improved high-p winner. Compare E2 and CBAA full-success definitions separately.
+- Known unresolved differences: CBAA bid-vector consensus is ONE lossy stage vs E2 lossy Cost+Vote with RELIABLE score/Commit; CBAA's observer agreement is not executable distributed Commit; CBAA uses a different auction optimizer than sequential Greedy and fixed iteration count; transmitter-only Bytes exclude real on-air collisions, retransmissions, BSS contention, routing costs, radio headers and airtime. Raw identical p does NOT prove equal communication impairment under these different packet structures. No statistical claim of equal-resource superiority yet.
+- Separate next E9B engineering block must enforce TRUE common SEND byte budget at the actual physical send stage BEFORE emission for both algorithms, with aborted/uncommitted tasks preserving safety and accurate partial outcomes, not after-the-fact censorship of successful runs. Harmonized control-message loss and real distributed stop rules remain later independent concerns. Only after E9B and validation should 100-seed formal budget-constrained robustness analysis be launched.
+
+### Code/document commits in E9A before this continuity append
+
+- 9f49c0b94aa19bab84860e0747dc48979926dff1: NEW experiments.compare_cbaa_budget independent report owner.
+- 695e1e81befbd308eaa29e787be53a8f9b02c4eb: NEW tests.test_cbaa_budget_comparison synthetic fairness/integrity suite.
+- 25d9af76dd9ef28fbf4996c9ac171b201e27536c: strengthen CBAA report row contract: confirmed tasks cannot exceed number of declared local claims.
+- cdeaccdee56bd2a1e4cc64b00536e1e5054a4869: align regression fixtures with actual CBAA local-claim cardinality.
+- 001f2e0c9ae10ab889f027b9392e22e5876ff78c: Canonical docs/EXPERIMENT_PROTOCOL.md Section 19.
+- 0a3091ab78ea92aaecb43588f52e773d1e56826e: new E9A READ ME evidence ledger root.
+- 32b2d1b40c4a88caf0f1856ab87916dabad532ce: README.md preflight and selected-configuration Mac commands.
+
+This continuity entry's own commit SHA will be the next resulting Git HEAD; subsequent code changes must append a new continuity entry before they can be called complete.
