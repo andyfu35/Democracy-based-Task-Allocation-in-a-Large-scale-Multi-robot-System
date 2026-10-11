@@ -1106,3 +1106,43 @@ The initial E9C-1 p_TASK=p_POSE=p_COORDINATION=0 experiment is deliberately ONE 
 Mac from repository root: git fetch origin; git switch experiment/e9c-real-task-wire-bytes; git pull --ff-only; python3 -m unittest discover -s tests -p test_e9c_real_information.py -v; python3 -m unittest discover -s tests -v; python3 -m experiments.run_e9c_real_information --robots 100 --tasks 50 --seed 0 --max-rounds 300 --cbaa-iterations 1,3,8 --output-root results/e9c_real_information_100r50t_seed0.
 
 The repository connector cannot execute code on the user's Mac or fetch the locally stored pinned Rady dataset. Any new E9C experimental end-to-end measurements stay UNVERIFIED until user Mac command executes; previous E9B printed data is historical context, not substitute evidence. All existing result roots and canonical E2/E8/E9B protocols stay intact.
+
+
+## 25. E9C-2: 100-seed original Cost/Vote versus original CBAA physical SEND-byte benchmark
+
+### 25.1 Shared task, robot, and cost provenance
+The user's clarified Democracy algorithm is common TASK announcement to all robots; each robot calculates only its own cost row using locally known pose; then each robot broadcasts its task COST row ONCE; all robots vote for candidates from their own actually received cost rows; quorum-qualified Score and reliable Commit are physically counted. It is WRONG to substitute E9C-1 paid-peer-position optimization for this primary original Democracy test. Both methods receive the SAME physically transmitted and decoded binary task announcement, using the existing TASK v1 16-byte little-endian header plus 32-byte TASK records: 50 tasks require 2 actual physical sender packets totaling 1632 B. E0's robot record is exactly robot ID, own x and y coordinates, not invented battery, speed or capability. Each robot knows its OWN pose locally, never other robots' poses or costs for free. Locally computed Euclidean cost rows are reconstructed ONLY from physically received tasks and local own pose, with the E9C-1 original observer-only consistency contract.
+
+Published-family CBAA is not a global robot-state propagation algorithm: each robot needs its OWN cost row, and transmits winning bid + winner origin for each task every consensus iteration. Each iteration is 100*(16+50*(8+4)) = 61600 actual original SEND payload Bytes. Adding all remote robot poses is NOT part of published CBAA, so primary source-faithful CBAA must NOT be charged for unnecessary global robot info. To answer the explicit user request also show a separate non-standard FULL RAW ROBOT INFORMATION counterfactual where every robot physically broadcasts one existing POSE v1 packet: 16 B header + 20 B robot ID/x/y = 36 B, total 3600 sender Bytes for R100. That extra exchange is physically received and charged; it is labeled cbaa_raw_robot_information and NEVER called original/paper-standard CBAA. It produces the same original CBAA auction/observer outcome and cannot provide a hidden centralized winner.
+
+### 25.2 Original algorithms, fixed K, loss/timing controls
+For 100 paired scene seeds 0..99, R=100, T=50, p_TASK=p_COST=p_VOTE=p_BID=0, call original coordination.simulate_democracy_hungarian_retirement once per seed, greedy_task + quarter_plurality + vote_repetitions=1 + max_rounds=300. Preserve all actual emitted original Cost, Vote, Score and reliable Commit SENDs and full-Commit outcome; no alternate voting engine, shortcut optimizer or invisible cost knowledge. Call original cbaa.simulate_cbaa independently for every predeclared K in (1,2,3,4,5,6,8); preserve complete CBAA bid/winner vector transmissions, local auctions and read-only post-hoc observer agreement. No one observes network-wide CBAA state during runtime to stop robots. Full CBAA observation is NOT distributed final Commit. Each K is a SEPARATE predeclared simulation. Repeating the same CBAA outcome as an optional raw-pose-charge row never relabels this as published CBAA.
+
+Current first sweep is p=0, not equal capped high-loss comparison. The default constant latency is an explicit deterministic 1ms per SEND with 10ms receive deadline for portable no-download CI; the alternative rady mode uses original pinned Rady latency profile, seed-bound sampler and same original loss owner. Constant mode supports correct p0 bytes but is NOT measured Wi-Fi delay. TASK and POSE payloads are actually binary packed and unpacked; original Cost/Vote/Score/Commit/CBAA bid stages are accounted as physically emitted original CommunicationEvent payload sizes, NOT fully serialized MAC/PHY/IP/ACK/wire airtime. For the primary source-faithful comparisons, physically emitted sender application payload bytes are counted ONCE per broadcast SEND, never multiplied by 99 receivers.
+
+### 25.3 Actual per-seed and aggregate evidence
+- per_seed_method_bytes.csv: one row per paired seed and method/K; mandatory task, Cost, Vote, Score, Commit, Bid/Winner, raw optional POSE bytes, messages and original real outcome. All incomplete conditions count; an interrupted run retains flushed per_seed_method_bytes.partial.csv rather than falsely claiming complete 100-seed evidence.
+- summary.csv: denominator=all requested seeds; method full success of its OWN semantic (Democracy genuine Commit, CBAA post-hoc all-local observer agreement), average confirmed task count and actual sender Bytes over ALL seeds; completed-only mean separately.
+- offline_min_cbaa_k_per_seed.csv: the earliest fixed K showing full CBAA observer agreement for each seed, if any. This is an OFFLINE optimistic lower-bound, NEVER a runnable decentralized termination mechanism. Missing full agreement at maximum requested K must remain explicit.
+- manifest.json: exact source git SHA, 100 seeds, R100 T50, p0, K grid, E0 scene, binary task/robot schema, networking timing mode, original vs non-standard variant disclosure, file SHA256 and paired offline stats. Each output root immutable; previous E0-E9C evidence not overwritten.
+
+### 25.4 Named function owner, diagnostics, checks
+NEW experiment-only owner experiments.run_e9c_100seed_comms:
+- validate_100seed_comms_config: data/E9C2_INVALID_SCENARIO_GRID, data/E9C2_INVALID_K_GRID or planning/E9C2_UNKNOWN_LATENCY_MODE.
+- prepare_100seed_comms_output: state/E9C2_PROTECTED_OUTPUT_ROOT or state/E9C2_OUTPUT_EXISTS.
+- select_network_sampler and create_seed_sampler: original empirical pinned data or explicitly constant event latency.
+- capture_seed_information: real TASK source broadcast and local own-cost reconstruction; optional true full robot POSE broadcasts in named extra ablation.
+- run_democracy_100seed_case: original election/retirement owner unchanged.
+- run_cbaa_100seed_cases: original bidding owner unchanged, dependency/E9C2_ROBOT_INFO_NOT_TRANSMITTED if ablation source missing.
+- require_complete_seed_pairing: contract/E9C2_PAIRED_OUTCOME_COVERAGE.
+- summarize_100seed_conditions, calculate_offline_minimum_k, summarize_offline_paired_comparison: report only; no hidden agents/second consensus state.
+- write_100seed_comms_evidence: immutable CSVs/sha256 and exact assumption manifest; run_e9c_100seed_comms: iterate original actors and persist every seed; main: CLI.
+- tests/test_e9c_100seed_comms.py: 7 named tests for 2R2T 3-seed real event byte totals, outcomes, raw POSE extra 72 B versus published CBAA, SHA256/manifest, offline K labeling, immutable roots and data boundaries.
+- GitHub Actions workflow .github/workflows/e9c_100seed_comms.yml: automated attempt at this SAME 100-seed p0 code after commit. Its success cannot be claimed until jobs pass. No network or original protocol owner modifications.
+
+Mac local run:
+    python3 -m unittest discover -s tests -p 'test_e9c_100seed_comms.py' -v
+    python3 -m experiments.run_e9c_100seed_comms --robots 100 --tasks 50 --seeds 100 --first-seed 0 --cbaa-iterations 1,2,3,4,5,6,8 --max-rounds 300 --latency-mode constant --output-root results/e9c_100seed_100r50t
+
+Optional repeat using the pinned Rady profile:
+    python3 -m experiments.run_e9c_100seed_comms --latency-mode rady --output-root results/e9c_100seed_rady_100r50t

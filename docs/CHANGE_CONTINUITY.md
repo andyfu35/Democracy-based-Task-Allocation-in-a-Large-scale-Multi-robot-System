@@ -2150,3 +2150,43 @@ This is only a one-seed no-loss application sender-byte measurement, NOT a multi
 
 ### Commit SHA
 User-executed source HEAD: 70802ef4e01723370691dc2ca633266f86b68d1c (E9C implementation commit c15c862672ffcf548c067765e18b1523885f0f1e). This documentation-only follow-up records external evidence and carries no code modification.
+
+
+## 2026-10-11 — E9C-2 original 100-seed real sender-payload communication study
+
+### Purpose, relation to user requirements and prior acceptance
+The user corrected the communication workflow to: each robot physically receives common TASK information, calculates its OWN 50 task Costs locally, broadcasts its own simple Cost row ONCE, and then votes directly to candidates based only on actually received costs. They request an ACTUAL 100-seed comparison of full transmitted information traffic with original CBAA, including a concrete robot information schema and the practical cost of CBAA transmitting original raw robot data. The prior E9C-1 Mac SHA 70802ef4e01723370691dc2ca633266f86b68d1c was verified 11/11 new tests and 189/189 full regression, one no-loss R100T50 scene. However its paid-peer-pose method is NOT the user's clarified original Democracy, so that method is deliberately NOT the E9C-2 primary actor.
+
+### One bounded new responsibility and files
+- NEW experiments/run_e9c_100seed_comms.py is the ONLY new 100-seed experiment and evidence owner. Named functions each handle a distinct concern:
+  - validate_100seed_comms_config: model axes and K grid only.
+  - prepare_100seed_comms_output: strict output path protection.
+  - select_network_sampler / create_seed_sampler: explicit deterministic constant 1ms / 10ms timeout or original Rady pinned latency profile dependency.
+  - capture_seed_information: physically binary TASK announcement and optional physically binary original POSE packets through EXISTING task_information original owner, reconstructed local costs only from actually decoded tasks and own local pose, original E9C observer-only consistency contract.
+  - run_democracy_100seed_case: original coordination.simulate_democracy_hungarian_retirement, Greedy pure25 K1, Cost once, Vote/Score/reliable Commit, no alternative optimizer, Cost and Vote stage bytes from original emitted event ledger.
+  - run_cbaa_100seed_cases: original cbaa.simulate_cbaa independently at every fixed K, plus separate NONSTANDARD exact original-POSE-raw-information transmission ablation. Published CBAA cannot be falsely charged for remote robot pose packets it does not need; the paid robot-info variant is a separate explicit counterfactual.
+  - require_complete_seed_pairing: complete, non-censored method/seed outcome contract.
+  - summarize_100seed_conditions: all-seed mean and min/max sender Bytes, actual Commit vs observer separate success rates, completed-only separate mean.
+  - calculate_offline_minimum_k / summarize_offline_paired_comparison: EXTERNAL only first successful fixed-K POST-HOC convergence lower bound; not a distributed stop signal and never fed back to CBAA robot.
+  - write_100seed_comms_evidence: physically emitted evidence CSV raw + summary + paired offline min K + source SHA and SHA256 manifest.
+  - run_e9c_100seed_comms: bounded seed iteration, one row per ORIGINAL algorithm condition, streamed CSV per seed and completed immutable output; main CLI only.
+- NEW tests/test_e9c_100seed_comms.py: seven named tests covering R2T2 three paired seeds, exact actual Task/Cost/Vote/Bid and optional original POSE bytes, original CBAA versus separately charged unnecessary raw robot data, source SHA and file SHA256, offline-K disclosure, input diagnostics, non-overwrite and no missing method rows.
+- NEW .github/workflows/e9c_100seed_comms.yml: attempt automatic CI 100R/50T 100 Seeds K=(1,2,3,4,5,6,8) zero-loss constant 1ms, dedicated and full tests, upload original raw evidence artifact without modifying source. Workflow success and any result MUST NOT be claimed before execution.
+- docs/EXPERIMENT_PROTOCOL.md: new Section 25 freezes this exact 100-seed information availability and standard/non-standard method distinction.
+- docs/CHANGE_CONTINUITY.md: this record is in same implementation commit; follow-up continuity-only commit records exact implementation SHA.
+
+### Responsibility movement, preservation, deliberate changes
+NO original network, optimizer, task_information, Greedy coordination, CBAA bidding or state machine implementation is modified by E9C-2. The original E9C-1 peer-POSE optimization remains available but is NOT mislabeled primary. Source-faithful CBAA uses TASK + own robot pose + CBAA full winning-bid/winner-ID vectors. Optional cbaa_raw_robot_information_K adds REAL 100 physically encoded robot POSE packets at 36 B each, without impacting original local CBAA state. This is a deliberately overinformed, NONSTANDARD counterfactual only, because published CBAA does not require global peer pose exchange. Common TASK v1 real 2 packet / 1632 B and optional true binary POSE 100 packet / 3600 B are charged per independent method. E0 uses only (robot_id, x,y), so no invented robot capabilities to artificially increase CBAA traffic. Original Cost Row = 416 B * 100 and CBAA bid/winner vector = 616 B * 100 per round at T50; real original emitted Vote, Score and reliable Commit events are all counted, with the SAME existing event packet size as E9C-1. No packet loss in this bounded p0 trial. The portable deterministic timing is NOT empirical Rady latency but does not change p0 physical sender payload bytes. Rady remains an optional documented mode. This is application sender Bytes, not MAC airtime/headers or an end-to-end hard cap.
+
+### New named first-failure diagnostics
+- experiments.run_e9c_100seed_comms.validate_100seed_comms_config / data / E9C2_INVALID_SCENARIO_GRID or E9C2_INVALID_K_GRID; planning/E9C2_UNKNOWN_LATENCY_MODE.
+- experiments.run_e9c_100seed_comms.prepare_100seed_comms_output / state / E9C2_PROTECTED_OUTPUT_ROOT, E9C2_OUTPUT_EXISTS.
+- experiments.run_e9c_100seed_comms.run_cbaa_100seed_cases / dependency / E9C2_ROBOT_INFO_NOT_TRANSMITTED.
+- experiments.run_e9c_100seed_comms.require_complete_seed_pairing / contract / E9C2_PAIRED_OUTCOME_COVERAGE.
+Previous task_information first failing source data/contract/dependency errors, original coordination/physical event diagnostics and original CBAA safety/contract errors are retained unchanged.
+
+### Verification, risks and next steps
+User's 189/189 Mac pass was on PRIOR E9C-1 executable SHA only. E9C-2 new runner and tests plus GitHub Actions workflow remain UNTESTED until CI or user-Mac runs; remote source connector has no direct Mac execution access. Inputs/data are explicit: zero-loss 100R50T 100 seeds 0..99, K1..6+8, max Greedy rounds300. TASK/POSE are really binary encoded and decoded, but original Cost/Vote/Score/Commit and CBAA bid-vector still use the established physically emitted CommunicationEvent payload sizes, not guaranteed all-overhead IP/MAC/PHY bytes. The fixed-K CBAA observer does not implement final distributed Commit or authenticated convergence termination. The offline earliest K is an optimistic lower bound, not online feasible; never compare it as identical success semantics without qualification. The 100-seed raw, summary, offline first-success K and manifest must be validated before any numerical conclusion. Next bounded concern AFTER verification can serialize the original Cost/Vote/Score/Commit and CBAA bid-vector contents and add equal budget with paid retransmissions under nonzero packet loss. Do not mix this future protocol change into current evidence owner.
+
+### Commit SHA
+Branch created from e0f3c62315acc2fdf08e18d40788939e2c5dcb82. This exact implementation commit SHA will be recorded in a documentation-only follow-up; do not claim any new tests or 100-seed figures until observed.
