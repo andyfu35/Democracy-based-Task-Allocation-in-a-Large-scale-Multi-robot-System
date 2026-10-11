@@ -940,52 +940,75 @@ python3 -m experiments.plot_e9d_results --run-root "$RUN_ROOT"
 zip -r e9e_dense_formal_evidence.zip "$RUN_ROOT"
 ~~~
 
-Upload the completed ZIP to this conversation. The results and charts are published below **only after verifying the completed formal evidence**. Never substitute partial or three-seed pilot values for 100-seed results.
+The original 100-seed dense-run ZIP has now been supplied and independently SHA256-verified; the formal figures and original summary are published below. Reproduce with a fresh output directory, and never substitute pilot results for verified 100-seed evidence.
 
 <!-- E9E_DENSE_RESULTS_BEGIN -->
-**Formal dense results pending user-side 100-seed execution and evidence verification.** This text will be replaced with measured tables and committed figures from the exact source SHA after the full original raw is provided.
+### Verified E9E formal results — October 11, 2026
+
+**Status: independently verified from the original user-supplied experiment ZIP.** The original per-seed results, summary, both manifests and six SVG files were independently inspected: **10,400 complete, unique paired method executions**, 104 aggregate conditions, 52 observed loss probabilities, and exact SHA256 matches for both original CSVs and **all six original SVGs**. The GitHub-hosted figures reproduce the original Mac SVGs **byte for byte**, checked against their original digests.
+
+**Protocol and controls:** 100 robots, 50 tasks, 100 paired seeds (0–99), original Democracy single Cost-vector dissemination and Greedy voting vs original-family CBAA local bid and max-consensus exchange. Independent per-receiver Bernoulli packet loss at 52 **actually tested** values: base 5% steps from 0% to 95%, with 1% steps at 40–65% and 85–99%. Task announcement is guaranteed delivered and paid; Democracy Score/Commit are modelled reliable. CBAA local convergence uses a **simulation-only optimistic all-nodes-ready halt** and has **no paid distributed termination/Commit handshake**. The CBAA guard is 160 iterations; Democracy guard is 300 retirement rounds. Time uses synthetic constant 1 ms latency/10 ms deadline. Bytes are **sender application payload**, not measured Wi-Fi/MAC/PHY/ACK airtime.
+
+#### 1. Full protocol outcome over all 52 measured loss rates
+
+![52-point original verified success rates, Democracy actual Commit versus CBAA locally certified](docs/figures/e9e_dense/formal/e9d_full_success.svg)
+
+At 50% packet loss, Democracy completed all 50 tasks with a real Commit in **100/100** seeds; at 52%, **91/100**, 53% **65/100**, 54% **14/100**, and 55% **0/100**. Its first non-perfect observed rate is **48% (99/100)**, so the finite-seed curve is not perfectly monotonic; **50% is the highest sampled value with 100/100 success, not a theoretical threshold**.
+
+For CBAA, all 100 robots' local received-peer convergence evidence was fully certified in **100/100** seeds through 91% loss; 92% **97/100**, 93% **87/100**, 94% **48/100**, and 95% **2/100**. The 160-round guard censors many high-loss runs; **failure to obtain every local stopping certificate is NOT equivalent to failure of assignment agreement**.
+
+![Democracy sharp transition between 40% and 65% packet loss, real 1%-step measurements](docs/figures/e9e_dense/formal/e9d_democracy_transition.svg)
+
+#### 2. Measured traffic and selected outcomes
+
+The following values are calculated from the independently validated **original summary CSV**, not manually copied from terminal output. kB is **1,000 emitted application Bytes**; failures and guard-censored traffic are included in the mean.
+
+| Packet loss | Democracy actual full Commit | CBAA all locally certified | CBAA full external observer agreement | Democracy mean sender kB | CBAA mean sender kB | Democracy guard-hit seeds | CBAA guard-hit seeds |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0% | 100/100 | 100/100 | 100/100 | 165.4 | 269.0 | 0 | 0 |
+| 30% | 100/100 | 100/100 | 100/100 | 164.8 | 838.2 | 0 | 0 |
+| 45% | 100/100 | 100/100 | 100/100 | 185.0 | 1,109.2 | 0 | 0 |
+| 48% | 99/100 | 100/100 | 100/100 | 237.9 | 1,169.0 | 1 | 0 |
+| 50% | 100/100 | 100/100 | 100/100 | 323.1 | 1,217.6 | 0 | 0 |
+| 51% | 99/100 | 100/100 | 100/100 | 389.1 | 1,249.0 | 1 | 0 |
+| 52% | 91/100 | 100/100 | 100/100 | 494.4 | 1,297.1 | 9 | 0 |
+| 53% | 65/100 | 100/100 | 100/100 | 618.5 | 1,328.5 | 35 | 0 |
+| 54% | 14/100 | 100/100 | 100/100 | 731.6 | 1,368.5 | 86 | 0 |
+| 55% | 0/100 | 100/100 | 100/100 | 796.6 | 1,401.8 | 100 | 0 |
+| 90% | 0/100 | 100/100 | 100/100 | 907.4 | 6,118.5 | 100 | 0 |
+| 91% | 0/100 | 100/100 | 100/100 | 897.1 | 6,859.6 | 100 | 0 |
+| 92% | 0/100 | 97/100 | 100/100 | 884.5 | 7,706.6 | 100 | 3 |
+| 93% | 0/100 | 87/100 | 100/100 | 867.8 | 8,779.0 | 100 | 13 |
+| 94% | 0/100 | 48/100 | 100/100 | 845.3 | 9,578.0 | 100 | 52 |
+| 95% | 0/100 | 2/100 | 100/100 | 815.3 | 9,854.6 | 100 | 98 |
+| 96% | 0/100 | 0/100 | 100/100 | 770.2 | 9,857.6 | 100 | 100 |
+| 99% | 0/100 | 0/100 | 100/100 | 399.0 | 9,857.6 | 100 | 100 |
+
+At **30% loss**, both reach their distinct full-outcome criteria in 100/100 trials. Original Democracy sent **164,750.08 B** per seed on average versus **838,160 B** for original CBAA—**80.34% fewer** modelled sender application Bytes. Do **not** interpret the smaller Democracy Bytes at ≥55% loss as efficiency superiority: it fails to finish all 50 tasks in those trials.
+
+![Original average application sender Bytes, including incomplete runs, log MB scale](docs/figures/e9e_dense/formal/e9d_sender_payload.svg)
+
+#### 3. CBAA consensus agreement versus local stopping, and guard censoring
+
+CBAA retains **100/100 full external observer assignment agreement through the tested 99% loss** in these recorded scenarios, even though locally proven stopping falls to zero at 96–99% with the 160-iteration guard. It does not implement a reliable decentralized final Commit comparable to Democracy's actual committed assignment. The correct distinction is shown separately:
+
+![Original CBAA post-hoc assignment agreement compared with local-receipt convergence certification](docs/figures/e9e_dense/formal/e9d_cbaa_agreement_vs_stop.svg)
+
+![Original CBAA high-loss 85–99 percent zoom, observer and stopping are separate](docs/figures/e9e_dense/formal/e9d_cbaa_high_loss_zoom.svg)
+
+![Fraction of experiments stopped by guard, not a proven mathematical packet-loss failure](docs/figures/e9e_dense/formal/e9d_guard_censoring.svg)
+
+#### Source data and provenance
+
+- [Original validated 104-row summary CSV](docs/figures/e9e_dense/formal/summary_by_loss.csv)
+- [Formal figure and original-run hash provenance](docs/figures/e9e_dense/formal/publication_manifest.json)
+- **Executable experiment SHA:** 2808fa12fcd89aa8c2251e7e6438312a95a9df8f
+- **Original 10,400-row per-seed CSV SHA256:** e2337a157b96593d441c143b19d5b2b9b1c64604b4bc0a651da1e566c060c727
+- **Original 104-row summary CSV SHA256:** 3408ccd1978ca66d58ff4dd195d3b31b8e2805c798e1adfa872d5d45ea6706db
+- **Data scope:** actual original experiment raw ZIP was independently verified; the compact GitHub figures directory preserves the byte-identical original figures and exact summary, while the full 10,400-row raw remains in the source experimental ZIP, **not** falsely synthesized from summary data.
+- These are bounded independent-loss simulation observations and **not theoretical reliability guarantees** or instrumented wireless-network bandwidth measurements.
+
 <!-- E9E_DENSE_RESULTS_END -->
-
-### E9E terminal-log preview — raw ZIP still pending
-
-The 2026-10-11 Mac terminal transcript reports **100 robots × 50 tasks × 100 paired seeds × 52 packet-loss probabilities (10,400 original-method simulations)** at source SHA 2808fa12fcd89aa8c2251e7e6438312a95a9df8f. The local plot command reports that full raw/summary/manifest validation passed on the user's machine.
-
-**Evidence distinction: TERMINAL LOG ONLY.** The original per-seed raw CSV, complete summary CSV, manifest, figure manifest and generated formal SVGs have **not yet been uploaded or independently SHA256-checked here**. The four graphics below are **previews recreated solely from the console's 104 aggregate result lines** and include rounded sender-byte values. They are not the original formally validated figures, not independently verified and not paper-ready. The formal result block above remains PENDING until the complete e9e_dense_formal_evidence.zip is supplied.
-
-![Full results from 52 measured packet-loss values — console preview](docs/figures/e9e_dense/log_preview_success.svg)
-
-![Democracy transition across 40–65% loss — console preview](docs/figures/e9e_dense/log_preview_democracy_zoom.svg)
-
-![CBAA local certification and safety-guard censoring at 85–99% loss — console preview](docs/figures/e9e_dense/log_preview_cbaa_tail.svg)
-
-![Mean emitted sender-application Bytes, logarithmic MB scale — console preview](docs/figures/e9e_dense/log_preview_sender_bytes.svg)
-
-**Selected terminal-transcribed metrics (100 seeds at each measured loss):**
-
-| Loss | Democracy full Commit | CBAA local certified | Democracy mean sender kB | CBAA mean sender kB |
-|---:|---:|---:|---:|---:|
-| 0% | 100/100 | 100/100 | 165.4 | 269.0 |
-| 30% | 100/100 | 100/100 | 164.8 | 838.2 |
-| 45% | 100/100 | 100/100 | 185.0 | 1,109.2 |
-| 48% | 99/100 | 100/100 | 237.9 | 1,169.0 |
-| 50% | 100/100 | 100/100 | 323.1 | 1,217.6 |
-| 51% | 99/100 | 100/100 | 389.1 | 1,249.0 |
-| 52% | 91/100 | 100/100 | 494.4 | 1,297.1 |
-| 53% | 65/100 | 100/100 | 618.5 | 1,328.5 |
-| 54% | 14/100 | 100/100 | 731.6 | 1,368.5 |
-| 55% | 0/100 | 100/100 | 796.6 | 1,401.8 |
-| 90% | 0/100 | 100/100 | 907.4 | 6,118.5 |
-| 91% | 0/100 | 100/100 | 897.1 | 6,859.6 |
-| 92% | 0/100 | 97/100 | 884.5 | 7,706.6 |
-| 93% | 0/100 | 87/100 | 867.8 | 8,779.0 |
-| 94% | 0/100 | 48/100 | 845.3 | 9,578.0 |
-| 95% | 0/100 | 2/100 | 815.3 | 9,854.6 |
-
-**Reading these finite-sample, resource-capped results:** Democracy last reached 100/100 full Commit at the *sampled* 50% loss point, but first dropped below perfect at 48% (99/100), so the observed finite-sample success curve is not perfectly monotone. CBAA had 100/100 local-receipt certification through 91%, then 97/87/48/2 at 92/93/94/95%. In the 30%-loss cell both achieved their respective full outcomes and Democracy emitted 80.34% fewer modeled sender application Bytes. Above 55%, Democracy's smaller Bytes must not be called better efficiency because it did not finish all tasks. CBAA local certification is a different outcome from the actual reliable Democracy Commit. Its 160-round cutoff and optimistic simulator-wide halt omit paid distributed stop ACKs; Democracy's cutoff is 300 rounds. The sender-byte model is not actual Wi-Fi MAC/PHY/ACK airtime. Guard-limited cases are censored, **not evidence of mathematical packet-loss limits**.
-
-[Read the console-derived preview aggregate CSV](docs/figures/e9e_dense/log_preview_summary_rounded.csv) (rounded to integer Bytes, not original experiment raw). **For formal README publication, upload the complete original ZIP so the per-seed raw, manifest SHA256 and all six source-generated SVGs can be verified.**
-
-
 
 ---
 
