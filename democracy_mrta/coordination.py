@@ -4,7 +4,12 @@ from dataclasses import dataclass
 
 from .diagnostics import Diagnostic, ProtocolError
 
-from .network import validate_packet_loss_probability, validate_vote_repetitions
+from .network import (
+    SenderPayloadBudget,
+    reserve_sender_payload,
+    validate_packet_loss_probability,
+    validate_vote_repetitions,
+)
 
 from .optimizer import (
     AssignmentSolution,
@@ -91,6 +96,7 @@ def _unicast_event(
     task_id: int | None = None,
     round_id: int = 0,
     transmission_index: int = 0,
+    send_budget: SenderPayloadBudget | None = None,
 ) -> CommunicationEvent:
     key = (
         f"unicast|{phase}|{sender_id}|{receiver_id}|"
@@ -102,6 +108,8 @@ def _unicast_event(
         if round_id == 0:
             key += "|round=0"
         key += f"|copy={transmission_index}"
+    if send_budget is not None:
+        reserve_sender_payload(send_budget, payload_bytes=payload_bytes, phase=phase)
     latency_ms = float(sampler.sample_ms(key))
     return CommunicationEvent(
         phase=phase,
@@ -127,6 +135,7 @@ def _broadcast_event(
     task_id: int | None = None,
     round_id: int = 0,
     announced_vote_count: int | None = None,
+    send_budget: SenderPayloadBudget | None = None,
 ) -> CommunicationEvent:
     key = (
         f"broadcast|{phase}|{sender_id}|"
@@ -134,6 +143,8 @@ def _broadcast_event(
     )
     if round_id:
         key += f"|round={round_id}"
+    if send_budget is not None:
+        reserve_sender_payload(send_budget, payload_bytes=payload_bytes, phase=phase)
     latency_ms = float(sampler.sample_ms(key))
     return CommunicationEvent(
         phase=phase,

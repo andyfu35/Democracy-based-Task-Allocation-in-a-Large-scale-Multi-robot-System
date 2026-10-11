@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import hashlib
 import json
 import math
@@ -335,6 +335,73 @@ def validate_vote_repetitions(vote_repetitions: int) -> int:
             )
         )
     return vote_repetitions
+
+
+
+class SenderBudgetExhausted(ProtocolError):
+    """A physical SEND would exceed a configured byte cap; no packet was sent."""
+
+
+def validate_sender_payload_budget(limit_bytes: int) -> int:
+    """Validate one sender-accounted application payload byte cap."""
+    if type(limit_bytes) is not int or limit_bytes < 0:
+        raise ProtocolError(Diagnostic(
+            owner="network", function="validate_sender_payload_budget",
+            category="data", code="INVALID_SENDER_PAYLOAD_BUDGET",
+            expected="nonnegative integer application payload byte limit",
+            actual=limit_bytes,
+        ))
+    return limit_bytes
+
+
+@dataclass
+class SenderPayloadBudget:
+    """One independently reset SEND-byte ledger per benchmark seed/condition.
+
+    There is no network or allocation state machine here. A broadcast is
+    reserved once at emission, not multiplied by receiver opportunities.
+    """
+    limit_bytes: int
+    sent_bytes: int = field(default=0, init=False)
+    sent_messages: int = field(default=0, init=False)
+    denied_messages: int = field(default=0, init=False)
+
+    def __post_init__(self) -> None:
+        validate_sender_payload_budget(self.limit_bytes)
+
+    @property
+    def remaining_bytes(self) -> int:
+        return self.limit_bytes - self.sent_bytes
+
+
+def reserve_sender_payload(
+    budget: SenderPayloadBudget, *, payload_bytes: int, phase: str,
+) -> None:
+    """Atomically admit one physical SEND, or fail before the event exists.
+
+    Denied sends consume zero bytes/messages. The benchmark runtime is
+    responsible for catching SenderBudgetExhausted and ending its current
+    incomplete stage WITHOUT fabricating any Commit or winner.
+    """
+    if type(payload_bytes) is not int or payload_bytes <= 0:
+        raise ProtocolError(Diagnostic(
+            owner="network", function="reserve_sender_payload",
+            category="data", code="INVALID_SENDER_PAYLOAD_SIZE",
+            expected="positive integer application payload Bytes per SEND",
+            actual=payload_bytes, details=f"phase={phase}",
+        ))
+    if payload_bytes > budget.remaining_bytes:
+        budget.denied_messages += 1
+        raise SenderBudgetExhausted(Diagnostic(
+            owner="network", function="reserve_sender_payload",
+            category="runtime", code="SEND_PAYLOAD_BUDGET_EXHAUSTED",
+            expected={"max_next_send_bytes": budget.remaining_bytes},
+            actual={"attempted_send_bytes": payload_bytes},
+            details=f"phase={phase}; used={budget.sent_bytes}; limit={budget.limit_bytes}",
+        ))
+    budget.sent_bytes += payload_bytes
+    budget.sent_messages += 1
+
 
 
 class BernoulliLossSampler:

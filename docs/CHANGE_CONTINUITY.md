@@ -1910,3 +1910,47 @@ All errors use owner=experiments.compare_cbaa_budget; category ∈ {data,time,st
 - 32b2d1b40c4a88caf0f1856ab87916dabad532ce: README.md preflight and selected-configuration Mac commands.
 
 This continuity entry's own commit SHA will be the next resulting Git HEAD; subsequent code changes must append a new continuity entry before they can be called complete.
+
+
+## 2026-10-11 — E9B-1 physical sender payload-budget admission (opt-in primitive only)
+
+### Purpose and evidence
+The user's E9A Mac run on main 68499c9 passed 145/145 tests and collected K=1,2,3,4,5,8,10 plus prior K20 for 100R/50T, three seeds at p=0/.30/.50. Greedy pure25 p0 mean physical sender payload was 163,800 Bytes; nearest CBAA K=3 spent 184,800 Bytes (+12.82%, outside +/-10% target) and had full observer agreement for 3/3 p0, 0/3 p30 and 0/3 p50. K2 p0 full agreed only 2/3. CBAA K8 fully agreed for all three p values in this 3-seed pilot while spending 492,800 Bytes. All values remain preliminary, observer agreement is NOT a Commit, and E9A was NOT a hard-cap test.
+
+This bounded code change introduces only sender-side budget admission for actual physical SEND constructors. It explicitly does NOT yet expose a budgeted E2/CBAA simulator CLI or claim a result.
+
+### Files and exact functions
+- democracy_mrta/network.py:
+  - validate_sender_payload_budget: exactly typed cap, data/INVALID_SENDER_PAYLOAD_BUDGET.
+  - SenderPayloadBudget: per-run counters limit/sent/remaining/denied, no allocation or communication state machine.
+  - reserve_sender_payload: atomic one-packet SEND admission before event exists, data/INVALID_SENDER_PAYLOAD_SIZE and runtime/SEND_PAYLOAD_BUDGET_EXHAUSTED.
+  - SenderBudgetExhausted: catchable ProtocolError subclass carrying the original Diagnostic.
+- democracy_mrta/coordination.py:
+  - _unicast_event and _broadcast_event: optionally call the SAME network.reserve_sender_payload owner before latency/event construction, without changing existing unbudgeted calls.
+- tests/test_sender_payload_budget.py:
+  - zero cap denial, diagnostic first owner/function/category/code, fixed cap exact-fit, rejection without latency sample/double count, no partial packet, invalid cap/payload, opt-out event parity, independent run budgets.
+- docs/EXPERIMENT_PROTOCOL.md: new canonical Section 20 differentiates budget primitive from future complete runnable E9B.
+- docs/CHANGE_CONTINUITY.md: this continuity record.
+
+### Responsibility movement
+None of the allocation states, decision rules, original physical loss/latency owners, runner contracts or E9A post-hoc reporter responsibilities move. Network exclusively owns byte reservation. The shared physical event constructors invoke that owner; no separate CBAA or Greedy budgeting algorithm and no duplicate state machine is introduced.
+
+### Preserved behavior
+No existing simulator or runner passes send_budget (default None). All old E0-E9A functionality, original packet IDs and loss keys, CBAA competition, Greedy election/retirement, reliable score/Commit, evidence roots and test expectations remain untouched. No results overwrite.
+
+### Deliberately changed behavior
+An explicit opt-in budget at one physical unicast/broadcast constructor makes an oversized next SEND fail BEFORE transmission, consumes zero additional sent bytes/messages and leaves no fake event. Positive and zero caps accepted. This must later be handled by owning runtime functions to avoid treating an incomplete task as committed.
+
+### First-failure diagnostic contract
+- network.validate_sender_payload_budget / data / INVALID_SENDER_PAYLOAD_BUDGET, expected nonnegative exact integer Bytes, actual input.
+- network.reserve_sender_payload / data / INVALID_SENDER_PAYLOAD_SIZE, expected positive exact integer physical SEND payload, actual input.
+- network.reserve_sender_payload / runtime / SEND_PAYLOAD_BUDGET_EXHAUSTED, expected max_next_send_bytes, actual attempted_send_bytes, details phase/current sent/cap.
+
+### Verification, known risks, next steps
+- The 145/145 local user-Mac pass predates THIS new E9B-1 code. No claim that the new budget tests have run on Mac or here. The remote code checkout is unavailable to this environment because github.com DNS is blocked; source tests are pending the user.
+- The next Greedy runtime block needs explicit incomplete-round semantics and preservation of all previously emitted Cost/Vote/announcement sends, plus never retiring an executor without its actual sent Commit. The next CBAA block needs partial-iteration local observation semantics and no centralized arbitration. No cap-triggering simulator calls should be wired until these are in place.
+- Byte-only SEND cap does not enforce equal wall-clock channel occupancy, different lossy-control stages, real MAC retransmissions or physical on-air Bytes.
+- Next: run python3 -m unittest discover -s tests -v on this branch and inspect any diagnostics. Only then integrate ONE runtime owner at a time, with new continuity record and tests, before formal experiments.
+
+### Commit SHA
+Code/tests/canonical implementation SHA will be recorded in a following continuity-only commit. This entry accompanies the implementation tree; branch base is 68499c9c631b54f2d95cb5b66786525e382a68b3.
