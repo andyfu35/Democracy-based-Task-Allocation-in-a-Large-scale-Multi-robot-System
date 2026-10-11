@@ -2126,3 +2126,27 @@ No new E9C unit suite or Mac 100R/50T actual-wire full simulation has been execu
 
 ### Commit SHA
 Branch base: c4b376b861eb02ba422b92bb62ad13e9a0bea90b. Exact implementation commit (new real-wire source, original coordination opt-in, one-seed runner, 11 tests, canonical Section 24 and same-tree continuity): c15c862672ffcf548c067765e18b1523885f0f1e. This follow-up updates continuity with that real code SHA only. New tests and the complete Mac E9C-1 one-seed run remain unexecuted until locally verified.
+
+
+## 2026-10-11 — E9C-1 user-Mac 100R/50T real-wire verification (documentation-only)
+
+### Purpose / evidence / files
+User Mac terminal output confirms E9C-1 executable SHA 70802ef4e01723370691dc2ca633266f86b68d1c on experiment/e9c-real-task-wire-bytes. New dedicated test_e9c_real_information.py: **11/11 PASS**; entire unittest discovery: **189/189 PASS**. A preexisting ResourceWarning from test_greedy_communication_comparison.py is nonfatal. The new output paths printed on Mac were results/e9c_real_information_R100T50_20261011T041950Z/actual_wire_bytes.csv and manifest.json. This verification note uses pasted terminal output only, not independently retrieved raw CSV or SHA256. Settings: robots=100, tasks=50, seed=0, p=0, Greedy max_rounds=300, CBAA K=1/3/8.
+
+### Physical application sender bytes, actual results
+Common source TASK: 2 actual binary packets, 1632 B. Optional all-peer POSE: 100 real binary packets, 3600 B. Every method is charged common TASK bytes; peer-POSE is charged only in the mode that really uses it. Separate originals:
+- Democracy original COST rows: TASK=1632, COST=41600, VOTE=119200, SCORE=1600, COMMIT=1400; TOTAL=165432 B; 50/50 genuine Commit, full=1.
+- Democracy received peer POSE: TASK=1632, POSE=3600, COST=0, VOTE=119200, SCORE=1600, COMMIT=1400; TOTAL=127432 B; 50/50 genuine Commit, full=1.
+- CBAA K1: TASK=1632, BID_VECTOR=61600; TOTAL=63232 B; 42/50 external observer agreement, full=0.
+- CBAA K3: TASK=1632, BID_VECTOR=184800; TOTAL=186432 B; 50/50 external observer agreement, full=1, NO distributed Commit.
+- CBAA K8: TASK=1632, BID_VECTOR=492800; TOTAL=494432 B; 50/50 external observer agreement, full=1, NO distributed Commit.
+At this ONE zero-loss seed, paid-POSE Democracy transmitted 59000 B less than full-observer-agreed CBAA K3 (31.65% less) while each met its DISTINCT success definition. Original COST Democracy transmitted 21000 B less than K3. The Democracy vote phase uses 119200 B = 3725 actual 32-B direct unicast SEND events.
+
+### Ownership, behavior and diagnostic contract
+This documentation-only follow-up does NOT move responsibility or change code. Unchanged owners/functions: task_information.encode_task_announcement, decode_task_announcement, broadcast_task_information, broadcast_robot_positions, reconstruct_local_cost_rows; coordination.build_received_pose_retirement_snapshot, validate_preknown_retirement_cost_snapshot, simulate_democracy_hungarian_retirement; experiments.run_e9c_real_information.run_e9c_real_information and its named validation/evidence helpers; original cbaa.simulate_cbaa. Existing network/coordination event-loss-transport owner, existing tests, E2/E8/E9B history and canonical Section 24 are unchanged. No new first-failure diagnostic codes; canonical data/dependency/state/contract/runtime codes remain the same. This note is not a retroactive change to the user's executed SHA.
+
+### Limitations, next step
+This is only a one-seed no-loss application sender-byte measurement, NOT a multi-seed significance claim, not physical 802.11 airtime/ACK/MAC headers, and NOT equal algorithm finalization semantics or cost optimality. TASK/POSE frames are really binary encoded and decoded, whereas existing Cost/Vote/Score/Commit/CBAA vectors use physically sent event counters with modeled payload-byte sizes; do not claim every application field has fully serialized bytes. High-loss TASK and peer-POSE dissemination currently fails with a dependency diagnostic when incomplete; it does not silently reconstruct missing truth, but retransmission/ACK and task-completeness repair are NOT implemented yet. CBAA K1 did not fully converge even with zero loss; K3 did so at this one seed only. Next bounded concern: first run multi-seed p0 with K2/K3 to test convergence and actual-byte variation, then implement separately scoped lossy TASK/POSE recovery with physically counted bytes and shared hard budget; do not simply compare E9B high-loss to E9C p0.
+
+### Commit SHA
+User-executed source HEAD: 70802ef4e01723370691dc2ca633266f86b68d1c (E9C implementation commit c15c862672ffcf548c067765e18b1523885f0f1e). This documentation-only follow-up records external evidence and carries no code modification.
