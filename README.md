@@ -821,6 +821,41 @@ Protocol, code ownership, diagnostics, limitations: docs/EXPERIMENT_PROTOCOL.md 
 
 ---
 
+## E8 — Independent published CBAA single-assignment benchmark (first validation block)
+
+**User-selected next phase:** compare our packet-loss-resilient decentralized voting against actual literature-based decentralized task assignment, starting with CBAA (Choi, Brunet & How, IEEE T-RO 2009, DOI [10.1109/TRO.2009.2022423](https://doi.org/10.1109/TRO.2009.2022423)). This is **NOT CBBA/ACBBA**, NOT our own 25% voting state machine, and does NOT silently fall back to reliable Commit.
+
+New independent owner: democracy_mrta/cbaa.py implements CBAA Phase 1 agent-local bid selection, Phase 2 lossy neighbor maximum-consensus, release/rebid if outbid, winner-origin tie metadata, and **post-hoc observer-only** agreement/conflict auditing. Each robot can claim at most one task. A locally conflicted task is NOT automatically assigned by the observer. experiments/run_cbaa_baseline.py records per-seed results, full-agreement counts, physical consensus packets/drops/bytes and simulated timing, source Git SHA and Rady latency provenance, with seed-0 compressed broadcast/delivery/local-state evidence.
+
+**Scientific limitations:** This first reference is fixed-iteration and synchronized on a complete network, with CBAA reward 1/(1+Euclidean cost) and origin metadata added for deterministic equal-bid handling. The original publication includes more general communication conditions; this is NOT yet a validated full asynchronous or independently distributed stopping implementation. CBAA consensus broadcasts each have ONE independently sampled loss stage, whereas our old E2 had separate initial Cost loss and Vote loss, with reliable Commit. Thus matched nominal Packet Loss probabilities are not identically controlled network workloads. This initial study is algorithm correctness/preflight and not yet a paper-ready statement that our algorithm is globally superior.
+
+### Mac validation — run these BEFORE formal CBAA comparison
+
+~~~bash
+git pull
+python3 -m unittest discover -s tests -v
+
+# Small CBAA 10R/5T, 3 seeds × p={0, 0.30, 0.50}
+python3 -m experiments.run_cbaa_baseline \
+  --robots 10 --tasks 5 --seeds 3 \
+  --loss-probabilities 0,0.30,0.50 --max-iterations 20 \
+  --output-root results/e8_cbaa_single_assignment_smoke
+
+# Only after suite/small smoke pass: 100R/50T, 3-seed CBAA pilot
+python3 -m experiments.run_cbaa_baseline \
+  --robots 100 --tasks 50 --seeds 3 \
+  --loss-probabilities 0,0.30,0.50 --max-iterations 20 \
+  --output-root results/e8_cbaa_100r50t_pilot
+~~~
+
+Expected small smoke: raw/cbaa_*.csv (9 rows), summary.csv (3 conditions), events/cbaa_audit_*.csv.gz (seed 0 only), and manifest.json. **If CBAA does not produce full task agreement at 0% loss, first inspect the true auction/consensus owner or iteration budget.** Do not insert a central rescue or an extra vote to make it pass. The pilot must pass before planning 100-seed 36-point formal CBAA curves.
+
+Original 51% K1/K2/K3 and pure 25% K1 formal results remain immutable; all four existing communication protocols were already independently evaluated at 100R/50T with 100 seeds × 36 loss levels. CBAA is a distinct optimizer-level baseline, so compare both full assignment agreement and packet/message/bytes/latency under disclosed differences. The old Greedy-only communication study remains the *controlled optimizer-fixed* test of our communication protocol's contribution.
+
+Exact source adaptation/diagnostic contracts: docs/EXPERIMENT_PROTOCOL.md §18; evidence ledger: results/e8_cbaa_single_assignment_smoke/README.md; mandatory internal continuity: docs/CHANGE_CONTINUITY.md.
+
+---
+
 ## E5 — Bursty Packet Loss
 
 Purpose: determine whether conclusions from independent Bernoulli loss survive correlated outages.
