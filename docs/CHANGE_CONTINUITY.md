@@ -1954,3 +1954,38 @@ An explicit opt-in budget at one physical unicast/broadcast constructor makes an
 
 ### Commit SHA
 Code/test/canonical implementation SHA: `82bd91e36a2c4ef94d356196da7fe4eb9d68bc27`. This continuity-only follow-up commit records that exact implementation SHA; branch base was `68499c9c631b54f2d95cb5b66786525e382a68b3`.
+
+
+## 2026-10-11 — E9B-2 bounded Greedy 25% runtime SEND-byte hard cap
+
+### Purpose / prior verification evidence
+The user locally ran the E9B-1 branch and confirmed 152/152 passing tests on 2026-10-11 (existing ResourceWarning for an unclosed fixture file in test_greedy_communication_comparison is a test cleanup issue, not a test failure). This change is the next ONE bounded responsibility: convert that dormant E9B-1 per-run SEND reservation into a safety-preserving, opt-in Greedy25% runtime sender-byte cap. CBAA and existing runner evidence are untouched.
+
+### Files / owner / exact functions
+- democracy_mrta/network.py: SenderPayloadBudget.last_denied_diagnostic retains the original network.reserve_sender_payload runtime/SEND_PAYLOAD_BUDGET_EXHAUSTED Diagnostic on denied physical SEND; no additional network state machine.
+- democracy_mrta/coordination.py: _simulate_lossy_cost_broadcasts and capture_retirement_cost_snapshot (partial once-only Cost); transmit_repeated_remote_vote (partial physical Vote copies); simulate_quarter_plurality_announcement_phase (partial-score stop); validate_budgeted_retirement_scope (explicit Greedy pure25 K1 scope / planning diagnostics); summarize_budget_exhausted_epoch (no-phantom-Commit aborted round); simulate_democracy_hungarian_lossy (existing voting owner, staged early stop and Commit gating); simulate_democracy_hungarian_retirement (original membership/queue owner, stop without rotation when aborted); require_retirement_sender_accounting (event-ledger contract); _summarize_lossy_result and existing result dataclasses (expose budget stop state/phase/original failure).
+- tests/test_greedy_sender_budget.py: zero cap, partial cost/vote/score/commit boundaries, previous-round Commit preservation, exact-fit normal completion and packet-key identity, original opt-out behavior, narrow-mode rejection, event/ledger invariants.
+- docs/EXPERIMENT_PROTOCOL.md: new canonical §21; docs/CHANGE_CONTINUITY.md: this update, both in same code change.
+
+### Responsibility movement / invariant behavior
+NO responsibility is moved into a different owner. The existing network sender reserve owner continues to account Bytes. The existing coordination Greedy vote, score, Commit and protocol retirement owners keep their original responsibilities; no alternative election, task state machine, fake Commit, reliable fallback, change to loss sampler or packet keys. The old unbudgeted code path remains the default for ALL existing tests/runners. Under explicit budget, first denied physical SEND stops the current incomplete epoch, never inventing an accepted task.
+
+### Intentionally changed behavior
+Only calls that pass a SenderPayloadBudget to simulate_democracy_hungarian_retirement in pure25 Greedy K1 mode are newly bounded. Under cap, previously transmitted physical packets count; any uncommitted current task stays pending. Previously emitted valid Commit on prior rounds remains valid. A denied reliable Commit is NOT a Commit. All conditions enforce ledger.sent_bytes <= limit_bytes and output sum of CommunicationEvent.payload_bytes == ledger.sent_bytes; no metadata reused across independent runs. Score/Commit messages remain counted as sent despite reliable delivery assumptions.
+
+### First-failure diagnostic contract
+- network.reserve_sender_payload / runtime / SEND_PAYLOAD_BUDGET_EXHAUSTED: real first rejected SEND with phase/used/cap/size; retained verbatim in result.budget_stop_diagnostic.
+- coordination.validate_budgeted_retirement_scope / planning / BUDGETED_RETIREMENT_REQUIRES_GREEDY_QUARTER_K1.
+- coordination.simulate_democracy_hungarian_lossy / planning / BUDGETED_EPOCH_REQUIRES_RETAINED_COSTS.
+- coordination.summarize_budget_exhausted_epoch / contract / MISSING_PHYSICAL_BUDGET_FAILURE.
+- coordination.require_retirement_sender_accounting / contract / BUDGET_LEDGER_EVENT_MISMATCH.
+This is a normal 'budget exhausted' experimental outcome, not a crash; incorrectly formed inputs or lost diagnostics still raise exact ProtocolError.
+
+### Tests / open risks / follow-up
+- The 152/152 Mac user test pass certifies only pre-E9B-2 revision be401f520ff2c2eb4ae419dea8be017dfa278123. NEW runtime tests added here are NOT claimed passed; remote GitHub connector cannot execute them and this container cannot resolve github.com, so the user must run the full unit suite on Mac.
+- Current budgeted mode deliberately restricts Greedy pure25 with K1; CBAA, K2/K3 redundancy, majority and Hungarian remain default unbudgeted until independent opt-in owner changes.
+- Budget abort's stage time counts latest actually transmitted arrival, not radio airtime; there is no shared contention/real WLAN model, and score/Commit remain reliable. Benchmark runner exposing scenario × cap × p raw paired evidence is a later separate concern.
+- E9B-3: wire SAME budget reserve into original CBAA consensus full-vector broadcasts, preserve actual partial agent beliefs and observer-only correctness, no central rescue. E9B-4: common immutable raw/summary runner; then local tests, 3-seed smoke and 100-seed formal study after verifying all fairness conditions.
+
+### Commit SHA
+Implementation files plus canonical+continuity appear together in one Git tree based on be401f520ff2c2eb4ae419dea8be017dfa278123. Exact code commit SHA must be written in a follow-up continuity-only commit after creation, never claimed in advance.

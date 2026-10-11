@@ -365,6 +365,7 @@ class SenderPayloadBudget:
     sent_bytes: int = field(default=0, init=False)
     sent_messages: int = field(default=0, init=False)
     denied_messages: int = field(default=0, init=False)
+    last_denied_diagnostic: Diagnostic | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         validate_sender_payload_budget(self.limit_bytes)
@@ -392,13 +393,15 @@ def reserve_sender_payload(
         ))
     if payload_bytes > budget.remaining_bytes:
         budget.denied_messages += 1
-        raise SenderBudgetExhausted(Diagnostic(
+        diagnostic = Diagnostic(
             owner="network", function="reserve_sender_payload",
             category="runtime", code="SEND_PAYLOAD_BUDGET_EXHAUSTED",
             expected={"max_next_send_bytes": budget.remaining_bytes},
             actual={"attempted_send_bytes": payload_bytes},
             details=f"phase={phase}; used={budget.sent_bytes}; limit={budget.limit_bytes}",
-        ))
+        )
+        budget.last_denied_diagnostic = diagnostic
+        raise SenderBudgetExhausted(diagnostic)
     budget.sent_bytes += payload_bytes
     budget.sent_messages += 1
 

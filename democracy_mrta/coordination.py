@@ -6,6 +6,7 @@ from .diagnostics import Diagnostic, ProtocolError
 
 from .network import (
     SenderPayloadBudget,
+    SenderBudgetExhausted,
     reserve_sender_payload,
     validate_packet_loss_probability,
     validate_vote_repetitions,
@@ -409,6 +410,9 @@ class LossyCoordinationResult:
     qualified_announcement_count: int = 0
     plurality_tie_break_count: int = 0
     plurality_winner_vote_count: int = 0
+    budget_exhausted: bool = False
+    budget_stop_phase: str | None = None
+    budget_stop_diagnostic: Diagnostic | None = None
 
     @property
     def committed_tasks(self) -> int:
@@ -496,6 +500,7 @@ def transmit_repeated_remote_vote(
     sampler,
     loss_sampler,
     p_vote_loss: float,
+    send_budget: SenderPayloadBudget | None = None,
 ) -> tuple[list[CommunicationEvent], list[DeliveryObservation], DeliveryObservation | None]:
     """Send independent fixed copies, return FIRST delivered physical ballot.
 
@@ -508,17 +513,22 @@ def transmit_repeated_remote_vote(
     events: list[CommunicationEvent] = []
     observations: list[DeliveryObservation] = []
     for copy_index in range(copies):
-        event = _unicast_event(
-            phase="vote",
-            sender_id=voter_id,
-            receiver_id=candidate_id,
-            send_time_ms=send_time_ms + copy_index * phase_timeout_ms,
-            payload_bytes=VOTE_PAYLOAD_BYTES,
-            sampler=sampler,
-            task_id=task_id,
-            round_id=round_id,
-            transmission_index=copy_index,
-        )
+        try:
+            event = _unicast_event(
+                phase="vote",
+                sender_id=voter_id,
+                receiver_id=candidate_id,
+                send_time_ms=send_time_ms + copy_index * phase_timeout_ms,
+                payload_bytes=VOTE_PAYLOAD_BYTES,
+                sampler=sampler,
+                task_id=task_id,
+                round_id=round_id,
+                transmission_index=copy_index,
+                send_budget=send_budget,
+            )
+        except SenderBudgetExhausted:
+            # The epoch owner treats any denied physical ballot as a hard stop.
+            break
         obs = _lossy_unicast_delivery(
             event=event,
             loss_sampler=loss_sampler,
@@ -556,6 +566,9 @@ def _summarize_lossy_result(
     qualified_announcement_count: int = 0,
     plurality_tie_break_count: int = 0,
     plurality_winner_vote_count: int = 0,
+    budget_exhausted: bool = False,
+    budget_stop_phase: str | None = None,
+    budget_stop_diagnostic: Diagnostic | None = None,
 ) -> LossyCoordinationResult:
     pairs = tuple(sorted(tuple(assigned_pairs), key=lambda pair: (pair[1], pair[0])))
     validate_one_to_one_commits(pairs)
@@ -601,6 +614,9 @@ def _summarize_lossy_result(
         qualified_announcement_count=qualified_announcement_count,
         plurality_tie_break_count=plurality_tie_break_count,
         plurality_winner_vote_count=plurality_winner_vote_count,
+        budget_exhausted=budget_exhausted,
+        budget_stop_phase=budget_stop_phase,
+        budget_stop_diagnostic=budget_stop_diagnostic,
     )
 
 
@@ -721,6 +737,7 @@ def _simulate_lossy_cost_broadcasts(
     phase_timeout_ms: float,
     round_id: int,
     robot_ids: tuple[int, ...] | None = None,
+    send_budget: SenderPayloadBudget | None = None,
 ) -> tuple[
     list[CommunicationEvent],
     list[DeliveryObservation],
@@ -739,14 +756,19 @@ def _simulate_lossy_cost_broadcasts(
     ]
 
     for sender_local_id, sender_id in enumerate(physical_ids):
-        event = _broadcast_event(
-            phase="cost",
-            sender_id=sender_id,
-            send_time_ms=0.0,
-            payload_bytes=cost_row_payload_bytes(num_tasks),
-            sampler=sampler,
-            round_id=round_id,
-        )
+        try:
+            event = _broadcast_event(
+                phase="cost",
+                sender_id=sender_id,
+                send_time_ms=0.0,
+                payload_bytes=cost_row_payload_bytes(num_tasks),
+                sampler=sampler,
+                round_id=round_id,
+                send_budget=send_budget,
+            )
+        except SenderBudgetExhausted:
+            # The denied packet was never emitted; previously sent Costs stay observable.
+            break
         events.append(event)
         observations = _lossy_broadcast_deliveries(
             event=event,
@@ -828,6 +850,7 @@ class RetirementCostSnapshot:
     ready_times_ms: tuple[float, ...]
     events: tuple[CommunicationEvent, ...]
     deliveries: tuple[DeliveryObservation, ...]
+    budget_exhausted: bool = False
 
 
 def capture_retirement_cost_snapshot(
@@ -837,6 +860,7 @@ def capture_retirement_cost_snapshot(
     loss_sampler,
     p_loss: float,
     phase_timeout_ms: float,
+    send_budget: SenderPayloadBudget | None = None,
 ) -> RetirementCostSnapshot:
     """Disseminate every task's costs only once at the beginning of the run."""
     num_robots, num_tasks = validate_cost_matrix(cost_matrix)
@@ -848,6 +872,7 @@ def capture_retirement_cost_snapshot(
         p_loss=p_loss,
         phase_timeout_ms=phase_timeout_ms,
         round_id=0,
+        send_budget=send_budget,
     )
     return RetirementCostSnapshot(
         robot_ids=tuple(range(num_robots)),
@@ -855,6 +880,7 @@ def capture_retirement_cost_snapshot(
         ready_times_ms=ready_times,
         events=tuple(events),
         deliveries=tuple(deliveries),
+        budget_exhausted=(send_budget is not None and send_budget.denied_messages > 0),
     )
 
 
@@ -1080,6 +1106,7 @@ def simulate_quarter_plurality_announcement_phase(
     round_id: int,
     vote_deadline_ms: float,
     sampler,
+    send_budget: SenderPayloadBudget | None = None,
 ) -> tuple[PluralityResolution | None, tuple[CommunicationEvent, ...], float]:
     """Compare ONLY qualified candidates; nobody qualifies means timeout.
 
@@ -1100,21 +1127,100 @@ def simulate_quarter_plurality_announcement_phase(
     if resolution is None:
         return None, (), vote_deadline_ms
 
-    events = tuple(
-        _broadcast_event(
-            phase="vote_score_announcement",
-            sender_id=claim.candidate_id,
-            send_time_ms=vote_deadline_ms,
-            payload_bytes=VOTE_SCORE_ANNOUNCEMENT_BYTES,
-            sampler=sampler,
-            task_id=task_id,
-            round_id=round_id,
-            announced_vote_count=claim.received_votes,
-        )
-        for claim in claims
-    )
+    events: list[CommunicationEvent] = []
+    for claim in claims:
+        try:
+            event = _broadcast_event(
+                phase="vote_score_announcement",
+                sender_id=claim.candidate_id,
+                send_time_ms=vote_deadline_ms,
+                payload_bytes=VOTE_SCORE_ANNOUNCEMENT_BYTES,
+                sampler=sampler,
+                task_id=task_id,
+                round_id=round_id,
+                announced_vote_count=claim.received_votes,
+                send_budget=send_budget,
+            )
+        except SenderBudgetExhausted:
+            # An incomplete score-announcement set cannot select a valid executor.
+            return None, tuple(events), max(
+                (item.arrival_time_ms for item in events), default=vote_deadline_ms
+            )
+        events.append(event)
     # All qualified final scores are reliably broadcast in this opt-in model.
-    return resolution, events, max(event.arrival_time_ms for event in events)
+    return resolution, tuple(events), max(event.arrival_time_ms for event in events)
+
+
+
+def validate_budgeted_retirement_scope(
+    *,
+    send_budget: SenderPayloadBudget | None,
+    voting_strategy: str,
+    vote_decision_rule: str,
+    vote_repetitions: int,
+) -> None:
+    """E9B-2 only covers Greedy single-task pure 25% with one Vote copy."""
+    if send_budget is None:
+        return
+    if (
+        type(send_budget) is not SenderPayloadBudget
+        or voting_strategy != "greedy_task"
+        or vote_decision_rule != "quarter_plurality"
+        or vote_repetitions != 1
+    ):
+        raise ProtocolError(Diagnostic(
+            owner="coordination",
+            function="validate_budgeted_retirement_scope",
+            category="planning",
+            code="BUDGETED_RETIREMENT_REQUIRES_GREEDY_QUARTER_K1",
+            expected="SenderPayloadBudget, greedy_task, quarter_plurality, vote_repetitions=1",
+            actual=(type(send_budget).__name__, voting_strategy,
+                    vote_decision_rule, vote_repetitions),
+        ))
+
+
+def summarize_budget_exhausted_epoch(
+    *,
+    cost_matrix: tuple[tuple[float, ...], ...],
+    events: list[CommunicationEvent],
+    deliveries: list[DeliveryObservation],
+    visible: tuple[frozenset[int], ...],
+    cost_completion_ms: float,
+    stop_phase: str,
+    send_budget: SenderPayloadBudget,
+) -> LossyCoordinationResult:
+    """Preserve every emitted packet while refusing all uncommitted task claims.
+
+    A denied transmission never creates an event. This function does not
+    run any voting, optimizer, or retirement logic. Its stage accounting is
+    conservative: elapsed time is the last actually emitted event arrival.
+    """
+    diagnostic = send_budget.last_denied_diagnostic
+    if diagnostic is None or diagnostic.code != "SEND_PAYLOAD_BUDGET_EXHAUSTED":
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="summarize_budget_exhausted_epoch",
+            category="contract", code="MISSING_PHYSICAL_BUDGET_FAILURE",
+            expected="network.reserve_sender_payload SEND_PAYLOAD_BUDGET_EXHAUSTED",
+            actual=diagnostic,
+        ))
+    last_emitted_ms = max((event.arrival_time_ms for event in events), default=0.0)
+    return _summarize_lossy_result(
+        method="democracy_greedy_quarter_plurality",
+        cost_matrix=cost_matrix,
+        assigned_pairs=(),
+        cost_phase_completion_ms=min(cost_completion_ms, last_emitted_ms),
+        decision_completion_ms=last_emitted_ms,
+        global_agreement_ms=last_emitted_ms,
+        task_timeout_count=len(cost_matrix[0]),
+        visible_counts=[len(rows) for rows in visible],
+        events=events,
+        deliveries=deliveries,
+        vote_decision_rule="quarter_plurality",
+        announcement_threshold=quarter_vote_announcement_threshold(len(visible)),
+        budget_exhausted=True,
+        budget_stop_phase=stop_phase,
+        budget_stop_diagnostic=diagnostic,
+    )
 
 
 def simulate_democracy_hungarian_lossy(
@@ -1133,6 +1239,7 @@ def simulate_democracy_hungarian_lossy(
     cost_snapshot: RetirementCostSnapshot | None = None,
     vote_decision_rule: str = "strict_majority",
     vote_repetitions: int = 1,
+    send_budget: SenderPayloadBudget | None = None,
 ) -> LossyCoordinationResult:
     num_robots, num_tasks = validate_cost_matrix(cost_matrix)
     physical_robots, physical_tasks = validate_epoch_identity_mapping(
@@ -1148,6 +1255,17 @@ def simulate_democracy_hungarian_lossy(
         num_tasks=num_tasks,
     )
     validate_vote_repetitions(vote_repetitions)
+    validate_budgeted_retirement_scope(
+        send_budget=send_budget, voting_strategy=voting_strategy,
+        vote_decision_rule=vote_decision_rule, vote_repetitions=vote_repetitions,
+    )
+    if send_budget is not None and cost_snapshot is None:
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="simulate_democracy_hungarian_lossy",
+            category="planning", code="BUDGETED_EPOCH_REQUIRES_RETAINED_COSTS",
+            expected="one prior recorded Greedy cost snapshot",
+            actual=None,
+        ))
     quorum = quorum_size(num_robots)
     eligible = frozenset(physical_robots)
     vote_loss_probability = (
@@ -1173,6 +1291,12 @@ def simulate_democracy_hungarian_lossy(
             round_id=round_id,
         )
     cost_completion = max(ready_times, default=0.0)
+    if send_budget is not None and cost_snapshot is not None and cost_snapshot.budget_exhausted:
+        return summarize_budget_exhausted_epoch(
+            cost_matrix=cost_matrix, events=events, deliveries=deliveries,
+            visible=visible, cost_completion_ms=cost_completion,
+            stop_phase="cost", send_budget=send_budget,
+        )
     proposals = build_epoch_local_proposals(
         cost_matrix=cost_matrix,
         visible=visible,
@@ -1221,9 +1345,16 @@ def simulate_democracy_hungarian_lossy(
                 sampler=sampler,
                 loss_sampler=loss_sampler,
                 p_vote_loss=vote_loss_probability,
+                send_budget=send_budget,
             )
             events.extend(physical_events)
             deliveries.extend(physical_deliveries)
+            if send_budget is not None and send_budget.denied_messages:
+                return summarize_budget_exhausted_epoch(
+                    cost_matrix=cost_matrix, events=events, deliveries=deliveries,
+                    visible=visible, cost_completion_ms=cost_completion,
+                    stop_phase="vote", send_budget=send_budget,
+                )
             if observation is None:
                 continue
 
@@ -1259,8 +1390,15 @@ def simulate_democracy_hungarian_lossy(
                 round_id=round_id,
                 vote_deadline_ms=vote_deadline,
                 sampler=sampler,
+                send_budget=send_budget,
             )
             events.extend(announcements)
+            if send_budget is not None and send_budget.denied_messages:
+                return summarize_budget_exhausted_epoch(
+                    cost_matrix=cost_matrix, events=events, deliveries=deliveries,
+                    visible=visible, cost_completion_ms=cost_completion,
+                    stop_phase="vote_score_announcement", send_budget=send_budget,
+                )
             if resolution is None:
                 continue
             committed_pairs.append((resolution.winner_id, task_id))
@@ -1290,15 +1428,24 @@ def simulate_democracy_hungarian_lossy(
 
     commit_arrivals: list[float] = []
     for winner_id, task_id in committed_pairs:
-        event = _broadcast_event(
-            phase="commit",
-            sender_id=winner_id,
-            send_time_ms=quorum_times[task_id],
-            payload_bytes=COMMIT_PAYLOAD_BYTES,
-            sampler=sampler,
-            task_id=task_id,
-            round_id=round_id,
-        )
+        try:
+            event = _broadcast_event(
+                phase="commit",
+                sender_id=winner_id,
+                send_time_ms=quorum_times[task_id],
+                payload_bytes=COMMIT_PAYLOAD_BYTES,
+                sampler=sampler,
+                task_id=task_id,
+                round_id=round_id,
+                send_budget=send_budget,
+            )
+        except SenderBudgetExhausted:
+            # In this bounded single-task Greedy mode NO Commit has been emitted.
+            return summarize_budget_exhausted_epoch(
+                cost_matrix=cost_matrix, events=events, deliveries=deliveries,
+                visible=visible, cost_completion_ms=cost_completion,
+                stop_phase="commit", send_budget=send_budget,
+            )
         events.append(event)
         commit_arrivals.append(event.arrival_time_ms)
 
@@ -1390,6 +1537,9 @@ class MultiRoundRetirementResult:
     lossy_delivered: int
     lossy_dropped: int
     vote_repetitions: int = 1
+    budget_exhausted: bool = False
+    budget_stop_phase: str | None = None
+    budget_stop_diagnostic: Diagnostic | None = None
 
     @property
     def committed_tasks(self) -> int:
@@ -1443,6 +1593,31 @@ def require_retirement_commit_announcements(
         )
 
 
+
+def require_retirement_sender_accounting(
+    *,
+    send_budget: SenderPayloadBudget | None,
+    rounds: list[RetirementRoundTrace],
+) -> None:
+    """Hard-cap ledger and all actual physical SEND events must match exactly."""
+    if send_budget is None:
+        return
+    transmitted = tuple(
+        event for item in rounds for event in item.coordination.events
+    )
+    expected = (len(transmitted), sum(event.payload_bytes for event in transmitted))
+    actual = (send_budget.sent_messages, send_budget.sent_bytes)
+    if expected != actual:
+        raise ProtocolError(Diagnostic(
+            owner="coordination",
+            function="require_retirement_sender_accounting",
+            category="contract",
+            code="BUDGET_LEDGER_EVENT_MISMATCH",
+            expected={"messages": expected[0], "bytes": expected[1]},
+            actual={"messages": actual[0], "bytes": actual[1]},
+        ))
+
+
 def simulate_democracy_hungarian_retirement(
     *,
     cost_matrix: tuple[tuple[float, ...], ...],
@@ -1455,6 +1630,7 @@ def simulate_democracy_hungarian_retirement(
     voting_strategy: str = "hungarian",
     vote_decision_rule: str = "strict_majority",
     vote_repetitions: int = 1,
+    send_budget: SenderPayloadBudget | None = None,
 ) -> MultiRoundRetirementResult:
     """Multi-round membership owner; reuses the same E2 single-round vote engine.
 
@@ -1478,6 +1654,10 @@ def simulate_democracy_hungarian_retirement(
     validate_packet_loss_probability(p_loss)
     validate_packet_loss_probability(p_vote_loss)
     validate_vote_repetitions(vote_repetitions)
+    validate_budgeted_retirement_scope(
+        send_budget=send_budget, voting_strategy=voting_strategy,
+        vote_decision_rule=vote_decision_rule, vote_repetitions=vote_repetitions,
+    )
     validate_epoch_voting_strategy(
         strategy=voting_strategy, num_tasks=(1 if voting_strategy == "greedy_task" else num_tasks)
     )
@@ -1493,6 +1673,7 @@ def simulate_democracy_hungarian_retirement(
             loss_sampler=loss_sampler,
             p_loss=p_loss,
             phase_timeout_ms=phase_timeout_ms,
+            send_budget=send_budget,
         )
         if voting_strategy == "greedy_task" else None
     )
@@ -1533,6 +1714,7 @@ def simulate_democracy_hungarian_retirement(
             cost_snapshot=snapshot,
             vote_decision_rule=vote_decision_rule,
             vote_repetitions=vote_repetitions,
+            send_budget=send_budget,
         )
         require_retirement_commit_announcements(
             round_result=round_result,
@@ -1553,6 +1735,10 @@ def simulate_democracy_hungarian_retirement(
                 coordination=round_result,
             )
         )
+        if round_result.budget_exhausted:
+            # Neither rotate a pending task nor retire any uncommitted executor.
+            elapsed_ms = next_elapsed
+            break
         membership = apply_announced_retirement_commits(
             membership=membership,
             announced_pairs=round_result.assigned_pairs,
@@ -1560,6 +1746,11 @@ def simulate_democracy_hungarian_retirement(
         )
         elapsed_ms = next_elapsed
 
+    require_retirement_sender_accounting(send_budget=send_budget, rounds=rounds)
+    stopped_round = next(
+        (item.coordination for item in rounds if item.coordination.budget_exhausted),
+        None,
+    )
     return MultiRoundRetirementResult(
         method=(
             "democracy_greedy_quarter_plurality_retirement"
@@ -1586,4 +1777,7 @@ def simulate_democracy_hungarian_retirement(
         lossy_delivered=sum(item.coordination.lossy_delivered for item in rounds),
         lossy_dropped=sum(item.coordination.lossy_dropped for item in rounds),
         vote_repetitions=vote_repetitions,
+        budget_exhausted=stopped_round is not None,
+        budget_stop_phase=(stopped_round.budget_stop_phase if stopped_round else None),
+        budget_stop_diagnostic=(stopped_round.budget_stop_diagnostic if stopped_round else None),
     )
