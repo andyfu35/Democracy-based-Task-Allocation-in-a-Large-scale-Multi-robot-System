@@ -821,6 +821,54 @@ Protocol, code ownership, diagnostics, limitations: docs/EXPERIMENT_PROTOCOL.md 
 
 ---
 
+## E9A — Observed matching of Greedy25 and CBAA transmitted Bytes (calibration only)
+
+We must not compare CBAA's arbitrary 20 repeated full-vector broadcasts to a single run of our packet-loss-resistant Greedy 25% task voting and call them equal communication. E9A adds a **READ-ONLY** source-verified byte/resource calibration tool in experiments/compare_cbaa_budget.py. It reads the completed, historical 100R/50T 100-seed pure25 E2 raw evidence and already generated CBAA raw, optionally with new CBAA iteration configurations. It NEVER changes task decisions or historical results. Its candidate CBAA iteration count is chosen using **p=0 Greedy mean send Bytes only**, independent of CBAA success or p=.30/.50 outcome. For each p and seed it publishes actual sender Bytes, message counts, simulated time, Greedy complete Commit vs CBAA external observer agreement and CBAA conflicts. It flags any ratio outside a predeclared +/-10% tolerance.
+
+The unit of budget is sender-COUNTED application payload Bytes. Each broadcast is counted ONCE, not multiplied by recipients; receiver delivery opportunities and physical packet drops remain separately reported. Neither project model includes radio channel contention/airtime, and the CBAA consensus channel differs from E2's Cost+Vote + reliable score/Commit. **This is NOT a true hard byte cap**, so no equal-budget superiority should yet be claimed.
+
+Run from Mac where historical 25% and CBAA K20 pilot already exist:
+
+~~~bash
+git pull
+python3 -m unittest discover -s tests -v
+
+# Read-only validation of the existing CBAA K20 pilot against Greedy25 raw.
+python3 -m experiments.compare_cbaa_budget \
+  --cbaa-roots results/e8_cbaa_100r50t_pilot \
+  --output-root results/e9_cbaa_budget_calibration_20only
+
+# Independent new CBAA short-run sources, different iteration counts.
+for K in 1 2 3 4 5 8 10; do
+  python3 -m experiments.run_cbaa_baseline \
+    --robots 100 --tasks 50 --seeds 3 \
+    --loss-probabilities 0,0.30,0.50 \
+    --max-iterations "$K" \
+    --output-root "$(printf 'results/e8_cbaa_budget%s_100r50t_smoke' "$K")" || break
+done
+
+# Zero-loss-byte-only calibration across all options; output is distinct.
+python3 -m experiments.compare_cbaa_budget \
+  --robots 100 --tasks 50 --seeds 3 \
+  --loss-probabilities 0,0.30,0.50 --tolerance 0.10 \
+  --cbaa-roots \
+    results/e8_cbaa_budget1_100r50t_smoke \
+    results/e8_cbaa_budget2_100r50t_smoke \
+    results/e8_cbaa_budget3_100r50t_smoke \
+    results/e8_cbaa_budget4_100r50t_smoke \
+    results/e8_cbaa_budget5_100r50t_smoke \
+    results/e8_cbaa_budget8_100r50t_smoke \
+    results/e8_cbaa_budget10_100r50t_smoke \
+    results/e8_cbaa_100r50t_pilot \
+  --output-root results/e9_cbaa_budget_calibration_3seed
+~~~
+
+Outputs: budget_options.csv (zero-loss traffic-selected K), budget_per_seed.csv, budget_curve.csv and source SHA256/Git-SHA manifest.json. Never overwrite archived source experiments or previous reports. If closest K fails tolerance, mark UNMATCHED and consider adding nearby integer K choices; never silently select best-performing K using packet-loss results.
+
+Next E9B must enforce actual identical sender-byte caps BEFORE sending in original protocol owners, with honest incomplete outcomes, harmonized channel loss assumptions and fair timing before any claimed causal equal-budget result. Full provenance/diagnostics: docs/EXPERIMENT_PROTOCOL.md §19 and results/e9_cbaa_budget_calibration/README.md.
+
+---
+
 ## E8 — Independent published CBAA single-assignment benchmark (first validation block)
 
 **User-selected next phase:** compare our packet-loss-resilient decentralized voting against actual literature-based decentralized task assignment, starting with CBAA (Choi, Brunet & How, IEEE T-RO 2009, DOI [10.1109/TRO.2009.2022423](https://doi.org/10.1109/TRO.2009.2022423)). This is **NOT CBBA/ACBBA**, NOT our own 25% voting state machine, and does NOT silently fall back to reliable Commit.
