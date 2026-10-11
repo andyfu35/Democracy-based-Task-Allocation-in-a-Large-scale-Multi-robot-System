@@ -1388,3 +1388,50 @@ Only democracy_mrta.coordination.py changes in this bounded E9F-1 source concern
 A 100R50T m=1 initial Cost stage costs 100*(16+50*8)=41,600 sender application Bytes; m=2 costs 83,200, m=3 124,800, m=5 208,000. All additional bytes are part of the ACTUAL original sender ledger; the common TASK once cost 1,632 B remains separate. Expected one directed sender->receiver Cost reach probability under independently lossy physical repetitions is 1-p^m; this is only a single-link marginal argument, NOT a predicted task full-Commit success probability (vote propagation is separately lossy, quorum thresholds and robot retirement couple events). Original CBAA algorithm and original max-consensus, external observer agreement and optimistic global local-ready scheduler remain unchanged and must be labeled separate from real reliable Greedy Commit.
 
 New tests/test_e9f_cost_repetition.py: eight named tests for default m=1 parity, paid m=3 Cost event/delivery keys, actual missing-row recovery only on copy=1 packet receipt, total p=1 negative control, no subsequent Greedy-epoch rebroadcast, invalid count named first failure, invalid source/plan contract, physical sender byte denial no phantom Commit. Run full old regression; never claim it has passed until CI or Mac execution. E9F-2 is a SEPARATE bounded study of 100 matched seeds, natural original CBAA reference and Greedy Cost copies 1/2/3/5, physical payload accounting, finite guard and empirical loss frontier near 0.50–0.70. The READMEs must not publish unverified new outcomes.
+
+
+## 34. E9F-2 paired 100-seed original Greedy Cost-copy causal sweep vs original CBAA
+
+### 34.1 Research question and controlled actors
+The next bounded experiment tests whether the original Democracy Greedy success cliff around p=0.52..0.55 is causally associated with each robot sending its Cost vector only ONE time. E9F-1 Section 33 adds true physical initial Cost row sender copies (NOT ACK/ARQ). This E9F-2 is only a NEW experiment, result and diagnostic owner; it DOES NOT create its own voting state machine, replan any task, change original Cost/Score/Commit data, charge CBAA for a fake full robot-position broadcast, silently alter the original E9D results, or claim the two protocol endpoint semantics are equal.
+
+For EVERY paired (seed,p) scenario, the original independent TASK binary broadcast is charged and delivered once, local true own cost rows reconstructed only from that physically decoded source plus each robot's own pose. Independently run original Greedy Cost copies m in (1,2,3,5) at the original Cost source in democracy_mrta.coordination.simulate_democracy_hungarian_retirement with voting_strategy=greedy_task, vote_decision_rule=quarter_plurality, vote_repetitions=1 and default max_rounds=300. Each robot emits m fixed open-loop Cost packets at physical application sender size 16+8*T; all peer physical copies independently face Bernoulli loss p. Voting always uses only rows physically received before the paid last-copy Cost-phase deadline. Success is real all-50-task reliable Commit and robot retirement. All Cost and Vote send attempts, Score/Commit control, drop counts and round guard are charged/recorded.
+
+As an UNCHANGED reference, run **original source CBAA** from experiments.run_e9d_natural_loss.run_e9d_original_cbaa_loss_case EXACTLY ONCE for each paired (seed,p), independently with only own costs, own full Bid/Winner repeated vector, and receiver-specific Bernoulli loss p; 160-iteration guard. It has no manual fixed K or raw robot-location propagation. The CBAA optimistic simulator-wide all-local-ready halt and no paid distributed final stop/Commit must be prominently disclosed, along with distinct post-hoc observer agreement. This is a paid Cost redundancy CAUSAL ABLATION and observable sender-byte comparison, NOT yet matched end-to-end hard sender-budget parity. An E9G equal cap/paid termination study may be scoped separately after E9F evidence.
+
+### 34.2 Full protocol and sample axes
+- Main fixed scenario: R=100, T=50; matched seed IDs 0..99.
+- Cost copy grid frozen m=1,2,3,5; integer and ascending with mandatory m=1 control.
+- Default sampled p grid: 0%, 30%, 40%, 45%, 48%, EVERY integer percent 50%..65% inclusive, plus 70%, 80%, 90%: **24 UNIQUE levels**. Main requested 100-seed run is 100 * 24 * (4 original Greedy ablations + 1 original CBAA) = **12,000 actual protocol runs**. A 3-seed pilot precedes the full 100 seeds.
+- The p1=1.0 failure negative control is available via custom --loss-probabilities even though omitted from the default p0..90 focus. --cost-copies accepts a comma list of unique ascending valid m in [1,5] with mandatory initial 1; no configured fixed CBAA K (only safety guard).
+- Independent p assigned to initial Cost and each Vote for Greedy, and Bid/Winner per receiver for original CBAA. No Cost copy is free or multiplies by number of receivers in sender Bytes. Task announcement p_task=0 and paid, original qualified Score/Commit remain reliable, constant synthetic 1ms timing/10ms deadline. Sending m>1 Cost windows lengthens simulated start before votes; this is intentionally reflected in elapsed_ms, not hidden.
+- Original m=1 explicitly remains bit-for-bit equivalent to run_e9d_democracy_loss_case at the same scene/seed,p, network sampler and guard. Cross-method source does not receive hidden peer pose/cost metadata.
+- Full CBAA post-hoc observer assignment and full receipt-based local stop are reported SEPARATELY; neither equals the Greedy actual reliable task Commit.
+- 160/300 safety guard exhaustion is right-censored; report does not claim theoretical p critical value.
+
+### 34.3 Named true experiment owner, diagnostics, tests, raw artifacts
+Only new experiments.run_e9f_cost_redundancy.py owns E9F-2:
+- parse_e9f_cost_copy_grid, validate_e9f_cost_grid: data/E9F_INVALID_COST_GRID (unique ascending 1..5 with original 1-copy mandatory). The actual Cost sender's validate_cost_repetitions remains its ORIGINAL owner and data/INVALID_COST_REPETITIONS boundary.
+- validate_e9f_sweep_axes: reuses original E9D validation, additional data/E9F_ROBOTS_REQUIRE_PEER_RECEIPTS.
+- prepare_e9f_output_root: state/E9F_PROTECTED_OUTPUT_ROOT, state/E9F_OUTPUT_EXISTS; prior E9C/E9D/E9E evidence immutable.
+- run_e9f_democracy_cost_case: calls original actual Greedy coordination owner, calculates actual physically received distinct sender/receiver Cost pair coverage from original events/deliveries, keeps duplicate Cost receptions from forming extra rows, and verifies existing true first epoch visible rows against receipts; contract/E9F_VISIBLE_COST_SOURCE_MISMATCH with expected/actual if inconsistent. No duplicated voting engine.
+- run_e9f_cbaa_reference_case: delegates unchanged E9D original source CBAA once per seed/p; no new CBAA auction, hidden global stop, pose broadcast or Cost source.
+- require_e9f_paired_sender_contract: contract/E9F_METHOD_PAIRING_MISMATCH, E9F_PHYSICAL_SENDER_BYTES_MISMATCH, E9F_FAKE_CBAA_COST, E9F_COST_RETRANSMISSION_LEDGER; each method/seed/p complete and physically accounted including duplicate open-loop transmissions, no input missing/fabricated.
+- summarize_e9f_cost_study: all configured Seeds are included in denominators, even if incomplete or guard-censored; original sender Bytes, Cost-only Bytes, observed peer Cost receipt fraction, actual committed task count, original CBAA observer and local success separately. Completed-only mean shown only as secondary statistic, never replace all-seed sender mean.
+- calculate_e9f_empirical_frontier: only finite test sample highest all/any success p and first imperfect p; guard-censoring explicit, NOT mathematical critical p.
+- write_e9f_cost_evidence: immutable final per_seed_cost_copy_method.csv, summary_cost_copies_by_loss.csv, and manifest.json with executable git_sha, loss/copy axes, observed original method names, modeled original wire-phase warnings and exact SHA256 of both complete CSVs; incomplete runs retain flushed per_seed_cost_copy_method.partial.csv and MUST NOT be declared formal.
+- run_e9f_cost_redundancy: one paired seed/loss orchestration owner, emits exactly 5 method rows per default cell; CBAA only once, original true TASK always charged; prints progress and method/loss totals; main CLI only.
+
+Eight tests/tests/test_e9f_cost_study.py independently exercise one-copy E9D parity, exact Cost and CBAA paid messages/deliveries, p0/p1 source visibility limits and paid failure behavior, separate semantics with ALL seeds denominator, manifest/checksum/coverage, invalid data/profile, protected immutable roots, invalid pair/byte owner/category/code. Whole repository unittest regression and real small-source CI smoke must pass before formal use.
+
+### 34.4 Mac on-host execution (instructions kept OUT of presentation README)
+Focused original true Cost source: python3 -m unittest discover -s tests -p 'test_e9f_cost_repetition.py' -v
+Focused original 100-seed runner: python3 -m unittest discover -s tests -p 'test_e9f_cost_study.py' -v
+
+Pilot:
+    python3 -m experiments.run_e9f_cost_redundancy --robots 100 --tasks 50 --seeds 3 --cost-copies 1,2,3,5 --output-root results/e9f_pilot_100r50t_3seed
+
+Formal:
+    python3 -m experiments.run_e9f_cost_redundancy --robots 100 --tasks 50 --seeds 100 --cost-copies 1,2,3,5 --cbaa-safety-round-limit 160 --democracy-safety-round-limit 300 --output-root results/e9f_formal_100r50t_100seed
+
+The user must use unique fresh output roots; if long formal run is interrupted it cannot resume automatically. User supplies complete raw + summary + manifest archive for independent verification before README result/chart publication. Do NOT claim E9F measured uplift before actual user Mac formal data is received. Existing README remains a results-only research document, with no how-to-run code inserted.
