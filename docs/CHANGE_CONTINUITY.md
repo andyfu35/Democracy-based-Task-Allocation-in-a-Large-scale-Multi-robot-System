@@ -1988,7 +1988,7 @@ This is a normal 'budget exhausted' experimental outcome, not a crash; incorrect
 - E9B-3: wire SAME budget reserve into original CBAA consensus full-vector broadcasts, preserve actual partial agent beliefs and observer-only correctness, no central rescue. E9B-4: common immutable raw/summary runner; then local tests, 3-seed smoke and 100-seed formal study after verifying all fairness conditions.
 
 ### Commit SHA
-Implementation files plus canonical+continuity appear together in one Git tree based on be401f520ff2c2eb4ae419dea8be017dfa278123. Exact code commit SHA must be written in a follow-up continuity-only commit after creation, never claimed in advance.
+Implementation code, unit tests, canonical specification and this continuity entry: `acceed9c9c258fa8064ab4eec84c550c4e02ced2` (parent `be401f520ff2c2eb4ae419dea8be017dfa278123`). Regression-fixture correction with continuity note: `7e58ad5ad5b88ad97fcb96708f20bafb540270a8`. This documentation-only follow-up records those real commits; none has yet been verified by the user's Mac test suite.
 
 
 ### E9B-2 source regression fixture accuracy note
