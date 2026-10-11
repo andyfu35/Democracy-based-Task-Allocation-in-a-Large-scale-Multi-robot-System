@@ -2190,3 +2190,33 @@ User's 189/189 Mac pass was on PRIOR E9C-1 executable SHA only. E9C-2 new runner
 
 ### Commit SHA
 Branch base e0f3c62315acc2fdf08e18d40788939e2c5dcb82. Exact implementation plus 7 tests plus canonical Section 25 plus same-tree continuity and triggered workflow is 2bcf23ac1b25bf9cad059c7d132a796901601c1b. This documentation-only follow-up records the actual executable SHA. GitHub Actions run 38112565303 has completed the dedicated E9C-2 tests and entire unittest regression with success, while the full 100-seed simulation has STARTED and its numerical results are NOT YET VERIFIED at the time of this note. CI record: https://github.com/andyfu35/Democracy-based-Task-Allocation-in-a-Large-scale-Multi-robot-System/actions/runs/38112565303.
+
+
+## 2026-10-11 — E9C-2 100-seed GitHub Actions completed; original raw evidence SHA256 verified (documentation only)
+
+### Source / execution / reproducibility verification
+The 100R50T no-loss real sender-application-bytes CI run 38112565303 COMPLETED SUCCESSFULLY. Exact tested source commit 2bcf23ac1b25bf9cad059c7d132a796901601c1b, branch experiment/e9c-100seed-comms; its dedicated seven named tests PASS and entire original regression unittest stage PASS, followed by completed 100/100 paired Seeds 0..99. Original CI workflow GitHub URL: https://github.com/andyfu35/Democracy-based-Task-Allocation-in-a-Large-scale-Multi-robot-System/actions/runs/38112565303 . Github artifact ID 11692550724, name e9c-100seed-real-communication-evidence, contains per_seed_method_bytes.csv (1500 raw rows = 100 seeds times 15 separately identified methods), summary.csv (15 method summary rows), offline_min_cbaa_k_per_seed.csv (100 seed rows) and manifest.json. Artifact was downloaded to the analysis container and independently checked: all THREE manifest CSV SHA256s matched their actual extracted bytes; manifest git_sha, raw/expected row count, seed count and method coverage also matched. Experimental network assumption: deterministic constant 1ms latency / deadline10ms, p=0; this is reproducible original packet SEND-byte simulation, NOT measured Wi-Fi airtime or high-loss field results.
+
+### Primary 100-seed actual outcome (distinct outcome semantics)
+Every trial charges exactly 1632 B shared actually binary TASK announcement. Original Greedy Cost+Vote broadcasts its own COST row (41600 B), Vote (119200 B = 3725 physically emitted 32 B unicasts), qualified Score (1600 B), reliable Commit (1400 B). Its end-to-end total is 165432 B on EVERY seed and it completes genuine reliable Commit for 50/50 tasks on 100/100 seeds.
+Source-faithful CBAA physically emits own Bid/Winner vector 61600 B per iteration, never remote full Cost or Pose state:
+- K1: total 63232 B, 0/100 full observer agreement, mean 39.76/50 observer-agreed tasks.
+- K2: total 124832 B, 29/100 full observer agreement, mean 48.49/50 tasks.
+- K3: total 186432 B, 86/100 full observer agreement, mean 49.77/50 tasks.
+- K4: total 248032 B, 98/100 full observer agreement, mean 49.95/50 tasks.
+- K5: total 309632 B, 99/100 full observer agreement, mean 49.98/50 tasks.
+- K6: total 371232 B, 100/100 full observer agreement, 50/50 tasks.
+- K8: total 494432 B, 100/100 full observer agreement, 50/50 tasks.
+CBAA lacks fully decentralized termination detection and never performs an actual reliable Commit. Requiring ONE fixed predeclared K sufficient for ALL 100 tested scenes first occurs at K6 in this particular K grid: Democracy sends 205800 fewer application Bytes than CBAA K6, i.e., 55.44% less than its 371232 B. This is NOT a universal algorithm lower bound or equal completed-Commit semantics. Comparing to K3, Democracy uses 21000 fewer B (11.26%) but CBAA K3 fails full observer agreement in 14/100 tested seeds. CBAA K2 uses fewer B but only 29/100 full observer agreement.
+
+### Per-seed offline optimistic CBAA K sensitivity
+Independent fixed-K per-seed replay identifies FIRST full observer-agreed K distribution: K2:29, K3:57, K4:12, K5:1, K6:1, none unresolved within K8. OFFLINE oracle average first-agreed CBAA sender bytes = 179040; Democracy 165432. Difference = 13608 B and (difference / offline mean CBAA)=7.6005% of aggregate means. Arithmetic average of per-seed % differences is only 2.0050%; both statistics are retained and SHOULD NOT be conflated. Crucially, this offline K is known ONLY to the external analyst after running separate simulations, cannot be used as actual on-line CBAA convergence stopping policy without paid distributed termination protocol. These optimistic per-seed numbers are sensitivity lower bounds only, not headline real protocol end-to-end comparison.
+
+### Full-raw robot data separately measured, not unfairly attributed to original CBAA
+The physically binary transmitted source POSE stage has 100 robots * (16B header + 20B own ID,x,y) = 3600 sender application Bytes. An extra explicitly NONSTANDARD cbaa_raw_robot_information_K ablation physically transmits all 100 source POSE packets, yielding K1=66832 B, K2=128432 B, K3=190032 B, K4=251632 B, K5=313232 B, K6=374832 B, K8=498032 B. Its CBAA observer outcomes are IDENTICAL to standard CBAA for each fixed K because the original CBAA algorithm requires only its own local cost/pose; charging it 3600 B additional for unused remote POSE cannot be represented as standard CBAA communication. No invented robot battery, ability, speed or richer 50-task scenario is claimed.
+
+### Scope / file / responsibility / diagnostics / risks
+This completed verification entry updates docs/CHANGE_CONTINUITY.md ONLY: no source code, no owner/function/state responsibility moved, no newly changed canonical contract. Original owners coordination.simulate_democracy_hungarian_retirement, cbaa.simulate_cbaa, task_information.broadcast_task_information / broadcast_robot_positions, experiments.run_e9c_100seed_comms and all original first-failure data/state/dependency/contract diagnostics are unchanged. Sources are zero loss plus constant synthetic timing; previous E9B high-loss cases are not merged. Cost/Vote/Score/Commit/Bid packet sizes still original physically emitted event PAYLOAD model; TASK and optional POSE are actual packed bytes; 802.11 MAC/PHY, packet ACK, airtime and device energy not modeled. 100 finite Seeds do not mathematically prove guaranteed success for all scenes. Further comparisons must harmonize actual final Commit semantics, implement paid decentralized CBAA convergence stopping and model paid task retransmission at high loss. Existing raw E9B and E9C-1 immutable.
+
+### Commit SHA
+Observed runnable source Git SHA 2bcf23ac1b25bf9cad059c7d132a796901601c1b; CI run 38112565303 completed success. This is a docs-only verification record added afterward and cannot change that executable SHA.
