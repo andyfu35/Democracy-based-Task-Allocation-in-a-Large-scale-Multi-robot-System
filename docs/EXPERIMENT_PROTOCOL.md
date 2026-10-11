@@ -927,3 +927,68 @@ Only after validating CBAA's 0%-loss convergence, independent loss protocol, mes
 ### 18.4 Verification limits / next concern
 
 User already completed prior 51%-majority K1, K2, K3 and pure 25% K1 100R/50T, 36 levels, 100 seeds each; new CBAA code/tests have only been committed through GitHub, not executed on the user's Mac as of this change. There is currently no proof of zero-loss full agreement at 100R/50T and no actual new CBAA baseline numerical results. The fixed iteration budget deliberately does not include an implementable fully distributed "all agents stopped" detection; a subsequent bounded change and its own continuity record are required before claiming general fair latency comparisons with the old E2 termination model or published original's asynchronous scheduling. Published CBBA/ACBBA faithfully implemented as separate standalone algorithms remains subsequent work.
+
+
+## 19. E9A observed sent-Bytes communication calibration — NOT hard-capped
+
+### 19.1 Goal, fairness and boundaries
+
+After the user's Mac verified CBAA at 100R/50T, 3 seeds, p=0/.30/.50 (135/135 tests), they requested a communication-matched rather than arbitrarily 20-round or one-round comparison against the previously completed Greedy pure25 protocol. Existing CBAA 20 fixed rounds generate 2000 physical broadcast SEND events, 1,232,000 sender-accounted payload Bytes, and 198,000 per-receiver delivery opportunities. The user-approved initial change is one bounded READ-ONLY analysis, not a global refactoring of either runtime.
+
+Owner experiments.compare_cbaa_budget reads existing E2 pure25 RAW data and independently executed CBAA raw for different iteration budgets, without running the model again or modifying source CSVs. It never chooses task winners or changes CBAA bids, Greedy votes, network delivery, task queue, timeout, or safety. The historical p0 Greedy run is the baseline for choosing a *nearby CBAA transmission budget*.
+
+### 19.2 What equal/near observed payload means
+
+Primary unit: application payload Bytes transmitted by sender. A broadcast is counted ONCE at sender even if it offers N-1 independent recipient delivery opportunities. Vote unicasts are counted once per actual physical send. Message counts, receiver opportunities and simulated elapsed time are separately reported, never mistaken for transmitted Bytes. Greedy pure25 payload includes one-time Cost exchange, remote Vote packets, qualified-score announcements and reliably modeled Commit packets. CBAA sends one vector with task bids plus original winning robot IDs each round: R*K*(16+12*T) Bytes across K iterations (in current model).
+
+Same seed, robots, tasks and p are required across sources; every source must report the same offline full-information Greedy scenario reference cost per seed, and Greedy p=0 must successfully allocate every task and match its full-information Greedy oracle. Greedy uses independent Cost and Vote losses at equal numeric p, while CBAA uses one consensus-vector per-receiver loss stage at p. Greedy's reliable Commit/score announcements vs CBAA's post-hoc observer agreement are NOT interchangeable. Neither simulator models MAC channel contention, retry airtime or radio bandwidth. The resulting E9A analysis is observed traffic calibration, NOT a controlled equal-hard-budget intervention.
+
+Selection rule (prevents outcome cherry-picking):
+- Compute mean sender payload bytes of pure25 Greedy p=0 over selected paired scenario seeds.
+- Compute mean CBAA p=0 sender payload bytes for each available integer max_iterations K. This does not inspect any CBAA success/metric or p>0 result.
+- Choose the K with smallest absolute fractional difference to Greedy p=0 sent bytes; tie-break by smaller K.
+- Require the closest candidate to be within +/-10% by default, else explicitly UNMATCHED. No made-up fractional round or selective success conditioning.
+- Independently test actual mean byte ratios at EACH later loss p, and report how many individual paired seeds are within the same tolerance. A p=0 match is NOT presumed matched at p=.30/.50.
+- Keep all failed/incomplete runs and CBAA split-brain/unconfirmed tasks in success-rate denominators; never treat a partial task set as a cheap full allocation. No retrospectively invented budget-abort state.
+
+### 19.3 One named concern per function and diagnostics
+
+New owner experiments.compare_cbaa_budget:
+- validate_budget_calibration_config: typed R,T,seeds,max_rounds, sorted unique p including 0, tolerance and distinct source roots. data / INVALID_BUDGET_CALIBRATION_SHAPE and INVALID_BUDGET_CALIBRATION_GRID.
+- locate_budget_source_file: exactly one timestamped raw CSV per historical Greedy and CBAA source; dependency / MISSING_BUDGET_SOURCE_CSV, contract / AMBIGUOUS_BUDGET_SOURCE_CSV.
+- validate_budget_source_row: original algorithm identity, no rejected fallback, valid source dimensions/physical messages/sent bytes/observed outcome, exact CBAA send+receive arithmetic. data / INVALID_BUDGET_SOURCE_VALUE, contract / BUDGET_SOURCE_CONTRACT_MISMATCH.
+- read_budget_source: exact requested seed-loss coverage, one source revision and one CBAA max_iterations per root (while permitting extra historical seeds). dependency / MISSING_BUDGET_SOURCE_COLUMNS; contract / DUPLICATE_BUDGET_SEED_LOSS and BUDGET_SOURCE_COVERAGE_MISMATCH.
+- validate_paired_budget_scenes: same offline Greedy scenario cost across original sources and zero-loss original task/Greedy correctness. contract / BUDGET_PAIRED_SCENARIO_MISMATCH and BUDGET_ZERO_LOSS_GREEDY_FAILURE.
+- calibrate_cbaa_send_budget: p=0 traffic-only nearest K, never CBAA outcome-based. contract / BUDGET_ZERO_TRANSMISSION_REFERENCE.
+- build_budget_observation_rows: per-seed per-loss per-CBAA-budget observed Greedy and CBAA full success, task/observer coverage, actual packet sender bytes, messages/time, split-brain and per-recipient physical loss (observation only).
+- write_budget_calibration: immutable output root, new budget_options.csv, budget_per_seed.csv, budget_curve.csv and manifest.json (source Git SHA, SHA256, analysis SHA, calibration rule and limitations). state / BUDGET_REPORT_SOURCE_COLLISION, BUDGET_REPORT_ALREADY_EXISTS.
+- compare_cbaa_communication_budget: read-only orchestration, rejects duplicate CBAA K across roots. contract / DUPLICATE_CBAA_BUDGET_CONFIGURATION. Always prints OBSERVED_SEND_BYTE_CALIBRATION_ONLY_NOT_HARD_CAPPED.
+- main: experimental CLI, 3 seeds, p=0/.30/.50, 100R/50T, tolerance=.10 by default.
+
+New tests/test_cbaa_budget_comparison.py uses synthetic 2R2T/3 seeds data, checks selection by p0 traffic even when that configuration has LOWER success, raw immutable SHA256, p-specific mismatch, source columns and key coverage, physical send/receive counts, no output overwrite, collision guard, duplicate CBAA budgets and original p0 Greedy correctness. Existing E2/CBAA protocol owners, their original runner code, historical 100-seed evidence and canonical §13-18 are not modified.
+
+### 19.4 Reproducible Mac E9A pilot commands
+
+First, from project root where the original 100R/50T pure25 RAW and CBAA 20-round pilot exist:
+
+    git pull
+    python3 -m unittest discover -s tests -v
+    python3 -m experiments.compare_cbaa_budget --cbaa-roots results/e8_cbaa_100r50t_pilot --output-root results/e9_cbaa_budget_calibration_20only
+
+That is an intentional preliminary single-choice traffic comparison, NOT proof of a near-budget match.
+
+Then reuse the existing CBAA runner at different integer budgets without changing its algorithm:
+
+    for K in 1 2 3 4 5 8 10; do
+      python3 -m experiments.run_cbaa_baseline --robots 100 --tasks 50 --seeds 3 --loss-probabilities 0,0.30,0.50 --max-iterations "$K" --output-root "$(printf 'results/e8_cbaa_budget%s_100r50t_smoke' "$K")" || break
+    done
+
+Then run a NEW E9A report root with all 7 new K sources and the original 20-round pilot:
+
+    python3 -m experiments.compare_cbaa_budget --robots 100 --tasks 50 --seeds 3 --loss-probabilities 0,0.30,0.50 --tolerance 0.10 --cbaa-roots results/e8_cbaa_budget1_100r50t_smoke results/e8_cbaa_budget2_100r50t_smoke results/e8_cbaa_budget3_100r50t_smoke results/e8_cbaa_budget4_100r50t_smoke results/e8_cbaa_budget5_100r50t_smoke results/e8_cbaa_budget8_100r50t_smoke results/e8_cbaa_budget10_100r50t_smoke results/e8_cbaa_100r50t_pilot --output-root results/e9_cbaa_budget_calibration_3seed
+
+Never run those into existing source roots or overwrite past reports. Read budget_options.csv for the p0-only selected K and its traffic mismatch; budget_curve.csv for ALL curves and observed near-budget flags; budget_per_seed.csv for individual outcome/byte cost, and manifest.json for immutable SHA provenance. Do not present K20 or a mismatched K as an equal-resource experimental result.
+
+### 19.5 Future separate E9B hard-cap concern
+
+E9B must implement actual sender-side byte budgeting BEFORE physical transmission in the real original network/coordination owners (without creating a second voting state machine), with recorded budget-exhaustion/incomplete-task semantics and consistent accounting for BOTH algorithms. E9A cannot approximate runtime-aborted assignments from completed historical runs. Proper identical channel/reliable-control assumptions, bandwidth, and distributed stop/deadline handling also remain separate future concerns. No formal paper-level equal-budget success superiority is established by E9A.
