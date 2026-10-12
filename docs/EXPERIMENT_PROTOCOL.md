@@ -1435,3 +1435,29 @@ Formal:
     python3 -m experiments.run_e9f_cost_redundancy --robots 100 --tasks 50 --seeds 100 --cost-copies 1,2,3,5 --cbaa-safety-round-limit 160 --democracy-safety-round-limit 300 --output-root results/e9f_formal_100r50t_100seed
 
 The user must use unique fresh output roots; if long formal run is interrupted it cannot resume automatically. User supplies complete raw + summary + manifest archive for independent verification before README result/chart publication. Do NOT claim E9F measured uplift before actual user Mac formal data is received. Existing README remains a results-only research document, with no how-to-run code inserted.
+
+
+## 35. E9G evidence-calibrated Wi-Fi 6E timing — scoped research contract (not implemented)
+
+### 35.1 Research question
+For original Greedy Voting **only**, study actual application SEND count, source payload Bytes, channel contention/queueing, radio airtime and end-to-end task-allocation wall-clock time, initially R=T=N for N=5,10,...,100, zero application loss, one original Cost broadcast, 100 paired seeds. This supersedes neither the E9E loss curves nor E9F Cost repetition protocols. In particular the old \`phase_timeout_ms=max(Rady.control_delay_ms)=531.535123 ms\` makes old allocation timing largely proportional to N even with no shared RF congestion: it is a protocol deadline, not measured Wi-Fi airtime.
+
+### 35.2 Exact sources and attribution
+See README.md §3.6 and docs/references/e9g_wifi_timing.bib for individually attributed papers, DOIs, repository links and explicit limits:
+- Rady et al. 2024: pinned industrial 60 m LoS 6 GHz/160 MHz application delay calibration (source dataset commit/blob already pinned in §5).
+- Liu & Choi 2023: commercial Wi-Fi 6 throughput, multi-user OFDMA, latency small-scale external validation; obtain and independently hash exact public samples before fitting.
+- Montgomery & Candell NIST IR 8506 (2024): load/AP-dependent OFDMA activation; do not generalize hardware-specific triggers.
+- Bianchi 2000: theoretical DCF collision/backoff, not standalone 802.11ax-OFDMA calibration.
+- Riley & Henderson 2010 + ns-3 official Wi-Fi model: prospective EDCA/PHY simulation implementation; pin supported version and all model parameters, do not imply already tested.
+- Choi, Brunet & How 2009: original consensus auction background, not RF calibration.
+
+### 35.3 Responsibility / diagnostic design for later physical implementation
+Network/PHY/MAC time is a **network owner** concern. Existing \`democracy_mrta.network.EmpiricalLatencySampler.sample_ms\` remains unchanged for legacy E1–E9F. New *opt-in* network backend must validate profile/PHY/traffic parameters under network/data or network/dependency; guarantee strictly monotonically causal delivered event timestamps under network/time, and verify packet/source mapping under network/contract. Original \`coordination._broadcast_event\` and \`coordination._unicast_event\`, \`coordination._lossy_broadcast_deliveries\`, \`coordination._lossy_unicast_delivery\`, \`task_information.broadcast_task_information\`, \`coordination.simulate_democracy_hungarian_retirement\` own original protocol sends/receives, deadlines, voting, qualified score and Commit and MUST NOT be forked or silently changed. No second voting state machine. Proposed named boundaries (NOT presently implemented): \`network.validate_wifi_phy_config\` / data / E9G_INVALID_WIFI_PHY; \`network.load_verified_wifi_calibration\` / dependency / E9G_CALIBRATION_MISSING; \`network.validate_network_event_trace\` / contract / E9G_EVENT_TRACE_MISMATCH; \`network.require_causal_arrivals\` / time / E9G_NONCAUSAL_PACKET_ARRIVAL. Each diagnostic shall state owner, function, category, code and expected/actual/details when useful.
+
+Do not calculate ns-3 completion by re-timing an already-completed application trace if arrival differences change eligibility/commit; the network model must participate in original causal event execution. Include AP uplink/downlink broadcast forwarding, configured multicast vs unicast radio transmissions, ACK/retries as actually enabled, channel bandwidth/MCS, EDCA backoff, queues, fixed headers and residual ROS/DDS stack time without overlapping Rady's end-to-end measured delay. A broadcast application SEND is counted once in application ledger; it is NOT necessarily a single wireless airtime transmission across an infrastructure BSS. Separate channel losses from application-layer Bernoulli loss. Include timeouts even if not radio airtime, failures and guard-censored seeds in the record.
+
+### 35.4 Provenance and acceptance
+Required for *actual* E9G results: exact original voting Git SHA; ns-3 installed/runtime version/commit and configuration; sourced measurement revisions + SHA256; trace schema, per-packet SEND/receive/PHY accounting and network seeds; at least one reference 1-client and small multi-client external measurement validation; N=5 parity; 20-scale ×100seed raw and summary with SHA256; explicit 100-client extrapolation and parameter sensitivity; plots derived from raw; all source citations in README. No fixed Mbps choices may be presented as measured throughput absent verified source. A network simulator is not available in current verified execution context; this section is a frozen plan, not a code feature, validation run, or new measured result.
+
+### 35.5 Current controlled milestone
+Only a **documentation/citation** milestone: docs/references/e9g_wifi_timing.bib, README §3.6, this canonical section and continuity. No algorithm, Python network backend, emulator, simulator, or test changed in this milestone. Implementation must proceed as a separate bounded owner change with a new continuity entry.
