@@ -28,8 +28,8 @@ from democracy_mrta.network import (
 from democracy_mrta.scenario import generate_e0_scenario
 from democracy_mrta.task_information import (
     broadcast_task_information, reconstruct_local_cost_rows,
-    require_local_source_consistency,
 )
+from experiments.run_e9c_real_information import require_local_source_consistency
 
 OWNER = "experiments.run_e9g_wifi_scaling"
 DEFAULT_SIZES = tuple(range(5, 101, 5))
