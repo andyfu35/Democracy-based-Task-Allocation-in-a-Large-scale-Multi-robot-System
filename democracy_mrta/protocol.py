@@ -468,12 +468,27 @@ def quarter_vote_announcement_threshold(eligible_count: int) -> int:
     return eligible_count // 4 + 1
 
 
+def plurality_announcement_threshold(eligible_count: int, decision_rule: str) -> int:
+    """Own original quarter qualification or explicitly selected E9H >0 rule."""
+    if decision_rule == "quarter_plurality":
+        return quarter_vote_announcement_threshold(eligible_count)
+    if decision_rule == "received_plurality" and type(eligible_count) is int and eligible_count > 0:
+        return 1
+    raise ProtocolError(Diagnostic(
+        owner="protocol", function="plurality_announcement_threshold",
+        category="data", code="E9H_INVALID_ANNOUNCEMENT_RULE",
+        expected="quarter_plurality or received_plurality and positive electorate",
+        actual={"decision_rule": decision_rule, "eligible_count": eligible_count},
+    ))
+
+
 def resolve_unique_plurality_claims(
     *,
     announcements: tuple[CandidateVoteAnnouncement, ...],
     eligible_robots: frozenset[int],
     task_id: int,
     round_id: int,
+    decision_rule: str = "quarter_plurality",
 ) -> PluralityResolution | None:
     """Resolve only qualified final vote announcements, never a self-claim.
 
@@ -481,7 +496,7 @@ def resolve_unique_plurality_claims(
     The current task is left pending for the existing membership owner
     to rotate to the end of the queue on the next voting attempt.
     """
-    threshold = quarter_vote_announcement_threshold(len(eligible_robots))
+    threshold = plurality_announcement_threshold(len(eligible_robots), decision_rule)
     candidate_ids = [announcement.candidate_id for announcement in announcements]
     invalid = tuple(
         (a.candidate_id, a.received_votes)

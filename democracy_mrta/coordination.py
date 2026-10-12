@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 
 from .diagnostics import Diagnostic, ProtocolError
 
@@ -25,6 +26,7 @@ from .protocol import (
     CandidateVoteAnnouncement,
     PluralityResolution,
     quarter_vote_announcement_threshold,
+    plurality_announcement_threshold,
     resolve_unique_plurality_claims,
     quorum_size,
     record_vote,
@@ -561,6 +563,7 @@ def transmit_repeated_remote_vote(
     loss_sampler,
     p_vote_loss: float,
     send_budget: SenderPayloadBudget | None = None,
+    global_vote_deadline_ms: float | None = None,
 ) -> tuple[list[CommunicationEvent], list[DeliveryObservation], DeliveryObservation | None]:
     """Send independent fixed copies, return FIRST delivered physical ballot.
 
@@ -599,7 +602,10 @@ def transmit_repeated_remote_vote(
         observations.append(obs)
     # In E9G, physically delivered but post-deadline packets cannot vote.
     # Historical E1-E9F on-time semantics remain byte-for-byte unchanged.
-    deadline = send_time_ms + copies * phase_timeout_ms
+    deadline = (
+        send_time_ms + copies * phase_timeout_ms
+        if global_vote_deadline_ms is None else global_vote_deadline_ms
+    )
     delivered = [
         obs for obs in observations
         if obs.delivered and (
@@ -1251,18 +1257,18 @@ def validate_vote_decision_rule(
                 actual=rule,
             )
         )
-    if rule not in ("strict_majority", "quarter_plurality"):
+    if rule not in ("strict_majority", "quarter_plurality", "received_plurality"):
         raise ProtocolError(
             Diagnostic(
                 owner="coordination",
                 function="validate_vote_decision_rule",
                 category="data",
                 code="UNKNOWN_VOTE_DECISION_RULE",
-                expected=("strict_majority", "quarter_plurality"),
+                expected=("strict_majority", "quarter_plurality", "received_plurality"),
                 actual=rule,
             )
         )
-    if rule == "quarter_plurality" and (
+    if rule in ("quarter_plurality", "received_plurality") and (
         voting_strategy != "greedy_task" or num_tasks != 1
     ):
         raise ProtocolError(
@@ -1281,9 +1287,10 @@ def build_quarter_plurality_claims(
     *,
     ledgers_by_candidate: dict[int, set[int]],
     eligible_robots: frozenset[int],
+    decision_rule: str = "quarter_plurality",
 ) -> tuple[CandidateVoteAnnouncement, ...]:
-    """Only eligible candidates with >25% actually received votes may announce."""
-    threshold = quarter_vote_announcement_threshold(len(eligible_robots))
+    """Announce original quarter or E9H positive-receipt claims."""
+    threshold = plurality_announcement_threshold(len(eligible_robots), decision_rule)
     return tuple(
         CandidateVoteAnnouncement(
             candidate_id=candidate_id,
@@ -1303,6 +1310,7 @@ def simulate_quarter_plurality_announcement_phase(
     vote_deadline_ms: float,
     sampler,
     send_budget: SenderPayloadBudget | None = None,
+    decision_rule: str = "quarter_plurality",
 ) -> tuple[PluralityResolution | None, tuple[CommunicationEvent, ...], float]:
     """Compare ONLY qualified candidates; nobody qualifies means timeout.
 
@@ -1313,12 +1321,14 @@ def simulate_quarter_plurality_announcement_phase(
     claims = build_quarter_plurality_claims(
         ledgers_by_candidate=ledgers_by_candidate,
         eligible_robots=eligible_robots,
+        decision_rule=decision_rule,
     )
     resolution = resolve_unique_plurality_claims(
         announcements=claims,
         eligible_robots=eligible_robots,
         task_id=task_id,
         round_id=round_id,
+        decision_rule=decision_rule,
     )
     if resolution is None:
         return None, (), vote_deadline_ms
@@ -1436,6 +1446,7 @@ def simulate_democracy_hungarian_lossy(
     vote_decision_rule: str = "strict_majority",
     vote_repetitions: int = 1,
     send_budget: SenderPayloadBudget | None = None,
+    enforce_vote_deadline: bool = False,
 ) -> LossyCoordinationResult:
     num_robots, num_tasks = validate_cost_matrix(cost_matrix)
     physical_robots, physical_tasks = validate_epoch_identity_mapping(
@@ -1451,6 +1462,12 @@ def simulate_democracy_hungarian_lossy(
         num_tasks=num_tasks,
     )
     validate_vote_repetitions(vote_repetitions)
+    if vote_decision_rule == "received_plurality" and not enforce_vote_deadline:
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="simulate_democracy_hungarian_lossy",
+            category="contract", code="E9H_RECEIVED_PLURALITY_REQUIRES_CUTOFF",
+            expected=True, actual=enforce_vote_deadline,
+        ))
     validate_budgeted_retirement_scope(
         send_budget=send_budget, voting_strategy=voting_strategy,
         vote_decision_rule=vote_decision_rule, vote_repetitions=vote_repetitions,
@@ -1487,6 +1504,7 @@ def simulate_democracy_hungarian_lossy(
             round_id=round_id,
         )
     cost_completion = max(ready_times, default=0.0)
+    voting_cutoff_ms = cost_completion + vote_repetitions * phase_timeout_ms
     if send_budget is not None and cost_snapshot is not None and cost_snapshot.budget_exhausted:
         return summarize_budget_exhausted_epoch(
             cost_matrix=cost_matrix, events=events, deliveries=deliveries,
@@ -1527,6 +1545,8 @@ def simulate_democracy_hungarian_lossy(
         ):
             send_time = ready_times[voter_local_id]
             if vote.candidate_id == voter_id:
+                if enforce_vote_deadline and send_time > voting_cutoff_ms:
+                    continue
                 status = record_vote(
                     vote=vote,
                     current_task_id=vote.task_id,
@@ -1552,6 +1572,9 @@ def simulate_democracy_hungarian_lossy(
                 loss_sampler=loss_sampler,
                 p_vote_loss=vote_loss_probability,
                 send_budget=send_budget,
+                global_vote_deadline_ms=(
+                    voting_cutoff_ms if enforce_vote_deadline else None
+                ),
             )
             events.extend(physical_events)
             deliveries.extend(physical_deliveries)
@@ -1587,8 +1610,8 @@ def simulate_democracy_hungarian_lossy(
     )
 
     for task_id in physical_tasks:
-        if vote_decision_rule == "quarter_plurality":
-            vote_deadline = max(ready_times, default=0.0) + vote_repetitions * phase_timeout_ms
+        if vote_decision_rule in ("quarter_plurality", "received_plurality"):
+            vote_deadline = voting_cutoff_ms
             resolution, announcements, ready_ms = simulate_quarter_plurality_announcement_phase(
                 ledgers_by_candidate=ledgers_by_task[task_id],
                 eligible_robots=eligible,
@@ -1597,6 +1620,7 @@ def simulate_democracy_hungarian_lossy(
                 vote_deadline_ms=vote_deadline,
                 sampler=sampler,
                 send_budget=send_budget,
+                decision_rule=vote_decision_rule,
             )
             events.extend(announcements)
             if send_budget is not None and send_budget.denied_messages:
@@ -1672,9 +1696,12 @@ def simulate_democracy_hungarian_lossy(
 
     return _summarize_lossy_result(
         method=(
-            "democracy_greedy_quarter_plurality"
-            if vote_decision_rule == "quarter_plurality"
-            else ("democracy_greedy" if voting_strategy == "greedy_task" else "democracy_hungarian")
+            "democracy_greedy_received_plurality"
+            if vote_decision_rule == "received_plurality"
+            else ("democracy_greedy_quarter_plurality"
+                  if vote_decision_rule == "quarter_plurality"
+                  else ("democracy_greedy" if voting_strategy == "greedy_task"
+                        else "democracy_hungarian"))
         ),
         cost_matrix=cost_matrix,
         assigned_pairs=committed_pairs,
@@ -1699,7 +1726,8 @@ def simulate_democracy_hungarian_lossy(
         vote_decision_rule=vote_decision_rule,
         announcement_threshold=(
             quarter_vote_announcement_threshold(len(eligible))
-            if vote_decision_rule == "quarter_plurality" else 0
+            if vote_decision_rule == "quarter_plurality"
+            else (1 if vote_decision_rule == "received_plurality" else 0)
         ),
         qualified_announcement_count=sum(
             p.announced_candidate_count for p in plurality_resolutions
@@ -1824,6 +1852,31 @@ def require_retirement_sender_accounting(
         ))
 
 
+def validate_e9h_deadline_schedule(
+    *, schedule_ms: tuple[float, ...] | None,
+    initial_robots: int, initial_phase_timeout_ms: float,
+    enforce_vote_deadline: bool,
+) -> None:
+    """Original membership owner's optional immutable per-active-count time contract."""
+    if schedule_ms is None:
+        return
+    ok = (
+        enforce_vote_deadline and type(schedule_ms) is tuple
+        and len(schedule_ms) == initial_robots
+        and all(type(x) in (float, int) and math.isfinite(x) and x > 0 for x in schedule_ms)
+        and all(a <= b for a,b in zip(schedule_ms,schedule_ms[1:]))
+        and math.isclose(schedule_ms[-1],initial_phase_timeout_ms,abs_tol=1e-7)
+    )
+    if not ok:
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="validate_e9h_deadline_schedule",
+            category="contract",code="E9H_INVALID_DEADLINE_SCHEDULE",
+            expected=f"{initial_robots} positive monotone deadlines; last equal initial Cost; cutoff enabled",
+            actual={"schedule":schedule_ms,"cost_timeout":initial_phase_timeout_ms,
+                    "cutoff":enforce_vote_deadline},
+        ))
+
+
 def simulate_democracy_hungarian_retirement(
     *,
     cost_matrix: tuple[tuple[float, ...], ...],
@@ -1839,6 +1892,8 @@ def simulate_democracy_hungarian_retirement(
     send_budget: SenderPayloadBudget | None = None,
     preknown_cost_snapshot: RetirementCostSnapshot | None = None,
     cost_repetitions: int = 1,
+    per_active_round_deadline_ms: tuple[float, ...] | None = None,
+    enforce_vote_deadline: bool = False,
 ) -> MultiRoundRetirementResult:
     """Multi-round membership owner; reuses the same E2 single-round vote engine.
 
@@ -1863,6 +1918,10 @@ def simulate_democracy_hungarian_retirement(
     validate_packet_loss_probability(p_vote_loss)
     validate_vote_repetitions(vote_repetitions)
     validate_cost_repetitions(cost_repetitions)
+    validate_e9h_deadline_schedule(
+        schedule_ms=per_active_round_deadline_ms, initial_robots=num_robots,
+        initial_phase_timeout_ms=phase_timeout_ms, enforce_vote_deadline=enforce_vote_deadline,
+    )
     if isinstance(sampler, WifiCausalTimingSampler) and (
         cost_repetitions != 1 or vote_repetitions != 1 or
         voting_strategy != "greedy_task"
@@ -1936,13 +1995,17 @@ def simulate_democracy_hungarian_retirement(
         )
         if isinstance(sampler, WifiCausalTimingSampler):
             sampler.set_epoch_start_ms(elapsed_ms)
+        current_phase_timeout_ms = (
+            per_active_round_deadline_ms[len(active_robots)-1]
+            if per_active_round_deadline_ms is not None else phase_timeout_ms
+        )
         round_result = simulate_democracy_hungarian_lossy(
             cost_matrix=round_costs,
             sampler=sampler,
             loss_sampler=loss_sampler,
             p_loss=p_loss,
             p_vote_loss=p_vote_loss,
-            phase_timeout_ms=phase_timeout_ms,
+            phase_timeout_ms=current_phase_timeout_ms,
             round_id=round_id,
             robot_ids=active_robots,
             task_ids=pending_tasks,
@@ -1951,6 +2014,7 @@ def simulate_democracy_hungarian_retirement(
             vote_decision_rule=vote_decision_rule,
             vote_repetitions=vote_repetitions,
             send_budget=send_budget,
+            enforce_vote_deadline=enforce_vote_deadline,
         )
         require_retirement_commit_announcements(
             round_result=round_result,
@@ -1989,12 +2053,16 @@ def simulate_democracy_hungarian_retirement(
     )
     return MultiRoundRetirementResult(
         method=(
-            "democracy_greedy_quarter_plurality_retirement"
-            if vote_decision_rule == "quarter_plurality"
+            "democracy_greedy_received_plurality_retirement"
+            if vote_decision_rule == "received_plurality"
             else (
+                "democracy_greedy_quarter_plurality_retirement"
+                if vote_decision_rule == "quarter_plurality"
+                else (
                 "democracy_greedy_retirement"
                 if voting_strategy == "greedy_task"
                 else "democracy_hungarian_retirement"
+                )
             )
         ),
         assigned_pairs=membership.committed_pairs,
