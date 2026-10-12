@@ -1,0 +1,24 @@
+{
+  "study": "E9L official algorithms only — source-preserving visual curation",
+  "primary_algorithm_names": [
+    "Voting (E9I)",
+    "Original CBAA (E9J)",
+    "Bertsekas-style Distributed Price Auction (E9L)"
+  ],
+  "excluded_technical_extension": "E9K is our own CBAA paid-finalization protocol modification, NOT a separate published algorithmic baseline; never place as a competitor in tables, charts or rankings.",
+  "evidence_preserved": "Original E9I/E9J/E9K/E9L raw data, E9L original CSV, original 4-method SVG and E9K technical report retained unchanged.",
+  "original_e9l_executed_git_sha": "0e1a091c547b7cc0d545e0707c51138dfa626d5c",
+  "original_e9l_zip_sha256": "2b51cecbd84f105a2cee35bfcd8825de174cb3617f35596a81d94d4de6e5ff41",
+  "original_20_point_csv_blob_sha": "6861f1c98c08e99ef62f0cf267ac484dbdb1498b",
+  "original_quality_svg_blob_sha": "762549713a4c571baabb5b4d4ecc4eafbe4e9c27",
+  "plot_source": "docs/figures/e9l_price/formal/three_algorithm_plot_source_20point.csv",
+  "figures": [
+    "docs/figures/e9l_price/formal/primary_three_algorithm_time_and_sender_bytes.svg",
+    "docs/figures/e9l_price/formal/primary_three_algorithm_completion_and_quality.svg"
+  ],
+  "grid": "N=T=5..100 step5, 100 per size, 30% independent receiver drops",
+  "scope": "publication presentation only, no rerun, no re-computation of original source",
+  "completion_note": "E9L 100R/100T 78/100 success; failed 22 retain guard-censored all-seed time; matched quality uses same 78 successful seeds",
+  "timing_limit": "Simplified Rady sampled + assumed 144 Mbps network; original CBAA and price auction free simulator aggregation vs Voting Commit",
+  "source_sha_verification": "Uses previously formally verified source-attested E9L 20point derived CSV; current presentation extracts official comparator columns only."
+}

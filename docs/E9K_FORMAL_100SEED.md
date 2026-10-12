@@ -1,4 +1,6 @@
 # E9K formal: original-source verified paid CBAA termination (2026-10-12)
+**Classification: internal engineering validation only — excluded from the official allocation-algorithm Benchmark.** E9K is our team's optional CBAA READY/COMMIT termination protocol modification, **not a separate original/literature task allocation algorithm**. The numerical contrasts below quantify this termination-extension overhead as a technical ablation, **not a fourth competitor** in Voting vs original CBAA vs Price Auction. Its original run, source archives and technical findings are preserved.
+
 
 **Evidence:** User-run E9K ZIP SHA256 `1495612c65a4fb40733af225b2121275e2b2309070695f2594c620079a6b8281`, executable commit `715dfa6c262b7081c241b54a7bddec16354990a3`. Original E9J frozen ZIP SHA256 `106fc14aa9088edf980a744bf9e129c516ce8cabf9c23322baa76be9b33c82bb`; original Voting E9I frozen source is nested as read-only E9J paired rows. Full E9K original CSV SHA256 `c6183a59177b37aaaf1ff2cd723ce4913f22646f137b4260813999df023be39b` and summary `74de2dca68da7d8aff4c2d3c35742dc1a306e1d7fdcd6cd7b12b74c4ae4a1b56`.
 
