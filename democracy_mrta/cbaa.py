@@ -30,6 +30,11 @@ from .coordination import (
     _lossy_broadcast_deliveries,
 )
 from .diagnostics import Diagnostic, ProtocolError
+from .cbaa_finalization import (
+    create_paid_cbaa_finalization,
+    validate_paid_cbaa_finalization_config,
+    advance_paid_cbaa_finalization,
+)
 from .network import (
     SenderBudgetExhausted,
     SenderPayloadBudget,
@@ -73,6 +78,16 @@ class CBAAResult:
     stop_mode: str = "fixed"
     stop_reason: str = "fixed_iteration_budget"
     locally_certified_count: int = 0
+    # E9K optional physically delivered termination, not part of original CBAA.
+    paid_ready_sends: int = 0
+    paid_commit_sends: int = 0
+    paid_sender_bytes: int = 0
+    paid_receiver_attempts: int = 0
+    paid_receiver_drops: int = 0
+    paid_late_receipts: int = 0
+    paid_control_elapsed_ms: float = 0.0
+    paid_confirmed_robots: int = 0
+    paid_termination_complete: bool = False
 
     @property
     def full_observer_agreement(self) -> bool:
@@ -163,11 +178,11 @@ def require_cbaa_sender_budget_accounting(
 
 def validate_cbaa_stop_mode(stop_mode: str) -> None:
     """Own convergence-policy configuration; legacy fixed mode is default."""
-    if stop_mode not in ("fixed", "local_certification"):
+    if stop_mode not in ("fixed", "local_certification", "paid_termination"):
         raise ProtocolError(Diagnostic(
             owner=OWNER, function="validate_cbaa_stop_mode",
             category="data", code="CBAA_UNKNOWN_STOP_MODE",
-            expected="fixed or local_certification", actual=stop_mode,
+            expected="fixed, local_certification or paid_termination", actual=stop_mode,
         ))
 
 
@@ -462,6 +477,9 @@ def simulate_cbaa(
     capture_audit: bool = False,
     send_budget: SenderPayloadBudget | None = None,
     stop_mode: str = "fixed",
+    control_timeout_ms: float | None = None,
+    ready_loss_probability: float | None = None,
+    commit_loss_probability: float | None = None,
 ) -> CBAAResult:
     """Original TWO-PHASE CBAA with opt-in local-evidence convergence monitor.
 
@@ -478,6 +496,39 @@ def simulate_cbaa(
     )
     validate_cbaa_sender_budget(send_budget)
     validate_cbaa_stop_mode(stop_mode)
+    if stop_mode != "paid_termination" and any(
+        value is not None for value in (
+            control_timeout_ms, ready_loss_probability, commit_loss_probability
+        )
+    ):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="simulate_cbaa", category="contract",
+            code="E9K_CONTROL_OPTIONS_REQUIRE_PAID_MODE",
+            expected="stop_mode='paid_termination'",
+            actual=stop_mode,
+        ))
+    if stop_mode == "paid_termination":
+        control_timeout_ms = (
+            phase_timeout_ms if control_timeout_ms is None
+            else control_timeout_ms
+        )
+        ready_loss_probability = (
+            loss_probability if ready_loss_probability is None
+            else ready_loss_probability
+        )
+        commit_loss_probability = (
+            loss_probability if commit_loss_probability is None
+            else commit_loss_probability
+        )
+        validate_paid_cbaa_finalization_config(
+            control_timeout_ms=control_timeout_ms,
+            ready_loss=ready_loss_probability,
+            commit_loss=commit_loss_probability,
+        )
+    paid_proof = (
+        create_paid_cbaa_finalization(robots)
+        if stop_mode == "paid_termination" else None
+    )
     states = initial_cbaa_states(robots, tasks)
     logical_messages = payload_bytes = attempts = drops = late = 0
     processed_iterations = 0
@@ -489,7 +540,16 @@ def simulate_cbaa(
     ]
     own_last_change = [-1] * robots
     locally_certified_count = 0
-    stop_reason = "fixed_iteration_budget" if stop_mode == "fixed" else "iteration_safety_guard"
+    paid_ready_sends = paid_commit_sends = paid_bytes = 0
+    paid_attempts = paid_drops = paid_late = 0
+    paid_elapsed_ms = 0.0
+    clock_ms = 0.0
+    paid_budget_phase = None
+    stop_reason = (
+        "fixed_iteration_budget" if stop_mode == "fixed" else
+        "paid_termination_safety_guard" if stop_mode == "paid_termination" else
+        "iteration_safety_guard"
+    )
 
     for iteration in range(max_iterations):
         previous_states = states
@@ -502,7 +562,7 @@ def simulate_cbaa(
             events, observations,
         ) = exchange_cbaa_consensus_packets(
             states=bidding, iteration=iteration,
-            start_ms=iteration * phase_timeout_ms,
+            start_ms=clock_ms,
             phase_timeout_ms=phase_timeout_ms,
             sampler=sampler,
             loss_sampler=loss_sampler,
@@ -521,7 +581,7 @@ def simulate_cbaa(
                 for robot_id in range(robots)
             )
             processed_iterations += 1
-            if stop_mode == "local_certification":
+            if stop_mode in ("local_certification", "paid_termination"):
                 update_cbaa_received_peer_evidence(
                     receiver_views=receiver_views,
                     received=received,
@@ -539,11 +599,13 @@ def simulate_cbaa(
         if capture_audit:
             audit_events.extend(events)
             audit_deliveries.extend(observations)
+        if nmessages:
+            clock_ms += phase_timeout_ms
         if send_budget is not None and send_budget.denied_messages:
             budget_exhausted = True
             stop_reason = "sender_budget_exhausted"
             break
-        if stop_mode == "local_certification":
+        if stop_mode in ("local_certification", "paid_termination"):
             ready = tuple(
                 cbaa_local_convergence_certified(
                     state=states[robot_id],
@@ -554,14 +616,66 @@ def simulate_cbaa(
                 for robot_id in range(robots)
             )
             locally_certified_count = sum(ready)
-            if locally_certified_count == robots:
-                stop_reason = "all_local_evidence_certified"
-                break
+            if stop_mode == "local_certification":
+                if locally_certified_count == robots:
+                    stop_reason = "all_local_evidence_certified"
+                    break
+            else:
+                # Never use the simulator-wide ready count as an E9K stop gate.
+                # The true paid-finalization owner acts on each node's local
+                # inbox and emits separately charged READY/COMMIT broadcasts.
+                tick = advance_paid_cbaa_finalization(
+                    proof=paid_proof, states=states, local_ready=ready,
+                    iteration=iteration, start_ms=clock_ms,
+                    timeout_ms=control_timeout_ms, sampler=sampler,
+                    loss_sampler=loss_sampler,
+                    ready_loss=ready_loss_probability,
+                    commit_loss=commit_loss_probability,
+                    capture_audit=capture_audit, send_budget=send_budget,
+                )
+                clock_ms += tick.elapsed_ms
+                paid_elapsed_ms += tick.elapsed_ms
+                paid_ready_sends += tick.ready_sends
+                paid_commit_sends += tick.commit_sends
+                paid_bytes += tick.bytes_sent
+                paid_attempts += tick.delivery_attempts
+                paid_drops += tick.delivery_drops
+                paid_late += tick.late_deliveries
+                if capture_audit:
+                    audit_events.extend(tick.audit_events)
+                    audit_deliveries.extend(tick.audit_deliveries)
+                if tick.budget_denied:
+                    budget_exhausted = True
+                    paid_budget_phase = (
+                        "cbaa_paid_ready" if not tick.commit_sends
+                        else "cbaa_paid_commit"
+                    )
+                    stop_reason = "sender_budget_exhausted"
+                    break
+                if all(paid_proof.confirmed):
+                    # Observer is a safety assertion only, NEVER an agent's
+                    # input or an algorithmically free readiness signal.
+                    _claims, agreed_now, conflicts_now, unconfirmed_now = (
+                        audit_cbaa_local_agreement(states)
+                    )
+                    if (conflicts_now or unconfirmed_now
+                        or len(agreed_now) != tasks):
+                        raise ProtocolError(Diagnostic(
+                            owner=OWNER, function="simulate_cbaa",
+                            category="safety",
+                            code="E9K_PAID_PROOFS_CONFLICT_WITH_OBSERVER",
+                            expected=f"{tasks} consistent unique task claims",
+                            actual={"agreed":len(agreed_now),
+                                    "conflicts":conflicts_now,
+                                    "unconfirmed":unconfirmed_now},
+                        ))
+                    stop_reason = "all_paid_commit_proofs_received"
+                    break
 
     require_cbaa_sender_budget_accounting(
         send_budget=send_budget,
-        logical_message_count=logical_messages,
-        payload_bytes=payload_bytes,
+        logical_message_count=logical_messages + paid_ready_sends + paid_commit_sends,
+        payload_bytes=payload_bytes + paid_bytes,
     )
     claims, agreed, conflicts, unconfirmed = audit_cbaa_local_agreement(states)
     if len({r for r, _t in agreed}) != len(agreed):
@@ -579,7 +693,7 @@ def simulate_cbaa(
         conflicting_task_ids=conflicts,
         unconfirmed_task_ids=unconfirmed,
         iterations=processed_iterations,
-        elapsed_ms=processed_iterations * phase_timeout_ms,
+        elapsed_ms=clock_ms,
         logical_message_count=logical_messages,
         payload_bytes=payload_bytes,
         delivery_attempts=attempts,
@@ -588,11 +702,26 @@ def simulate_cbaa(
         audit_events=tuple(audit_events),
         audit_deliveries=tuple(audit_deliveries),
         budget_exhausted=budget_exhausted,
-        budget_stop_phase=(PHASE if budget_exhausted else None),
+        budget_stop_phase=(
+            paid_budget_phase or PHASE if budget_exhausted else None
+        ),
         budget_stop_diagnostic=(
             send_budget.last_denied_diagnostic if budget_exhausted else None
         ),
         stop_mode=stop_mode,
         stop_reason=stop_reason,
         locally_certified_count=locally_certified_count,
+        paid_ready_sends=paid_ready_sends,
+        paid_commit_sends=paid_commit_sends,
+        paid_sender_bytes=paid_bytes,
+        paid_receiver_attempts=paid_attempts,
+        paid_receiver_drops=paid_drops,
+        paid_late_receipts=paid_late,
+        paid_control_elapsed_ms=paid_elapsed_ms,
+        paid_confirmed_robots=(
+            sum(paid_proof.confirmed) if paid_proof is not None else 0
+        ),
+        paid_termination_complete=bool(
+            paid_proof is not None and all(paid_proof.confirmed)
+        ),
     )
