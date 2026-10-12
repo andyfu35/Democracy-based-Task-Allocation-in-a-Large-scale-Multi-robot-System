@@ -481,13 +481,13 @@ def simulate_cbaa(
     ready_loss_probability: float | None = None,
     commit_loss_probability: float | None = None,
 ) -> CBAAResult:
-    """Original TWO-PHASE CBAA with opt-in local-evidence convergence monitor.
+    """Original Auction / Max-Consensus; optional independent stopping modes.
 
-    The observer never supplies bids/winners; in opt-in local_certification,
-    each node only sees delivered peer snapshots, while the simulation
-    scheduler uses all independent local-ready flags to finish. The latter
-    is an optimistic shared halt and NOT a real distributed stop protocol.
-    max_iterations is only a safety guard in the opt-in mode.
+    Legacy local_certification uses optimistic simulator-wide ready flags.
+    E9K paid_termination instead exchanges native READY/COMMIT packets,
+    requiring each robot's own physically received matching proofs. The
+    observer is never a voting/bidding input; it only checks the terminal
+    safety invariant. The bounded guard is not a theoretical loss limit.
     """
     robots, tasks = validate_cbaa_configuration(
         cost_matrix=cost_matrix, loss_probability=loss_probability,
@@ -646,10 +646,7 @@ def simulate_cbaa(
                     audit_deliveries.extend(tick.audit_deliveries)
                 if tick.budget_denied:
                     budget_exhausted = True
-                    paid_budget_phase = (
-                        "cbaa_paid_ready" if not tick.commit_sends
-                        else "cbaa_paid_commit"
-                    )
+                    paid_budget_phase = tick.denied_phase
                     stop_reason = "sender_budget_exhausted"
                     break
                 if all(paid_proof.confirmed):

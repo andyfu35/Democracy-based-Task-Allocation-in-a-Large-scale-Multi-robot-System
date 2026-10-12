@@ -53,6 +53,7 @@ class CBAAPaidTick:
     audit_events: tuple[CommunicationEvent, ...] = ()
     audit_deliveries: tuple[DeliveryObservation, ...] = ()
     budget_denied: bool = False
+    denied_phase: str | None = None
 
 
 def validate_paid_cbaa_finalization_config(
@@ -253,4 +254,7 @@ def advance_paid_cbaa_finalization(
         late_deliveries=rl + cl, elapsed_ms=ready_ms + cm,
         audit_events=re + ce, audit_deliveries=ro + co,
         budget_denied=denied or commit_denied,
+        denied_phase=(
+            READY_PHASE if denied else COMMIT_PHASE if commit_denied else None
+        ),
     )
