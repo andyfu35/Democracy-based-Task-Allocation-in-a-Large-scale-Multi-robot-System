@@ -42,6 +42,19 @@ jobs:
             --max-rounds 300 \
             --output-root results/e9h_ci_original_voting
           python -c "import csv,json,pathlib; root=pathlib.Path('results/e9h_ci_original_voting'); m=json.loads((root/'manifest.json').read_text()); r=list(csv.DictReader((root/'per_seed_e9h.csv').open())); assert len(r)==3*1*2*2*4 and len(m['sizes'])==3; print('E9H_SMOKE_ROWS',len(r))"
+      - name: Show original N100 modeled radio pilot outcomes
+        run: |
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+          rows=list(csv.DictReader(Path('results/e9h_ci_original_voting/per_seed_e9h.csv').open()))
+          for r in rows:
+              if r['robots']=='100' and r['loss_probability']=='0.0' and r['model']=='e9g_shared_medium_backoff_proxy':
+                  print('E9H_N100_RESULT arm=%s full=%s allocation_or_stop_s=%.3f score_sends=%s late_votes=%s support=%s'%(
+                      r['arm'],r['full_commit'],float(r['allocation_or_stop_ms'])/1000,
+                      r['vote_score_send_count'],r['late_remote_vote_delivery_count'],
+                      r['mean_winner_support_share']))
+          PY
       - name: Archive real primary pilot evidence
         if: always()
         uses: actions/upload-artifact@v4

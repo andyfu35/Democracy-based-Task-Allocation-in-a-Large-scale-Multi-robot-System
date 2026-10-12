@@ -332,10 +332,10 @@ Nominal analytical deadlines at \`k=1\`, reference 144 Mbps (not yet independent
 
 | Active robots \`n\` | 32-Byte Vote \`D_vote(n)\` | Initial full Cost \`D_cost(n)\` (for T=n) | Original fixed wait |
 |---:|---:|---:|---:|
-| 5 | ~66.8 ms | ~66.9 ms | 609.1 ms |
-| 20 | ~74.9 ms | ~75.3 ms | 609.1 ms |
-| 50 | ~91.2 ms | ~93.5 ms | 609.1 ms |
-| 100 | ~117.9 ms | ~127.2 ms | 609.1 ms |
+| 5 | 66.868 ms | 66.882 ms | 609.113 ms |
+| 20 | 75.023 ms | 75.343 ms | 609.113 ms |
+| 50 | 91.333 ms | 93.467 ms | 609.113 ms |
+| 100 | 118.517 ms | 127.228 ms | 609.113 ms |
 
 The deadline **shortens again as robots retire**; the first Cost phase uses the longer \`D_cost(N)\`. There is no post-hoc increasing of \`k\` to improve 100-seed evaluation scores. All cases share the same fixed original Cost and Vote send payload and the same Rady source, with the network model and loss explicitly recorded.
 
@@ -356,8 +356,17 @@ A full comparison runs original **Voting only** at N=5,10,...,100 with R=T=N, **
 
 **Literature-to-component attribution:** [Rady et al. (2024)](https://doi.org/10.1016/j.adhoc.2024.103418) = empirical ROS delay statistics only; [Bianchi (2000)](https://doi.org/10.1109/49.840210) = motivation for collision/backoff (not a full Bianchi or ns-3 implementation); [Montgomery & Candell (2024), NIST IR 8506](https://doi.org/10.6028/NIST.IR.8506) = warning that uplink OFDMA depends on equipment/load (no OFDMA implemented); [Liu & Choi (2023)](https://doi.org/10.1145/3579451) = external Wi-Fi 6 multi-device measurements to validate in a future stage (**not fitted**); [Riley & Henderson (2010)](https://doi.org/10.1007/978-3-642-12331-3_2) and [ns-3 Wi-Fi official design](https://www.nsnam.org/docs/models/html/wifi-design.html) = future detailed network backend (**not run**); [Choi, Brunet & How (2009)](https://doi.org/10.1109/TRO.2009.2022423) = decentralized auctions contextual reference, **not** evidence of this deadline equation. Full BibTeX: [docs/references/e9g_wifi_timing.bib](docs/references/e9g_wifi_timing.bib).
 
-**Status:** E9H's new protocol decision, immutable deadline formula and opt-in experiment runner are implemented as a separate bounded concern on \`main\`; the E9H user formal result has not yet been produced, independently verified or published. Next: actual Mac pilot/100-seed run, independently verify manifest/CSV before adding result graphs and conclusions.
+#### Predeclared E9H acceptance targets (before formal 100-seed data)
 
+Avoid selecting a Deadline purely because it makes the simulator faster. Report EVERY fixed/adaptive, quarter/positive-score arm, loss rate, N and timing setting, including incomplete/censored runs. These are **predeclared targets, not observed results**:
+
+1. **Safety hard gate:** no duplicate robot/task Commit, fabricated Score, or zero-vote election; late physical Vote/Cost remains recorded and sender-paid but cannot enter the valid ledger.
+2. **Reliability:** at zero application loss, adaptive received plurality should finish >=99/100 seeds for **each N and network model**; at 30% loss, report the matched completion-rate difference and flag a fall exceeding 5 percentage points versus the fixed-quarter baseline.
+3. **Time:** for N=100, loss0 and paired successful seeds, target >=50% decrease in mean completed task-allocation time versus matched fixed-quarter, reporting P95 and separate all-seed stopped time when failures exist.
+4. **Cost:** among paired fully committed seeds, mean excess *cost ratio over the external full-information Hungarian observer* should not increase by more than 5 percentage points; report assignment-change fraction, tie frequency and winning-vote support. The external optimizer **never** affects robot proposals.
+5. **Validity:** packet model is still the simplified E9G proxy, not a true 802.11ax/ns-3 MAC, measured multi-client calibration or Byzantine-resistant consensus. Removing the 25% entry floor explicitly does **not** prove robustness against false candidate claims. Negative results must be retained, not silently fixed by retuning the margin.
+
+**Current status:** E9H policy and numeric formula are implemented on \`main\` and the original Rady 5/20/100 CI pilot, focused tests and historical regression have passed. No user formal 100-seed E9H results or acceptance outcomes are claimed yet; upload independent primary ZIP before publishing new data-driven README figures.
 
 ## 4. Synthesis and conclusions
 
