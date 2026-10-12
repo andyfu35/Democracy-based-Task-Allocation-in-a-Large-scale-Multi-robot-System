@@ -533,16 +533,15 @@ Primary readout: original Cost receiver loss30%, Vote receiver loss30% for **Vot
 
 **Interpretation and limits:** Voting saves bandwidth by a large margin, but is **not faster or closer to the Hungarian cost oracle** for large N in this execution model. CBAA's short time is **optimistic**: all-agent local certificate is aggregated by simulator without paid distributed termination/Commit, unlike actual Voting reliable Commit. The CBAA and Voting messages are algorithm-native, not matched packet sizes; TASK reliable; sender application bytes count physical source SENDs but not real AP overhead or measured Wi-Fi congestion. Rady application-delay samples are real inputs, whereas the 144Mbps radio, CW/backoff, and 30% independent per-receiver packet loss are model assumptions, not ns-3/real 100-robot RF validation. These caveats mean **no claim of physical time superiority** and no theoretical Big-O assertion. All posthoc success endpoints remain explicitly non-equivalent.
 
-**Formal source-backed figures and numerical plot evidence:** [20-point plot CSV](docs/figures/e9j_cbaa/formal/plot_source_20point_rounded.csv), [source SHA / limitations manifest](docs/figures/e9j_cbaa/formal/source_manifest.json). The plotted CSV is rounded to 5 decimal places for figures; original raw source remains only in the ZIP. These eight SVG figures can be used directly in the paper:
- 
-![E9J time full](docs/figures/e9j_cbaa/formal/01_timing_full.svg)
-![E9J time crossover](docs/figures/e9j_cbaa/formal/02_timing_zoom.svg)
-![E9J original sender bytes](docs/figures/e9j_cbaa/formal/03_sender_bytes.svg)
-![E9J cost ratio](docs/figures/e9j_cbaa/formal/04_quality_ratio.svg)
-![E9J modeled radio airtime](docs/figures/e9j_cbaa/formal/05_radio_airtime.svg)
-![E9J bytes vs time](docs/figures/e9j_cbaa/formal/06_sender_bytes_vs_time.svg)
-![E9J time ratio](docs/figures/e9j_cbaa/formal/07_time_ratio.svg)
-![E9J CBAA iterations](docs/figures/e9j_cbaa/formal/08_cbaa_iterations.svg)
+**Formal figures (condensed to two):** The complete [20-point source CSV](docs/figures/e9j_cbaa/formal/plot_source_20point_rounded.csv), [original provenance manifest](docs/figures/e9j_cbaa/formal/source_manifest.json), and [figure-selection manifest](docs/figures/e9j_cbaa/formal/presentation_manifest.json) are retained. For readability, the README shows only the **two primary figures** below. Existing eight individual SVGs are preserved unchanged in [supplementary figure files](docs/figures/e9j_cbaa/formal/); no raw original evidence or algorithm results have been removed.
+
+**Figure 1 — Modeled allocation time and original sender traffic:** two panels present the central communication-time trade-off; shaded areas show individual method bootstrap 95% CIs, *not* paired difference significance. With Cost30/Vote30/Bid30 and 100 paired seeds each N, CBAA's *optimistic unpaid* local certificate becomes modeled faster from N65; Voting has much lower sender Bytes.
+
+![Figure 1: E9J time and communication bytes combined](docs/figures/e9j_cbaa/formal/primary_time_and_sender_bytes.svg)
+
+**Figure 2 — Task-allocation quality:** mean Cost/Hungarian ratio, where 1 is the independent Hungarian optimum and smaller is better. CBAA's posthoc observer confirmation is not the same finalization contract as Voting's true Commit.
+
+![Figure 2: E9J original assignment quality](docs/figures/e9j_cbaa/formal/primary_cost_quality.svg)
 
 Next decisive validation: add **paid native distributed CBAA stop/Commit** and real packet-level ns-3 Wi-Fi/MAC traces before claiming physical real-time performance. That must be a separately scoped source change, not hidden in this evidence publication.
 

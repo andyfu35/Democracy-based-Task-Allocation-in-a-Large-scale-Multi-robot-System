@@ -1,0 +1,38 @@
+{
+  "study": "E9J condensed primary figures (presentation only)",
+  "source_sha256_manifest": "source_manifest.json",
+  "original_unmodified_20point_csv": "plot_source_20point_rounded.csv",
+  "source_e9j_zip_sha256": "106fc14aa9088edf980a744bf9e129c516ce8cabf9c23322baa76be9b33c82bb",
+  "original_experiment_git_sha": "3a69bdef32fa4f430de5949768bf38a54987ffd1",
+  "selected_comparison": {
+    "Voting": "Cost .30, Vote .30, adaptive_guarded_k1_received",
+    "CBAA": "original Bid/Winner .30, optimistic free global halt"
+  },
+  "primary_figures": [
+    {
+      "path": "primary_time_and_sender_bytes.svg",
+      "panels": [
+        "modeled allocation/stop time with per-method CI",
+        "original application sender Bytes"
+      ]
+    },
+    {
+      "path": "primary_cost_quality.svg",
+      "panels": [
+        "external Hungarian-normalized quality"
+      ]
+    }
+  ],
+  "supplementary_unmodified": [
+    "01_timing_full.svg",
+    "02_timing_zoom.svg",
+    "03_sender_bytes.svg",
+    "04_quality_ratio.svg",
+    "05_radio_airtime.svg",
+    "06_sender_bytes_vs_time.svg",
+    "07_time_ratio.svg",
+    "08_cbaa_iterations.svg"
+  ],
+  "note": "No new measurements, algorithm change or original source raw transformations. Cost/Vote/Bid p30. All 8 previously released figures remain unchanged as supplementary.",
+  "CBAA_stop_is_not_equivalent_to_Voting_commit": true
+}
