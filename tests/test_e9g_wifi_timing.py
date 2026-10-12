@@ -54,7 +54,12 @@ class E9GCausalWifiTimingTests(unittest.TestCase):
         )
         summary = sampler.summarize_network()
         self.assertGreater(first, 0)
-        self.assertGreater(second, first)
+        # A later radio-service finish can still produce an earlier
+        # application arrival when residual stack delays differ.
+        self.assertGreater(
+            sampler.packet_trace[1]["media_finish_abs_ms"],
+            sampler.packet_trace[0]["media_finish_abs_ms"],
+        )
         self.assertEqual(summary["packet_count"], 2)
         self.assertEqual(summary["application_sender_bytes"], 832)
         self.assertEqual(summary["radio_hop_count"], 4)
