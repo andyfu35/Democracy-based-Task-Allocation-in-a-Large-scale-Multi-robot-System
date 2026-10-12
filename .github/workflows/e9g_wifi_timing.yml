@@ -37,11 +37,20 @@ jobs:
             --sizes 5,10 --seeds 2 --rates-mbps 144,600 \
             --max-rounds 30 --output-root results/e9g_ci_smoke
           python -c "import csv,json,pathlib; r=pathlib.Path('results/e9g_ci_smoke'); m=json.loads((r/'manifest.json').read_text()); a=list(csv.DictReader((r/'per_seed_wifi_timing.csv').open())); assert len(a)==12 and m['rows']==12 and m['evidence_status'].startswith('MODELED_NOT_NS3')"
+      - name: Actual pinned-Rady 100R/100T one-seed causal scaling preflight
+        run: |
+          python -m experiments.run_e9g_wifi_scaling \
+            --sizes 100 --seeds 1 --rates-mbps 144,600,1200 \
+            --max-rounds 300 --no-download \
+            --output-root results/e9g_ci_100r_preflight
+          python -c "import csv,pathlib; p=pathlib.Path('results/e9g_ci_100r_preflight/per_seed_wifi_timing.csv'); rows=list(csv.DictReader(p.open())); assert len(rows)==4 and all(int(r['robots'])==100 for r in rows); print('E9G_100R_RECORDED=4')"
       - name: Upload real 2seed per-N evidence for independent review
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: e9g-causal-wifi-proxy-2seed-smoke
-          path: results/e9g_ci_smoke/
+          path: |
+            results/e9g_ci_smoke/
+            results/e9g_ci_100r_preflight/
           if-no-files-found: warn
           retention-days: 30
