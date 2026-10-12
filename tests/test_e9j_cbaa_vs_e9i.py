@@ -13,9 +13,12 @@ from democracy_mrta.network import (
     EmpiricalLatencyProfile, estimate_e9j_cbaa_consensus_window_ms,
 )
 from democracy_mrta.scenario import generate_e0_scenario
+from experiments.voting_baseline_registry import (
+    BASE_ZIP_SHA, BASE_GIT_SHA, load_pinned_e9i_voting_baseline,
+)
 from experiments.run_e9j_cbaa_vs_e9i import (
-    BASE_ZIP_SHA, BASE_GIT_SHA, CBAA_BID_LOSS,
-    validate_e9j_axes, load_e9j_pinned_e9i_baseline,
+    CBAA_BID_LOSS,
+    validate_e9j_axes,
     run_e9j_original_cbaa_case, run_e9j_cbaa_vs_e9i,
     pair_e9j_against_e9i, summarize_e9j_comparison, prepare_e9j_root,
 )
@@ -63,7 +66,7 @@ class E9JNativeCBAATests(unittest.TestCase):
             bad=Path(d)/"bad.zip"
             bad.write_bytes(b"incorrect-source")
             with self.assertRaises(ProtocolError) as error:
-                load_e9j_pinned_e9i_baseline(
+                load_pinned_e9i_voting_baseline(
                     archive=bad,sizes=(5,),seeds=1,first_seed=0)
             self.assertEqual(error.exception.diagnostic.code,
                              "E9J_BASELINE_ARCHIVE_SHA_MISMATCH")
