@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from .diagnostics import Diagnostic, ProtocolError
 
 from .network import (
+    WifiCausalTimingSampler,
     SenderPayloadBudget,
     SenderBudgetExhausted,
     reserve_sender_payload,
@@ -145,7 +146,15 @@ def _unicast_event(
         key += f"|copy={transmission_index}"
     if send_budget is not None:
         reserve_sender_payload(send_budget, payload_bytes=payload_bytes, phase=phase)
-    latency_ms = float(sampler.sample_ms(key))
+    latency_ms = (
+        float(sampler.sample_packet_ms(
+            key=key, phase=phase, sender_id=sender_id,
+            receiver_id=receiver_id, send_time_ms=send_time_ms,
+            payload_bytes=payload_bytes,
+        ))
+        if isinstance(sampler, WifiCausalTimingSampler)
+        else float(sampler.sample_ms(key))
+    )
     return CommunicationEvent(
         phase=phase,
         sender_id=sender_id,
@@ -185,7 +194,15 @@ def _broadcast_event(
         key += f"|copy={transmission_index}"
     if send_budget is not None:
         reserve_sender_payload(send_budget, payload_bytes=payload_bytes, phase=phase)
-    latency_ms = float(sampler.sample_ms(key))
+    latency_ms = (
+        float(sampler.sample_packet_ms(
+            key=key, phase=phase, sender_id=sender_id,
+            receiver_id=BROADCAST_RECEIVER_ID, send_time_ms=send_time_ms,
+            payload_bytes=payload_bytes,
+        ))
+        if isinstance(sampler, WifiCausalTimingSampler)
+        else float(sampler.sample_ms(key))
+    )
     return CommunicationEvent(
         phase=phase,
         sender_id=sender_id,
@@ -580,7 +597,17 @@ def transmit_repeated_remote_vote(
         )
         events.append(event)
         observations.append(obs)
-    delivered = [obs for obs in observations if obs.delivered]
+    # In E9G, physically delivered but post-deadline packets cannot vote.
+    # Historical E1-E9F on-time semantics remain byte-for-byte unchanged.
+    deadline = send_time_ms + copies * phase_timeout_ms
+    delivered = [
+        obs for obs in observations
+        if obs.delivered and (
+            not isinstance(sampler, WifiCausalTimingSampler)
+            or (obs.arrival_time_ms is not None
+                and obs.arrival_time_ms <= deadline)
+        )
+    ]
     first_delivery = min(
         delivered, key=lambda obs: float(obs.arrival_time_ms)
     ) if delivered else None
@@ -865,7 +892,14 @@ def _simulate_lossy_cost_broadcasts(
         events.extend(sent)
         deliveries.extend(observed)
         for observation in observed:
-            if observation.delivered:
+            # App-delivered frames received after the original Cost window
+            # remain in the physical ledger but not in the voter Cost view.
+            on_time = (
+                not isinstance(sampler, WifiCausalTimingSampler)
+                or (observation.arrival_time_ms is not None
+                    and observation.arrival_time_ms <= copies * phase_timeout_ms)
+            )
+            if observation.delivered and on_time:
                 receiver_local_id = local_index[observation.receiver_id]
                 visible_by_receiver[receiver_local_id].add(local_index[sender_id])
                 arrivals_by_receiver[receiver_local_id].append(
@@ -1474,7 +1508,17 @@ def simulate_democracy_hungarian_lossy(
         task_id: {} for task_id in physical_tasks
     }
 
-    for voter_local_id, proposal in enumerate(proposals):
+    # For shared-medium scheduling, put original physical votes on air in
+    # increasing release time. This only affects opt-in Wi-Fi timing, never
+    # the proposals, their keys, quorum, score, or default legacy ordering.
+    vote_order = (
+        sorted(enumerate(proposals), key=lambda pair: (
+            ready_times[pair[0]], physical_robots[pair[0]]
+        ))
+        if isinstance(sampler, WifiCausalTimingSampler)
+        else enumerate(proposals)
+    )
+    for voter_local_id, proposal in vote_order:
         voter_id = physical_robots[voter_local_id]
         for vote in assignment_to_votes(
             assignment=proposal,
@@ -1819,6 +1863,18 @@ def simulate_democracy_hungarian_retirement(
     validate_packet_loss_probability(p_vote_loss)
     validate_vote_repetitions(vote_repetitions)
     validate_cost_repetitions(cost_repetitions)
+    if isinstance(sampler, WifiCausalTimingSampler) and (
+        cost_repetitions != 1 or vote_repetitions != 1 or
+        voting_strategy != "greedy_task"
+    ):
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="simulate_democracy_hungarian_retirement",
+            category="contract", code="E9G_WIRE_TIMING_ORIGINAL_GREEDY_ONLY",
+            expected="greedy_task with one Cost copy and one Vote copy",
+            actual={"voting_strategy": voting_strategy,
+                    "cost_repetitions": cost_repetitions,
+                    "vote_repetitions": vote_repetitions},
+        ))
     validate_repeated_cost_scope(
         cost_repetitions=cost_repetitions,
         voting_strategy=voting_strategy,
@@ -1878,6 +1934,8 @@ def simulate_democracy_hungarian_retirement(
             active_robot_ids=active_robots,
             pending_task_ids=pending_tasks,
         )
+        if isinstance(sampler, WifiCausalTimingSampler):
+            sampler.set_epoch_start_ms(elapsed_ms)
         round_result = simulate_democracy_hungarian_lossy(
             cost_matrix=round_costs,
             sampler=sampler,
