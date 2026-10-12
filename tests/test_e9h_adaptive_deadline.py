@@ -266,6 +266,38 @@ class E9HTrueOwnerContractTests(unittest.TestCase):
                 )
             self.assertEqual(err.exception.diagnostic.code,"E9H_OUTPUT_EXISTS")
 
+    def test_independent_cost30_and_vote0_loss_with_original_owner(self):
+        profile=fake_profile()
+        n=20
+        scenario=generate_e0_scenario(7,n,n)
+        schedule={1.0:build_e9h_deadline_schedule(
+            profile=profile,robots=n,design_rate_mbps=144.0,margin_factor=1,
+        )}
+        kwargs=dict(
+            scenario=scenario,profile=profile,n=n,seed=7,
+            p_loss=0.3,rate=144.0,max_rounds=80,
+            fixed_timeout_ms=609.1129007777778,
+            arm=("fixed_received","received_plurality",None,False),
+            schedules=schedule,oracle_total_cost=1.0,
+        )
+        cost30_vote0=run_e9h_original_voting_case(**kwargs,p_vote_loss=0.0)
+        cost30_vote30=run_e9h_original_voting_case(**kwargs,p_vote_loss=0.3)
+        self.assertEqual(cost30_vote0["cost_loss_probability"],0.3)
+        self.assertEqual(cost30_vote0["vote_loss_probability"],0.0)
+        self.assertEqual(cost30_vote30["vote_loss_probability"],0.3)
+        self.assertEqual(cost30_vote0["cost_remote_packet_drop_count"],
+                         cost30_vote30["cost_remote_packet_drop_count"])
+        self.assertGreater(cost30_vote0["cost_remote_packet_drop_count"],0)
+        self.assertEqual(cost30_vote0["vote_remote_packet_drop_count"],0)
+        self.assertGreater(cost30_vote30["vote_remote_packet_drop_count"],0)
+        self.assertEqual(cost30_vote0["cost_remote_receiver_observation_count"],
+                         n*(n-1))
+        self.assertAlmostEqual(
+            cost30_vote0["cost_effective_peer_view_fraction"],
+            (n*(n-1)-cost30_vote0["cost_remote_packet_drop_count"]
+             -cost30_vote0["late_cost_delivery_count"])/(n*(n-1)),
+        )
+
     def test_invalid_history_is_first_source_contract_failure(self):
         with tempfile.TemporaryDirectory() as tmp:
             file=Path(tmp)/"invalid.zip"

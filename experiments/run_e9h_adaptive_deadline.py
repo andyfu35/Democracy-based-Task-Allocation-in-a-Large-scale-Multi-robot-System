@@ -191,9 +191,14 @@ def iter_e9h_arms(margins: tuple[float,...]) -> tuple[tuple[str,str,float|None,b
 def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
                                 rate, max_rounds, fixed_timeout_ms,
                                 arm, schedules, oracle_total_cost,
-                                guarded_cost_ms=None):
-    """Original TASK, local cost, physical ballots, Score and Commit only."""
+                                guarded_cost_ms=None, p_vote_loss=None):
+    """Original TASK, local cost, physical ballots, Score and Commit only.
+
+    Opt-in p_vote_loss separates Vote drop from Cost p_loss; the original
+    E9H behavior defaults p_vote_loss to p_loss without runtime changes.
+    """
     name,decision_rule,margin_factor,is_adaptive=arm
+    vote_loss = p_loss if p_vote_loss is None else p_vote_loss
     task_sampler=create_e9g_sampler(profile=profile,seed=seed,phy_rate_mbps=rate)
     loss_sampler=BernoulliLossSampler(seed=seed)
     task_trace=broadcast_task_information(
@@ -229,7 +234,7 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
         active_schedule=None
     result=simulate_democracy_hungarian_retirement(
         cost_matrix=costs,sampler=coord_sampler,loss_sampler=loss_sampler,
-        p_loss=p_loss,p_vote_loss=p_loss,phase_timeout_ms=cost_timeout,
+        p_loss=p_loss,p_vote_loss=vote_loss,phase_timeout_ms=cost_timeout,
         max_rounds=max_rounds,voting_strategy="greedy_task",
         vote_decision_rule=decision_rule,vote_repetitions=1,cost_repetitions=1,
         per_active_round_deadline_ms=active_schedule,
@@ -268,11 +273,20 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
     tie_count=0
     winner_votes=[]
     missing_cost=0
+    physically_lost_cost=0
+    physically_lost_vote=0
+    cost_receiver_observations=0
     for epoch in result.rounds:
         active=len(epoch.active_robot_ids)
         d=active_schedule[active-1] if active_schedule is not None else fixed_timeout_ms
         vote_cutoff=epoch.coordination.cost_phase_completion_ms+d
         for obs in epoch.coordination.deliveries:
+            if obs.phase == "cost":
+                cost_receiver_observations += 1
+                if not obs.delivered:
+                    physically_lost_cost += 1
+            if obs.phase == "vote" and not obs.delivered:
+                physically_lost_vote += 1
             if obs.phase=="vote" and obs.delivered and obs.arrival_time_ms is not None:
                 if obs.arrival_time_ms > vote_cutoff+1e-9:
                     original_physical_late+=1
@@ -293,6 +307,14 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
                 epoch.coordination.plurality_winner_vote_count,
                 active,
             ))
+    expected_cost_receivers = n*(n-1)
+    if cost_receiver_observations != expected_cost_receivers:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="run_e9h_original_voting_case",
+            category="contract",code="E9I_COST_RECEIVER_LEDGER_MISMATCH",
+            expected=expected_cost_receivers,actual=cost_receiver_observations,
+            details=f"n={n} seed={seed} cost_loss={p_loss} vote_loss={vote_loss}",
+        ))
     if commit_sends!=len(result.assigned_pairs):
         raise ProtocolError(Diagnostic(
             owner=OWNER,function="run_e9h_original_voting_case",
@@ -309,6 +331,15 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
                  else "e9g_shared_medium_backoff_proxy"),
         "modeled_phy_rate_mbps":"" if rate is None else rate,
         "loss_probability":p_loss,
+        "cost_loss_probability":p_loss,
+        "vote_loss_probability":vote_loss,
+        "cost_remote_receiver_observation_count":cost_receiver_observations,
+        "cost_remote_packet_drop_count":physically_lost_cost,
+        "vote_remote_packet_drop_count":physically_lost_vote,
+        "cost_effective_peer_view_fraction":(
+            (cost_receiver_observations-physically_lost_cost-missing_cost)
+            /cost_receiver_observations if cost_receiver_observations else 1.0
+        ),
         "arm":name,"decision_rule":decision_rule,
         "margin_factor":margin_str,
         "deadline_cost_ms":cost_timeout,
