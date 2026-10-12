@@ -1,6 +1,6 @@
 # E9L: Bertsekas-style decentralized price auction vs immutable E9I/E9J/E9K
 
-**Status: code and local-test suite prepared; NOT a published 100-seed result.**
+**Status: complete user-run 20×100 formal E9L original source is now independently verified;** see [full 100-seed report](E9L_FORMAL_100SEED.md). This guide preserves original reproducibility commands and predeclared epsilon10.0, not a new requirement to repeat old controls.
 No CI or background execution is required. User Mac runs the actual source.
 
 ## Why this comparator first?
@@ -117,7 +117,7 @@ Outputs: \`per_seed_e9l.csv\` (one row per N/seed), \`summary_e9l.csv\`,
 \`manifest.json\` (Git SHA/config/timestamp/original source SHA and actual
 E9L source SHA), plus a temporary partial CSV during execution.
 
-**Publish only after evidence audit:** 2,000 unique keys, all physically
+**Evidence now accepted (2026-10-12):** The uploaded formal original ZIP passed SHA256, 2,000 unique keys and physical sender ledger plus per-size summary audits; 1,867/2,000 completed with 133 guard failures. The following remains the source audit contract for future replications: 2,000 unique keys, all physically
 counted sends, no invented final Commit, per-seed task/price/cost
 ledger, all-seed success denominators including guard failures, paired
 time only for common-success seeds and separate censored stop times.

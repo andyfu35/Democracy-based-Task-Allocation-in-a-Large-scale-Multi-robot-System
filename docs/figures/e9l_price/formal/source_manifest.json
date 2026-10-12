@@ -1,0 +1,80 @@
+{
+  "study": "E9L original user-run 20×100 source audit and four-method summary",
+  "e9l_user_zip_sha256": "2b51cecbd84f105a2cee35bfcd8825de174cb3617f35596a81d94d4de6e5ff41",
+  "executed_git_sha": "0e1a091c547b7cc0d545e0707c51138dfa626d5c",
+  "e9l_original_per_seed_csv_sha256": "4dd54863f7cb7392c29a0c91682a85c90750df8dc4af162ccb42ec2a9c426ad5",
+  "e9l_original_summary_csv_sha256": "220f2fa9c6446ada8daca3cdf14e8b7acd75b1feb640de83343595a3e8f4d3ac",
+  "old_ZIP_SHA_from_E9L_manifest_only": {
+    "E9I": "5d275bebd8d6f985e8eef1bbba9a0947991cd71660c1cc49817619e6bc276ee5",
+    "E9J": "106fc14aa9088edf980a744bf9e129c516ce8cabf9c23322baa76be9b33c82bb",
+    "E9K": "1495612c65a4fb40733af225b2121275e2b2309070695f2594c620079a6b8281"
+  },
+  "baseline_freshly_independently_rehashed_ZIPs_in_this_turn": false,
+  "baseline_comparison": "All 20 frozen voting, native CBAA, paid CBAA mean times/bytes in E9L rows agree with Git-published E9K 20-point CSV within rounding. Original old ZIPs absent this uploaded turn and are not falsely stated as re-read.",
+  "actual_E9L_original_user_raw_verified": true,
+  "original_cases": 2000,
+  "grid": "N=T=5..100 step5, 100 seeds",
+  "new_auction_successes": 1867,
+  "new_auction_guard_censored": 133,
+  "new_auction_observer_full": 1880,
+  "n100": {
+    "local_and_observer_completed": 78,
+    "observer_full": 79,
+    "all_seed_censored_stop_s": 135.828345,
+    "complete_only_time_s": 122.329249,
+    "all_seed_sender_B": 353939.04,
+    "complete_only_cost_ratio": 1.117319,
+    "original_voting_time_s": 20.131588,
+    "original_CBAA_time_s": 13.647431,
+    "paid_CBAA_time_s": 37.527083,
+    "original_voting_B": 255497.6,
+    "original_CBAA_B": 2693040,
+    "paid_CBAA_B": 4074431.2
+  },
+  "bootstrap": {
+    "draws": 10000,
+    "seed": 20261012,
+    "subset": "same 78 E9L successes at N100",
+    "paid_E9L_minus_Voting_sec": {
+      "mean": 102.127625,
+      "ci95": [
+        93.834787,
+        110.483371
+      ]
+    },
+    "E9L_minus_CBAA_sec": {
+      "mean": 108.688329,
+      "ci95": [
+        100.544035,
+        116.921291
+      ]
+    },
+    "E9L_minus_Voting_cost_ratio": {
+      "mean": -0.249511,
+      "ci95": [
+        -0.26682,
+        -0.232396
+      ]
+    },
+    "E9L_minus_CBAA_cost_ratio": {
+      "mean": -0.117433,
+      "ci95": [
+        -0.131696,
+        -0.104087
+      ]
+    }
+  },
+  "render_source": "docs/figures/e9l_price/formal/plot_source_20point_rounded.csv",
+  "figures": [
+    "docs/figures/e9l_price/formal/primary_four_method_time_and_sender_bytes.svg",
+    "docs/figures/e9l_price/formal/primary_e9l_completion_and_quality.svg"
+  ],
+  "source_assumptions": [
+    "28B new native task-home BID/AWARD, not original CBBA",
+    "epsilon=10m chosen during synthetic pilots",
+    "simulator global free stopping E9L",
+    "Time modeled using Rady ROS samples + assumed 144Mbps shared radio, not 802.11/ns-3 measured",
+    "All N100 22 auction failures are guard-censored; mean cost only successes"
+  ],
+  "record_type": "source-verified derived plotting data, not raw per_seed original archive"
+}
