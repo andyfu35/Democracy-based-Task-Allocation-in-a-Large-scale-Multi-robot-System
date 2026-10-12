@@ -1,6 +1,6 @@
 # E9K — Original CBAA with paid per-robot READY / COMMIT evidence
 
-**Current status:** executable E9K **source and local tests are ready on feature branch**, but **NO new 100-seed E9K empirical result has been accepted**. This is a better *packet-accounted simulation*, not a real 802.11ax/ns-3 or radio-hardware experiment. No new CI runs are required. Use Mac locally.
+**Current status:** E9K user-run **2,000-case 100-seed paired formal evidence has been independently source-verified**. Original Git executable source `715dfa6c262b7081c241b54a7bddec16354990a3`. Formal numerical results and caveats in [E9K formal evidence](E9K_FORMAL_100SEED.md). Tests are provided for local use; an independent full automated unit-test run was not conducted in this evidence-publishing turn. This is a better *packet-accounted simulation*, not a real 802.11ax/ns-3 or radio-hardware experiment. No new CI runs are required. Use Mac locally.
 
 ## Question and protocol
 
@@ -65,4 +65,4 @@ Any changed archive is rejected; no silent baseline regeneration. A formal missi
 
 Outputs: `per_seed_e9k.csv`, `summary_e9k.csv`, `manifest.json`, a growing `.partial.csv` during execution. New physical packet counters are kept separate for native Bid, READY and COMMIT; failed/guard-censored cases remain in the all-seed summary. Compare only **paired successful cases** for successful time, and separately report all-seed stop time and completion fractions. Baseline original source CSVs are **not rewritten**.
 
-**Next validation gates:** inspect locally run tests, ensure zero-loss success and 100% control-drop non-success, verify actual radio ledgers, inspect 30% packet-loss small smoke, then the user-run 100seed formal ZIP. Future separate E9L: paid global terminal ACK and calibrated ns-3/MAC/field radio effects.
+**Next validation gates:** local unit-test logs remain separate from this archived 100-seed result; next predeclared experiment varies **paid control timeout only**, with original frozen E9I/E9J/E9K intact. Then pursue independent ns-3/MAC/physical radio validation. Future separate E9L: paid global terminal ACK and calibrated ns-3/MAC/field radio effects.

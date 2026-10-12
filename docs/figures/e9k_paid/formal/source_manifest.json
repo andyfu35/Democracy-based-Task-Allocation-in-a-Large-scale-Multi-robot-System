@@ -1,0 +1,46 @@
+{
+  "study": "E9K Paid CBAA 20 N x 100 seed original source verification",
+  "source_executable_sha": "715dfa6c262b7081c241b54a7bddec16354990a3",
+  "uploaded_e9k_zip_sha256": "1495612c65a4fb40733af225b2121275e2b2309070695f2594c620079a6b8281",
+  "uploaded_e9j_zip_sha256": "106fc14aa9088edf980a744bf9e129c516ce8cabf9c23322baa76be9b33c82bb",
+  "frozen_e9i_zip_sha256": "5d275bebd8d6f985e8eef1bbba9a0947991cd71660c1cc49817619e6bc276ee5",
+  "e9k_raw_sha256": "c6183a59177b37aaaf1ff2cd723ce4913f22646f137b4260813999df023be39b",
+  "e9k_summary_sha256": "74de2dca68da7d8aff4c2d3c35742dc1a306e1d7fdcd6cd7b12b74c4ae4a1b56",
+  "original_e9j_native_sha256": "a586b364a5861fc383c62f5f327afa16a796b46076e42d15ef4722dad40ba189",
+  "source_check": "2,000 E9K original source + original E9J source per N/seed/size SHA + original E9J paired frozen E9I Vote30 guarded; all 20 grouped summaries independently recomputed; physical SEND/Byte/attempt/time-ledger confirmed; quality equal E9J in all 2000",
+  "grid": {
+    "N": "5..100 step5",
+    "T": "same as N",
+    "seeds": "0..99",
+    "cases": 2000
+  },
+  "message_loss": {
+    "CBAA_Bid": 0.3,
+    "CBAA_READY": 0.3,
+    "CBAA_COMMIT": 0.3,
+    "Voting_Cost": 0.3,
+    "Voting_Vote": 0.3
+  },
+  "network": "assumed E9G 144 Mbps single shared medium; pinned measured Rady ROS delay residual; no real WIFI PHY/MAC or ns-3",
+  "completion": "all 2000 E9K local double-proof complete; not common knowledge or paid FINAL_ACK; source old CBAA simulator free local stop vs original reliable Voting Commit",
+  "bootstrap": {
+    "draws": 10000,
+    "paired": true,
+    "rng_seed": 20261012,
+    "N100_paid_minus_voting_s": [
+      16.79848984534602,
+      18.038408854504105
+    ],
+    "N100_paid_minus_free_s": [
+      23.486975175106664,
+      24.284599723895564
+    ],
+    "N100_paid_vs_voting_pct": [
+      82.7282843686875,
+      90.30383991987276
+    ]
+  },
+  "numeric_precision": "20-point csv means rounded to 6 decimals; raw exact rows held in user's original immutable ZIP",
+  "figure": "primary_three_way_time_and_sender_bytes.svg",
+  "source": "Original 2 ZIP archives were directly reloaded and checked in current analysis"
+}
