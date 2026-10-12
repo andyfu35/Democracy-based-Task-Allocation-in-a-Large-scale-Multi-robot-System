@@ -616,3 +616,89 @@ class WifiCausalTimingSampler:
                 float(r["rady_nonoverlap_residual_ms"]) for r in rows),
             "medium_busy_until_ms": self._medium_free_ms,
         }
+
+
+@dataclass(frozen=True)
+class RadyAdaptiveDeadlineEstimate:
+    """Frozen per-phase service budget, with no held-out run outcome leakage."""
+    phase: str
+    active_robots: int
+    total_tasks: int
+    reference_phy_mbps: float
+    margin_factor: float
+    rady_mean_ms: float
+    rady_p95_ms: float
+    statistical_margin_ms: float
+    radio_burst_ms: float
+    deadline_ms: float
+    application_packet_bytes: int
+
+
+def estimate_e9h_adaptive_deadline(
+    *, profile: EmpiricalLatencyProfile,
+    active_robots: int,
+    total_tasks: int,
+    reference_phy_mbps: float,
+    margin_factor: float,
+    phase: str,
+) -> RadyAdaptiveDeadlineEstimate:
+    """E9H Rady-anchored deadline: mean + margin + hypothesized N-radio burst.
+
+    D_phase(n,R,k) = mean(Rady) + k*[p95(Rady)-mean(Rady)]
+                 + 2*n*[preamble+AIFS+E(backoff)+ACK+
+                         8*(bytes(phase)+H)/(1000*R)].
+    The end-to-end measured ROS latency is used ONLY as a statistical base.
+    The modeled radio-burst term is a conservative *sensitivity assumption*,
+    NOT a claimed independently calibrated 802.11ax 100-station load.
+    k is a predeclared sensitivity (0,1,2), never trained on evaluation seeds.
+    """
+    correct = (
+        type(active_robots) is int and active_robots >= 1
+        and type(total_tasks) is int and total_tasks >= active_robots
+        and phase in ("cost", "vote")
+        and type(margin_factor) in (int, float)
+        and math.isfinite(float(margin_factor)) and 0 <= margin_factor <= 4
+    )
+    if not correct:
+        raise ProtocolError(Diagnostic(
+            owner="network", function="estimate_e9h_adaptive_deadline",
+            category="data", code="E9H_INVALID_DEADLINE_INPUT",
+            expected="active_robots>=1; total_tasks>=active_robots; phase=cost/vote; k in [0,4]",
+            actual={"active_robots":active_robots,"tasks":total_tasks,
+                    "phase":phase,"margin_factor":margin_factor},
+        ))
+    config = validate_wifi_phy_config(
+        WifiTimingConfig(phy_rate_mbps=reference_phy_mbps)
+    )
+    if (type(profile) is not EmpiricalLatencyProfile
+        or not profile.samples_ms or any(
+            not math.isfinite(x) or x < 0 for x in profile.samples_ms
+        )):
+        raise ProtocolError(Diagnostic(
+            owner="network", function="estimate_e9h_adaptive_deadline",
+            category="dependency", code="E9H_MISSING_RADY_SAMPLES",
+            expected="verified nonempty finite nonnegative Rady ROS delay profile",
+            actual=type(profile).__name__,
+        ))
+    mean = sum(profile.samples_ms) / len(profile.samples_ms)
+    p95 = percentile(profile.samples_ms, 0.95)
+    payload = (16 + 8 * total_tasks) if phase == "cost" else 32
+    frame_ms = (
+        config.phy_preamble_us + config.aifs_us
+        + 0.5 * config.cw_min * config.slot_us
+        + config.mac_ack_us
+    ) / 1000.0 + (
+        8.0 * (payload + config.mac_overhead_bytes)
+        / (1000.0 * config.phy_rate_mbps)
+    )
+    radio_burst = 2 * active_robots * frame_ms
+    margin = margin_factor * max(0.0, p95 - mean)
+    deadline = mean + margin + radio_burst
+    return RadyAdaptiveDeadlineEstimate(
+        phase=phase, active_robots=active_robots,
+        total_tasks=total_tasks, reference_phy_mbps=reference_phy_mbps,
+        margin_factor=float(margin_factor), rady_mean_ms=mean,
+        rady_p95_ms=p95, statistical_margin_ms=margin,
+        radio_burst_ms=radio_burst, deadline_ms=deadline,
+        application_packet_bytes=payload,
+    )
