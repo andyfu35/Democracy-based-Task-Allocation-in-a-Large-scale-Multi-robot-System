@@ -436,7 +436,7 @@ def simulate_price_auction(
             round_count+=1
             break
         apply_price_auction_bids(homes=homes,bids=received)
-        if received or bid_wave.sends:
+        if bid_wave.sends:
             clock+=stage_window_ms
         award_wave=transmit_price_awards(
             homes=homes,bidders=bidders,sampler=sampler,
