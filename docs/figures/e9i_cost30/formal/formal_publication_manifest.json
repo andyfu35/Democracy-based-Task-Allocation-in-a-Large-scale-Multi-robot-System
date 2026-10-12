@@ -1,0 +1,69 @@
+{
+  "title": "E9I Cost30 100seed formal source-verified publication",
+  "evidence_kind": "original Greedy Voting simplified radio simulation; NO actual 802.11ax PHY/MAC/ns3",
+  "source_executable_git_sha": "408ff70a31e8c2957602cae3f09ad8f239cd3224",
+  "user_uploaded_archive_sha256": "5d275bebd8d6f985e8eef1bbba9a0947991cd71660c1cc49817619e6bc276ee5",
+  "original_CSV_SHA256": {
+    "per_seed_16000": "1249661d6efeee70c377e76b04176f0923a8051fd983e4aeef3571918041d3f7",
+    "grouped_160": "caae0ee64f8ccdd4febbbebb63240fa2e66502c8c99b20ff95383a653c3fafb3",
+    "exponents_8": "3c524a07610cdeeb0859c2301715cd9a419eca51e82278728cc33051809b9feb"
+  },
+  "source_original_raw_in_git": false,
+  "original_source_on_user_archive": true,
+  "verified_grid": {
+    "N": "5..100 step5",
+    "seeds_per_cell": 100,
+    "Cost_receiver_loss_p": 0.3,
+    "Vote_receiver_loss_p": [
+      0,
+      0.3
+    ],
+    "arms": [
+      "fixed_quarter",
+      "fixed_received",
+      "adaptive_k1_received",
+      "adaptive_guarded_k1_received"
+    ],
+    "network": "assumed 144Mbps shared-medium simplified E9G proxy"
+  },
+  "complete": 15998,
+  "total": 16000,
+  "guard_stops": [
+    {
+      "N": 25,
+      "seed": 99,
+      "Vote_loss": 0,
+      "arm": "fixed_quarter",
+      "committed": 21
+    },
+    {
+      "N": 70,
+      "seed": 67,
+      "Vote_loss": 0.3,
+      "arm": "fixed_quarter",
+      "committed": 66
+    }
+  ],
+  "recomputed_160_source_groups": true,
+  "recomputed_8_original_exponents": true,
+  "paired_100N_bootstrap_6000samples_seed20261012": {
+    "Vote0_guarded_time_reduction": 0.7169956361904251,
+    "ci95": [
+      0.7142349648534073,
+      0.7197642356431619
+    ],
+    "cost_ratio_delta": 0.0009905227587388254,
+    "cost_ratio_ci95": [
+      0.0000997319712435462,
+      0.002268811345084751
+    ],
+    "exact_same_assignment": 88,
+    "Vote30_guarded_time_reduction": 0.7200747420321967,
+    "ci95_vote30": [
+      0.7171811655101463,
+      0.722892313747379
+    ]
+  },
+  "note": "Git SVGs and CSV are rounded chart-driving data; full exact original 16000-case source lives in uploaded ZIP. Bootstrap is simulator-seed variation, NOT field RF confidence.",
+  "cited_literature": "README.md section 3.9 and docs/references/e9g_wifi_timing.bib"
+}
