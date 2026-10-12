@@ -502,6 +502,18 @@ python -m experiments.run_e9j_cbaa_vs_e9i --sizes 5,10,15,20,25,30,35,40,45,50,5
 
 **Literature scope:** [Rady et al. (2024)](https://doi.org/10.1016/j.adhoc.2024.103418) supplies the measured 121 ROS network-delay samples only; [Bianchi (2000)](https://doi.org/10.1109/49.840210) informs why backoff belongs in a model, not a fully fitted DCF collision process; [NIST IR 8506 (2024)](https://doi.org/10.6028/NIST.IR.8506) cautions hardware-specific OFDMA activation, absent here; [Liu & Choi (2023)](https://doi.org/10.1145/3579451) provides external commercial small-station evidence not fitted; [Riley & Henderson (2010)](https://doi.org/10.1007/978-3-642-12331-3_2) and [ns-3 Wi-Fi](https://www.nsnam.org/docs/models/html/wifi-design.html) are prospective real packet-level simulation backends NOT run. **The paper does not establish 30% as a measured universal loss rate**; it is our frozen comparative stress condition. [Full bibliography](docs/references/e9g_wifi_timing.bib).
 
+#### E9J source-backed 1-seed CBAA initial smoke (NOT the formal paired comparison)
+
+[GitHub Actions run 38199947659](https://github.com/andyfu35/Democracy-based-Task-Allocation-in-a-Large-scale-Multi-robot-System/actions/runs/38199947659) SUCCESS ran all 6 new original-CBAA tests, all 13 existing E9I tests and old CBAA tests, plus original CBAA 5R/10R/20R with its native local-evidence convergence and original modeled 144Mbps shared radio. The CI archive ID 11725340203 has SHA256 aeef1908efd18f8b532645e1d77c74e609977b28858136c2547127777a962161. Its original one-seed (seed0) scenario keys were matched **offline** to the immutable exact-original E9I user-provided ZIP, not a re-run or optimizer mutation. All three original CBAA cases reached local certification and posthoc observer agreement; still NO distributed paid stop or CBAA reliable Commit.
+
+| N=T; matched seed0 only | Voting guarded adaptive real Commit time | Original CBAA local-certificate time | Voting original sender Bytes | CBAA original sender Bytes | Original CBAA rounds |
+|---|---:|---:|---:|---:|---:|
+| 5 | 1.276s | 3.771s | 1,108 | 2,836 | 7 |
+| 10 | 1.692s | 5.408s | 3,560 | 13,936 | 10 |
+| 20 | 3.317s | 8.268s | 11,936 | 77,456 | 15 |
+
+At N20 in THIS source-aligned single seed, original CBAA emitted about 6.49× the original sender Bytes (77,456/11,936) and took more modeled synchronization time. The information in this 1-seed/three-N table must NOT be promoted to 100-seed formal causal superiority, 100R extrapolation or physical AP measurements. CBAA's posthoc Cost/Hungarian was 1.2358 (N5), 1.0481 (N10), 1.2710 (N20); Voting guarded was 1.1072, 1.0481, 1.2407, respectively. Original paper and transport assumptions in §3.10 remain essential qualifications. [3-point verified source preview CSV](docs/figures/e9j_cbaa/pilot/source_aligned_seed0.csv) and [CI/source integrity manifest](docs/figures/e9j_cbaa/pilot/source_manifest.json). Next: Mac 3-seed native full paired pilot with SHA-verified E9I reference, then full N5..100 100-seed CBAA run and dense 20-point curves.
+
 ## 4. Synthesis and conclusions
 
 ### 4.1 What the completed studies establish

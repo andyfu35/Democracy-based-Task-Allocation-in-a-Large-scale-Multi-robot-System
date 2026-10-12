@@ -1,0 +1,24 @@
+{
+  "study": "E9J original native CBAA paper source vs frozen E9I, 1-seed offline source-aligned preview",
+  "original_CBAA_CI_run_id": 38199947659,
+  "original_CBAA_Git_sha": "4f81a48d8b7730660148011f980a0c17a4b145f0",
+  "original_CBAA_artifact_id": 11725340203,
+  "original_CBAA_artifact_zip_sha256": "aeef1908efd18f8b532645e1d77c74e609977b28858136c2547127777a962161",
+  "original_E9I_baseline_zip_sha256": "5d275bebd8d6f985e8eef1bbba9a0947991cd71660c1cc49817619e6bc276ee5",
+  "original_E9I_exec_git_sha": "408ff70a31e8c2957602cae3f09ad8f239cd3224",
+  "sizes": [
+    5,
+    10,
+    20
+  ],
+  "seed": [
+    0
+  ],
+  "CBAA_Bid_receiver_loss": 0.3,
+  "Voting_Cost_receiver_loss": 0.3,
+  "Voting_Vote_receiver_loss": 0,
+  "assumed_shared_PHY_Mbps": 144,
+  "success_contracts_not_equivalent": true,
+  "one_seed_not_formal": true,
+  "unpaid_CBAA_simulator_global_stop": true
+}
