@@ -744,3 +744,31 @@ def estimate_e9h_guarded_initial_cost_ms(
         + 8.0*(payload+config.mac_overhead_bytes)/config.phy_rate_mbps
     )/1000.0
     return max(profile.samples_ms) + 2*total_robots*worst_perhop_ms + 1.0
+
+
+
+def estimate_e9j_cbaa_consensus_window_ms(
+    *, profile: EmpiricalLatencyProfile, robots: int, tasks: int,
+    reference_phy_mbps: float,
+) -> float:
+    """Original CBAA full-vector broadcast wave: paper packet, Rady tail, AP service."""
+    if type(robots) is not int or type(tasks) is not int or not 1 <= tasks <= robots:
+        raise ProtocolError(Diagnostic(
+            owner="network", function="estimate_e9j_cbaa_consensus_window_ms",
+            category="data", code="E9J_INVALID_CBAA_WAVE_INPUT",
+            expected="integer robots >= tasks >= 1", actual=(robots,tasks),
+        ))
+    config=validate_wifi_phy_config(WifiTimingConfig(phy_rate_mbps=reference_phy_mbps))
+    if type(profile) is not EmpiricalLatencyProfile or not profile.samples_ms or any(
+        not math.isfinite(x) or x < 0 for x in profile.samples_ms
+    ):
+        raise ProtocolError(Diagnostic(
+            owner="network", function="estimate_e9j_cbaa_consensus_window_ms",
+            category="dependency", code="E9J_CBAA_RADY_PROFILE_MISSING",
+            expected="valid Rady application delay samples",actual=type(profile).__name__,
+        ))
+    size=16+12*tasks
+    hop=(config.phy_preamble_us+config.aifs_us
+        +config.cw_min*config.slot_us+config.mac_ack_us)/1000.0
+    hop+=8*(size+config.mac_overhead_bytes)/(1000.0*config.phy_rate_mbps)
+    return max(profile.samples_ms)+2*robots*hop+1.0
