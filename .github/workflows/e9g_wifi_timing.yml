@@ -1,0 +1,47 @@
+name: E9G Voting Wi-Fi Timing Sensitivity
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - democracy_mrta/network.py
+      - democracy_mrta/coordination.py
+      - experiments/run_e9g_wifi_scaling.py
+      - tests/test_e9g_wifi_timing.py
+      - .github/workflows/e9g_wifi_timing.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  causal-network-timing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install project dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Check original Voting+Wi-Fi causal timing owner
+        run: python -m unittest discover -s tests -p 'test_e9g_wifi_timing.py' -v
+      - name: Entire backward compatibility unittest suite
+        run: python -m unittest discover -s tests -v > /tmp/e9g_all_tests.log 2>&1 || { tail -n 250 /tmp/e9g_all_tests.log; exit 1; }
+      - name: Real pinned-Rady 5R and 10R smoke - NOT 100seed or ns3
+        run: |
+          python -m experiments.run_e9g_wifi_scaling \
+            --sizes 5,10 --seeds 2 --rates-mbps 144,600 \
+            --max-rounds 30 --output-root results/e9g_ci_smoke
+          python -c "import csv,json,pathlib; r=pathlib.Path('results/e9g_ci_smoke'); m=json.loads((r/'manifest.json').read_text()); a=list(csv.DictReader((r/'per_seed_wifi_timing.csv').open())); assert len(a)==12 and m['rows']==12 and m['evidence_status'].startswith('MODELED_NOT_NS3')"
+      - name: Upload real 2seed per-N evidence for independent review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e9g-causal-wifi-proxy-2seed-smoke
+          path: results/e9g_ci_smoke/
+          if-no-files-found: warn
+          retention-days: 30
