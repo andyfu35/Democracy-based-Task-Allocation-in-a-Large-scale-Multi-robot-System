@@ -71,6 +71,7 @@ CBAA transmitted **10.54×** as many application Bytes but had **32.21% shorter 
 |---|---|---|
 | **E2** | **Provisional:** original Hungarian Cost/Vote one-round aggregate has not passed full per-vote forensic acceptance | [E2 notes](results/e2_packet_loss/README.md) |
 | **E9C** | Sender packet-size/SEND accounting **control**, not a certified dynamic-stop comparison | [Historical results](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md) |
+| **E9K: paid CBAA terminal proof** | **Source implemented on a separate experiment branch; NO accepted formal 100-seed outcome yet.** Two paid local READY/COMMIT control broadcasts with p=.30, opt-in stop_mode and preserved E9I/E9J baselines. | [Mac local-run instructions](docs/E9K_PAID_CBAA.md) |
 | **E9H** | Implemented deadline hypothesis and pilot, but its **full original factorial 100-seed study is not published**; E9I is a separate completed Cost30 follow-up | [Canonical design](docs/EXPERIMENT_PROTOCOL.md) |
 | **E9F, E3–E7, older pilots** | Historical/incomplete for present core claims; preserve rather than merge into E9E/E9J | [Full history](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md) |
 
