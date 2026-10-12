@@ -59,11 +59,21 @@ The full original E9I experiment contains 16,000 arm/case records; **15,998 comp
 
 CBAA transmitted **10.54×** as many application Bytes but had **32.21% shorter modeled elapsed time** relative to guarded Voting at N100 (paired-bootstrap 95% CI **30.34%–34.06%**). The crossover around N55–60 is statistically inconclusive at 95%, while the paired mean time difference from N65 excludes zero in this model. CBAA also showed better observer-evaluated assignment cost. **Voting is not universally faster or higher-quality.**
 
-![E9J — Combined modeled time and application sender traffic](docs/figures/e9j_cbaa/formal/primary_time_and_sender_bytes.svg)
+The original [E9J optimistic baseline time/Bytes chart](docs/figures/e9j_cbaa/formal/primary_time_and_sender_bytes.svg) is preserved; the single combined three-method comparison figure below now includes its unchanged source means.
 
 ![E9J — Assignment quality relative to Hungarian optimum](docs/figures/e9j_cbaa/formal/primary_cost_quality.svg)
 
 **Fairness limit:** CBAA's simulated all-robots-certified stopping condition is free; a physically distributed stop/Commit would introduce additional traffic and delay. Its original Bid/Winner packet contents differ from Voting Cost/Vote/Score. This is an **algorithm-native modeled trade-off**, not an equal on-wire-budget or physically equivalent-finalization result. [20-point plot source](docs/figures/e9j_cbaa/formal/plot_source_20point_rounded.csv) · [E9J provenance](docs/figures/e9j_cbaa/formal/source_manifest.json).
+
+### E. Paid local CBAA finalization — E9K (formal 100 seeds)
+
+**Original-source verified:** 20 sizes N=T=5..100, 100 paired seeds/size, **2,000/2,000 paid two-wave local READY/COMMIT completions**, no guard stops. Native original Auction/Max-Consensus and final assignment quality were unchanged relative to E9J across **every one of 2,000 matched cases**. E9I Voting and E9J original CBAA baselines were reused without rerunning.
+
+At N100, the simulated **37.527s** paid-finalization CBAA took **17.395s longer** than original Voting (**20.132s**) (paired bootstrap CI95 **16.798–18.038s**) and **23.880s longer** than E9J's optimistic free-stop CBAA (**13.647s**). Mean original sender payload grew to **4,074.4kB** vs Voting **255.5kB** (15.95×). Of the added 23.880s, **17.523s** were conservative paid-control phase waits and **6.356s** extra native consensus-round waits. **The increased modeled time is strongly dependent on charging E9J's conservative full-vector phase window to each small 48B control wave**; it is **not a physical 100-node Wi-Fi timing verdict**.
+
+![E9K: Three-way Voting vs free CBAA vs paid CBAA modeled time and original sender Bytes](docs/figures/e9k_paid/formal/primary_three_way_time_and_sender_bytes.svg)
+
+[Formal audit and caveats](docs/E9K_FORMAL_100SEED.md) · [20-point source-derived plot values](docs/figures/e9k_paid/formal/verified_20point.csv) · [source SHA provenance](docs/figures/e9k_paid/formal/source_manifest.json). Existing E9J source plot, all original archives and full README historical appendix remain unchanged.
 
 ## 3. Other studies: status only
 
@@ -71,6 +81,7 @@ CBAA transmitted **10.54×** as many application Bytes but had **32.21% shorter 
 |---|---|---|
 | **E2** | **Provisional:** original Hungarian Cost/Vote one-round aggregate has not passed full per-vote forensic acceptance | [E2 notes](results/e2_packet_loss/README.md) |
 | **E9C** | Sender packet-size/SEND accounting **control**, not a certified dynamic-stop comparison | [Historical results](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md) |
+| **E9K: paid CBAA terminal proof** | **Formal 100-seed E9K original source verified;** optional engineering addition, not a real Wi-Fi experiment. | [Mac reproducibility steps](docs/E9K_PAID_CBAA.md) |
 | **E9H** | Implemented deadline hypothesis and pilot, but its **full original factorial 100-seed study is not published**; E9I is a separate completed Cost30 follow-up | [Canonical design](docs/EXPERIMENT_PROTOCOL.md) |
 | **E9F, E3–E7, older pilots** | Historical/incomplete for present core claims; preserve rather than merge into E9E/E9J | [Full history](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md) |
 
