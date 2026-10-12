@@ -375,6 +375,19 @@ This is the **previous verified E9G conservative burst envelope**, e.g. about **
 
 Added two separately named true original Voting arms per margin: \`adaptive_guarded_k1_quarter\` and \`adaptive_guarded_k1_received\`. The **original four arms are retained**, so the normal k1 formal 20N×100 seeds×2 loss×4 radio settings×**6 arms = 96,000 actual original-protocol simulator runs**. No CBAA, no ns-3 and no fixed-only cherry-picked success. This is an explicit information-fidelity versus time ablation, not a change to original source broadcasting or Vote/Score/Commit.
 
+**Pre-formal GitHub Actions pilot (one source seed only; NOT a formal conclusion).** In the Rady-sampled **E9G 144 Mbps assumed shared radio proxy**, N=100, zero application loss, original original-Greedy decision events, [CI run 38195938305](https://github.com/andyfu35/Democracy-based-Task-Allocation-in-a-Large-scale-Multi-robot-System/actions/runs/38195938305) produced:
+
+| Arm | Full Commit | Simulated allocation time | Total cost / external Hungarian optimum |
+|---|---:|---:|---:|
+| Fixed 609ms + 25% Score | 100/100 tasks | **69.280s** | **1.3061** |
+| Fixed 609ms + positive Score | 100/100 tasks | 69.280s | 1.3061 |
+| Short Cost + adaptive Vote + 25% Score | 100/100 tasks | **17.014s** | **1.6691** |
+| Short Cost + adaptive Vote + positive Score | 100/100 tasks | 17.402s | 1.6691 |
+| One-time guarded Cost + adaptive Vote + 25% Score | 100/100 tasks | **17.530s** | **1.3061** |
+| One-time guarded Cost + adaptive Vote + positive Score | 100/100 tasks | **17.530s** | **1.3061** |
+
+This one-seed pilot motivates preserving source **information completeness** while limiting per-task Vote deadlines: guarded-Cost with adaptive Vote was **74.70% faster** in the model without the short-Cost's `+36.3 percentage-point` excess Hungarian cost-ratio change. At 30% application packet loss the same 1-seed smoke also fully committed 100 tasks, but the guarded received-Plurality version used ~20.092s and had external cost ratio 1.3061, while the fixed-quarter comparison used ~69.873s with ratio 1.3341; this is **not** a population-average result. All this is **simplified simulator output**, not measured 100-station Wi-Fi. CI source SHA `57a02bc6640c6afdc956d67c627d5266a365c45a`, artifact `11723467031` SHA256 `b5591c89ebab0fe5e04fc11743175e7916abcdf1c10699e127e9e66bc3d5fea6`; read the 100-seed outputs before making claims.
+
 #### Predeclared E9H acceptance targets (before formal 100-seed data)
 
 Avoid selecting a Deadline purely because it makes the simulator faster. Report EVERY fixed/adaptive, quarter/positive-score arm, loss rate, N and timing setting, including incomplete/censored runs. These are **predeclared targets, not observed results**:
