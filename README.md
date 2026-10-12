@@ -413,6 +413,31 @@ Avoid selecting a Deadline purely because it makes the simulator faster. Report 
 **Evidence status:** the code and CI invocation are part of E9I; actual charts and conclusions must come from independently hash-checked real source CSVs, and a 10-seed pilot must be marked PILOT rather than represented as formal 100-seed evidence. Real 100-station 802.11ax PHY/OFDMA and correlated RF loss are NOT claimed.
 
 
+#### E9I independently audited 10-seed pilot (20 sizes, 1,600 original Voting simulations; NOT formal 100-seed results)
+
+The real [GitHub Actions run 38196908382](https://github.com/andyfu35/Democracy-based-Task-Allocation-in-a-Large-scale-Multi-robot-System/actions/runs/38196908382) at original executable source SHA `28bf8ccd96950b9d23c6daf4c57db729ae3d65bc` **passed**, generated actual original-program Cost=30% fixed, Vote=0/30% paired records, and uploaded artifact `11724211340` (archive SHA256 `cf441ea596e3907b8d0e2f8e5f60ff26ab7c1b150fdc33ac1b054a38f1165e85`). Source raw 1600 rows, 160 grouped cells, exact seed grid, frozen parameters and the three manifest hashes were **independently verified**, and grouped mean successes/times/Bytes/SEND/Cost peer view/drop records recomputed from the raw output. All **1,600/1,600 achieved full Commit** in this limited model with 10 seeds per group; there were zero safety-guard hits. No 100-seed or real Wi-Fi reliability claim is supported by this small pilot.
+
+| N=100 original Voting arm | Vote loss | Full Commit | Mean allocation time | Mean sender traffic | Remote Cost view | Mean cost / external Hungarian |
+|---|---:|---:|---:|---:|---:|---:|
+| Fixed deadline + received plurality | 0% | 10/10 | **72.004s** | 256.413 kB | 69.93% | **1.3513** |
+| Guarded once-only Cost + short Vote + received plurality | 0% | 10/10 | **20.134s** | 256.336 kB | 69.93% | **1.3513** |
+| Short Cost + short Vote + received plurality | 0% | 10/10 | 19.777s | 256.163 kB | 67.90% | **1.4508** |
+| Fixed deadline + received plurality | 30% | 10/10 | 71.760s | 255.594 kB | 69.93% | 1.3479 |
+| Guarded once-only Cost + short Vote + received plurality | 30% | 10/10 | **19.903s** | 255.488 kB | 69.93% | **1.3483** |
+
+The guarded-Cost short-Vote model is **72.04% faster at N=100 / Vote loss 0%** relative to the fixed received-plurality arm and preserves nearly the same **cost ratio** in this sample. It does **not meaningfully decrease sender Bytes** because packets remain sent and receiver losses do not refund over-the-air transmission cost. Source receiver-level Cost drop count at N=100 is 2,976.7/9,900 remote opportunities averaged across these 10 paired seeds, near the Bernoulli 30% target. Short Cost adds on-time source loss beyond those physically dropped frames. Across N=5..100, finite-range exponent of completed time is **0.9722 fixed vs 0.9653 guarded**, while sender Bytes exponent is **~1.844**, fully consistent with the *conditional* application sender traffic's analytical quadratic behavior and with protocol wait dominating the allocation clock. These slopes are finite-range numerical fits, **not** proofs that real wireless allocation time is O(N).
+
+![E9I source-backed Cost30 allocation time scaling](docs/figures/e9i_cost30/pilot/fig01_allocation_time.svg)
+
+![E9I source-backed original application sender Bytes](docs/figures/e9i_cost30/pilot/fig02_sender_bytes.svg)
+
+![E9I remote Cost information completeness](docs/figures/e9i_cost30/pilot/fig03_cost_visibility.svg)
+
+![E9I source-backed Cost/Hungarian ratio for original Greedy](docs/figures/e9i_cost30/pilot/fig04_assignment_quality.svg)
+
+Evidence: [rounded plot-driving 20-point data](docs/figures/e9i_cost30/pilot/derived_20point_plot_data.csv) · [source manifest and original CSV SHA256](docs/figures/e9i_cost30/pilot/pilot_source_manifest.json). **Original full 1,600-row source CSV is only in the Actions artifact**, not falsely represented as a Git-committed file. Rady/Bianchi/NIST/Liu/ns-3 sources and *unimplemented network features* are separately cited and scoped above in §3.9. **Formal 100-seed local runs remain to be executed**; do not generalize 10/10 successes to an RF deployment.
+
+
 ## 4. Synthesis and conclusions
 
 ### 4.1 What the completed studies establish

@@ -1,0 +1,101 @@
+N,variant,mean_completed_seconds_rounded,mean_sender_kB_rounded,cost_remote_view_percent_rounded,cost_over_hungarian_rounded
+5,Fixed, Vote 0%,4.079,1.1,66.00,1.2860
+5,Fixed, Vote 30%,4.080,1.1,66.00,1.3148
+5,Guard Cost + short Vote, Vote 0%,1.289,1.1,66.00,1.2860
+5,Guard Cost + short Vote, Vote 30%,1.291,1.1,66.00,1.3148
+5,Short Cost + short Vote, Vote 0%,0.727,1.1,61.00,1.3431
+10,Fixed, Vote 0%,7.430,3.5,68.78,1.2549
+10,Fixed, Vote 30%,7.514,3.4,68.78,1.2858
+10,Guard Cost + short Vote, Vote 0%,1.940,3.5,68.78,1.2549
+10,Guard Cost + short Vote, Vote 30%,2.025,3.4,68.78,1.2858
+10,Short Cost + short Vote, Vote 0%,1.585,3.5,63.78,1.3531
+15,Fixed, Vote 0%,11.059,7.1,70.10,1.2690
+15,Fixed, Vote 30%,11.016,7.1,70.10,1.2817
+15,Guard Cost + short Vote, Vote 0%,2.881,7.1,70.10,1.2690
+15,Guard Cost + short Vote, Vote 30%,2.843,7.0,70.10,1.2781
+15,Short Cost + short Vote, Vote 0%,2.302,7.1,66.29,1.3721
+20,Fixed, Vote 0%,14.739,12.0,70.05,1.2596
+20,Fixed, Vote 30%,14.695,12.0,70.05,1.2988
+20,Guard Cost + short Vote, Vote 0%,3.891,12.0,70.05,1.2596
+20,Guard Cost + short Vote, Vote 30%,3.844,12.0,70.05,1.2988
+20,Short Cost + short Vote, Vote 0%,3.340,12.0,66.53,1.4620
+25,Fixed, Vote 0%,18.148,18.2,69.78,1.3014
+25,Fixed, Vote 30%,17.916,18.1,69.78,1.3127
+25,Guard Cost + short Vote, Vote 0%,4.685,18.2,69.78,1.2953
+25,Guard Cost + short Vote, Vote 30%,4.465,18.1,69.78,1.3254
+25,Short Cost + short Vote, Vote 0%,4.331,18.2,66.42,1.3549
+30,Fixed, Vote 0%,21.577,25.7,69.48,1.3177
+30,Fixed, Vote 30%,21.437,25.4,69.48,1.3263
+30,Guard Cost + short Vote, Vote 0%,5.371,25.6,69.48,1.3133
+30,Guard Cost + short Vote, Vote 30%,5.223,25.4,69.48,1.3349
+30,Short Cost + short Vote, Vote 0%,4.774,25.6,66.53,1.3813
+35,Fixed, Vote 0%,25.575,34.3,69.41,1.2958
+35,Fixed, Vote 30%,25.549,34.0,69.41,1.3115
+35,Guard Cost + short Vote, Vote 0%,6.787,34.2,69.41,1.2958
+35,Guard Cost + short Vote, Vote 30%,6.617,34.0,69.41,1.3086
+35,Short Cost + short Vote, Vote 0%,6.288,34.2,66.57,1.4214
+40,Fixed, Vote 0%,29.125,44.0,69.48,1.3422
+40,Fixed, Vote 30%,29.043,43.8,69.48,1.3489
+40,Guard Cost + short Vote, Vote 0%,7.627,44.0,69.48,1.3443
+40,Guard Cost + short Vote, Vote 30%,7.542,43.7,69.48,1.3489
+40,Short Cost + short Vote, Vote 0%,7.535,43.9,67.01,1.4183
+45,Fixed, Vote 0%,32.099,55.1,69.73,1.2954
+45,Fixed, Vote 30%,31.972,54.7,69.73,1.2841
+45,Guard Cost + short Vote, Vote 0%,8.164,55.0,69.73,1.2820
+45,Guard Cost + short Vote, Vote 30%,7.962,54.7,69.73,1.2830
+45,Short Cost + short Vote, Vote 0%,7.683,54.9,67.21,1.4069
+50,Fixed, Vote 0%,35.605,67.4,69.56,1.3104
+50,Fixed, Vote 30%,35.501,67.0,69.56,1.3190
+50,Guard Cost + short Vote, Vote 0%,9.003,67.3,69.56,1.3104
+50,Guard Cost + short Vote, Vote 30%,8.909,66.9,69.56,1.3170
+50,Short Cost + short Vote, Vote 0%,8.636,67.2,67.07,1.3983
+55,Fixed, Vote 0%,40.011,80.7,69.58,1.2804
+55,Fixed, Vote 30%,39.853,80.3,69.58,1.2833
+55,Guard Cost + short Vote, Vote 0%,10.836,80.7,69.58,1.2798
+55,Guard Cost + short Vote, Vote 30%,10.677,80.2,69.58,1.2827
+55,Short Cost + short Vote, Vote 0%,10.405,80.7,67.40,1.3780
+60,Fixed, Vote 0%,43.146,95.6,69.57,1.3022
+60,Fixed, Vote 30%,43.104,95.1,69.57,1.2948
+60,Guard Cost + short Vote, Vote 0%,11.391,95.5,69.57,1.3038
+60,Guard Cost + short Vote, Vote 30%,11.351,95.1,69.57,1.3008
+60,Short Cost + short Vote, Vote 0%,10.798,95.4,67.34,1.4004
+65,Fixed, Vote 0%,46.929,111.3,69.78,1.3593
+65,Fixed, Vote 30%,46.770,110.9,69.78,1.3594
+65,Guard Cost + short Vote, Vote 0%,12.624,111.3,69.78,1.3597
+65,Guard Cost + short Vote, Vote 30%,12.498,110.8,69.78,1.3398
+65,Short Cost + short Vote, Vote 0%,12.558,111.2,67.41,1.4252
+70,Fixed, Vote 0%,50.090,128.5,69.79,1.3066
+70,Fixed, Vote 30%,49.895,127.9,69.79,1.3225
+70,Guard Cost + short Vote, Vote 0%,13.302,128.4,69.79,1.3086
+70,Guard Cost + short Vote, Vote 30%,13.060,127.9,69.79,1.3230
+70,Short Cost + short Vote, Vote 0%,13.247,128.3,67.40,1.4281
+75,Fixed, Vote 0%,54.438,146.8,69.84,1.3662
+75,Fixed, Vote 30%,54.193,146.2,69.84,1.3425
+75,Guard Cost + short Vote, Vote 0%,15.038,146.7,69.84,1.3662
+75,Guard Cost + short Vote, Vote 30%,14.782,146.1,69.84,1.3418
+75,Short Cost + short Vote, Vote 0%,14.985,146.6,67.40,1.4711
+80,Fixed, Vote 0%,58.112,166.3,69.89,1.3552
+80,Fixed, Vote 30%,57.823,165.7,69.89,1.3493
+80,Guard Cost + short Vote, Vote 0%,16.244,166.2,69.89,1.3560
+80,Guard Cost + short Vote, Vote 30%,15.957,165.6,69.89,1.3484
+80,Short Cost + short Vote, Vote 0%,16.067,166.1,67.61,1.4310
+85,Fixed, Vote 0%,60.791,187.0,69.92,1.3489
+85,Fixed, Vote 30%,60.665,186.3,69.92,1.3540
+85,Guard Cost + short Vote, Vote 0%,16.423,186.9,69.92,1.3489
+85,Guard Cost + short Vote, Vote 30%,16.315,186.2,69.92,1.3525
+85,Short Cost + short Vote, Vote 0%,16.140,186.8,67.69,1.4612
+90,Fixed, Vote 0%,65.080,208.9,69.94,1.3525
+90,Fixed, Vote 30%,64.844,208.2,69.94,1.3487
+90,Guard Cost + short Vote, Vote 0%,18.233,208.8,69.94,1.3531
+90,Guard Cost + short Vote, Vote 30%,18.019,208.1,69.94,1.3479
+90,Short Cost + short Vote, Vote 0%,18.401,208.8,67.76,1.4626
+95,Fixed, Vote 0%,68.525,232.1,69.86,1.3445
+95,Fixed, Vote 30%,68.180,231.3,69.86,1.3475
+95,Guard Cost + short Vote, Vote 0%,19.206,232.0,69.86,1.3452
+95,Guard Cost + short Vote, Vote 30%,18.871,231.2,69.86,1.3464
+95,Short Cost + short Vote, Vote 0%,19.186,231.9,67.72,1.4616
+100,Fixed, Vote 0%,72.004,256.4,69.93,1.3513
+100,Fixed, Vote 30%,71.760,255.6,69.93,1.3479
+100,Guard Cost + short Vote, Vote 0%,20.134,256.3,69.93,1.3513
+100,Guard Cost + short Vote, Vote 30%,19.903,255.5,69.93,1.3483
+100,Short Cost + short Vote, Vote 0%,19.777,256.2,67.90,1.4508

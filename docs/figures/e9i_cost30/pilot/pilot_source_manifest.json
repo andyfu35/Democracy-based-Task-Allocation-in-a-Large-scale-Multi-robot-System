@@ -1,0 +1,17 @@
+{
+  "pilot_source_executed_git_sha": "28bf8ccd96950b9d23c6daf4c57db729ae3d65bc",
+  "github_actions_run_id": 38196908382,
+  "github_actions_artifact_id": 11724211340,
+  "github_actions_artifact_sha256": "cf441ea596e3907b8d0e2f8e5f60ff26ab7c1b150fdc33ac1b054a38f1165e85",
+  "source_raw_sha256": "6edc32c4fa026f4f03b55f24e593dd66ebc8682654b5153cbd4a717710a0063d",
+  "source_summary_sha256": "23fb11663fc46126e0ce40fc8fbb70ec39f07ba9df92bbfdd84127e6206f5f3b",
+  "source_exponents_sha256": "9bee58e8cde35ff9f8acdad586e08a3ffb72bf8b9ce0d32a56fc34b7b9f9eb2d",
+  "all_1600_source_runs_full_commit": true,
+  "robot_sizes": "N=5,10,...,100",
+  "seeds_per_cell": 10,
+  "loss_model": "Cost p=.30 per receiver; Vote p=0/.30",
+  "phy_model": "original E9G 144Mbps hypothetical shared-medium proxy, NOT measured 100-client 802.11ax",
+  "plot_precision": "rounding from actual 160-group source summary, seconds 3dp, sender_kB 1dp, visibility 2dp, cost ratio 4dp",
+  "raw_1600_rows": "NOT committed in Git; retained in GitHub Actions artifact and verified user-facing analysis archive",
+  "source_evidence_citation": "README.md Section 3.9, pinned original Rady dataset and independent Bianchi/NIST/Liu/ns3 limitations"
+}
