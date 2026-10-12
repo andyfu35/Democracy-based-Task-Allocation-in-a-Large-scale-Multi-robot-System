@@ -702,3 +702,45 @@ def estimate_e9h_adaptive_deadline(
         radio_burst_ms=radio_burst, deadline_ms=deadline,
         application_packet_bytes=payload,
     )
+
+
+
+def estimate_e9h_guarded_initial_cost_ms(
+    *, profile: EmpiricalLatencyProfile,
+    total_robots: int, total_tasks: int, reference_phy_mbps: float,
+) -> float:
+    """Once-per-run bounded Cost protection, never a repeated Vote deadline.
+
+    Frozen worst-sample Rady ROS control latency + all original Cost sender
+    packets' conservative max CWmin radio service and a 1ms clock allowance.
+    Cost is broadcast only once per initial Greedy allocation run.
+    100R@144Mbps matches the historical E9G ~609.113ms Cost budget.
+    This is a safe envelope IN THE E9G PROXY, not field Wi-Fi worst case.
+    """
+    if (type(total_robots) is not int or total_robots < 1
+        or type(total_tasks) is not int or total_tasks < 1):
+        raise ProtocolError(Diagnostic(
+            owner="network",function="estimate_e9h_guarded_initial_cost_ms",
+            category="data",code="E9H_INVALID_GUARDED_COST_GRID",
+            expected="positive integer robots and original tasks",
+            actual=(total_robots,total_tasks),
+        ))
+    config=validate_wifi_phy_config(
+        WifiTimingConfig(phy_rate_mbps=reference_phy_mbps)
+    )
+    if (type(profile) is not EmpiricalLatencyProfile
+        or not profile.samples_ms
+        or any(not math.isfinite(x) or x < 0 for x in profile.samples_ms)):
+        raise ProtocolError(Diagnostic(
+            owner="network",function="estimate_e9h_guarded_initial_cost_ms",
+            category="dependency",code="E9H_GUARDED_COST_RADY_MISSING",
+            expected="pinned nonempty finite Rady control-delay samples",
+            actual=type(profile).__name__,
+        ))
+    payload=16+8*total_tasks
+    worst_perhop_ms=(
+        config.phy_preamble_us + config.aifs_us
+        + config.cw_min*config.slot_us + config.mac_ack_us
+        + 8.0*(payload+config.mac_overhead_bytes)/config.phy_rate_mbps
+    )/1000.0
+    return max(profile.samples_ms) + 2*total_robots*worst_perhop_ms + 1.0

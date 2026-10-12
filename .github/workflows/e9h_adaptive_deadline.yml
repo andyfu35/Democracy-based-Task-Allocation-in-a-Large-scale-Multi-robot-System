@@ -41,7 +41,7 @@ jobs:
             --loss-probabilities 0,0.3 --margin-factors 1 \
             --max-rounds 300 \
             --output-root results/e9h_ci_original_voting
-          python -c "import csv,json,pathlib; root=pathlib.Path('results/e9h_ci_original_voting'); m=json.loads((root/'manifest.json').read_text()); r=list(csv.DictReader((root/'per_seed_e9h.csv').open())); assert len(r)==3*1*2*2*4 and len(m['sizes'])==3; print('E9H_SMOKE_ROWS',len(r))"
+          python -c "import csv,json,pathlib; root=pathlib.Path('results/e9h_ci_original_voting'); m=json.loads((root/'manifest.json').read_text()); r=list(csv.DictReader((root/'per_seed_e9h.csv').open())); assert len(r)==3*1*2*2*6 and len(m['sizes'])==3; print('E9H_SMOKE_ROWS',len(r))"
       - name: Show original N100 modeled radio pilot outcomes
         run: |
           python - <<'PY'

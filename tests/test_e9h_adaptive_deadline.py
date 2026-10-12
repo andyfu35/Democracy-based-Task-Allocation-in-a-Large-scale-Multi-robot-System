@@ -19,7 +19,8 @@ from democracy_mrta.coordination import (
 from democracy_mrta.diagnostics import ProtocolError
 from democracy_mrta.network import (
     BernoulliLossSampler, EmpiricalLatencyProfile,
-    estimate_e9h_adaptive_deadline, WifiCausalTimingSampler, WifiTimingConfig,
+    estimate_e9h_adaptive_deadline, estimate_e9h_guarded_initial_cost_ms,
+    WifiCausalTimingSampler, WifiTimingConfig,
 )
 from democracy_mrta.protocol import (
     CandidateVoteAnnouncement, plurality_announcement_threshold,
@@ -138,6 +139,19 @@ class E9HTrueOwnerContractTests(unittest.TestCase):
             enforce_vote_deadline=True,
         )
 
+    def test_guarded_once_only_cost_formula_is_finite_and_predeclared(self):
+        p=fake_profile()
+        guard5=estimate_e9h_guarded_initial_cost_ms(
+            profile=p,total_robots=5,total_tasks=5,reference_phy_mbps=144.0)
+        guard100=estimate_e9h_guarded_initial_cost_ms(
+            profile=p,total_robots=100,total_tasks=100,reference_phy_mbps=144.0)
+        cheap100=estimate_e9h_adaptive_deadline(
+            profile=p,active_robots=100,total_tasks=100,
+            reference_phy_mbps=144.0,margin_factor=1,phase="cost").deadline_ms
+        self.assertGreater(guard100,guard5)
+        self.assertGreater(guard100,cheap100)
+        self.assertGreater(guard5,max(p.samples_ms))
+
     def test_rady_only_cost_receipts_late_are_paid_but_ineligible(self):
         matrix=((0.5,),(0.7,))
         observed=capture_retirement_cost_snapshot(
@@ -190,17 +204,22 @@ class E9HTrueOwnerContractTests(unittest.TestCase):
             )
         }
         oracle=1.0
+        guard=estimate_e9h_guarded_initial_cost_ms(
+            profile=profile,total_robots=5,total_tasks=5,reference_phy_mbps=144.0,
+        )
         cases=[
             run_e9h_original_voting_case(
                 scenario=scenario,profile=profile,n=5,seed=1,p_loss=0.0,
                 rate=144.0,max_rounds=15,
                 fixed_timeout_ms=100.0,arm=arm,
                 schedules=schedules,oracle_total_cost=oracle,
+                guarded_cost_ms=guard,
             ) for arm in iter_e9h_arms((1.0,))
         ]
-        self.assertEqual(len(cases),4)
+        self.assertEqual(len(cases),6)
         self.assertEqual([r["decision_rule"] for r in cases],
                          ["quarter_plurality","received_plurality",
+                          "quarter_plurality","received_plurality",
                           "quarter_plurality","received_plurality"])
         self.assertTrue(all(r["commit_send_count"]==r["tasks_committed"]
                             for r in cases))
@@ -228,7 +247,7 @@ class E9HTrueOwnerContractTests(unittest.TestCase):
                     output_root=root,design_rate_mbps=144.0,
                     allow_download=False,
                 )
-            self.assertEqual(len(rows),2*2*1*2*4)
+            self.assertEqual(len(rows),2*2*1*2*6)
             m=json.loads((root/"manifest.json").read_text())
             self.assertEqual(m["source_git_sha"],"c"*40)
             self.assertTrue(m["no_actual_ns3_edca_ofdma_wifi_client_calibration"])
@@ -236,7 +255,7 @@ class E9HTrueOwnerContractTests(unittest.TestCase):
                 self.assertEqual(hashlib.sha256((root/f).read_bytes()).hexdigest(),digest)
             self.assertFalse((root/"per_seed_e9h.partial.csv").exists())
             with (root/"per_seed_e9h.csv").open() as fh:
-                self.assertEqual(len(list(csv.DictReader(fh))),32)
+                self.assertEqual(len(list(csv.DictReader(fh))),48)
             with self.assertRaises(ProtocolError) as err:
                 run_e9h_experiment(
                     sizes=(3,5),rates=(144.0,),losses=(0.0,),

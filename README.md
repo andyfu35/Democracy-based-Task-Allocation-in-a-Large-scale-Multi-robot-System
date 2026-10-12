@@ -352,9 +352,28 @@ A candidate broadcasts their final score **only if at least one unique, eligible
 | \`adaptive_k1_quarter\` | \`D_cost(N)\`, then \`D_vote(n)\` | strictly >25% active electorate | enforced |
 | \`adaptive_k1_received\` | same adaptive deadline | at least 1 counted vote | enforced |
 
-A full comparison runs original **Voting only** at N=5,10,...,100 with R=T=N, **100 independent paired seeds**, independent Cost/Vote packet loss probabilities **0 and 0.30**, and Rady-only + 144/600/1200 Mbps hypothetical network timing models. Primary default **64,000 original-protocol runs** \`20 N ×100 seeds ×2 loss ×4 network models ×4 arms\`, NOT 64,000 real Wi-Fi tests. A separately named margin experiment may use \`--margin-factors 0,1,2\`, adding 2 adaptive arms per new margin, predeclared before testing. Output: \`per_seed_e9h.csv\`, \`summary_e9h.csv\`, \`empirical_exponents_e9h.csv\`, \`deadline_curve_e9h.csv\`, SHA256 manifest, and censored failure statistics. Partial/failed allocations are never reported as successful completion time; the observer's globally optimal Hungarian cost **is never sent to a voter**.
+A full comparison runs original **Voting only** at N=5,10,...,100 with R=T=N, **100 independent paired seeds**, independent Cost/Vote packet loss probabilities **0 and 0.30**, and Rady-only + 144/600/1200 Mbps hypothetical network timing models. Original preregistered four-arm grid **64,000 original-protocol runs**; the expanded guarded-cost primary grid **96,000 original-protocol runs** \`20 N ×100 seeds ×2 loss ×4 network models ×4 arms\`, NOT 64,000 real Wi-Fi tests. A separately named margin experiment may use \`--margin-factors 0,1,2\`, adding 2 adaptive arms per new margin, predeclared before testing. Output: \`per_seed_e9h.csv\`, \`summary_e9h.csv\`, \`empirical_exponents_e9h.csv\`, \`deadline_curve_e9h.csv\`, SHA256 manifest, and censored failure statistics. Partial/failed allocations are never reported as successful completion time; the observer's globally optimal Hungarian cost **is never sent to a voter**.
 
 **Literature-to-component attribution:** [Rady et al. (2024)](https://doi.org/10.1016/j.adhoc.2024.103418) = empirical ROS delay statistics only; [Bianchi (2000)](https://doi.org/10.1109/49.840210) = motivation for collision/backoff (not a full Bianchi or ns-3 implementation); [Montgomery & Candell (2024), NIST IR 8506](https://doi.org/10.6028/NIST.IR.8506) = warning that uplink OFDMA depends on equipment/load (no OFDMA implemented); [Liu & Choi (2023)](https://doi.org/10.1145/3579451) = external Wi-Fi 6 multi-device measurements to validate in a future stage (**not fitted**); [Riley & Henderson (2010)](https://doi.org/10.1007/978-3-642-12331-3_2) and [ns-3 Wi-Fi official design](https://www.nsnam.org/docs/models/html/wifi-design.html) = future detailed network backend (**not run**); [Choi, Brunet & How (2009)](https://doi.org/10.1109/TRO.2009.2022423) = decentralized auctions contextual reference, **not** evidence of this deadline equation. Full BibTeX: [docs/references/e9g_wifi_timing.bib](docs/references/e9g_wifi_timing.bib).
+
+
+### One-time guarded-Cost ablation (E9H-4; added BEFORE formal 100-seed run)
+
+The 100R/100T **1-seed CI smoke** at 0% loss exposed an important failure of the aggressively short Cost **source** deadline. Even though all 100 tasks committed, the external Hungarian-relative **cost ratio** grew from ~1.306 for fixed quarter to ~1.669 for short-cost adaptive decisions (an increase of 36.3 percentage points). This observation is explicitly a **pilot-driven research-design correction**, NOT a formal 100-seed claim. The protocol changes neither the original candidate Score nor Vote eligibility by secretly injecting oracle results; it adds one independently reported **Cost source time policy** to the original full-factor comparison.
+
+For the initial once-only Cost broadcast we preregister an additional **finite guard** using Rady's **observed maximum**, rather than charging its rare tail before **every** individual task:
+
+$
+D_{\mathrm{Cost,guard}}(N,R)=
+\max D_{\mathrm{Rady}}+2N\left[
+\frac{T_{\mathrm{preamble}}+\mathrm{AIFS}+CW_{\min}T_{\mathrm{slot}}+T_{\mathrm{ACK}}}{1000}
++\frac{8(16+8T+H)}{1000R}
+\right]+1\ \mathrm{ms}
+$
+
+This is the **previous verified E9G conservative burst envelope**, e.g. about **609.113 ms once at N=100 / design 144 Mbps**; it is never repeated for the N task Vote rounds. All following Vote deadlines continue to use the mean/P95-based \(D_{\mathrm{vote}}(n,R,k)\), recomputed for CURRENT active team size. In the E9G proxy, the maximum slot backoff plus pinned maximum empirical residual is designed to retain all *zero-loss* Cost source rows; this is **not** a field radio delivery guarantee. Relative to the original 609 ms per task, this one-time Cost guard should add little total latency while protecting decision information. Whether it preserves allocation quality must be tested, not asserted.
+
+Added two separately named true original Voting arms per margin: \`adaptive_guarded_k1_quarter\` and \`adaptive_guarded_k1_received\`. The **original four arms are retained**, so the normal k1 formal 20N×100 seeds×2 loss×4 radio settings×**6 arms = 96,000 actual original-protocol simulator runs**. No CBAA, no ns-3 and no fixed-only cherry-picked success. This is an explicit information-fidelity versus time ablation, not a change to original source broadcasting or Vote/Score/Commit.
 
 #### Predeclared E9H acceptance targets (before formal 100-seed data)
 

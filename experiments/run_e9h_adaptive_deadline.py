@@ -25,7 +25,7 @@ from democracy_mrta.network import (
     BernoulliLossSampler, EmpiricalLatencySampler, WifiCausalTimingSampler,
     RADY_SOURCE_BLOB_SHA, RADY_SOURCE_COMMIT, ensure_rady_dataset,
     estimate_e9h_adaptive_deadline, load_rady_latency_profile,
-    percentile,
+    percentile, estimate_e9h_guarded_initial_cost_ms,
 )
 from democracy_mrta.optimizer import solve_hungarian_assignment
 from democracy_mrta.scenario import generate_e0_scenario
@@ -165,7 +165,7 @@ def build_e9h_deadline_schedule(*, profile, robots: int,
 
 
 def iter_e9h_arms(margins: tuple[float,...]) -> tuple[tuple[str,str,float|None,bool],...]:
-    """Frozen 2x2 original owner experiment: timeout choice × announcement floor."""
+    """Frozen long/short/once-guarded-cost x quarter/positive-claim comparison."""
     return (
         ("fixed_quarter","quarter_plurality",None,False),
         ("fixed_received","received_plurality",None,False),
@@ -177,12 +177,21 @@ def iter_e9h_arms(margins: tuple[float,...]) -> tuple[tuple[str,str,float|None,b
                 ("received","received_plurality"),
             )
         ),
+        *tuple(
+            (f"adaptive_guarded_k{k:g}_{label}",rule,k,True)
+            for k in margins
+            for label,rule in (
+                ("quarter","quarter_plurality"),
+                ("received","received_plurality"),
+            )
+        ),
     )
 
 
 def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
                                 rate, max_rounds, fixed_timeout_ms,
-                                arm, schedules, oracle_total_cost):
+                                arm, schedules, oracle_total_cost,
+                                guarded_cost_ms=None):
     """Original TASK, local cost, physical ballots, Score and Commit only."""
     name,decision_rule,margin_factor,is_adaptive=arm
     task_sampler=create_e9g_sampler(profile=profile,seed=seed,phy_rate_mbps=rate)
@@ -204,6 +213,17 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
         cost_deadline,vote_schedule=schedules[margin_factor]
         cost_timeout=cost_deadline.deadline_ms
         active_schedule=tuple(v.deadline_ms for v in vote_schedule)
+        if name.startswith("adaptive_guarded_"):
+            if (type(guarded_cost_ms) not in (int,float)
+                or not math.isfinite(guarded_cost_ms)
+                or guarded_cost_ms < cost_timeout):
+                raise ProtocolError(Diagnostic(
+                    owner=OWNER,function="run_e9h_original_voting_case",
+                    category="dependency",code="E9H_GUARDED_COST_UNAVAILABLE",
+                    expected=f"guarded Cost >= {cost_timeout:.6f}ms",
+                    actual=guarded_cost_ms,
+                ))
+            cost_timeout=guarded_cost_ms
     else:
         cost_timeout=fixed_timeout_ms
         active_schedule=None
@@ -473,6 +493,10 @@ def create_e9h_deadline_curve(*, profile, sizes, design_rate_mbps, margins):
             row["vote_deadline_initial_ms"]=votes[-1].deadline_ms
             row["vote_deadline_last_ms"]=votes[0].deadline_ms
             row["legacy_fixed_ms"]=DEFAULT_OLD_FIXED_MS
+            row["one_time_guarded_initial_cost_ms"]=estimate_e9h_guarded_initial_cost_ms(
+                profile=profile,total_robots=n,total_tasks=n,
+                reference_phy_mbps=design_rate_mbps,
+            )
             row["expected_original_sender_bytes_if_full_zero_loss"]=(
                 24*n*n+92*n+16*math.ceil(n/37)
             )
@@ -521,6 +545,7 @@ def save_e9h_evidence(*, root, rows, summary, exponents, deadlines,
         "rady_mean_ms":statistics.mean(profile.samples_ms),
         "rady_p95_ms":percentile(profile.samples_ms,0.95),
         "deadlines_formula":"mean_Rady + k*(p95_Rady-mean_Rady) + 2*n*(PHY_preamble + AIFS + CWmin/2*slot + ACK + 8*(payload+64)/(1000*reference_Mbps))",
+        "one_time_guarded_cost_formula":"max_Rady + 2*N*(PHY_preamble + AIFS + CWmin*slot + ACK + 8*(full_cost_row+64)/(1000*design_Mbps)) + 1ms",
         "unit":"ms",
         "max_robots_equals_tasks":max(sizes),
         "sizes":list(sizes),"seeds_per_cell":seeds,"first_seed":first_seed,
@@ -588,6 +613,10 @@ def run_e9h_experiment(*,sizes,rates,losses,margins,seeds,first_seed,
                     margin_factor=margin,
                 ) for margin in margins
             }
+            once_guard_cost=estimate_e9h_guarded_initial_cost_ms(
+                profile=profile,total_robots=n,total_tasks=n,
+                reference_phy_mbps=design_rate_mbps,
+            )
             for seed in range(first_seed,first_seed+seeds):
                 scenario=generate_e0_scenario(seed,n,n)
                 oracle_total=solve_hungarian_assignment(
@@ -603,6 +632,7 @@ def run_e9h_experiment(*,sizes,rates,losses,margins,seeds,first_seed,
                                 fixed_timeout_ms=DEFAULT_OLD_FIXED_MS,
                                 arm=arm,schedules=schedules,
                                 oracle_total_cost=oracle_total,
+                                guarded_cost_ms=once_guard_cost,
                             )
                             key_rows.append(row)
                         pair_e9h_against_fixed(key_rows)
