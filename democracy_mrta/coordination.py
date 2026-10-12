@@ -609,7 +609,8 @@ def transmit_repeated_remote_vote(
     delivered = [
         obs for obs in observations
         if obs.delivered and (
-            not isinstance(sampler, WifiCausalTimingSampler)
+            (global_vote_deadline_ms is None
+             and not isinstance(sampler, WifiCausalTimingSampler))
             or (obs.arrival_time_ms is not None
                 and obs.arrival_time_ms <= deadline)
         )
@@ -862,6 +863,7 @@ def _simulate_lossy_cost_broadcasts(
     robot_ids: tuple[int, ...] | None = None,
     send_budget: SenderPayloadBudget | None = None,
     cost_repetitions: int = 1,
+    enforce_cost_deadline: bool = False,
 ) -> tuple[
     list[CommunicationEvent],
     list[DeliveryObservation],
@@ -901,7 +903,7 @@ def _simulate_lossy_cost_broadcasts(
             # App-delivered frames received after the original Cost window
             # remain in the physical ledger but not in the voter Cost view.
             on_time = (
-                not isinstance(sampler, WifiCausalTimingSampler)
+                (not enforce_cost_deadline and not isinstance(sampler, WifiCausalTimingSampler))
                 or (observation.arrival_time_ms is not None
                     and observation.arrival_time_ms <= copies * phase_timeout_ms)
             )
@@ -1062,6 +1064,7 @@ def capture_retirement_cost_snapshot(
     phase_timeout_ms: float,
     send_budget: SenderPayloadBudget | None = None,
     cost_repetitions: int = 1,
+    enforce_cost_deadline: bool = False,
 ) -> RetirementCostSnapshot:
     """Build retained snapshot from only physically delivered original Costs."""
     num_robots, num_tasks = validate_cost_matrix(cost_matrix)
@@ -1075,6 +1078,7 @@ def capture_retirement_cost_snapshot(
         round_id=0,
         send_budget=send_budget,
         cost_repetitions=cost_repetitions,
+        enforce_cost_deadline=enforce_cost_deadline,
     )
     return RetirementCostSnapshot(
         robot_ids=tuple(range(num_robots)),
@@ -1496,6 +1500,7 @@ def simulate_democracy_hungarian_lossy(
             phase_timeout_ms=phase_timeout_ms,
             round_id=round_id,
             robot_ids=physical_robots,
+            enforce_cost_deadline=enforce_vote_deadline,
         )
     else:
         events, deliveries, visible, ready_times = resolve_retirement_cost_view(
@@ -1865,13 +1870,13 @@ def validate_e9h_deadline_schedule(
         and len(schedule_ms) == initial_robots
         and all(type(x) in (float, int) and math.isfinite(x) and x > 0 for x in schedule_ms)
         and all(a <= b for a,b in zip(schedule_ms,schedule_ms[1:]))
-        and math.isclose(schedule_ms[-1],initial_phase_timeout_ms,abs_tol=1e-7)
+        and schedule_ms[-1] <= initial_phase_timeout_ms + 1e-7
     )
     if not ok:
         raise ProtocolError(Diagnostic(
             owner="coordination",function="validate_e9h_deadline_schedule",
             category="contract",code="E9H_INVALID_DEADLINE_SCHEDULE",
-            expected=f"{initial_robots} positive monotone deadlines; last equal initial Cost; cutoff enabled",
+            expected=f"{initial_robots} positive monotone Vote deadlines <= initial Cost timeout; cutoff enabled",
             actual={"schedule":schedule_ms,"cost_timeout":initial_phase_timeout_ms,
                     "cutoff":enforce_vote_deadline},
         ))
@@ -1967,6 +1972,7 @@ def simulate_democracy_hungarian_retirement(
                 phase_timeout_ms=phase_timeout_ms,
                 send_budget=send_budget,
                 cost_repetitions=cost_repetitions,
+                enforce_cost_deadline=enforce_vote_deadline,
             )
             if voting_strategy == "greedy_task" else None
         )
