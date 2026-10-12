@@ -307,7 +307,57 @@ Thus application sender payload and SEND count are analytically **Theta(N^2)** u
 
 **Paper attribution and limits:** [Rady et al., 2024](https://doi.org/10.1016/j.adhoc.2024.103418) supplied the original 121 ROS delay observations; [Bianchi, 2000](https://doi.org/10.1109/49.840210) motivates contention/backoff but the full DCF analytical model was **not** solved here; [Montgomery & Candell, 2024, NIST IR 8506](https://doi.org/10.6028/NIST.IR.8506) and [Liu & Choi, 2023](https://doi.org/10.1145/3579451) motivate future OFDMA/multi-user validation but **their results were not fitted**; [Riley & Henderson, 2010](https://doi.org/10.1007/978-3-642-12331-3_2) and [ns-3 Wi-Fi documentation](https://www.nsnam.org/docs/models/html/wifi-design.html) describe a prospective detailed simulation backend, **not used in E9G**. [Choi, Brunet & How, 2009](https://doi.org/10.1109/TRO.2009.2022423) is task-allocation background rather than RF timing evidence. All works are also recorded in [E9G BibTeX](docs/references/e9g_wifi_timing.bib).
 
-**Verifiable evidence:** [20-point independent, plot-driving verification table](docs/figures/e9g_wifi/formal/scaling_20points_verified.csv) · [publication manifest with original per-file SHA256](docs/figures/e9g_wifi/formal/publication_manifest.json). The **original 8,000-row raw CSV and 80-row summary remain in the user-supplied archive and are NOT falsely described as committed GitHub files**. Original SHA256: raw `ba79fd138d84d6d3bb7f04430a36a8c3e973d7ca0978834d4ad3b1d3f85be6`; summary `bdc2b784297d1465800e094fe2dd611c79578c20a7ec2efb04216faecd77a590`; exponent `5a36eab796192de8c95d18c06ee31ac573c9aae697e9648c71ebd3312866d62f`. The six linked source charts were derived from independently checked 20-point means, rounded to 0.001 unit for visualization; original precise statistics remain in the uploaded source.
+**Verifiable evidence:** [20-point independent, plot-driving verification table](docs/figures/e9g_wifi/formal/scaling_20points_verified.csv) · [publication manifest with original per-file SHA256](docs/figures/e9g_wifi/formal/publication_manifest.json). The **original 8,000-row raw CSV and 80-row summary remain in the user-supplied archive and are NOT falsely described as committed GitHub files**. Original SHA256: raw `ba79fd138d84d6d3bb7f04430a36a8c3e973d7ca0978834d4ad3a3b1d3f85be6`; summary `bdc2b784297d1465800e094fe2dd611c79578c20a7ec2efb04216faecd77a590`; exponent `5a36eab796192de8c95d18c06ee31ac573c9aae697e9648c71ebd3312866d62f`. The six linked source charts were derived from independently checked 20-point means, rounded to 0.001 unit for visualization; original precise statistics remain in the uploaded source.
+
+### 3.8 E9H — Numeric adaptive vote deadline and received plurality (**runnable study; no formal 100-seed result yet**)
+
+**Hypothesis:** the E9G-2 609.113 ms fixed per-task vote wait dominates 100R/100T simulated completion time. E9H tests whether a **bounded n-dependent time deadline** plus choosing the highest **actually received** vote count (rather than requiring >25% of the active electorate before a candidate may announce) reduces time **without unacceptable assignment quality, quorum safety, or radio load trade-offs**. This is a new *opt-in* experimental protocol; earlier formal E9E/E9F/E9G code/results remain unchanged. No 100-seed E9H numerical outcome is claimed before the actual Mac run.
+
+#### Deadline formula: not a tuned constant
+
+For current number of eligible robots \`n\`, original number of tasks \`T\`, frozen hypothesized design PHY rate \`R\` (Mbps), and predeclared margin factor \`k\`:
+
+$
+D_p(n,R,k)=\mu_{\mathrm{Rady}}+
+k\max(0,P95_{\mathrm{Rady}}-\mu_{\mathrm{Rady}})
++2n\left[
+\frac{T_{\mathrm{preamble}}+\mathrm{AIFS}+\frac{CW_{\min}}{2}T_{\mathrm{slot}}+T_{\mathrm{ACK}}}{1000}
++\frac{8(B_p+H)}{1000R}
+\right]\quad\mathrm{ms}
+$
+
+Here \`B_cost=16+8T\` Bytes for the initial one-time all-robot Cost broadcast, \`B_vote=32\` Bytes for each subsequent per-task Vote; \`H=64\` modeled radio header Bytes per hop; \`T_preamble=120 μs, AIFS=34 μs, CWmin=15, T_slot=9 μs, ACK=45 μs\` are the **E9G simplifying assumptions, not industrial measurements**. The \`2n\` term is a bounded worst-burst proxy for n application SENDs over modeled STA→AP→peer infrastructure hops, **not** a calibrated 802.11ax MAC/PHY contention distribution. The primary \`k=1\` uses the pinned 121-sample **Rady [2024](https://doi.org/10.1016/j.adhoc.2024.103418)** mean ~33.594ms and P95 ~64.150ms; secondary \`k=0,2\` sensitivity is predeclared. The design rate **144 Mbps** is held identical for Rady-only and modeled sensitivity 144/600/1200 Mbps; it is a **hypothetical design constant** not Rady-measured throughput. The source sizes/Bytes were independently verified from the user's prior 8,000-case E9G ZIP (raw SHA256 \`ba79fd138d84d6d3bb7f04430a36a8c3e973d7ca0978834d4ad3a3b1d3f85be6\`, source SHA \`910c5eac738367738907b18fce86e56adf86697d\`), but **the previous aggregate run does not identify real per-packet queue or collision timing**.
+
+Nominal analytical deadlines at \`k=1\`, reference 144 Mbps (not yet independently calibrated in a field deployment):
+
+| Active robots \`n\` | 32-Byte Vote \`D_vote(n)\` | Initial full Cost \`D_cost(n)\` (for T=n) | Original fixed wait |
+|---:|---:|---:|---:|
+| 5 | ~66.8 ms | ~66.9 ms | 609.1 ms |
+| 20 | ~74.9 ms | ~75.3 ms | 609.1 ms |
+| 50 | ~91.2 ms | ~93.5 ms | 609.1 ms |
+| 100 | ~117.9 ms | ~127.2 ms | 609.1 ms |
+
+The deadline **shortens again as robots retire**; the first Cost phase uses the longer \`D_cost(N)\`. There is no post-hoc increasing of \`k\` to improve 100-seed evaluation scores. All cases share the same fixed original Cost and Vote send payload and the same Rady source, with the network model and loss explicitly recorded.
+
+#### Clarification: received plurality versus absolute majority
+
+A candidate broadcasts their final score **only if at least one unique, eligible, on-time vote was physically received and counted**. After a common deadline \`t_vote_start+D_vote(n)\`, every active robot compares the identical reliable Score announcements, chooses \`argmax_c received_votes(c)\`, and breaks any ties using **the smallest original candidate ID**. If no candidate received a valid ballot, **there is no Commit** and the original bounded retry/retirement owner handles the pending task. This is **relative plurality**, *not* \`>50%\` strict absolute-majority quorum. Only packets received by the deadline can vote; late packets are still physically charged, never silently erased. A candidate winning with 1/100 ballots is possible; **winner support, assignment cost vs full-information Hungarian observer, mismatch vs matched long-timeout reference, candidate ties and safety** must be reported.
+
+#### Paired factorial experiment — isolate each causal choice
+
+| Experiment arm | Per-phase deadline | Candidate Score entry requirement | Physical receipt cutoff |
+|---|---|---|---|
+| \`fixed_quarter\` | historical 609.113 ms | strictly >25% active electorate | enforced for controlled study |
+| \`fixed_received\` | historical 609.113 ms | at least 1 counted vote | enforced |
+| \`adaptive_k1_quarter\` | \`D_cost(N)\`, then \`D_vote(n)\` | strictly >25% active electorate | enforced |
+| \`adaptive_k1_received\` | same adaptive deadline | at least 1 counted vote | enforced |
+
+A full comparison runs original **Voting only** at N=5,10,...,100 with R=T=N, **100 independent paired seeds**, independent Cost/Vote packet loss probabilities **0 and 0.30**, and Rady-only + 144/600/1200 Mbps hypothetical network timing models. Primary default **64,000 original-protocol runs** \`20 N ×100 seeds ×2 loss ×4 network models ×4 arms\`, NOT 64,000 real Wi-Fi tests. A separately named margin experiment may use \`--margin-factors 0,1,2\`, adding 2 adaptive arms per new margin, predeclared before testing. Output: \`per_seed_e9h.csv\`, \`summary_e9h.csv\`, \`empirical_exponents_e9h.csv\`, \`deadline_curve_e9h.csv\`, SHA256 manifest, and censored failure statistics. Partial/failed allocations are never reported as successful completion time; the observer's globally optimal Hungarian cost **is never sent to a voter**.
+
+**Literature-to-component attribution:** [Rady et al. (2024)](https://doi.org/10.1016/j.adhoc.2024.103418) = empirical ROS delay statistics only; [Bianchi (2000)](https://doi.org/10.1109/49.840210) = motivation for collision/backoff (not a full Bianchi or ns-3 implementation); [Montgomery & Candell (2024), NIST IR 8506](https://doi.org/10.6028/NIST.IR.8506) = warning that uplink OFDMA depends on equipment/load (no OFDMA implemented); [Liu & Choi (2023)](https://doi.org/10.1145/3579451) = external Wi-Fi 6 multi-device measurements to validate in a future stage (**not fitted**); [Riley & Henderson (2010)](https://doi.org/10.1007/978-3-642-12331-3_2) and [ns-3 Wi-Fi official design](https://www.nsnam.org/docs/models/html/wifi-design.html) = future detailed network backend (**not run**); [Choi, Brunet & How (2009)](https://doi.org/10.1109/TRO.2009.2022423) = decentralized auctions contextual reference, **not** evidence of this deadline equation. Full BibTeX: [docs/references/e9g_wifi_timing.bib](docs/references/e9g_wifi_timing.bib).
+
+**Status:** E9H's new protocol decision, immutable deadline formula and opt-in experiment runner are implemented as a separate bounded concern on \`main\`; the E9H user formal result has not yet been produced, independently verified or published. Next: actual Mac pilot/100-seed run, independently verify manifest/CSV before adding result graphs and conclusions.
+
 
 ## 4. Synthesis and conclusions
 

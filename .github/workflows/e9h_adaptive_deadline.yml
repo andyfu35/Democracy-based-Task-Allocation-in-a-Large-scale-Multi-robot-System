@@ -1,0 +1,52 @@
+name: E9H Adaptive Voting Deadline and Received Plurality
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - democracy_mrta/network.py
+      - democracy_mrta/protocol.py
+      - democracy_mrta/coordination.py
+      - experiments/run_e9h_adaptive_deadline.py
+      - tests/test_e9h_adaptive_deadline.py
+      - .github/workflows/e9h_adaptive_deadline.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  original-greedy-e9h:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+      - name: E9H strict protocol and deadline numerical tests
+        run: python -m unittest discover -s tests -p 'test_e9h_adaptive_deadline.py' -v
+      - name: Existing E9G backward compatibility tests
+        run: python -m unittest discover -s tests -p 'test_e9g_wifi_timing.py' -v
+      - name: Full repository regression
+        run: python -m unittest discover -s tests -v > /tmp/e9h_regression.log 2>&1 || { tail -n 220 /tmp/e9h_regression.log; exit 1; }
+      - name: Pinned-Rady original Voting pilot (not ns-3)
+        run: |
+          python -m experiments.run_e9h_adaptive_deadline \
+            --sizes 5,20,100 --seeds 1 --rates-mbps 144 \
+            --loss-probabilities 0,0.3 --margin-factors 1 \
+            --max-rounds 300 \
+            --output-root results/e9h_ci_original_voting
+          python -c "import csv,json,pathlib; root=pathlib.Path('results/e9h_ci_original_voting'); m=json.loads((root/'manifest.json').read_text()); r=list(csv.DictReader((root/'per_seed_e9h.csv').open())); assert len(r)==3*1*2*2*4 and len(m['sizes'])==3; print('E9H_SMOKE_ROWS',len(r))"
+      - name: Archive real primary pilot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e9h-original-voting-adaptive-1seed-smoke
+          path: results/e9h_ci_original_voting/
+          retention-days: 30
+          if-no-files-found: warn
