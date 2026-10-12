@@ -6,11 +6,13 @@ import hashlib
 import json
 from pathlib import Path
 import tempfile
+from dataclasses import replace
 import unittest
 from unittest.mock import patch
 
 from democracy_mrta.coordination import (
-    build_quarter_plurality_claims, validate_e9h_deadline_schedule,
+    build_quarter_plurality_claims, capture_retirement_cost_snapshot,
+    validate_e9h_deadline_schedule,
     simulate_democracy_hungarian_retirement,
     transmit_repeated_remote_vote,
 )
@@ -135,6 +137,39 @@ class E9HTrueOwnerContractTests(unittest.TestCase):
             initial_robots=5,initial_phase_timeout_ms=c5.deadline_ms,
             enforce_vote_deadline=True,
         )
+
+    def test_rady_only_cost_receipts_late_are_paid_but_ineligible(self):
+        matrix=((0.5,),(0.7,))
+        observed=capture_retirement_cost_snapshot(
+            cost_matrix=matrix,sampler=AlwaysLateSampler(),
+            loss_sampler=BernoulliLossSampler(seed=3),p_loss=0.0,
+            phase_timeout_ms=50.0,enforce_cost_deadline=True,
+        )
+        self.assertEqual(observed.visible_by_voter,
+                         (frozenset({0}),frozenset({1})))
+        self.assertEqual(len(observed.events),2)
+        self.assertTrue(all(o.delivered for o in observed.deliveries))
+        # Legacy old opt-out must still see both rows in Rady-only mode.
+        old=capture_retirement_cost_snapshot(
+            cost_matrix=matrix,sampler=AlwaysLateSampler(),
+            loss_sampler=BernoulliLossSampler(seed=3),p_loss=0.0,
+            phase_timeout_ms=50.0,
+        )
+        self.assertEqual(old.visible_by_voter,
+                         (frozenset({0,1}),frozenset({0,1})))
+
+    def test_rady_margin_grid_has_strictly_monotone_predetermined_time(self):
+        prof=replace(fake_profile(),samples_ms=tuple(float(i) for i in range(1,11)))
+        deadlines=[
+            estimate_e9h_adaptive_deadline(
+                profile=prof,active_robots=10,total_tasks=10,
+                reference_phy_mbps=144.0,margin_factor=k,phase="vote",
+            ) for k in (0,1,2)
+        ]
+        self.assertLess(deadlines[0].deadline_ms,deadlines[1].deadline_ms)
+        self.assertLess(deadlines[1].deadline_ms,deadlines[2].deadline_ms)
+        self.assertAlmostEqual(deadlines[1].deadline_ms-deadlines[0].deadline_ms,
+                               deadlines[1].rady_p95_ms-deadlines[1].rady_mean_ms)
 
     def test_malformed_deadlines_diagnostic(self):
         for schedule in ((10.0,5.0),(0.0,1.0),(1.0,float("nan"))):

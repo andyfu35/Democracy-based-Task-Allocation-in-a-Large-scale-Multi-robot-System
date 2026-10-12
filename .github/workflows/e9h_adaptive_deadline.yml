@@ -49,11 +49,12 @@ jobs:
           from pathlib import Path
           rows=list(csv.DictReader(Path('results/e9h_ci_original_voting/per_seed_e9h.csv').open()))
           for r in rows:
-              if r['robots']=='100' and r['loss_probability']=='0.0' and r['model']=='e9g_shared_medium_backoff_proxy':
-                  print('E9H_N100_RESULT arm=%s full=%s allocation_or_stop_s=%.3f score_sends=%s late_votes=%s support=%s'%(
-                      r['arm'],r['full_commit'],float(r['allocation_or_stop_ms'])/1000,
+              if r['robots']=='100' and r['model']=='e9g_shared_medium_backoff_proxy':
+                  print('E9H_N100_RESULT loss=%s arm=%s full=%s committed=%s stop_s=%.3f score_sends=%s late_votes=%s support=%s cost_gap=%s'%(
+                      r['loss_probability'],r['arm'],r['full_commit'],r['tasks_committed'],
+                      float(r['allocation_or_stop_ms'])/1000,
                       r['vote_score_send_count'],r['late_remote_vote_delivery_count'],
-                      r['mean_winner_support_share']))
+                      r['mean_winner_support_share'],r['total_cost_over_hungarian_ratio']))
           PY
       - name: Archive real primary pilot evidence
         if: always()
