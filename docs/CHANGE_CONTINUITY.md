@@ -2732,3 +2732,7 @@ Purpose execute original CBAA on same N/seed and E9G hypothetical radio as fixed
 
 ## 2026-10-12 — E9J-3 strict native CBAA + baseline owner contract tests
 One test concern only: added tests/test_e9j_cbaa_vs_e9i.py and recorded in canonical §44.5 and this continuity. Named tests verify exact original CBAA Bid/Winner vector sender Bytes and original broadcast per receiver opportunities, E9G WifiCausalTimingSampler modeled service, actual E9J original owner integration through small real Auction/MaxConsensus, deterministic external Voting source row pairing and that wrong/missing SHA-pinned archive never silently falls back to generated Voting outcomes. Source owner/diagnostics and all existing E9I records not changed; no new behavior or physical radio claim. Full CI pilot next; Git commit SHA identifiable from Git history.
+
+
+## 2026-10-12 — E9J-4 reproducible native-CBAA CI and full paper citation README
+Files README.md §3.10, .github/workflows/e9j_native_cbaa.yml, docs/EXPERIMENT_PROTOCOL.md §44.6 and docs/CHANGE_CONTINUITY.md. Documentation and test automation only; true CBAA local auction, max-consensus, full Bid/Winner packet, original Voting, network state and diagnostics unchanged. New CI runs original source tests plus one-seed N5/10/20 UNPAIRED only; prohibits fake formal CBAA claims. E9I source baseline SHA and each Rady/Bianchi/NIST/Liu/ns3/Choi DOI attribution and model limitations explicit. Next actual user paired 3seed and formal 100seed. Commit SHA recorded by Git history.

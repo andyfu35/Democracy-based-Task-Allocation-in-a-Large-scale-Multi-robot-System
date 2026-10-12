@@ -1600,3 +1600,7 @@ New experiment owner experiments.run_e9j_cbaa_vs_e9i consumes ONLY SHA256-pinned
 
 ### 44.5 E9J original source tests
 E9J verifies original CBAA packet vector 16+12*T, one SEND each active source per iteration, N*(N-1) receiver opportunities per iteration, causal modeled radio airtime, source input scene/seed consistency, unchanged CBAA natural local certification and implicit observer (not a paid Commit), read-only paired Voting baseline record, strict rejection of wrong original source ZIP, and SHA256 manifest. An unpaired smoke is constrained by E9J_BASELINE_REQUIRED_FOR_FORMAL_COMPARISON to <=3seeds <=20robots and cannot be misreported as a formal comparison.
+
+
+### 44.6 E9J runtime CI and paper-source contract
+README §3.10 links exact CBAA 2009 paper and fully scopes sampled Rady timing versus other reference-only papers; unmodified 100seed E9I ZIP is a SHA256-hard gate to formal comparison, not rerecorded Voting data. CI must run named E9J/CBAA/E9I tests then a 5/10/20 one-seed CBAA UNPAIRED smoke and never present its results as paired. Original Vote real Commit and CBAA optimistic local-certified observer outcomes remain distinct.

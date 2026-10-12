@@ -1,0 +1,55 @@
+name: E9J Native CBAA vs Frozen E9I
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - democracy_mrta/network.py
+      - experiments/run_e9j_cbaa_vs_e9i.py
+      - tests/test_e9j_cbaa_vs_e9i.py
+      - .github/workflows/e9j_native_cbaa.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  original-cbaa-packet-time:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+      - name: Source E9J tests
+        run: python -m unittest discover -s tests -p 'test_e9j_cbaa_vs_e9i.py' -v
+      - name: Original CBAA and E9I regression
+        run: |
+          python -m unittest discover -s tests -p 'test_cbaa.py' -v
+          python -m unittest discover -s tests -p 'test_cbaa_local_convergence.py' -v
+          python -m unittest discover -s tests -p 'test_e9i_cost30_scaling.py' -v
+      - name: Original CBAA source packet and radio smoke
+        run: |
+          python -m experiments.run_e9j_cbaa_vs_e9i --sizes 5,10,20 --seeds 1 --cbaa-safety-rounds 60 --allow-unpaired-smoke --output-root results/e9j_ci
+          python - <<'PY'
+          import csv,hashlib,json
+          from pathlib import Path
+          root=Path('results/e9j_ci')
+          m=json.loads((root/'manifest.json').read_text())
+          assert m['result_status']=='UNPAIRED_SMOKE_ONLY' and m['cbaa_original_cases']==3
+          r=list(csv.DictReader((root/'per_seed_original_cbaa.csv').open()))
+          assert [int(x['robots']) for x in r]==[5,10,20]
+          for f,h in m['sha256_source_files'].items():
+              assert hashlib.sha256((root/f).read_bytes()).hexdigest()==h
+          for x in r: print('E9J_REAL_CBAA',x['robots'],x['cbaa_stop_reason'],x['cbaa_iterations'],x['total_original_sender_bytes'],x['allocation_or_stop_ms'])
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e9j-original-cbaa-unpaired-3sizes-1seed
+          path: results/e9j_ci/
+          retention-days: 30
+          if-no-files-found: warn
