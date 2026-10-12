@@ -410,7 +410,7 @@ Avoid selecting a Deadline purely because it makes the simulator faster. Report 
 
 **Frozen scaling axes:** robots=tasks=N, N in 5..100 with step 5; one 144 Mbps *hypothetical* E9G shared-medium proxy, original Cost p=.30, Vote p=0/.30 and four arms. The first CI 10-seed, 20-size, 2-loss, 4-arm run is 1,600 actual original Voting simulations; a 100-seed formal run is 16,000 original simulations at the same modeled network. Optional Rady-only baseline doubles cases. Results will compare full Commit rate, application sender Bytes and SEND count, on-time Cost visibility, packet drops vs late packets, Vote Score announcements, mean/P95 successful allocation time and censored stop time, assignment-cost ratio to full-info Hungarian observer, and only where meaningful the finite-range empirical scaling slope. A run is not automatically a successful assignment just because a safety guard stopped it.
 
-**Evidence status:** the code and CI invocation are part of E9I; actual charts and conclusions must come from independently hash-checked real source CSVs, and a 10-seed pilot must be marked PILOT rather than represented as formal 100-seed evidence. Real 100-station 802.11ax PHY/OFDMA and correlated RF loss are NOT claimed.
+**Evidence status:** the user-run 100-seed E9I source has now been SHA256 checked, independently recalculated, and published in the formal subsection below. The old 10-seed pilot stays labeled PILOT, not a separate formally replicated result. Real 100-station 802.11ax PHY/OFDMA and correlated RF loss remain unverified.
 
 
 #### E9I independently audited 10-seed pilot (20 sizes, 1,600 original Voting simulations; NOT formal 100-seed results)
@@ -435,7 +435,51 @@ The guarded-Cost short-Vote model is **72.04% faster at N=100 / Vote loss 0%** r
 
 ![E9I source-backed Cost/Hungarian ratio for original Greedy](docs/figures/e9i_cost30/pilot/fig04_assignment_quality.svg)
 
-Evidence: [rounded plot-driving 20-point data](docs/figures/e9i_cost30/pilot/derived_20point_plot_data.csv) · [source manifest and original CSV SHA256](docs/figures/e9i_cost30/pilot/pilot_source_manifest.json). **Original full 1,600-row source CSV is only in the Actions artifact**, not falsely represented as a Git-committed file. Rady/Bianchi/NIST/Liu/ns-3 sources and *unimplemented network features* are separately cited and scoped above in §3.9. **Formal 100-seed local runs remain to be executed**; do not generalize 10/10 successes to an RF deployment.
+Evidence: [rounded plot-driving 20-point data](docs/figures/e9i_cost30/pilot/derived_20point_plot_data.csv) · [source manifest and original CSV SHA256](docs/figures/e9i_cost30/pilot/pilot_source_manifest.json). **Original full 1,600-row source CSV is only in the Actions artifact**, not falsely represented as a Git-committed file. Rady/Bianchi/NIST/Liu/ns-3 sources and *unimplemented network features* are separately cited and scoped above in §3.9. **The subsequent 100-seed formal E9I experiment has now been received and independently verified below.** This earlier 10-seed pilot is retained to document the experimental development timeline and cannot establish deployment reliability.
+
+
+#### E9I formal 100-seed original Voting results — independently verified
+
+**Original executed source**: user-provided e9i_cost30_formal_100seed.zip SHA256 **5d275bebd8d6f985e8eef1bbba9a0947991cd71660c1cc49817619e6bc276ee5**, executable Git commit **408ff70a31e8c2957602cae3f09ad8f239cd3224**. Original per-seed 16,000-row source CSV SHA256 **1249661d6efeee70c377e76b04176f0923a8051fd983e4aeef3571918041d3f7**, 160-row grouped summary SHA256 **caae0ee64f8ccdd4febbbebb63240fa2e66502c8c99b20ff95383a653c3fafb3**, and 8-row finite exponent CSV SHA256 **3c524a07610cdeeb0859c2301715cd9a419eca51e82278728cc33051809b9feb**. All matched the input manifest. We independently rechecked the unique 20 N sizes ×100 matched seeds ×2 Vote drop levels ×4 named Voting arms, independently recalculated all **160 summary groups**, and reproduced all **8 exponent fits**. No original simulation was re-run or altered to improve an outcome.
+
+**Overall reliability**: **15,998 / 16,000** original simulated allocations fully committed tasks (**99.9875%**), with two real guard-censored failures, both in the historical >25% qualified Score control, not in received plurality. At 25R/25T, seed99, Vote loss0, this control stopped after 300 rounds having completed 21/25 tasks. At 70R/70T, seed67, Vote loss30%, it stopped after 300 rounds having completed 66/70. These incomplete runs are retained in **the denominator of all success statistics and all-seed stopping-time charts** but must not appear as completed allocation times. All three received-plurality arms successfully completed every tested task in all their 100-seed cells **under these precise simulation conditions**, not under arbitrary real RF loss.
+
+| N=100 original Voting configuration | Vote loss | Full seeds | Mean completed assignment | Sender application Bytes | Mean remote Cost view | Mean Cost / external Hungarian |
+|---|---:|---:|---:|---:|---:|---:|
+| Fixed 609 ms, received plurality | 0% | 100/100 | **72.262 s** | 256.430 kB | 69.985% | **1.3594** |
+| Cost guarded only once, short Vote | 0% | 100/100 | **20.450 s** | 256.342 kB | 69.985% | **1.3604** |
+| Short Cost and short Vote | 0% | 100/100 | 20.225 s | 256.206 kB | 67.857% | **1.4737** |
+| Fixed 609 ms, received plurality | 30% | 100/100 | **71.918 s** | 255.588 kB | 69.985% | **1.3593** |
+| Cost guarded only once, short Vote | 30% | 100/100 | **20.132 s** | 255.498 kB | 69.985% | **1.3621** |
+| Short Cost and short Vote | 30% | 100/100 | 19.932 s | 255.391 kB | 67.857% | 1.4692 |
+
+**Paired uncertainty and decision fidelity**: At N100, Cost receiver loss fixed at 30%, the once-guarded Cost and adaptive short-Vote policy decreases the mean completed task-allocation time by **71.70%** against fixed received plurality (Vote loss0, **95% paired-seed bootstrap CI 71.42%–71.98%**, 6,000 resamples, fixed seed 20261012). At Vote loss30%, the matched improvement is **72.01%** (95% CI **71.72%–72.29%**). For Vote loss0, the mean Cost/Hungarian ratio increased slightly by **+0.00099** (95% bootstrap interval **+0.00010 to +0.00227**), so identical average Cost is NOT claimed. The exact robot/task assignment was identical to the long-timeout relative-plurality reference in **88 of 100 seeds**, not all 100. At Vote loss30%, exact identity was **82 of 100**, cost-ratio difference **+0.00286** (95% interval −0.00065 to +0.00760). In contrast, the short Cost source deadline worsened the N100 Vote-loss0 relative cost ratio by **+0.11422** (95% interval +0.09557 to +0.13499), even though it only saved ~0.225 additional seconds. This supports one-time Cost source protection as an **information-quality versus allocation-time** design choice for this modeled setting.
+
+![E9I formal robot-count allocation time, Vote loss 0](docs/figures/e9i_cost30/formal/fig01_time_vote0.svg)
+
+![E9I formal robot-count allocation time, Vote loss 30](docs/figures/e9i_cost30/formal/fig02_time_vote30.svg)
+
+**Communication growth does not disappear**: At 100R, fixed received plurality sent an average **256,430 original application Bytes and 5,477.44 original SEND operations**, versus **256,342 Bytes and 5,474.68 SENDs** with the guarded adaptive policy, Vote loss0. The ~72% allocation-time reduction is **primarily a reduced protocol waiting deadline**, not a ~72% reduction in physical traffic. With 100R, the effective on-time Cost peer reception was **69.985%** under both fixed and once-guarded Cost; using a short Cost deadline needlessly reduced this to **67.857%** and added **210.73 late-but-delivered Cost receiver observations per run on average**. Receiver drops and late arrivals are counted separately; each physical Cost broadcast still counts as only one sender SEND even when many receivers fail. At N=100 the historical 25% Score-entry requirement averaged **122.62 candidate Score SENDs** at Vote loss0, whereas fixed received plurality averaged **367.42** and guarded adaptive received plurality **364.77**. Eliminating the threshold improves liveness in these cases but **increases Score traffic**.
+
+![E9I formal original sender payload growth](docs/figures/e9i_cost30/formal/fig03_sender_bytes.svg)
+
+![E9I formal original SEND count growth](docs/figures/e9i_cost30/formal/fig04_sender_send_count.svg)
+
+![E9I formal Cost peer reception scaling](docs/figures/e9i_cost30/formal/fig05_cost_visibility.svg)
+
+![E9I formal Cost quality vs external Hungarian](docs/figures/e9i_cost30/formal/fig06_assignment_cost.svg)
+
+![E9I formal full Commit success rates](docs/figures/e9i_cost30/formal/fig08_full_commit_success.svg)
+
+![E9I formal candidate Score traffic](docs/figures/e9i_cost30/formal/fig07_candidate_score_count.svg)
+
+![E9I formal relative time saving](docs/figures/e9i_cost30/formal/fig09_time_saving_pct.svg)
+
+**Empirical scaling rather than formal Big-O**: The observed N5..100 log-log slopes for Vote-loss0 **successfully completed** allocation time were **0.9698** (fixed received) and **0.9569** (guarded adaptive). Original sender Bytes had an empirical exponent of approximately **1.843**, and SEND count **1.804**. These are finite-range fit exponents of the current original Voting simulation, not mathematical proof of physical 802.11ax timing complexity. The historical quarter-qualified arm has 2 guard-censored cases: its source-fitting method therefore uses **all-seed stop time**, not successful allocation time. In all four paired arms, original Cost Bernoulli probability is **0.30 per remote receiver**; physical sender erasures are NOT guaranteed to be exactly 30% or spatially correlated.
+
+**Publication provenance:** [Rounded original 20-point plot-driving table](docs/figures/e9i_cost30/formal/formal_20point_plot_data.csv) · [Manifest with original full CSV SHA256 and exact failed-seed records](docs/figures/e9i_cost30/formal/formal_publication_manifest.json). The original 16,000-row source CSV and full-precision 160-group table are retained in the user-uploaded ZIP and downloadable analysis bundle; **they are not falsely represented as Git-committed source data**. The bootstrap CI describes variation among these **100 generated matched scenario seeds**, not the real-world uncertainty of Wi-Fi devices.
+
+**Paper-by-paper method citation:** [Rady et al. (2024)](https://doi.org/10.1016/j.adhoc.2024.103418) provided the measured 121 ROS application-delay source; the 144 Mbps design rate is a **modeling hypothesis, not measured 100-client throughput**. [Bianchi (2000)](https://doi.org/10.1109/49.840210) motivates Wi-Fi contention/backoff, but no full Bianchi DCF implementation was run. [NIST IR 8506, Montgomery & Candell (2024)](https://doi.org/10.6028/NIST.IR.8506) constrains OFDMA applicability but no OFDMA scheduler was implemented. [Liu & Choi (2023)](https://doi.org/10.1145/3579451) offers a prospective smaller-station measurement reference, **not numerically fitted** here. [Riley & Henderson (2010)](https://doi.org/10.1007/978-3-642-12331-3_2) and the [official ns-3 Wi-Fi design](https://www.nsnam.org/docs/models/html/wifi-design.html) describe a **future** detailed PHY/MAC backend, not the current E9I model. [Choi, Brunet & How (2009)](https://doi.org/10.1109/TRO.2009.2022423) is task-allocation comparison background, not evidence for the 30% Cost receiver-loss constant. The experiment assumes reliable TASK/Score/Commit, independent per-recipient Cost loss, and simplified Wi-Fi queue service. It **does not demonstrate physical 100-station radio scalability** or consensus against malicious or delayed Score/Commit.
 
 
 ## 4. Synthesis and conclusions
