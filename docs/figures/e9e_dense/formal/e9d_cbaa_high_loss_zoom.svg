@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="710" viewBox="0 0 1200 710" role="img">
+<title>CBAA stopping evidence: 85-99% packet loss</title>
+<desc>Separates full observer agreement from local readiness. Guard-limited cases are censored; failure to certify != task disagreement</desc>
+<rect x="0" y="0" width="1200" height="710" fill="#ffffff"/>
+<text x="80" y="52" font-family="Arial,sans-serif" font-size="27" font-weight="700" fill="#1b2838">CBAA stopping evidence: 85-99% packet loss</text>
+<text x="80" y="81" font-family="Arial,sans-serif" font-size="15" fill="#4e5d6d">Separates full observer agreement from local readiness</text>
+<line x1="85" y1="118" x2="114" y2="118" stroke="#19806B" stroke-width="4"/>
+<circle cx="99" cy="118" r="4" fill="#19806B"/>
+<text x="123" y="123" font-family="Arial,sans-serif" font-size="15" fill="#253548">CBAA: observer agreement</text>
+<line x1="445" y1="118" x2="474" y2="118" stroke="#D07B21" stroke-width="4"/>
+<circle cx="459" cy="118" r="4" fill="#D07B21"/>
+<text x="483" y="123" font-family="Arial,sans-serif" font-size="15" fill="#253548">CBAA: local certificate</text>
+<line x1="110" y1="590.00" x2="1140" y2="590.00" stroke="#e3e8ef" stroke-width="1"/>
+<text x="98" y="595.00" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">0</text>
+<line x1="110" y1="485.75" x2="1140" y2="485.75" stroke="#e3e8ef" stroke-width="1"/>
+<text x="98" y="490.75" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">25</text>
+<line x1="110" y1="381.50" x2="1140" y2="381.50" stroke="#e3e8ef" stroke-width="1"/>
+<text x="98" y="386.50" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">50</text>
+<line x1="110" y1="277.25" x2="1140" y2="277.25" stroke="#e3e8ef" stroke-width="1"/>
+<text x="98" y="282.25" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">75</text>
+<line x1="110" y1="173.00" x2="1140" y2="173.00" stroke="#e3e8ef" stroke-width="1"/>
+<text x="98" y="178.00" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">100</text>
+<line x1="110.00" y1="173" x2="110.00" y2="590" stroke="#f0f3f6" stroke-width="1"/>
+<text x="110.00" y="617" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">85%</text>
+<line x1="477.86" y1="173" x2="477.86" y2="590" stroke="#f0f3f6" stroke-width="1"/>
+<text x="477.86" y="617" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">90%</text>
+<line x1="845.71" y1="173" x2="845.71" y2="590" stroke="#f0f3f6" stroke-width="1"/>
+<text x="845.71" y="617" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#5f6c7b">95%</text>
+<line x1="110" y1="590" x2="1140" y2="590" stroke="#9ca9b8" stroke-width="1.5"/>
+<line x1="110" y1="173" x2="110" y2="590" stroke="#9ca9b8" stroke-width="1.5"/>
+<text x="80" y="151" font-family="Arial,sans-serif" font-size="14" font-weight="600" fill="#415467">Fraction of seeds (%)</text>
+<text x="625" y="651" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" fill="#344558">Packet loss probability</text>
+<polyline points="110.00,173.00 183.57,173.00 257.14,173.00 330.71,173.00 404.29,173.00 477.86,173.00 551.43,173.00 625.00,173.00 698.57,173.00 772.14,173.00 845.71,173.00 919.29,173.00 992.86,173.00 1066.43,173.00 1140.00,173.00" fill="none" stroke="#19806B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="110.00" cy="173.00" r="3.2" fill="#19806B" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="183.57" cy="173.00" r="3.2" fill="#19806B" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="257.14" cy="173.00" r="3.2" fill="#19806B" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="330.71" cy="173.00" r="3.2" fill="#19806B" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="404.29" cy="173.00" r="3.2" fill="#19806B" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="477.86" cy="173.00" r="3.2" fill="#19806B" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="551.43" cy="173.00" r="3.2" fill="#19806B" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="625.00" cy="173.00" r="3.2" fill="#19806B" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="698.57" cy="173.00" r="3.2" fill="#19806B" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="772.14" cy="173.00" r="3.2" fill="#19806B" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="845.71" cy="173.00" r="3.2" fill="#19806B" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="919.29" cy="173.00" r="3.2" fill="#19806B" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="992.86" cy="173.00" r="3.2" fill="#19806B" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="1066.43" cy="173.00" r="3.2" fill="#19806B" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="1140.00" cy="173.00" r="3.2" fill="#19806B" stroke="#ffffff" stroke-width=".8"/>
+<polyline points="110.00,173.00 183.57,173.00 257.14,173.00 330.71,173.00 404.29,173.00 477.86,173.00 551.43,173.00 625.00,185.51 698.57,227.21 772.14,389.84 845.71,581.66 919.29,590.00 992.86,590.00 1066.43,590.00 1140.00,590.00" fill="none" stroke="#D07B21" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="110.00" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="183.57" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="257.14" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="330.71" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="404.29" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="477.86" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="551.43" cy="173.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="625.00" cy="185.51" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="698.57" cy="227.21" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="772.14" cy="389.84" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="845.71" cy="581.66" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="919.29" cy="590.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="992.86" cy="590.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="1066.43" cy="590.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<circle cx="1140.00" cy="590.00" r="3.2" fill="#D07B21" stroke="#ffffff" stroke-width=".8"/>
+<text x="80" y="683" font-family="Arial,sans-serif" font-size="13" fill="#68778a">Guard-limited cases are censored; failure to certify != task disagreement</text>
+</svg>

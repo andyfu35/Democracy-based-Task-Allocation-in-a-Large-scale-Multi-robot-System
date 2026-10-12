@@ -1,1028 +1,295 @@
 # Democracy-based Task Allocation in a Large-scale Multi-robot System
 
-This repository contains the reproducible benchmark and experimental record for a **leaderless, fully decentralized, quorum-based multi-robot task-allocation protocol** designed to remain useful under packet loss.
+**Research topic:** fully decentralized multi-robot task allocation under unreliable communication.  
+**Target publication:** IEEE Robotics and Automation Letters (RA-L).
 
-Target venue: **IEEE Robotics and Automation Letters (RA-L)**.
+This repository investigates whether a leaderless, voting-based assignment protocol can achieve correct task decisions with low communication overhead despite wireless packet loss. The contribution under study is **distributed communication and agreement**, not a new global optimization algorithm.
 
-> Claim boundary: the paper contribution is the **communication / agreement protocol**, not a new optimization algorithm.
+The README presents the motivation, experimental assumptions, measured results, and evidence for each completed study. Detailed protocol definitions and implementation history are preserved in the [Canonical Experiment Protocol](docs/EXPERIMENT_PROTOCOL.md) and [Change Continuity Record](docs/CHANGE_CONTINUITY.md).
 
----
+## 1. Research motivation and objectives
 
-# 1. Canonical paper architecture
+Multi-robot task allocation requires robots to agree on who should execute each task. Centralized coordination can concentrate decision-making and communication at a leader; decentralized coordination avoids a permanent decision center but introduces two costs: **reaching agreement** and **remaining operational when messages are lost**.
 
-The system is intentionally separated into two layers.
+Our evaluation addresses three questions:
 
-## 1.1 Fixed optimization layer
+1. **Correctness:** with identical complete information, does decentralized voting reproduce the reference assignment without conflicting or duplicate commits?
+2. **Communication cost:** how much simulated decision time and sender payload does distributed coordination require relative to centralized or consensus-based alternatives?
+3. **Robustness:** how do actual task completion, local convergence knowledge, message volume, and safety-guard censoring change as independent packet loss increases?
 
-Every evaluated coordination method uses the **same deterministic Hungarian optimizer**.
+We deliberately separate **fixed-optimizer Hungarian studies** from **Greedy Democracy vs. CBAA studies**. They use different decision mechanisms and must not be presented as if they shared an optimizer.
 
-For one static allocation epoch with robot set $R$, task set $T$, and fixed cost matrix $C=[c_{ij}]$:
+## 2. Protocols, benchmark settings, and evaluation metrics
 
-$$
-X^*=\arg\min_X\sum_i\sum_j c_{ij}x_{ij}
-$$
+### 2.1 Algorithms and experimental families
 
-subject to the one-to-one assignment constraints
+| Family | Methods | Local decision process | What the comparison isolates |
+|---|---|---|---|
+| **A. Fixed-optimizer coordination (E0–E2)** | Ideal full information, Leader–Hungarian, Full-view Hungarian, Democracy–Hungarian | The same deterministic Hungarian solver | Correctness, quorum overhead, and communication effects when the optimizer is controlled |
+| **B. Decentralized communication (E9C–E9E)** | Greedy Democracy (ours) and original CBAA-family single-assignment auction/consensus | Greedy sequential assignment vs. CBAA local bids | Actual emitted payload, iterative information propagation, and packet-loss robustness; **not** optimizer-controlled assignment quality |
 
-$$
-\sum_j x_{ij}\le1,\qquad
-\sum_i x_{ij}=1.
-$$
+**Hungarian-based Democracy (Family A):** a task set is announced; each robot computes and broadcasts its local cost row, forms the visible cost matrix, computes a Hungarian proposal, and sends votes to candidate executors. The canonical fixed-optimizer study uses **strict-majority quorum** and a reliable commit announcement.
 
-The Hungarian algorithm is used because it returns a global optimum for this linear assignment problem.
+For clarity, each robot's locally reconstructed matrix is denoted $C_{i,\mathrm{local}}$, distinct from its own cost row; this preserves the readable mainline notation without changing the canonical mathematical meaning.
 
-The optimizer is **not** the contribution being compared.
+**Greedy Democracy (Family B):** each robot receives the same task set, computes and broadcasts its own cost row **once**, then votes directly for the lowest-cost eligible executor of the current task. A candidate must receive **more than 25% of all active voters' ballots** to make a qualified score announcement; among qualified candidates, the highest tally wins and a reliable commit retires that executor. **No fallback or forced assignment is permitted.** Uncommitted tasks can be retried within an explicit round limit.
 
-## 1.2 Communication / agreement layer
+**CBAA (Family B):** every robot bids for at most one task using its **own** local cost information, exchanges its current bid/winning-origin vector, updates maximum consensus and releases/rebids when outbid. **No unnecessary broadcast of every other robot's original position or state is included.** The tested synchronous complete-network reference is based on [Choi, Brunet & How (2009)](https://doi.org/10.1109/TRO.2009.2022423), with disclosed winner-origin metadata and an experimental local-receipt convergence certificate; this is not a complete implementation of distributed termination and final commit.
 
-Each robot computes its own cost row and communicates cost information according to the evaluated coordination protocol.
+### 2.2 Common scenarios and controlled assumptions
 
-For Democracy-based allocation:
+| Parameter | Configuration and scope |
+|---|---|
+| Robot/task model | Static 2D positions, Euclidean cost; one robot can take at most one task |
+| Formal repetitions | **100 paired seeds** per evaluated condition, unless specifically labelled exploratory |
+| Main Greedy–CBAA scenario | **100 robots, 50 tasks**, 100 matched seeds |
+| Packet loss | Independent Bernoulli delivery per receiver for original Cost/Vote or Bid/Winner messages |
+| Shared task announcement | Guaranteed delivery in the E9C/E9E study, but **its sender payload is counted** |
+| Reliable control messages | Democracy qualified Score and final Commit remain modelled reliable |
+| E9E timing | Deterministic **1 ms synthetic message latency** with **10 ms** receive deadline; not measured radio delay |
+| E9E stopping guards | Greedy Democracy: **300 task-vote attempts**; CBAA: **160 consensus iterations** |
+| Sender payload | Counts **one transmitted payload per broadcast**, not one copy for each receiving robot |
+| What is not simulated | 802.11 MAC/PHY contention, real airtime, retransmission ACK overhead, task travel/execution, and multi-task re-entry |
 
-1. a task set / allocation epoch is reliably announced;
-2. robot $i$ computes its own cost row;
-3. each robot broadcasts its cost row once to peers;
-4. every robot builds its local cost matrix $C_{i,\mathrm{local}}$;
-5. every robot runs the same deterministic Hungarian implementation on $C_{i,\mathrm{local}}$;
-6. its local assignment proposal is converted into one vote per task;
-7. each vote is sent directly as a unicast to the robot proposed for that task;
-8. a robot commits a task only after a strict-majority quorum;
-9. the winner broadcasts one commit announcement for that task;
-10. if quorum is not reached before timeout, the allocation round fails and is retried.
+**Important distinction:** the trace-driven latency study **E1** uses measured Wi-Fi application-delay samples. The later **E9E** dense packet-loss study instead uses fixed synthetic latency. Their reported milliseconds must not be treated as the same measured channel.
 
-Here, $C_{i,\mathrm{local}}$ denotes the cost matrix reconstructed locally by robot $i$, not merely the robot's own cost row.
+### 2.3 Success and communication metrics
 
-Strict-majority quorum for an eligible voter set of size $N$:
+- **Actual full Commit (Democracy):** all requested tasks receive valid reliable assignment commits.
+- **Local convergence certificate (CBAA):** all robots individually have sufficient **physically received peer evidence** to certify their locally matching winner vectors. The simulation ends when an optimistic shared scheduler observes all such flags; no real distributed stop-ACK traffic is paid.
+- **External observer agreement (CBAA):** an auditor checks assignment agreement **after** a run. This is neither a local stopping certificate nor an actual distributed final Commit.
+- **Sent payload:** all attempted application-layer sender Bytes, including dropped and unfinished transmissions; a dropped packet is still charged at its transmitter.
+- **Guard-hit rate:** fraction of runs stopped by a finite simulation bound, not proof of a theoretical loss limit.
+- **Hungarian accuracy (Family A):** optimality gap, oracle mismatch, full assignment success, and vote/commit safety errors.
 
-$$
-Q=\left\lfloor\frac{N}{2}\right\rfloor+1.
-$$
+The three end states—**Democracy Commit**, **CBAA local knowledge**, and **CBAA external agreement**—are reported separately throughout this report.
 
-### Required invariants
+## 3. Completed experiments and results
 
-- one voter casts at most one vote per task per round;
-- duplicate/retransmitted votes count once;
-- stale-round votes are rejected;
-- every robot uses the same voter set and quorum denominator;
-- deterministic matrix ordering and tie handling are identical on every robot;
-- with complete identical information, every robot must produce the same Hungarian optimum;
-- strict majority prevents two different robots from both obtaining a valid majority for the same task/round.
+### 3.1 E0 — Perfect-information correctness
 
----
+**Why:** prove that communication and voting do not break an otherwise deterministic, globally optimal assignment when everyone sees the same complete cost matrix.
 
-# 2. Controlled coordination baselines
+**Design:** zero packet loss and complete information, five robot/task scales, 100 seeds each; identical Hungarian proposal and strict-majority commit logic. The reference is the full-information Hungarian optimum.
 
-The main paper experiments hold the Hungarian optimizer fixed. They compare **coordination architectures**, not optimization algorithms.
+| Robots | Tasks | Seeds | Mean optimality gap | Full assignment success | Oracle mismatches | Non-unanimous tasks | Safety failures |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 10 | 5 | 100 | 0.00% | 100% | 0 | 0 | 0 |
+| 25 | 10 | 100 | 0.00% | 100% | 0 | 0 | 0 |
+| 50 | 30 | 100 | 0.00% | 100% | 0 | 0 | 0 |
+| 100 | 50 | 100 | 0.00% | 100% | 0 | 0 | 0 |
+| 100 | 100 | 100 | 0.00% | 100% | 0 | 0 | 0 |
 
-| Method | Optimizer | Decision owner | Information strategy | Leaderless |
-|---|---|---|---|---:|
-| **Ideal Full Information** | Hungarian | reference only | complete matrix, no network impairment | n/a |
-| **Leader-Hungarian** | Hungarian | one coordinator | robots unicast costs to leader; leader emits one assignment broadcast | No |
-| **Flooding/Full-View Hungarian** | Hungarian | every robot | one cost-row broadcast per robot until full view or timeout | Yes |
-| **Democracy-Hungarian (Ours)** | Hungarian | majority quorum | cost-row broadcasts -> local Hungarian proposals -> direct votes -> commit broadcast | **Yes** |
+**Finding:** all **500 tested scenarios** achieved zero optimality gap, complete assignment, unanimous agreement, and no recorded voting/assignment safety failures. This verifies the Hungarian-based **Family A** correctness contract; it does **not** imply that later Greedy assignments globally minimize Hungarian cost.
 
-CBAA / ACBBA / DHBA remain important **Related Work** and may be reproduced later as a separate cross-method reference. They are not the primary controlled comparison because their allocation mechanism is coupled to their coordination protocol and therefore does not hold the optimizer fixed.
+Evidence: [E0 original summary](results/e0_protocol_correctness/summary.csv) · [E0 raw scenarios](results/e0_protocol_correctness/raw/e0_corrected_20261009T141508Z.csv).
 
----
+### 3.2 E1 — Communication latency and overhead with measured Wi-Fi delays
 
-# 3. Realistic communication-time model
+**Why:** determine whether removing a leader changes actionable decision time, global agreement time, and communication volume even when packet delivery is loss-free.
 
-## 3.1 Primary empirical source
+**Design:** 100 paired seeds per scale, the same Hungarian optimizer and discrete-event network model for Leader–Hungarian, Full-view Hungarian, and Democracy–Hungarian. Delivered message latencies are bootstrapped from **Rady et al. (2024)**: industrial robotic ROS 2 measurements, **Wi-Fi 6E**, medium-range **60 m LoS**, source window **120–181 s**. The pinned **121** delay observations have mean **33.594 ms**, P95 **64.150 ms**, and maximum **531.535 ms**.
 
-Primary latency reference:
+| Robots | Tasks | Method | Mean actionable decision (ms) | Mean global agreement (ms) | Mean logical SENDs | Mean sender payload (B) |
+|---:|---:|---|---:|---:|---:|---:|
+| 10 | 5 | Leader–Hungarian | 157.2 | 157.2 | 10 | 560 |
+| 10 | 5 | Full-view Hungarian | 142.2 | 142.2 | 10 | 560 |
+| 10 | 5 | Democracy–Hungarian | 168.4 | 247.6 | 60 | 2,140 |
+| 50 | 30 | Leader–Hungarian | 370.8 | 370.8 | 50 | 12,800 |
+| 50 | 30 | Full-view Hungarian | 336.1 | 336.1 | 50 | 12,800 |
+| 50 | 30 | Democracy–Hungarian | 362.1 | 659.9 | 1,550 | 60,680 |
+| 100 | 50 | Leader–Hungarian | 477.4 | 477.4 | 100 | 41,600 |
+| 100 | 50 | Full-view Hungarian | 452.6 | 452.6 | 100 | 41,600 |
+| 100 | 50 | Democracy–Hungarian | 477.7 | 796.2 | 5,100 | 201,400 |
+| 100 | 100 | Leader–Hungarian | 477.4 | 477.4 | 100 | 81,600 |
+| 100 | 100 | Full-view Hungarian | 452.6 | 452.6 | 100 | 81,600 |
+| 100 | 100 | Democracy–Hungarian | 478.3 | 918.6 | 10,100 | 401,200 |
 
-**M. Rady, O. Iova, H. Rivano, A. Deligianni, and L. Drikos,  
-“How does Wi-Fi 6 fare? An industrial outdoor robotic scenario,”  
-Ad Hoc Networks, vol. 156, 103418, 2024.  
-DOI: 10.1016/j.adhoc.2024.103418.**
+**Finding:** with 100 robots and 50 tasks, Democracy–Hungarian reached an actionable decision in **477.7 ms**, near Leader–Hungarian's **477.4 ms**. Its **796.2 ms** global agreement time and **201,400 B** sender payload were much higher because votes and final commits must also propagate. At 100 robots/100 tasks, the corresponding Democracy values were **478.3 ms** actionable, **918.6 ms** global, and **401,200 B** sent.
 
-Why this source is used:
+The experiment demonstrates a **cost of decentralized agreement**, not an unqualified latency win. These are trace-driven *application-delay simulations*, with no new shared-medium congestion induced by fleet size.
 
-- real industrial robotic environment;
-- ROS 2 application-level control messages;
-- real Wi-Fi 4 / 5 / 6 links;
-- short/medium/long and LoS/NLoS conditions;
-- application-level delay, not only nominal PHY bitrate;
-- public source data are provided by the authors.
+Evidence: [E1 original summary](results/e1_latency/summary.csv) · [E1 raw scenarios](results/e1_latency/raw/e1_20261009T144026Z.csv).
 
-The authors' public dataset contains per-message fields including:
+### 3.3 E2 — One-round Hungarian robustness under lossy Cost/Vote delivery
 
-- `control_delay_ms`
-- `control_loss`
+**Why:** distinguish how much packet loss prevents **task completion** versus merely reduces the quality of a still-committed assignment.
 
-and multiple locations / PHY configurations.
+**Design:** same fixed Hungarian optimizer and Rady-derived latency samples as E1; a **single, non-retried allocation round**; independent receiver-level Cost packet drops and separately lossy Vote unicasts; the original electorate remains the quorum denominator. Commit announcements are reliably modelled.
 
-Source repository:
+At the **100-robot / 50-task, 30% Cost loss + 30% Vote loss** condition, the completed 100-seed correctness-instrumented rerun reported:
 
-`minarady1/wifi_for_industrial_robotics`
+| Metric | Recorded value |
+|---|---:|
+| Mean visible robot cost rows | **70.285 / 100** |
+| Mean task commit rate | **15.22%** |
+| Correct executor rate (all requested tasks) | **15.06%** |
+| Correct executor rate among committed tasks | **98.706%** |
 
-Primary paper experiments will use an explicitly pinned Wi-Fi 6 trace/profile from this dataset.
+**Interpretation:** the distinction between low task availability and high correctness **conditional on a successful Commit** is important. However, this specific Hungarian E2 result remains **provisional until the vote-level forensic ledger audit is accepted**. It is not a validated substitute for the completed E9E Greedy/CBAA sweep.
 
-## 3.2 Empirical bootstrap rule
+Definitions, audit provenance, and the complete one-round benchmark: [E2 evidence notes](results/e2_packet_loss/README.md) · [Experiment Protocol](docs/EXPERIMENT_PROTOCOL.md).
 
-Do **not** replace real communication with a single fixed delay.
+### 3.4 E9C — Message-size and zero-loss communication accounting validation
 
-For each successfully transmitted simulated protocol message $m$:
+**Why:** ensure a comparison counts the information actually emitted on the network, instead of charging CBAA for unnecessary peer robot-state broadcasts or multiplying one broadcast by all receivers.
 
-$$
-L_m \sim \text{EmpiricalBootstrap}(D_{WiFi6}),
-$$
+**Design:** 100 robots, 50 tasks, 100 paired seeds, no loss. Both methods receive the **same physically encoded task announcement**. Greedy sends its own Cost row once, followed by Vote/qualified Score/Commit; original-family CBAA sends its own Bid/Winner vector in each consensus iteration. This was a fixed-iteration **validation/control**, whereas the later E9E uses iterative local evidence without selecting a particular K in advance.
 
-where $D_{WiFi6}$ is the selected paper-derived array of measured ROS application delays.
+| Component | Physical sender payload in the 100R / 50T setup |
+|---|---:|
+| Shared 50-task announcement (2 binary packets) | **1,632 B** |
+| One original Greedy Cost packet per robot (100 total) | **41,600 B** |
+| CBAA bid/winner-vector dissemination in **one** complete 100-robot consensus iteration | **61,600 B** |
+| Additional global peer-position transfer required by original CBAA | **0 B** |
 
-Then:
+**Finding:** both original methods can be evaluated without hidden peer-state information. The **zero-loss** Greedy full 50-task Commit cost was **165,432 B per seed**, while CBAA's final traffic depends on how many real consensus exchanges are executed. Counting **only** one CBAA iteration without ensuring full agreement is not a meaningful completed-outcome comparison. The dynamic-stop E9E data below supersedes fixed-iteration settings as the primary loss/traffic result.
 
-$$
-t_{arrival}(m)=t_{send}(m)+L_m.
-$$
+Evidence: [Original-only E9C CI verification](https://github.com/andyfu35/Democracy-based-Task-Allocation-in-a-Large-scale-Multi-robot-System/actions/runs/38112992924) · [Experiment Protocol](docs/EXPERIMENT_PROTOCOL.md).
 
-Packet loss is applied separately in experiments that sweep a controlled loss probability. This isolates the effect of packet loss from the empirical latency distribution.
+### 3.5 E9E — Dense packet-loss robustness and actual sender payload (**primary cross-algorithm result**)
 
-A later trace-replay experiment will use both the paper-derived latency and loss observations together.
+**Why:** identify the loss region where Democracy stops completing all tasks, determine whether CBAA preserves assignment agreement at high loss, and quantify the **additional attempted sender payload** required by continuing consensus transmissions.
 
-## 3.3 Communication time is event time, not message count times mean delay
+**Design:** 100 robots, 50 tasks, 100 paired seeds and **52 measured loss levels** (5%-step global grid plus 1%-step resolution across **40–65%** and **85–99%**). This produces **10,400 original protocol executions**. Loss affects **Democracy Cost and Vote** and **CBAA Bid/Winner** independently per receiver. No extra CBAA robot-position exchange and no manually fixed K tuning is used. Original CBAA auction/consensus runs until local-receipt certification or its reported safety guard.
 
-Messages sent concurrently are not charged as
+**Evidence status:** complete original per-seed, summary, manifest, and **all six source-generated SVGs independently SHA256-verified**. The exact original Mac SVGs are committed, not replotted from rounded terminal logs.
 
-$$
-N_{messages}\times E[L].
-$$
+#### Experiment 1 — Complete protocol outcome versus packet loss
 
-The simulator is event-driven.
+![Verified 52-point Democracy Commit versus CBAA local-receipt certification](docs/figures/e9e_dense/formal/e9d_full_success.svg)
 
-Examples:
+Democracy retained **100/100 full Commit** at sampled 50% loss, dropped to **91/100 at 52%**, **65/100 at 53%**, **14/100 at 54%**, and **0/100 at 55%**. Its first **non-perfect** sample was **48% (99/100)**, so discrete sample success is not strictly monotonic.
 
-- a quorum phase completes when the **Q-th valid vote arrives**;
-- a full-information phase completes when all required information arrives or timeout occurs;
-- retries add their actual timeout and subsequent communication events.
+CBAA retained **100/100 locally certified outcomes** through **91%** loss, before declining to **97/100 at 92%**, **87/100 at 93%**, **48/100 at 94%**, and **2/100 at 95%**. These are **measured, guard-limited outcomes**, not mathematical maximum loss tolerances.
 
-Per run, record:
+![Verified close-up of Democracy's 40–65% transition with 1% measured spacing](docs/figures/e9e_dense/formal/e9d_democracy_transition.svg)
 
-$$
-T_{total}=T_{compute}+T_{communication}+T_{retry}.
-$$
+#### Experiment 2 — Communication volume and the performance trade-off
 
-The main quantity for the communication-cost claim is:
+The table below is reproduced from the original **104-row verified summary CSV**, not from console output. **kB = 1,000 sender application Bytes**; incomplete and safety-guard-limited runs remain in the mean.
 
-$$
-T_{communication}.
-$$
+| Loss | Democracy full Commit | CBAA locally certified | CBAA external full agreement | Democracy mean sender (kB) | CBAA mean sender (kB) | CBAA guard hits |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0% | 100/100 | 100/100 | 100/100 | 165.4 | 269.0 | 0/100 |
+| 10% | 100/100 | 100/100 | 100/100 | 165.2 | 557.9 | 0/100 |
+| 30% | 100/100 | 100/100 | 100/100 | 164.8 | 838.2 | 0/100 |
+| 40% | 100/100 | 100/100 | 100/100 | 166.2 | 1,015.6 | 0/100 |
+| 45% | 100/100 | 100/100 | 100/100 | 185.0 | 1,109.2 | 0/100 |
+| 48% | 99/100 | 100/100 | 100/100 | 237.9 | 1,169.0 | 0/100 |
+| 50% | 100/100 | 100/100 | 100/100 | 323.1 | 1,217.6 | 0/100 |
+| 51% | 99/100 | 100/100 | 100/100 | 389.1 | 1,249.0 | 0/100 |
+| 52% | 91/100 | 100/100 | 100/100 | 494.4 | 1,297.1 | 0/100 |
+| 53% | 65/100 | 100/100 | 100/100 | 618.5 | 1,328.5 | 0/100 |
+| 54% | 14/100 | 100/100 | 100/100 | 731.6 | 1,368.5 | 0/100 |
+| 55% | 0/100 | 100/100 | 100/100 | 796.6 | 1,401.8 | 0/100 |
+| 60% | 0/100 | 100/100 | 100/100 | 957.8 | 1,588.4 | 0/100 |
+| 80% | 0/100 | 100/100 | 100/100 | 955.1 | 3,106.3 | 0/100 |
+| 90% | 0/100 | 100/100 | 100/100 | 907.4 | 6,118.5 | 0/100 |
+| 91% | 0/100 | 100/100 | 100/100 | 897.1 | 6,859.6 | 0/100 |
+| 92% | 0/100 | 97/100 | 100/100 | 884.5 | 7,706.6 | 3/100 |
+| 93% | 0/100 | 87/100 | 100/100 | 867.8 | 8,779.0 | 13/100 |
+| 94% | 0/100 | 48/100 | 100/100 | 845.3 | 9,578.0 | 52/100 |
+| 95% | 0/100 | 2/100 | 100/100 | 815.3 | 9,854.6 | 98/100 |
+| 96% | 0/100 | 0/100 | 100/100 | 770.2 | 9,857.6 | 100/100 |
+| 99% | 0/100 | 0/100 | 100/100 | 399.0 | 9,857.6 | 100/100 |
 
-Also record message count and bytes so latency improvements cannot be hidden by excessive network traffic.
+At **30% packet loss**, both methods achieved **100/100** of their respective full outcomes, while Democracy used **164,750.08 B** and CBAA used **838,160 B** per seed on average. This is **80.34% fewer modeled sender application Bytes** for Democracy **in that particular comparison condition**. It is not evidence of less communication for a *completed* task set at 55%+ loss, where Democracy frequently fails to finish.
 
----
+![Verified emitted application Bytes against packet loss, logarithmic MB scale](docs/figures/e9e_dense/formal/e9d_sender_payload.svg)
 
-# 4. Common metrics
+#### Experiment 3 — CBAA task agreement is different from knowing when to stop
 
-## Assignment quality
+The **external observer** found complete CBAA assignment agreement in **100/100 seeds at every tested loss probability through 99%**. In contrast, each robot having enough **received peer evidence** to certify global agreement became increasingly difficult; at 96–99% none of the 100 trials satisfied the full local-certificate condition within 160 iterations.
 
-Central complete-information Hungarian optimum:
+This is a **stopping-knowledge and resource-limit finding**, not evidence that CBAA necessarily lost the 50-task assignment. The current CBAA model's optimistic simulator-wide halt does **not** charge physical distributed stop-ACK/Commit communication.
 
-$$
-J^*.
-$$
+![Verified CBAA external observer agreement versus local certification](docs/figures/e9e_dense/formal/e9d_cbaa_agreement_vs_stop.svg)
 
-Evaluated final assignment:
+![Verified 85–99% high-loss close-up of CBAA agreement versus stopping](docs/figures/e9e_dense/formal/e9d_cbaa_high_loss_zoom.svg)
 
-$$
-J.
-$$
+#### Experiment 4 — Which apparent failures are safety-guard censored?
 
-Optimality gap:
+![Verified guard-hit rates: bounded execution is not a theoretical loss threshold](docs/figures/e9e_dense/formal/e9d_guard_censoring.svg)
 
-$$
-Gap=\frac{J-J^*}{J^*}\times100\%.
-$$
+Democracy was allowed up to **300** task-voting attempts; CBAA up to **160** consensus iterations. Exceeding either guard does **not** prove that an algorithm could never finish with more time or transmissions. Comparisons of payload must include these stopped runs rather than selectively discarding them.
 
-At zero packet loss with complete information, the canonical implementation must satisfy:
+**Verified E9E evidence:** [Original 104-row result summary](docs/figures/e9e_dense/formal/summary_by_loss.csv) · [Experiment and figure SHA256 manifest](docs/figures/e9e_dense/formal/publication_manifest.json).
 
-$$
-Gap=0.
-$$
 
-## Agreement / success
+### 3.6 E9G — Evidence-backed Wi-Fi timing, contention and task-allocation scaling (**design; no ns-3 results yet**)
 
-- assignment success rate
-- full assignment commit rate
-- task-level commit rate
-- timeout rate
-- mean retry rounds
+**Research objective.** Explain the relationship between actual sender application Bytes, individual SEND operations, shared 802.11 airtime, congestion, and end-to-end completion of the original Greedy Voting task allocation. The first priority is a **Voting-only** R=T=N scaling study (N=5,10,...,100; 100 paired seeds; 0% application loss; one Cost copy), **not** an inter-algorithm win/loss contest. Earlier Rady-profile sampling estimated near-linear allocation time, but the conservative 531.535123 ms **per task-voting epoch** timeout dominates the estimate (~88% at N=100). It is **not** a measurement of real Wi-Fi 6E 100-robot airtime.
 
-## Timing
+#### Published sources: explicit attribution, purpose and scientific boundary
 
-- local Hungarian computation time
-- cost-exchange communication time
-- voting/quorum communication time
-- commit communication time
-- retry/timeout time
-- total decision latency
+Each numbered study has a stable BibTeX key in [E9G literature bibliography](docs/references/e9g_wifi_timing.bib). **Citing a paper does not imply that its radio traces are already implemented or that its authors tested our 100-robot MRTA scenario.**
 
-## Communication overhead
+| Source (cite in paper) | What it establishes / how E9G will use it | What it does **not** establish |
+|---|---|---|
+| **[Rady et al. (2024), *Ad Hoc Networks* 156, 103418](https://doi.org/10.1016/j.adhoc.2024.103418)** \`Rady2024IndustrialWifi6\` | Real industrial robotic Wi-Fi/ROS 2 application-layer delay and wireless performance; use the existing **pinned 60 m LoS, 6 GHz, 160 MHz** 121-sample empirical profile (33.594 ms mean; 531.535 ms max) as an external calibration/holdout target. [Exact pinned dataset and checksum](https://github.com/minarady1/wifi_for_industrial_robotics/tree/1996e5bb69b9ba4d25060cbc14838ddedf65cff2). | No 100-node simultaneous 802.11ax traffic/packet-size-specific delay distribution; ROS 2 delay already contains network/stack contributions and **must not be added wholesale to simulated PHY/MAC times**. |
+| **[Liu & Choi (2023), *Proc. ACM Meas. Anal. Comput. Syst.*](https://doi.org/10.1145/3579451)** \`LiuChoi2023Wifi6Measurement\` | Empirical commercial Wi-Fi 6 device throughput, latency and OFDMA/aggregation behavior; use its [measurement artifacts](https://github.com/liux4189/wifi-ax-measurement) as a **separate small-population validation dataset once artifacts/versions are independently verified**. | Experimental users and equipment do not represent the extrapolated 100-robot industrial configuration. No calibrated parameters have been copied from this paper yet. |
+| **[Montgomery & Candell (2024), NIST IR 8506](https://doi.org/10.6028/NIST.IR.8506)** \`MontgomeryCandell2024OfdmaIndustrial\` | Industrial uplink OFDMA activation can depend on offered load, AP and client implementation; compare EDCA baseline with **explicitly enabled** OFDMA as sensitivity. | **No universal “2 devices” or packet-rate threshold** can be imposed on all access points. |
+| **[Bianchi (2000), *IEEE JSAC* 18(3)](https://doi.org/10.1109/49.840210)** \`Bianchi2000Dcf\` | DCF contention/backoff/collision foundational analytical model; reason about shared-medium scaling and why SEND count differs from elapsed time. | Traditional saturated DCF analysis alone does not model 802.11ax OFDMA, an actual AP, ROS/DDS, or the unsaturated MRTA burst pattern. |
+| **[Riley & Henderson (2010), “The ns-3 Network Simulator”](https://doi.org/10.1007/978-3-642-12331-3_2)** \`RileyHenderson2010Ns3\` and [ns-3 official Wi-Fi model documentation](https://www.nsnam.org/docs/models/html/wifi-design.html) \`Ns3WifiModelDocumentation\` | Proposed trace-producing packet-level PHY/MAC/EDCA simulation backend; record ns-3 version, wifi model, MCS, AP/client roles, addresses, channel, transport, traffic scheduling, ACK/retries, random seeds and any OFDMA scheduler. | **Not installed or run by the current Python Voting simulator.** Version-specific features must be checked; bibliographic references are **not** a simulation result. |
+| **[Choi, Brunet & How (2009), *IEEE T-RO* 25(4)](https://doi.org/10.1109/TRO.2009.2022423)** \`ChoiBrunetHow2009Auctions\` | Background citation for original consensus-based auctions in task allocation and separation of agreement from physical network cost. | Not a Wi-Fi timing calibration source; E9G currently runs **only our original Voting**. |
 
-- attempted messages
-- delivered messages
-- dropped messages
-- attempted bytes
-- delivered bytes
-- counts by message type
+#### Proposed two-layer experiment and source-of-truth contract
 
-## Safety diagnostics
+**Layer A (existing, reproducible):** 0%-loss R=T scaling source events from the original \`coordination\` and \`task_information\` owners. Task / Cost / Vote / Score / Commit sender payloads are recorded once for physical broadcasts, never multiplied by nominal receivers. The previously uploaded Voting-only 100-seed scaling ZIP (20 groups, 2,000 runs) exists as user-provided exploratory analysis; its processed files are **not silently represented as formally committed E9G/ns-3 output**.
 
-These must remain zero:
+**Layer B (not yet implemented):** one external ns-3 run per seed/network configuration, using actual application SEND release times, sizes, sender/receiver roles, and packet types. E9G must export/import a **versioned per-packet network trace**, with a deterministic mapping from original application SEND to channel transmissions/deliveries. Preserve broadcast-vs-unicast semantics, AP uplink/downlink cost and lack of normal multicast ACK, and MAC ACK/retransmission only when corresponding to configured Wi-Fi network frames. Accounting must report separately (a) application sender Bytes/SENDs, (b) over-the-air transmissions/Bytes/airtime, (c) MAC backoff/queues/retries, (d) ROS/application residual delays, (e) original fixed protocol timeout/retries, and (f) real full-Commit endpoint. **Offline rescheduling of all already-generated packets is not enough:** if network arrivals affect vote eligibility/deadlines, the Voting owner must receive those actual arrivals during the original execution, rather than retrospectively rewriting a successful allocation. No second voting state machine or uncharged global clock.
 
-- multiple valid winners for one task/round
-- duplicate execution in a one-to-one epoch
-- duplicate vote counted
-- stale-round vote accepted
-- inconsistent quorum denominator
+For per-packet delay, write \`T_delivered = T_queue + T_backoff + T_PHY/MAC_service + T_stack_residual\`, where \`T_stack_residual\` can only be fitted from a **non-overlapping** measurement component. Do not add 33.594 ms to every ns-3 packet without double-count validation. Transport/application reliability assumptions (original reliable TASK, qualified Score, Commit vs lossy Cost and Vote), timeout decisions, packet loss, and censored runs must be disclosed. Use external measurements only within their supported equipment/traffic range; treat N=100 as **extrapolation**, not measurement.
 
----
+**Acceptance gates before claiming results:** (1) source checksum/provenance and simulator version; (2) zero-loss original Voting/Cost/Score/Commit parity at N=5; (3) each SEND/delivery and PHY/MAC accounting auditable; (4) B=0/minimum and no-queue controls; (5) small-scale validation against published multi-user performance before N=100; (6) 100 seeds and immutable raw CSV + summary + manifest SHA256; (7) README plots *only after* verified executed runs. The original application Bytes at 0%-loss 1:1 scale follow \`B(N)=24N^2+92N+16 ceil(N/37)\` for the measured original one-attempt protocol path; that does **not** give a measured Wi-Fi airtime complexity. A log-log slope from 5..100 is an empirical finite-range exponent, not a theoretical Big-O proof.
 
-# 5. Formal experiment roadmap
+**Current status:** source audit and paper-to-model traceability **documented**; citation database **committed**. **No ns-3 installation, channel simulator integration, calibration fit or 100-seed shared-channel results is claimed**. This section is a research methodology and evidence status, not invented new experiment output.
 
-All formal conditions use **100 paired seeds** unless explicitly documented otherwise.
+## 4. Synthesis and conclusions
 
-## E0 — Perfect-Information Correctness
+### 4.1 What the completed studies establish
 
-Purpose: validate the canonical algorithm before adding network impairment.
+1. **Correctness under complete information (E0):** the fixed-Hungarian decentralized voting protocol matched the assignment oracle in 500/500 tests with zero safety failures.
+2. **Cost of decentralized quorum (E1):** votes and commits add substantial transmission volume and final-agreement latency, even when actionable decision latency is near the leader baseline.
+3. **Communication efficiency in the sampled robust regime (E9E):** at **30% loss**, Democracy completed all 50 tasks in 100/100 scenarios using **80.34% fewer modeled sender application Bytes** than the CBAA reference under its own fully certified local outcome.
+4. **High-loss resilience and termination knowledge (E9E):** the CBAA reference retained full *external observer assignment agreement* even at 99% sampled loss, while its **per-robot stopping certificate** reached 0/100 by 96% under the 160-iteration limit.
+5. **Bounded robustness (E9E):** Democracy's complete Commit success rapidly declined across the densely sampled **52–55%** region; CBAA's observed local-certification success declined across **92–96%**.
 
-Conditions:
+### 4.2 Interpretation boundaries
 
-- packet loss = 0
-- network latency = 0 for the correctness oracle run
-- every robot receives the complete cost matrix
-- every robot runs the same deterministic Hungarian optimizer
+The two algorithm families are **not interchangeable**: E0–E2 hold Hungarian fixed, whereas E9C/E9E compare Greedy voting with CBAA bidding. Their optimum-quality, success and network budgets cannot be equated without additional controls.
 
-Required result:
+In E9E, **Democracy actual Commit**, **CBAA observer agreement**, and **CBAA locally certified termination** are distinct endpoints. Task announcement and Democracy qualified-score/Commit use reliability assumptions; CBAA's shared simulation stop omits actual termination-handshake traffic. This should be treated as a **conservative scientific disclosure**, not as proof of one protocol's universal superiority.
 
-$$
-X_1=X_2=\cdots=X_N=X^*
-$$
+The current experiments report **simulated, attempted application-layer sender payload**, not measured 802.11 throughput, congestion, MAC/PHY/ACK overhead, or robot energy. Per-receiver Bernoulli loss does not reproduce correlated bursts, asymmetric topology, or real on-robot packet traces. A finite set of 100 seeds and a hard stopping guard is not a theoretical loss threshold.
 
-and
+### 4.3 Unfinished or separately tracked evaluations
 
-$$
-Gap=0,\quad ASR=1,\quad SafetyFailures=0.
-$$
+| Research question | Current evidence status |
+|---|---|
+| E2 Hungarian per-ballot forensic correctness | 100-seed aggregate rerun recorded; **vote-level audit remains pending** |
+| E3/E4 robot scaling and task-load saturation | Benchmark design and historical local runs described; **no independently verified formal scaling summary is published in this README** |
+| Greedy 51%-majority vs pure 25% plurality, and fixed Vote-copy sensitivity | Historical experimental variants exist; not merged into E9E's two-algorithm benchmark without a matched original-data acceptance record |
+| E5/E6/E7 burst loss, message-type fault attribution and external Wi-Fi trace replay | **Not yet a verified formal result here** |
+| Equal on-wire byte budgets, paid CBAA distributed termination and final Commit, real radio measurements | Necessary future validation; not included in the reported 80.34% figure |
 
-The previous sequential-greedy E0 implementation/results are retained only as **legacy invalid evidence from an obsolete problem definition** and must not be cited as the paper algorithm.
+## 5. Evidence and references
 
-### E0 result record
+| Evidence | Original source |
+|---|---|
+| E0: zero-loss Hungarian correctness | [E0 100-seed summary](results/e0_protocol_correctness/summary.csv) |
+| E1: empirical Wi-Fi latency study | [E1 100-seed summary](results/e1_latency/summary.csv) |
+| E2: one-round loss study and audit boundary | [E2 benchmark evidence notes](results/e2_packet_loss/README.md) |
+| E9C: original-only CBAA sender-byte validation | [100-seed original-method CI record](https://github.com/andyfu35/Democracy-based-Task-Allocation-in-a-Large-scale-Multi-robot-System/actions/runs/38112992924) |
+| E9E: 52-loss-level formal results | [Verified original summary](docs/figures/e9e_dense/formal/summary_by_loss.csv) |
+| E9E: six original SVGs and exact evidence hashes | [Formal figures and publication manifest](docs/figures/e9e_dense/formal/publication_manifest.json) |
+| Experimental definitions, assumptions, ownership and limitations | [Canonical experiment protocol](docs/EXPERIMENT_PROTOCOL.md) |
 
-Status: **FORMAL LOCAL RUN PASSED**
+**E9E source experiment SHA:** `2808fa12fcd89aa8c2251e7e6438312a95a9df8f`  
+**Original per-seed raw SHA256:** `e2337a157b96593d441c143b19d5b2b9b1c64604b4bc0a651da1e566c060c727`  
+**Original summary SHA256:** `3408ccd1978ca66d58ff4dd195d3b31b8e2805c798e1adfa872d5d45ea6706db`
 
-Date: `2026-10-09`
+The original **10,400-row per-seed raw CSV** was independently verified from the user-supplied experiment archive; the repository publishes the **original 104-row summary and six exact original SVGs**. The full raw is **not** falsely represented as committed here.
 
-Formal corrected E0:
-
-- unit tests: **12/12 passed**
-- conditions: 10R/5T, 25R/10T, 50R/30T, 100R/50T, 100R/100T
-- 100 seeds per condition
-- 500 scenarios total
-
-| Robots | Tasks | Seeds | Gap | ASR | Oracle mismatch | Non-unanimous tasks | Safety failures | Replay failures |
-|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 10 | 5 | 100 | 0.000000000000% | 1.000000 | 0 | 0 | 0 | 0 |
-| 25 | 10 | 100 | 0.000000000000% | 1.000000 | 0 | 0 | 0 | 0 |
-| 50 | 30 | 100 | 0.000000000000% | 1.000000 | 0 | 0 | 0 | 0 |
-| 100 | 50 | 100 | 0.000000000000% | 1.000000 | 0 | 0 | 0 | 0 |
-| 100 | 100 | 100 | 0.000000000000% | 1.000000 | 0 | 0 | 0 | 0 |
-
-Corrected local raw file:
-
-`results/e0_protocol_correctness/raw/e0_corrected_20261009T141508Z.csv`
-
-Corrected local summary:
-
-`results/e0_protocol_correctness/summary.csv`
-
-These generated files must still be committed from the machine that executed the formal run.
-
-**Conclusion:** under complete identical information, every robot produces the same Hungarian assignment, every task vote is unanimous, and Democracy-Hungarian exactly matches the global Hungarian optimum.
-
-The earlier sequential-greedy E0 result is legacy invalid evidence from an obsolete implementation and must not be cited as the paper algorithm.
-
----
-
-## E1 — Realistic Wi-Fi Communication-Time Cost
-
-Purpose: answer:
-
-> How much decision time does each coordination architecture spend on trace-driven wireless communication when there is no packet loss?
-
-Conditions:
-
-- packet loss = 0
-- fixed Hungarian optimizer
-- empirical ROS 2 Wi-Fi application delay sampled from the pinned Rady et al. dataset
-- broadcast-corrected transport semantics
-- 100 paired seeds per condition
-
-Compare:
-
-- Ideal Full Information
-- Leader-Hungarian
-- Flooding/Full-View Hungarian
-- Democracy-Hungarian
-
-Primary outputs:
-
-- actionable decision time
-- global agreement time
-- cost-exchange time
-- local Hungarian compute time
-- message count
-- logical payload bytes
-
-### E1 result record
-
-Status: **FORMAL TRACE-DRIVEN RUN COMPLETE**
-
-Pinned empirical profile:
-
-- source repository: `minarady1/wifi_for_industrial_robotics`
-- source commit: `1996e5bb69b9ba4d25060cbc14838ddedf65cff2`
-- source JSON Git blob: `11e70e685229cc26458f272b0c954487c87d7953`
-- location: **Medium range LoS (60 m)**
-- PHY: **Wi-Fi 6E ax/6/160**
-- steady-state window: **120–181 s**
-- ROS delay samples: **121**
-- empirical mean: **33.593687 ms**
-- P50: **19.962509 ms**
-- P95: **64.149866 ms**
-- P99: **159.419021 ms**
-- maximum: **531.535123 ms**
-
-Corrected local raw output:
-
-`results/e1_latency/raw/e1_20261009T144026Z.csv`
-
-Corrected local audit events:
-
-`results/e1_latency/events/e1_events_20261009T144026Z.csv.gz`
-
-Corrected local summary:
-
-`results/e1_latency/summary.csv`
-
-These generated result files remain pending user-side git commit.
-
-| Robots | Tasks | Method | Actionable mean | Global mean | P95 global | Messages | Payload bytes |
-|---:|---:|---|---:|---:|---:|---:|---:|
-| 10 | 5 | Leader | 157.162 ms | 157.162 ms | 551.821 ms | 10 | 560 |
-| 10 | 5 | Full-View | 142.228 ms | 142.228 ms | 531.535 ms | 10 | 560 |
-| 10 | 5 | Democracy | 168.375 ms | 247.598 ms | 605.326 ms | 60 | 2,140 |
-| 25 | 10 | Leader | 268.586 ms | 268.586 ms | 568.001 ms | 25 | 2,400 |
-| 25 | 10 | Full-View | 236.312 ms | 236.312 ms | 531.535 ms | 25 | 2,400 |
-| 25 | 10 | Democracy | 260.792 ms | 391.655 ms | 1,068.761 ms | 275 | 10,360 |
-| 50 | 30 | Leader | 370.827 ms | 370.827 ms | 580.675 ms | 50 | 12,800 |
-| 50 | 30 | Full-View | 336.090 ms | 336.090 ms | 531.535 ms | 50 | 12,800 |
-| 50 | 30 | Democracy | 362.120 ms | 659.889 ms | 1,083.071 ms | 1,550 | 60,680 |
-| 100 | 50 | Leader | 477.409 ms | 477.409 ms | 581.239 ms | 100 | 41,600 |
-| 100 | 50 | Full-View | 452.627 ms | 452.627 ms | 531.535 ms | 100 | 41,600 |
-| 100 | 50 | Democracy | 477.742 ms | 796.165 ms | 1,084.052 ms | 5,100 | 201,400 |
-| 100 | 100 | Leader | 477.409 ms | 477.409 ms | 581.239 ms | 100 | 81,600 |
-| 100 | 100 | Full-View | 452.627 ms | 452.627 ms | 531.535 ms | 100 | 81,600 |
-| 100 | 100 | Democracy | 478.327 ms | 918.551 ms | 1,084.184 ms | 10,100 | 401,200 |
-
-### E1 interpretation
-
-The fixed Hungarian computation is negligible relative to communication. At 100R/100T the measured local Hungarian wall-clock mean is only **0.752068 ms**, while trace-driven communication reaches hundreds of milliseconds.
-
-The most important timing result is the distinction between **actionable decision** and **global agreement**:
-
-- Democracy adds only about **25–26 ms** to the Full-View actionable time across the larger conditions.
-- At 100R/50T, Democracy actionable time is **477.742 ms**, essentially identical to Leader-Hungarian at **477.409 ms**.
-- At 100R/100T, Democracy actionable time is **478.327 ms**, also essentially identical to Leader-Hungarian at **477.409 ms**.
-- Democracy global-agreement time is much larger because every task winner still broadcasts a commit and the experiment reports the final commit arrival across all tasks.
-
-The communication-volume trade-off is substantial:
-
-- 100R/100T Leader: **100** logical transmissions, **81.6 kB** payload.
-- 100R/100T Full-View: **100** logical transmissions, **81.6 kB** payload.
-- 100R/100T Democracy: **10,100** logical transmissions, **401.2 kB** payload.
-
-Therefore E1 supports a precise trade-off statement: **leaderless democratic quorum adds little actionable latency after full information is available, but it incurs substantially higher message count and global commit dissemination cost.**
-
-### E1 claim boundary
-
-E1 is a **trace-driven application-delay model**, not a full 802.11 shared-medium contention simulator.
-
-It preserves the measured application-delay distribution from the cited robotic Wi-Fi experiment, but it does not add new fleet-size-dependent CSMA/CA contention caused by thousands of protocol transmissions. Message-count and payload results must therefore be reported alongside latency, and later scalability experiments must not interpret E1 latency as a complete on-air saturation model.
-
-The earlier pre-broadcast E1 run is retained only as diagnostic pilot evidence and must not be cited.
-
----
-
-## E2 — Bernoulli Packet-Loss Robustness
-
-Purpose: measure how each coordination architecture degrades when **cost information and decision votes are independently lost**.
-
-Loss sweep:
-
-`p_loss ∈ {0, 0.1, 0.3, 0.5, 0.7, 0.9}`
-
-Canonical E2 scope:
-
-- same fixed Hungarian optimizer as E0/E1;
-- same pinned Rady empirical latency profile as E1;
-- one round only — no retry in E2;
-- cost broadcast delivery is Bernoulli per receiver;
-- each robot always retains its own cost row;
-- hidden rows stay hidden;
-- Democracy and Leader run Hungarian only over rows locally available;
-- partial local Hungarian assignments are allowed;
-- a Democracy voter abstains on tasks absent from its partial assignment;
-- vote unicasts use the same Bernoulli loss probability;
-- quorum denominator remains the full eligible robot count;
-- commit broadcast is reliable;
-- Full-View succeeds only when every robot has a complete matrix.
-
-Primary outputs:
-
-- task commit rate;
-- **correct executor rate (CER)**;
-- **correctness among committed tasks**;
-- full-assignment success rate;
-- optimal-solution rate;
-- optimality gap among full successful assignments;
-- task timeout rate;
-- decision/global completion time;
-- logical messages and payload bytes;
-- delivery drops;
-- mean visible robot rows;
-- safety failures.
-
-### E2 result record
-
-Status: **CER RERUN COMPLETED — VOTE-LEVEL AUDIT PENDING**
-
-The E2 communication phase timeout is pinned to the maximum E1 empirical delay:
-
-`T_phase = 531.535123 ms`
-
-This means `p_loss = 0` must reduce to the E1 zero-loss behavior instead of introducing a new arbitrary deadline.
-
-Run:
-
-```bash
-git pull
-python3 -m unittest discover -s tests -v
-python3 -m experiments.run_e2 --seeds 100
-```
-
-Formal outputs:
-
-- `results/e2_packet_loss/raw/e2_<timestamp>.csv`
-- `results/e2_packet_loss/events/e2_events_<timestamp>.csv.gz`
-- `results/e2_packet_loss/summary.csv`
-
-Required sanity checks before accepting the formal result:
-
-- at `p = 0`: task commit = 1, full success = 1, optimal rate = 1, successful gap = 0 for every method;
-- Democracy safety failures = 0 at every loss level;
-- Full-View should degrade rapidly because it explicitly requires complete information;
-- no missing cost may be silently filled from the global matrix.
-
-A first 100-seed E2 run on 2026-10-09 passed all safety/correctness preflights and exposed a strong availability-versus-quality trade-off, but it did not record task-level correct-executor metrics. That run is retained as **diagnostic pilot evidence**, not the final paper E2.
-
-Pilot observations include:
-
-- all (p=0) conditions exactly reproduce the zero-loss correctness boundary;
-- Full-View collapses under any nonzero loss because this E2 baseline requires every robot to receive a complete matrix in one round;
-- Democracy retains high task commit rate around 10% loss for non-saturated loads while its fully successful assignments remain near the complete-information optimum;
-- Leader-Hungarian often retains high assignment completion while its optimality gap grows sharply as rows disappear.
-
-The CER-instrumented 100-seed rerun was completed locally on 2026-10-09 with **30/30 tests passing**. At 100R/50T and cost/vote loss both 30%, it reported mean visible rows 70.285, task commit rate 15.22%, CER 15.06%, and conditional correctness 98.706%.
-
-These totals are **not** sufficient to verify raw voter correctness or rule out a ledger accounting error. The experiment now has an opt-in, read-only forensic vote audit. Before treating E2 as paper evidence, run:
-
-```bash
-python3 -m experiments.audit_e2_votes --robots 100 --tasks 50 --p-loss 0.3 --seeds 100
-```
-
-This independently checks each local view against cost deliveries, each ballot against vote transport, and reconstructed ballots against the actual counted protocol ledger. It emits per-voter, per-task, and per-candidate CSVs without changing allocation behavior.
-
-**Paper result:** pending vote-level audit acceptance.
-
-### E2 cost-information-loss threshold sweep (vote channel reliable)
-
-The optional runner flag `--vote-loss-probability 0` fixes Democracy vote packet loss to **zero**, while the existing `--loss-probabilities` sweep changes only the independently lost cost rows received by each robot. The original E2 experiment is **unchanged when the override flag is omitted**.
-
-Run a 100R/50T paired-seed sweep from 0% through 70% cost loss at 2-point increments (100 seeds per point):
-
-```bash
-python3 -m experiments.run_e2 \
-  --seeds 100 \
-  --conditions 100x50 \
-  --loss-probabilities "$(python3 -c 'print(",".join(f"{i/100:.2f}" for i in range(0, 71, 2)))')" \
-  --vote-loss-probability 0 \
-  --output-root results/e2_cost_only_100r50t
-```
-
-In that output, `p_loss` is cost-row loss and `p_vote_loss` is zero. Track Democracy `mean_task_commit_rate`, `mean_correct_executor_rate`, `optimal_solution_rate`, and `full_assignment_success_rate` separately. Declare the operational usability threshold explicitly; report the first sampled loss where task commit falls below selected cutoffs rather than inferring it from full-assignment optimality alone.
-
-
-
-### New sequential Greedy Democracy with executor retirement
-
-**Active experimental optimizer: Greedy — not Hungarian.** Original E0/E1/E2 Hungarian results remain untouched and are used only as existing controls / offline global-optimal cost references.
-
-- Broadcast all task costs once; every receiver independently keeps only delivered peer cost rows, plus its own row.
-- Vote on **one pending task at a time**: each active robot chooses the lowest-cost visible active executor (ties: lowest original robot ID).
-- Winner with strict majority broadcasts a reliable commit and is removed from all later voter/candidate sets; the task leaves the queue.
-- With no majority, move the failed task to the end of the queue; keep the same incomplete local views and retry with a new vote-round ID. No cost rebroadcast.
-- Recalculate strict majority from the **remaining unassigned robots** at each new voting round; stop at `--max-rounds`.
-- `max_rounds` counts task-vote attempts. To finish 50 tasks at zero loss you need at least 50 rounds; the default is twice the requested task count (100 for 50 tasks).
-
-Run the regression suite and a **3-seed smoke** first:
-
-```bash
-git pull
-python3 -m unittest discover -s tests -v
-python3 -m experiments.run_e2_retirement \
-  --robots 100 --tasks 50 --seeds 3 \
-  --cost-loss-probabilities 0,0.3,0.5 \
-  --vote-loss-probability 0 --max-rounds 100 \
-  --output-root results/e2_greedy_retirement_smoke
-```
-
-After that passes, 100 paired seeds / 36 Cost Loss levels (0–70% in 2% steps), Vote Loss fixed 0:
-
-```bash
-python3 -m experiments.run_e2_retirement \
-  --robots 100 --tasks 50 --seeds 100 \
-  --vote-loss-probability 0 --max-rounds 100 \
-  --output-root results/e2_greedy_retirement_100r50t
-```
-
-Results include `summary.csv`, timestamped raw per-seed CSV, per-round attempted-task/active-voter/quorum/commit CSV, and seed-0 network event evidence. The summary separates **Greedy-reference correctness** from **Hungarian global-optimal cost gap**. A Greedy outcome need not have zero global cost gap even with 0% loss.
-
-**Status: CODE COMMITTED, LOCAL TEST / FORMAL RESULTS PENDING.** No physical task execution, rejoining, or unreliable commit announcements are modeled. See `docs/EXPERIMENT_PROTOCOL.md` §13 for the complete new protocol.
-
-
-
-### Full Vote Loss sensitivity suite for Sequential Greedy
-
-The completed 100-seed Cost-only run had p_vote_loss=0. The separate Vote Loss experiments now hold Cost Loss fixed or vary it jointly. All use **the same existing Greedy local voter, majority, executor retirement, static cost-row snapshot, 100-robot/50-task scenarios, 100 paired seeds and at most 100 task-voting attempts**. Self-votes remain reliable; only remote vote unicasts experience Vote Loss.
-
-Upgrade and smoke test **before** starting the three full runs:
-
-```bash
-git pull
-python3 -m unittest discover -s tests -v
-python3 -m experiments.run_e2_retirement \
-  --robots 100 --tasks 50 --seeds 3 \
-  --cost-loss-probabilities 0,0.30 \
-  --vote-loss-probabilities 0,0.30,0.70 \
-  --max-rounds 100 \
-  --output-root results/e2_vote_loss_smoke
-```
-
-Formal 36-point Vote Loss-only curve (p_cost_loss=0):
-
-```bash
-LEVELS="$(python3 -c 'print(",".join(f"{i/100:.2f}" for i in range(0, 71, 2)))')"
-python3 -m experiments.run_e2_retirement \
-  --robots 100 --tasks 50 --seeds 100 \
-  --cost-loss-probabilities 0 \
-  --vote-loss-probabilities "$LEVELS" \
-  --max-rounds 100 --output-root results/e2_vote_only_100r50t
-```
-
-Formal 36-point Vote Loss sweep with fixed 30% Cost Loss:
-
-```bash
-python3 -m experiments.run_e2_retirement \
-  --robots 100 --tasks 50 --seeds 100 \
-  --cost-loss-probabilities 0.30 \
-  --vote-loss-probabilities "$LEVELS" \
-  --max-rounds 100 --output-root results/e2_cost30_vote_sweep_100r50t
-```
-
-Formal 36-point joint diagonal curve (p_cost_loss=p_vote_loss; packet draws independent):
-
-```bash
-python3 -m experiments.run_e2_retirement \
-  --robots 100 --tasks 50 --seeds 100 \
-  --cost-loss-probabilities "$LEVELS" \
-  --loss-pairing diagonal \
-  --max-rounds 100 --output-root results/e2_joint_loss_diagonal_100r50t
-```
-
-Each command independently reports actual `observed_cost_drop_rate` and `observed_vote_drop_rate` from physical packet records, `mean_task_commit_rate`, `full_assignment_success_rate`, `mean_greedy_correct_executor_rate`, rounds/time/payload and complete-allocation cost gap relative to the external full-information Hungarian benchmark. The Vote Loss denominator excludes self-votes; raw rows also expose self-vote counts and vote-quorum failures.
-
-Optional coarse 2D interaction test (64 cells × 100 seeds):
-
-```bash
-GRID="0,0.10,0.20,0.30,0.40,0.50,0.60,0.70"
-python3 -m experiments.run_e2_retirement \
-  --robots 100 --tasks 50 --seeds 100 \
-  --cost-loss-probabilities "$GRID" \
-  --vote-loss-probabilities "$GRID" \
-  --max-rounds 100 --output-root results/e2_joint_loss_grid_100r50t
-```
-
-Each output root contains its own `summary.csv`, per-seed raw rows, per-round state/commit rows and seed-0 event/delivery evidence. **Do not overwrite the completed Cost-only summary.** The new Vote Loss runner extension must pass the expanded unit suite and local smoke before any formal numerical conclusions.
-
-
-
-### Pure 25%-Announcement Plurality — no fallback or self-election
-
-This is the user-authorized 25% voting experiment. **The previously added self-claim fallback was explicitly removed**. The archived experiment with fallback in results/e2_greedy_quarter_plurality_100r50t is no longer a valid estimate of pure 25% voting behavior. Existing strict-majority and Hungarian experiments remain unchanged.
-
-- Active robots independently choose the cheapest currently visible active executor for the next pending task, using Greedy and the single initial lossy Cost exchange.
-- A candidate may send a reliable **final-score announcement** only if it has more than 25% of ALL active voter ballots: floor(N/4)+1. At N=100 this is 26 received votes.
-- If several qualify, highest announced tally wins; ties use the lowest original robot ID. One winner sends a reliable Commit and retires from subsequent voting.
-- **If no candidate qualifies, there is NO announcement and NO Commit.** The task rotates to the pending queue tail, everyone remains active, and the next vote attempt uses fresh Vote Loss packet draws. There is no emergency self-claim or other winner-selection channel.
-- The total attempt budget stays at 100 for 100R/50T. Incomplete tasks stay incomplete; only complete assignments receive an overall cost-gap metric.
-- Qualified score announcements are assumed reliable and charged to communication counts/time; Cost and Vote packet loss remain independent with equal numeric probabilities in the formal test. This assumption must not be generalized to unreliable control broadcasts.
-
-Upgrade and run tests / a 3-seed smoke:
-
-    git pull
-    python3 -m unittest discover -s tests -v
-    python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 3 --cost-loss-probabilities 0,0.30,0.70 --loss-pairing diagonal --max-rounds 100 --vote-decision-rule quarter_plurality --output-root results/e2_greedy_quarter_plurality_no_fallback_smoke
-
-Full paired 100-seed, 36-point Cost Loss = Vote Loss sweep:
-
-    LEVELS="$(python3 -c 'print(",".join(f"{i/100:.2f}" for i in range(0, 71, 2)))')"
-    python3 -m experiments.run_e2_retirement --robots 100 --tasks 50 --seeds 100 --cost-loss-probabilities "$LEVELS" --loss-pairing diagonal --max-rounds 100 --vote-decision-rule quarter_plurality --output-root results/e2_greedy_quarter_plurality_no_fallback_100r50t
-
-Do not reuse the archived fallback result root. New per-round and summary results report no-qualified-announcement attempts, qualified announcements, actual winner tally, remaining tasks, successful commits, total elapsed time, bytes/messages, and two oracle comparisons. Historical fallback-only metrics are deliberately not generated.
-
-Status: **new code/tests committed; updated local tests and full no-fallback scan pending**. Canonical rule: docs/EXPERIMENT_PROTOCOL.md Section 14.
-
-
----
-
-## E3/E4 — Robot × Task-Load Scaling (up to 100 robots and 1:1)
-
-**Status: driver and tests committed; local scaling validation and formal runs pending.** The planned 200-robot E3 point is superseded by the user's explicit 100-robot ceiling.
-
-The algorithm is the previously verified PURE 25%-announcement Greedy:
-- One active robot casts one locally planned lowest-visible-cost ballot for the pending task.
-- A candidate announces only after receiving strictly more than 25% of all currently active voters' votes.
-- Compare qualifying final scores; highest vote count wins, lower physical robot ID breaks ties; one reliable Commit and executor retirement.
-- **No fallback.** A failed threshold means no announcement and no Commit; rotate the still-unassigned task and retry, up to max_rounds.
-- Initial Cost rows are sent once; Cost and Vote packet loss are sampled independently at equal configured loss probability; qualified score and Commit announcements remain modeled as reliable.
-
-The 30-size-cell matrix is:
-
-| Robots | 10% tasks | 25% tasks | 50% tasks | 75% tasks | 100% tasks (1:1) |
-|---:|---:|---:|---:|---:|---:|
-| 10 | 1 | 3 | 5 | 8 | 10 |
-| 20 | 2 | 5 | 10 | 15 | 20 |
-| 40 | 4 | 10 | 20 | 30 | 40 |
-| 60 | 6 | 15 | 30 | 45 | 60 |
-| 80 | 8 | 20 | 40 | 60 | 80 |
-| 100 | 10 | 25 | 50 | 75 | 100 |
-
-Target ratio -> task count uses round-half-up. Record the actual T/R, and never permit R>100 or T>R. The previously measured 100R/50T point is retained as a comparison anchor, and 100R/100T is the maximum-load case.
-
-Two paired conditions per cell: Cost Loss = Vote Loss = **0% and 30%**, with 100 seeds per loss condition. Total: **30 cells × 2 losses × 100 seeds = 6,000 simulations**.
-
-**Fair retry allowance:** max_rounds = 2 × requested tasks, not a fixed global 100. Thus 100R/50T has 100 attempts (as before) and 100R/100T has 200 attempts. One failure should not mathematically prevent 1:1 full assignment before reaching the retry budget.
-
-### Run on Mac
-
-~~~bash
-git pull
-python3 -m unittest discover -s tests -v
-
-# Smoke: 4 size cells x 2 loss levels x 3 seeds = 24 runs
-python3 -m experiments.run_e3_e4_scaling \
-  --robot-levels 10,100 --load-ratios 0.5,1.0 \
-  --loss-probabilities 0,0.30 --seeds 3 \
-  --attempts-per-task 2 \
-  --output-root results/e3_e4_scaling_smoke_100cap
-
-# Formal: 30 size cells x 2 loss levels x 100 seeds = 6,000 runs
-python3 -m experiments.run_e3_e4_scaling \
-  --seeds 100 \
-  --output-root results/e3_e4_scaling_100robot_cap
-
-# Exact same code/config/dataset only; resume after interruption:
-python3 -m experiments.run_e3_e4_scaling \
-  --seeds 100 \
-  --output-root results/e3_e4_scaling_100robot_cap \
-  --resume
-~~~
-
-The scaling root stores benchmark_plan.json, per-cell raw/round/message files in cells/R###_T### and aggregate summary.csv (expected 60 rows when complete). It writes the summary after each completed verified cell, and refuses an incompatible resume or silently overwriting partial data.
-
-Primary E3 comparison: robots vs communication time, messages/bytes, completion and global cost gap at constant task ratio (particularly 50% and 100%). Primary E4 comparison: task ratio vs completion, time, failed-vote count and greedy/global-optimum quality at fixed robots=100. Compare both absolute and per-requested-task communication metrics.
-
-The model remains static ONE-TO-ONE assignment with retired executors: it does not simulate physical task completion and robots rejoining. See docs/EXPERIMENT_PROTOCOL.md section 15 and results/e3_e4_scaling_100robot_cap/README.md.
-
----
-
-## Official Greedy-only communication comparison (historical E2 re-analysis)
-
-**Research scope:** The optimizer is always **Sequential Greedy**; the subject of the paper is decentralized coordination and robustness to communication loss, NOT finding a new Hungarian/global minimum-cost assignment algorithm. Previous Hungarian output may remain in original historical CSVs for audit, but it is NOT used or plotted by the new primary comparison.
-
-The two already-completed formal E2 experiments provide matched 100R/50T raw evidence:
-
-- strict-majority (51% of the active electorate), results/e2_joint_loss_diagonal_100r50t/raw/retirement_*.csv;
-- pure >25%-announcement Greedy, **NO fallback**, results/e2_greedy_quarter_plurality_no_fallback_100r50t/raw/retirement_*.csv.
-
-Do NOT substitute the rejected 25%-with-self-claim-fallback experiment.
-
-The Greedy-only read-only analysis uses the **same 100 seeds and same scenarios**, max_rounds=100, Cost Loss = Vote Loss (equal numeric p, independently sampled packets). The main figure uses the existing 0%, 10%, 20%, 30%, 40%, 50% points; all six are subsets of the original full 0–70%/2%-step runs. **No new simulation or Hungarian calculation is necessary.**
-
-For each seed and each rule, use that rule's 0%-Loss full-information Greedy as the only performance reference. Show task Commit fraction, full T-task success, Greedy executor identity match, mean voting attempts, physical packet drops, simulated coordinator time, messages/bytes, and **loss-induced added cost among fully completed allocations ONLY**. Unfinished assignments are always counted as failures and have NaN full-assignment cost rather than an artificially cheap partial-cost score. Cross-rule cost is compared only on the exact seed intersection where both rules complete; report that sample size.
-
-### Run after existing full E2 raw CSV files are present on your Mac
-
-~~~bash
-git pull
-python3 -m unittest discover -s tests -v
-
-# Pure evidence analysis — NO simulator / Hungarian / new seeds
-python3 -m experiments.compare_greedy_communication
-~~~
-
-Results are written under results/e2_greedy_only_communication_comparison (README.md is preserved):
-
-- greedy_per_seed.csv — expected 1,200 rows for 2 rules × 100 seeds × 6 losses.
-- greedy_rule_curve.csv — expected 12 rows, including complete-case cost sample sizes.
-- greedy_protocol_delta.csv — expected 6 rows showing paired 25%-minus-51% success and cost/traffic differences.
-- manifest.json — source SHA256 hashes, source historical Git SHAs, current analysis commit SHA, UTC timestamp and full benchmark parameters.
-
-To compare all previous 36 Cost/Vote loss points in a separate new derived directory:
-
-~~~bash
-LEVELS="$(python3 -c 'print(",".join(f"{i/100:.2f}" for i in range(0, 71, 2)))')"
-python3 -m experiments.compare_greedy_communication \
-  --loss-probabilities "$LEVELS" \
-  --output-root results/e2_greedy_only_communication_comparison_36point
-~~~
-
-The analysis **rejects** mismatched per-seed Greedy reference costs, missing seeds, nonmatching dimensions, incorrect method IDs, fallback data, duplicate source files, false zero-loss baselines and overwriting already-derived results. It cannot compare raw E2 results if the previous experiments were run elsewhere and their files have not been copied into the same checkout. The known assumption that qualified score announcements and Commit are reliable is unchanged.
-
-**Verification:** Earlier E2 runs and E3/E4 6,000-run scale sweep were completed by the user. This derived analysis code is NEW and its unit tests/output on the Mac are pending; no fresh output curves have been asserted yet. Full definitions: docs/EXPERIMENT_PROTOCOL.md Section 16 and results/e2_greedy_only_communication_comparison/README.md.
-
----
-
-## External Packet-Loss Defense Benchmarks — first implementation
-
-**Status: fixed-count vote-copy baseline added, tests and actual new runs pending Mac execution.** Our formal research contribution is decentralized task allocation under Packet Loss, NOT a new global optimizer. Keep exactly the same Greedy local decision rule and original task/robot scenarios in all primary communication comparisons.
-
-Our existing two reference curves:
-- Greedy + 51%-majority (one remote Vote packet).
-- Greedy + pure >25%-qualified score announcement, NO fallback (one remote Vote packet).
-
-**New external communications reliability control**: redundant physical sending of each remote Vote packet without acknowledgements. Command-line option --vote-repetitions=2 or 3, or default 1. This is fixed open-loop sender redundancy, NOT ACK-based ARQ, NOT CBAA, CBBA or ACBBA. All additional transmissions are physically sampled and charged in packet attempts, messages, payload bytes and conservative transmission time slots. Only one logical Vote per voter is counted, regardless of how many copies arrive; self-votes stay local, Cost row broadcast remains once and final score/Commit remain reliably modeled as before.
-
-Compared variants at 100 Robots / 50 Tasks, 100 seeds, diagonal Cost Loss=Vote Loss=0..70% in 2% steps and max_rounds=100:
-1. Original 51%-majority, one Vote packet (old E2 evidence).
-2. 51%-majority, TWO Vote packet copies (new).
-3. 51%-majority, THREE Vote packet copies (new).
-4. Pure >25%-qualified score announcement, one Vote packet, NO fallback (old E2 evidence).
-
-Start with unit tests and 3-seed smoke (0%, 30%, 50% joint Cost/Vote Loss):
-
-~~~bash
-git pull
-python3 -m unittest discover -s tests -v
-python3 -m experiments.run_e2_retirement \
-  --robots 100 --tasks 50 --seeds 3 \
-  --cost-loss-probabilities 0,0.30,0.50 --loss-pairing diagonal \
-  --max-rounds 100 --vote-decision-rule strict_majority \
-  --vote-repetitions 2 --output-root results/e2_repeat2_majority_smoke
-python3 -m experiments.run_e2_retirement \
-  --robots 100 --tasks 50 --seeds 3 \
-  --cost-loss-probabilities 0,0.30,0.50 --loss-pairing diagonal \
-  --max-rounds 100 --vote-decision-rule strict_majority \
-  --vote-repetitions 3 --output-root results/e2_repeat3_majority_smoke
-~~~
-
-Only after tests and smoke pass, run full 36-point, 100-seed scans (3,600 runs per repeated-vote variant):
-
-~~~bash
-LEVELS="$(python3 -c 'print(",".join(f"{i/100:.2f}" for i in range(0, 71, 2)))')"
-python3 -m experiments.run_e2_retirement \
-  --robots 100 --tasks 50 --seeds 100 \
-  --cost-loss-probabilities "$LEVELS" --loss-pairing diagonal \
-  --max-rounds 100 --vote-decision-rule strict_majority \
-  --vote-repetitions 2 \
-  --output-root results/e2_repeat2_majority_100r50t
-python3 -m experiments.run_e2_retirement \
-  --robots 100 --tasks 50 --seeds 100 \
-  --cost-loss-probabilities "$LEVELS" --loss-pairing diagonal \
-  --max-rounds 100 --vote-decision-rule strict_majority \
-  --vote-repetitions 3 \
-  --output-root results/e2_repeat3_majority_100r50t
-~~~
-
-Compare FULL-task assignment success, Greedy executor accuracy and complete-only Greedy cost degradation alongside **number of physical Vote attempts, payload bytes and simulated total coordination time**. DO NOT claim winning solely from success percentage if another protocol sends significantly more packets; this is a success/traffic/time Pareto analysis.
-
-The fixed-copy scheme is a standard general reliability CONTROL, not a faithful reproduction of published MRTA algorithms. A genuinely comparable next algorithm family is CBAA/CBBA and its asynchronous ACBBA variant, with their own true local bid/conflict and convergence mechanisms. Reference sources: Choi et al. (IEEE T-RO 2009 DOI 10.1109/TRO.2009.2022423), MIT ACL's CBBA project, Rantanen et al. (IEEE SAM 2018 DOI 10.1109/SAM.2018.8448984). Implement those in a separate bounded change; do not disguise our Vote plurality or duplicate-copy mechanism as those algorithms.
-
-Protocol, code ownership, diagnostics, limitations: docs/EXPERIMENT_PROTOCOL.md Section 17.
-
----
-
-## E9A — Observed matching of Greedy25 and CBAA transmitted Bytes (calibration only)
-
-We must not compare CBAA's arbitrary 20 repeated full-vector broadcasts to a single run of our packet-loss-resistant Greedy 25% task voting and call them equal communication. E9A adds a **READ-ONLY** source-verified byte/resource calibration tool in experiments/compare_cbaa_budget.py. It reads the completed, historical 100R/50T 100-seed pure25 E2 raw evidence and already generated CBAA raw, optionally with new CBAA iteration configurations. It NEVER changes task decisions or historical results. Its candidate CBAA iteration count is chosen using **p=0 Greedy mean send Bytes only**, independent of CBAA success or p=.30/.50 outcome. For each p and seed it publishes actual sender Bytes, message counts, simulated time, Greedy complete Commit vs CBAA external observer agreement and CBAA conflicts. It flags any ratio outside a predeclared +/-10% tolerance.
-
-The unit of budget is sender-COUNTED application payload Bytes. Each broadcast is counted ONCE, not multiplied by recipients; receiver delivery opportunities and physical packet drops remain separately reported. Neither project model includes radio channel contention/airtime, and the CBAA consensus channel differs from E2's Cost+Vote + reliable score/Commit. **This is NOT a true hard byte cap**, so no equal-budget superiority should yet be claimed.
-
-Run from Mac where historical 25% and CBAA K20 pilot already exist:
-
-~~~bash
-git pull
-python3 -m unittest discover -s tests -v
-
-# Read-only validation of the existing CBAA K20 pilot against Greedy25 raw.
-python3 -m experiments.compare_cbaa_budget \
-  --cbaa-roots results/e8_cbaa_100r50t_pilot \
-  --output-root results/e9_cbaa_budget_calibration_20only
-
-# Independent new CBAA short-run sources, different iteration counts.
-for K in 1 2 3 4 5 8 10; do
-  python3 -m experiments.run_cbaa_baseline \
-    --robots 100 --tasks 50 --seeds 3 \
-    --loss-probabilities 0,0.30,0.50 \
-    --max-iterations "$K" \
-    --output-root "$(printf 'results/e8_cbaa_budget%s_100r50t_smoke' "$K")" || break
-done
-
-# Zero-loss-byte-only calibration across all options; output is distinct.
-python3 -m experiments.compare_cbaa_budget \
-  --robots 100 --tasks 50 --seeds 3 \
-  --loss-probabilities 0,0.30,0.50 --tolerance 0.10 \
-  --cbaa-roots \
-    results/e8_cbaa_budget1_100r50t_smoke \
-    results/e8_cbaa_budget2_100r50t_smoke \
-    results/e8_cbaa_budget3_100r50t_smoke \
-    results/e8_cbaa_budget4_100r50t_smoke \
-    results/e8_cbaa_budget5_100r50t_smoke \
-    results/e8_cbaa_budget8_100r50t_smoke \
-    results/e8_cbaa_budget10_100r50t_smoke \
-    results/e8_cbaa_100r50t_pilot \
-  --output-root results/e9_cbaa_budget_calibration_3seed
-~~~
-
-Outputs: budget_options.csv (zero-loss traffic-selected K), budget_per_seed.csv, budget_curve.csv and source SHA256/Git-SHA manifest.json. Never overwrite archived source experiments or previous reports. If closest K fails tolerance, mark UNMATCHED and consider adding nearby integer K choices; never silently select best-performing K using packet-loss results.
-
-Next E9B must enforce actual identical sender-byte caps BEFORE sending in original protocol owners, with honest incomplete outcomes, harmonized channel loss assumptions and fair timing before any claimed causal equal-budget result. Full provenance/diagnostics: docs/EXPERIMENT_PROTOCOL.md §19 and results/e9_cbaa_budget_calibration/README.md.
-
----
-
-## E8 — Independent published CBAA single-assignment benchmark (first validation block)
-
-**User-selected next phase:** compare our packet-loss-resilient decentralized voting against actual literature-based decentralized task assignment, starting with CBAA (Choi, Brunet & How, IEEE T-RO 2009, DOI [10.1109/TRO.2009.2022423](https://doi.org/10.1109/TRO.2009.2022423)). This is **NOT CBBA/ACBBA**, NOT our own 25% voting state machine, and does NOT silently fall back to reliable Commit.
-
-New independent owner: democracy_mrta/cbaa.py implements CBAA Phase 1 agent-local bid selection, Phase 2 lossy neighbor maximum-consensus, release/rebid if outbid, winner-origin tie metadata, and **post-hoc observer-only** agreement/conflict auditing. Each robot can claim at most one task. A locally conflicted task is NOT automatically assigned by the observer. experiments/run_cbaa_baseline.py records per-seed results, full-agreement counts, physical consensus packets/drops/bytes and simulated timing, source Git SHA and Rady latency provenance, with seed-0 compressed broadcast/delivery/local-state evidence.
-
-**Scientific limitations:** This first reference is fixed-iteration and synchronized on a complete network, with CBAA reward 1/(1+Euclidean cost) and origin metadata added for deterministic equal-bid handling. The original publication includes more general communication conditions; this is NOT yet a validated full asynchronous or independently distributed stopping implementation. CBAA consensus broadcasts each have ONE independently sampled loss stage, whereas our old E2 had separate initial Cost loss and Vote loss, with reliable Commit. Thus matched nominal Packet Loss probabilities are not identically controlled network workloads. This initial study is algorithm correctness/preflight and not yet a paper-ready statement that our algorithm is globally superior.
-
-### Mac validation — run these BEFORE formal CBAA comparison
-
-~~~bash
-git pull
-python3 -m unittest discover -s tests -v
-
-# Small CBAA 10R/5T, 3 seeds × p={0, 0.30, 0.50}
-python3 -m experiments.run_cbaa_baseline \
-  --robots 10 --tasks 5 --seeds 3 \
-  --loss-probabilities 0,0.30,0.50 --max-iterations 20 \
-  --output-root results/e8_cbaa_single_assignment_smoke
-
-# Only after suite/small smoke pass: 100R/50T, 3-seed CBAA pilot
-python3 -m experiments.run_cbaa_baseline \
-  --robots 100 --tasks 50 --seeds 3 \
-  --loss-probabilities 0,0.30,0.50 --max-iterations 20 \
-  --output-root results/e8_cbaa_100r50t_pilot
-~~~
-
-Expected small smoke: raw/cbaa_*.csv (9 rows), summary.csv (3 conditions), events/cbaa_audit_*.csv.gz (seed 0 only), and manifest.json. **If CBAA does not produce full task agreement at 0% loss, first inspect the true auction/consensus owner or iteration budget.** Do not insert a central rescue or an extra vote to make it pass. The pilot must pass before planning 100-seed 36-point formal CBAA curves.
-
-Original 51% K1/K2/K3 and pure 25% K1 formal results remain immutable; all four existing communication protocols were already independently evaluated at 100R/50T with 100 seeds × 36 loss levels. CBAA is a distinct optimizer-level baseline, so compare both full assignment agreement and packet/message/bytes/latency under disclosed differences. The old Greedy-only communication study remains the *controlled optimizer-fixed* test of our communication protocol's contribution.
-
-Exact source adaptation/diagnostic contracts: docs/EXPERIMENT_PROTOCOL.md §18; evidence ledger: results/e8_cbaa_single_assignment_smoke/README.md; mandatory internal continuity: docs/CHANGE_CONTINUITY.md.
-
----
-
-## E5 — Bursty Packet Loss
-
-Purpose: determine whether conclusions from independent Bernoulli loss survive correlated outages.
-
-Network model:
-
-- Gilbert-Elliott Good / Bad channel state
-- empirical Wi-Fi latency for delivered packets
-
-Primary outputs are identical to E2.
-
-### E5 result record
-
-Status: **PLANNED**
-
-Raw: `results/e5_burst_loss/raw/`  
-Summary: `results/e5_burst_loss/summary.csv`
-
----
-
-## E6 — Message-Type Failure Localization
-
-Purpose: identify which communication stage causes failure.
-
-Conditions:
-
-1. cost-message loss only;
-2. vote-message loss only;
-3. commit-message loss only;
-4. all peer message types lossy.
-
-Measure:
-
-- success rate
-- optimality gap
-- communication time
-- timeout rate
-- retries
-- safety failures
-
-### E6 result record
-
-Status: **PLANNED**
-
-Raw: `results/e6_loss_source/raw/`  
-Summary: `results/e6_loss_source/summary.csv`
-
----
-
-## E7 — Published Wi-Fi Trace Replay
-
-Purpose: final realism check without independently synthesizing latency and loss.
-
-Replay measured application-level Wi-Fi observations from the published Rady et al. dataset, using matched trace segments across coordination methods.
-
-This experiment answers whether conclusions from the controlled sweeps survive an externally measured real wireless trace.
-
-### E7 result record
-
-Status: **PLANNED**
-
-Raw: `results/e7_trace_replay/raw/`  
-Summary: `results/e7_trace_replay/summary.csv`
-
----
-
-# 6. Statistical protocol
-
-For each formal condition:
-
-- 100 paired seeds unless otherwise stated;
-- same cost scenario for every coordination method;
-- same network trace / sampled latency stream for every compared method where causally possible;
-- raw per-seed evidence is retained;
-- report mean and 95% CI for approximately symmetric metrics;
-- report median / IQR and tail percentiles for latency;
-- additionally report P90 / P95 / P99 decision latency because wireless delay is tail-sensitive.
-
----
-
-# 7. Result-storage policy
-
-```text
-results/
-  e0_protocol_correctness/
-  e1_latency/
-  e2_packet_loss/
-  e3_robot_scalability/
-  e4_task_load/
-  e5_burst_loss/
-  e6_loss_source/
-  e7_trace_replay/
-```
-
-Each formal result must preserve:
-
-- git commit SHA
-- scenario config
-- network-profile identifier
-- source dataset commit / provenance
-- seed list
-- raw per-message network events
-- raw per-seed algorithm metrics
-- summary CSV
-- environment/runtime metadata
-
----
-
-# 8. Implementation order
-
-- [x] E0 — corrected formal run passed
-- [x] E1 — formal trace-driven latency run complete
-- [x] E2 — implementation complete; formal local run pending
-- [ ] E3 — robot scalability
-- [ ] E4 — task-load saturation
-- [ ] E5 — burst loss
-- [ ] E6 — message-type failure localization
-- [ ] E7 — published trace replay
-
-No later experiment begins until the current one has code, tests, raw output, summary output, README result record, and continuity entry.
+**Literature:** [Rady et al., *Ad Hoc Networks* 156 (2024), 103418](https://doi.org/10.1016/j.adhoc.2024.103418) (industrial Wi-Fi application delay); [Choi, Brunet & How, *IEEE Transactions on Robotics* 25(4), 2009](https://doi.org/10.1109/TRO.2009.2022423) (consensus-based decentralized auctions).

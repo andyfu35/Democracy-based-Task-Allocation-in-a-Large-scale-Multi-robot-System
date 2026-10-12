@@ -1,0 +1,55 @@
+name: E9E Dense Loss and SVG Figures
+
+on:
+  push:
+    branches:
+      - experiment/e9e-dense-loss-figures
+    paths:
+      - experiments/run_e9d_natural_loss.py
+      - experiments/plot_e9d_results.py
+      - tests/test_e9e_dense_grid.py
+      - tests/test_e9e_figures.py
+      - .github/workflows/e9e_dense_figures.yml
+
+permissions:
+  contents: read
+
+jobs:
+  e9e-dense-plot-smoke:
+    name: Reproducible E9E dense grid and SVG evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout immutable source
+        uses: actions/checkout@v4
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install project dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Test exact 52-point grid and result figures
+        run: |
+          python -m unittest discover -s tests -p test_e9e_dense_grid.py -v
+          python -m unittest discover -s tests -p test_e9e_figures.py -v
+      - name: Full repository regression
+        run: python -m unittest discover -s tests -v > /tmp/e9e_tests.log 2>&1 || { tail -n 170 /tmp/e9e_tests.log; exit 1; }
+      - name: Smoke dense natural-loss protocol and generate verified SVGs
+        run: |
+          python -m experiments.run_e9d_natural_loss \
+            --robots 5 --tasks 3 --seeds 2 \
+            --loss-grid-profile dense \
+            --cbaa-safety-round-limit 15 \
+            --democracy-safety-round-limit 20 \
+            --latency-mode constant \
+            --output-root results/e9d_e9e_ci_smoke
+          python -m experiments.plot_e9d_results \
+            --run-root results/e9d_e9e_ci_smoke
+      - name: Upload smoke-only raw and figure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e9e-dense-two-seed-smoke-SVG-only
+          path: results/e9d_e9e_ci_smoke/
+          retention-days: 30
+          if-no-files-found: warn

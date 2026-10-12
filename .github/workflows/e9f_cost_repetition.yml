@@ -1,0 +1,56 @@
+name: E9F Cost Source Repetition
+
+on:
+  push:
+    branches:
+      - experiment/e9f-cost-redundancy
+    paths:
+      - democracy_mrta/coordination.py
+      - tests/test_e9f_cost_repetition.py
+      - experiments/run_e9f_cost_redundancy.py
+      - tests/test_e9f_cost_study.py
+      - .github/workflows/e9f_cost_repetition.yml
+
+permissions:
+  contents: read
+
+jobs:
+  original-cost-repetition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install project dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Test true Cost transmission source and backward compatibility
+        run: python -m unittest discover -s tests -p 'test_e9f_cost_repetition.py' -v
+      - name: Test E9F original protocol paired evidence owner
+        run: python -m unittest discover -s tests -p 'test_e9f_cost_study.py' -v
+      - name: Full repository unittest regression
+        run: python -m unittest discover -s tests -v > /tmp/e9f_regression.log 2>&1 || { tail -n 220 /tmp/e9f_regression.log; exit 1; }
+      - name: Actual 5R3T two-seed paid Cost-copy loss smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m experiments.run_e9f_cost_redundancy \
+            --robots 5 --tasks 3 --seeds 2 \
+            --cost-copies 1,2,3,5 \
+            --loss-probabilities 0,0.5,1 \
+            --cbaa-safety-round-limit 15 \
+            --democracy-safety-round-limit 20 \
+            --latency-mode constant \
+            --no-download \
+            --output-root results/e9f_ci_paid_cost_smoke
+      - name: Archive raw E9F smoke output (never official formal)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e9f-paid-cost-original-cbaa-2seed-smoke
+          path: results/e9f_ci_paid_cost_smoke/
+          if-no-files-found: warn
+          retention-days: 30

@@ -1,0 +1,53 @@
+name: E9D Natural CBAA Loss Smoke
+
+on:
+  push:
+    branches:
+      - experiment/e9d-natural-loss-sweep
+    paths:
+      - democracy_mrta/cbaa.py
+      - experiments/run_e9d_natural_loss.py
+      - tests/test_cbaa_local_convergence.py
+      - tests/test_e9d_natural_loss.py
+      - .github/workflows/e9d_natural_loss.yml
+
+permissions:
+  contents: read
+
+jobs:
+  natural-loss-smoke:
+    name: Original CBAA local-evidence loss tests and smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout committed source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install existing dependencies
+        run: python -m pip install -r requirements.txt
+      - name: E9D dedicated owner/runner tests
+        run: |
+          python -m unittest discover -s tests -p 'test_cbaa_local_convergence.py' -v
+          python -m unittest discover -s tests -p 'test_e9d_natural_loss.py' -v
+      - name: Verify entire regression suite
+        run: python -m unittest discover -s tests -v > /tmp/e9d_regression.log 2>&1 || { tail -n 160 /tmp/e9d_regression.log; exit 1; }
+      - name: Execute paired 5R 3T low-to-full-loss smoke
+        run: |
+          python -m experiments.run_e9d_natural_loss \
+            --robots 5 --tasks 3 --seeds 2 \
+            --loss-probabilities 0,0.50,1 \
+            --cbaa-safety-round-limit 15 \
+            --democracy-safety-round-limit 20 \
+            --latency-mode constant \
+            --output-root results/e9d_ci_smoke
+      - name: Upload raw evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e9d-natural-loss-smoke-evidence
+          path: results/e9d_ci_smoke/
+          if-no-files-found: warn
+          retention-days: 30

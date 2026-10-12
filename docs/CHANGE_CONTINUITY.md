@@ -1912,6 +1912,643 @@ All errors use owner=experiments.compare_cbaa_budget; category ∈ {data,time,st
 This continuity entry's own commit SHA will be the next resulting Git HEAD; subsequent code changes must append a new continuity entry before they can be called complete.
 
 
+## 2026-10-11 — E9B-1 physical sender payload-budget admission (opt-in primitive only)
+
+### Purpose and evidence
+The user's E9A Mac run on main 68499c9 passed 145/145 tests and collected K=1,2,3,4,5,8,10 plus prior K20 for 100R/50T, three seeds at p=0/.30/.50. Greedy pure25 p0 mean physical sender payload was 163,800 Bytes; nearest CBAA K=3 spent 184,800 Bytes (+12.82%, outside +/-10% target) and had full observer agreement for 3/3 p0, 0/3 p30 and 0/3 p50. K2 p0 full agreed only 2/3. CBAA K8 fully agreed for all three p values in this 3-seed pilot while spending 492,800 Bytes. All values remain preliminary, observer agreement is NOT a Commit, and E9A was NOT a hard-cap test.
+
+This bounded code change introduces only sender-side budget admission for actual physical SEND constructors. It explicitly does NOT yet expose a budgeted E2/CBAA simulator CLI or claim a result.
+
+### Files and exact functions
+- democracy_mrta/network.py:
+  - validate_sender_payload_budget: exactly typed cap, data/INVALID_SENDER_PAYLOAD_BUDGET.
+  - SenderPayloadBudget: per-run counters limit/sent/remaining/denied, no allocation or communication state machine.
+  - reserve_sender_payload: atomic one-packet SEND admission before event exists, data/INVALID_SENDER_PAYLOAD_SIZE and runtime/SEND_PAYLOAD_BUDGET_EXHAUSTED.
+  - SenderBudgetExhausted: catchable ProtocolError subclass carrying the original Diagnostic.
+- democracy_mrta/coordination.py:
+  - _unicast_event and _broadcast_event: optionally call the SAME network.reserve_sender_payload owner before latency/event construction, without changing existing unbudgeted calls.
+- tests/test_sender_payload_budget.py:
+  - zero cap denial, diagnostic first owner/function/category/code, fixed cap exact-fit, rejection without latency sample/double count, no partial packet, invalid cap/payload, opt-out event parity, independent run budgets.
+- docs/EXPERIMENT_PROTOCOL.md: new canonical Section 20 differentiates budget primitive from future complete runnable E9B.
+- docs/CHANGE_CONTINUITY.md: this continuity record.
+
+### Responsibility movement
+None of the allocation states, decision rules, original physical loss/latency owners, runner contracts or E9A post-hoc reporter responsibilities move. Network exclusively owns byte reservation. The shared physical event constructors invoke that owner; no separate CBAA or Greedy budgeting algorithm and no duplicate state machine is introduced.
+
+### Preserved behavior
+No existing simulator or runner passes send_budget (default None). All old E0-E9A functionality, original packet IDs and loss keys, CBAA competition, Greedy election/retirement, reliable score/Commit, evidence roots and test expectations remain untouched. No results overwrite.
+
+### Deliberately changed behavior
+An explicit opt-in budget at one physical unicast/broadcast constructor makes an oversized next SEND fail BEFORE transmission, consumes zero additional sent bytes/messages and leaves no fake event. Positive and zero caps accepted. This must later be handled by owning runtime functions to avoid treating an incomplete task as committed.
+
+### First-failure diagnostic contract
+- network.validate_sender_payload_budget / data / INVALID_SENDER_PAYLOAD_BUDGET, expected nonnegative exact integer Bytes, actual input.
+- network.reserve_sender_payload / data / INVALID_SENDER_PAYLOAD_SIZE, expected positive exact integer physical SEND payload, actual input.
+- network.reserve_sender_payload / runtime / SEND_PAYLOAD_BUDGET_EXHAUSTED, expected max_next_send_bytes, actual attempted_send_bytes, details phase/current sent/cap.
+
+### Verification, known risks, next steps
+- The 145/145 local user-Mac pass predates THIS new E9B-1 code. No claim that the new budget tests have run on Mac or here. The remote code checkout is unavailable to this environment because github.com DNS is blocked; source tests are pending the user.
+- The next Greedy runtime block needs explicit incomplete-round semantics and preservation of all previously emitted Cost/Vote/announcement sends, plus never retiring an executor without its actual sent Commit. The next CBAA block needs partial-iteration local observation semantics and no centralized arbitration. No cap-triggering simulator calls should be wired until these are in place.
+- Byte-only SEND cap does not enforce equal wall-clock channel occupancy, different lossy-control stages, real MAC retransmissions or physical on-air Bytes.
+- Next: run python3 -m unittest discover -s tests -v on this branch and inspect any diagnostics. Only then integrate ONE runtime owner at a time, with new continuity record and tests, before formal experiments.
+
+### Commit SHA
+Code/test/canonical implementation SHA: `82bd91e36a2c4ef94d356196da7fe4eb9d68bc27`. This continuity-only follow-up commit records that exact implementation SHA; branch base was `68499c9c631b54f2d95cb5b66786525e382a68b3`.
+
+
+## 2026-10-11 — E9B-2 bounded Greedy 25% runtime SEND-byte hard cap
+
+### Purpose / prior verification evidence
+The user locally ran the E9B-1 branch and confirmed 152/152 passing tests on 2026-10-11 (existing ResourceWarning for an unclosed fixture file in test_greedy_communication_comparison is a test cleanup issue, not a test failure). This change is the next ONE bounded responsibility: convert that dormant E9B-1 per-run SEND reservation into a safety-preserving, opt-in Greedy25% runtime sender-byte cap. CBAA and existing runner evidence are untouched.
+
+### Files / owner / exact functions
+- democracy_mrta/network.py: SenderPayloadBudget.last_denied_diagnostic retains the original network.reserve_sender_payload runtime/SEND_PAYLOAD_BUDGET_EXHAUSTED Diagnostic on denied physical SEND; no additional network state machine.
+- democracy_mrta/coordination.py: _simulate_lossy_cost_broadcasts and capture_retirement_cost_snapshot (partial once-only Cost); transmit_repeated_remote_vote (partial physical Vote copies); simulate_quarter_plurality_announcement_phase (partial-score stop); validate_budgeted_retirement_scope (explicit Greedy pure25 K1 scope / planning diagnostics); summarize_budget_exhausted_epoch (no-phantom-Commit aborted round); simulate_democracy_hungarian_lossy (existing voting owner, staged early stop and Commit gating); simulate_democracy_hungarian_retirement (original membership/queue owner, stop without rotation when aborted); require_retirement_sender_accounting (event-ledger contract); _summarize_lossy_result and existing result dataclasses (expose budget stop state/phase/original failure).
+- tests/test_greedy_sender_budget.py: zero cap, partial cost/vote/score/commit boundaries, previous-round Commit preservation, exact-fit normal completion and packet-key identity, original opt-out behavior, narrow-mode rejection, event/ledger invariants.
+- docs/EXPERIMENT_PROTOCOL.md: new canonical §21; docs/CHANGE_CONTINUITY.md: this update, both in same code change.
+
+### Responsibility movement / invariant behavior
+NO responsibility is moved into a different owner. The existing network sender reserve owner continues to account Bytes. The existing coordination Greedy vote, score, Commit and protocol retirement owners keep their original responsibilities; no alternative election, task state machine, fake Commit, reliable fallback, change to loss sampler or packet keys. The old unbudgeted code path remains the default for ALL existing tests/runners. Under explicit budget, first denied physical SEND stops the current incomplete epoch, never inventing an accepted task.
+
+### Intentionally changed behavior
+Only calls that pass a SenderPayloadBudget to simulate_democracy_hungarian_retirement in pure25 Greedy K1 mode are newly bounded. Under cap, previously transmitted physical packets count; any uncommitted current task stays pending. Previously emitted valid Commit on prior rounds remains valid. A denied reliable Commit is NOT a Commit. All conditions enforce ledger.sent_bytes <= limit_bytes and output sum of CommunicationEvent.payload_bytes == ledger.sent_bytes; no metadata reused across independent runs. Score/Commit messages remain counted as sent despite reliable delivery assumptions.
+
+### First-failure diagnostic contract
+- network.reserve_sender_payload / runtime / SEND_PAYLOAD_BUDGET_EXHAUSTED: real first rejected SEND with phase/used/cap/size; retained verbatim in result.budget_stop_diagnostic.
+- coordination.validate_budgeted_retirement_scope / planning / BUDGETED_RETIREMENT_REQUIRES_GREEDY_QUARTER_K1.
+- coordination.simulate_democracy_hungarian_lossy / planning / BUDGETED_EPOCH_REQUIRES_RETAINED_COSTS.
+- coordination.summarize_budget_exhausted_epoch / contract / MISSING_PHYSICAL_BUDGET_FAILURE.
+- coordination.require_retirement_sender_accounting / contract / BUDGET_LEDGER_EVENT_MISMATCH.
+This is a normal 'budget exhausted' experimental outcome, not a crash; incorrectly formed inputs or lost diagnostics still raise exact ProtocolError.
+
+### Tests / open risks / follow-up
+- The 152/152 Mac user test pass certifies only pre-E9B-2 revision be401f520ff2c2eb4ae419dea8be017dfa278123. NEW runtime tests added here are NOT claimed passed; remote GitHub connector cannot execute them and this container cannot resolve github.com, so the user must run the full unit suite on Mac.
+- Current budgeted mode deliberately restricts Greedy pure25 with K1; CBAA, K2/K3 redundancy, majority and Hungarian remain default unbudgeted until independent opt-in owner changes.
+- Budget abort's stage time counts latest actually transmitted arrival, not radio airtime; there is no shared contention/real WLAN model, and score/Commit remain reliable. Benchmark runner exposing scenario × cap × p raw paired evidence is a later separate concern.
+- E9B-3: wire SAME budget reserve into original CBAA consensus full-vector broadcasts, preserve actual partial agent beliefs and observer-only correctness, no central rescue. E9B-4: common immutable raw/summary runner; then local tests, 3-seed smoke and 100-seed formal study after verifying all fairness conditions.
+
+### Commit SHA
+Implementation code, unit tests, canonical specification and this continuity entry: `acceed9c9c258fa8064ab4eec84c550c4e02ced2` (parent `be401f520ff2c2eb4ae419dea8be017dfa278123`). Regression-fixture correction with continuity note: `7e58ad5ad5b88ad97fcb96708f20bafb540270a8`. This documentation-only follow-up records those real commits; none has yet been verified by the user's Mac test suite.
+
+
+### E9B-2 source regression fixture accuracy note
+The dedicated new E9B-2 regression test fixture must actually drop physical Cost/Vote packets when labeling the scenario "complete loss": test_greedy_sender_budget adds AllLoss and checks physically emitted Commit only. The opt-out regression compares the legacy function call with NO send_budget keyword to the explicit send_budget=None call (rather than comparing two identical calls). This affects tests only and does not change scientific raw results or runtime behavior.
+
+
+## 2026-10-11 — E9B-3 original CBAA physical sender Bytes cap
+
+### Verification and objective
+The user's Mac output for the E9B-2 branch at exact SHA 9c24de1aa8c345536dccfab19db595c3850b3275 confirms 7/7 targeted Greedy budget tests and 159/159 total regression tests passed. Prior standalone E9A calibration is NOT a common hard-cap comparison. This single bounded code block activates existing E9B-1 per-SEND reservation within original CBAA own local auction/consensus transport, preserving incomplete partial iterations rather than censoring completed runs.
+
+### Modified files / exact functions and ownership
+- democracy_mrta/cbaa.py: CBAAResult (opt-in stop fields); validate_cbaa_sender_budget (data/CBAA_INVALID_SEND_BUDGET early validation); exchange_cbaa_consensus_packets (original CBAA physical packet emission, loop break on SenderBudgetExhausted, preserve already sent/received prefix); simulate_cbaa (original 2-phase local auction/consensus, count partial barrier when >=1 SEND, retain previous state when no SEND, stop after budget denial and still external observer audit only); require_cbaa_sender_budget_accounting (contract/CBAA_SEND_BUDGET_LEDGER_MISMATCH).
+- tests/test_cbaa_sender_budget.py: 9 named tests for cap zero, undersized first packet, single-sender prefix and exact local inbox, completed round then next attempt abort, second partial barrier, exact-fit old-run parity, audit-off physical ledger, total packet loss conflict preservation, malformed budget type.
+- docs/EXPERIMENT_PROTOCOL.md: canonical Section 22.
+- docs/CHANGE_CONTINUITY.md: this precise change description in same implementation tree.
+
+### Responsibility movement and deliberately changed behavior
+NO responsibility movement across original network / coordination / CBAA modules. network.reserve_sender_payload remains first physical admission owner and provides original runtime/SEND_PAYLOAD_BUDGET_EXHAUSTED diagnostic, coordination._broadcast_event remains physical event and sample constructor, cbaa.exchange_cbaa_consensus_packets retains independent receiver losses, cbaa.cbaa_auction_phase/cbaa_consensus_phase own only local state. simulate_cbaa itself remains the sole iteration owner, external audit remains a read-only observer. Only opt-in send_budget changes behavior: deny before packet emission, preserve actually delivered local packets, break without later iterations or fake global Commit, and record stop diagnostic. No change to E8 CLI or E9A saved raw, unbudgeted old SHA behavior or packet key sampling.
+
+### First failing diagnostic boundaries
+- network.reserve_sender_payload / runtime / SEND_PAYLOAD_BUDGET_EXHAUSTED (original expected next-packet remaining Bytes, actual attempted Bytes, phase/used/limit); preserved verbatim as CBAAResult.budget_stop_diagnostic.
+- democracy_mrta.cbaa.validate_cbaa_sender_budget / data / CBAA_INVALID_SEND_BUDGET.
+- democracy_mrta.cbaa.require_cbaa_sender_budget_accounting / contract / CBAA_SEND_BUDGET_LEDGER_MISMATCH.
+- Existing CBAA_DELIVERED_PACKET_WITHOUT_TIME and CBAA_DUPLICATE_OBSERVER_AGREEMENT unchanged.
+
+### Verified / pending / risks / next
+User-Mac 159/159 refers to PREVIOUS E9B-2 revision only. NEW E9B-3 source and test suite are pending local Mac tests; assistant execution has no checked-out GitHub repository and did not execute numerical E9B-3 experiments. Byte cap is sender application payload only, not physical radio airtime, and differing message reliability / success semantics still forbid claiming protocol superiority. Future E9B-4 must build separate paired immutable evidence runner with identical cap, seed, loss, R/T and no result censorship; run 3 seeds first, then 100 seeds after verifying independent network assumptions. Implementation + 9 new tests + canonical Section 22 + continuity were committed together at `eb7a5565774a3ef6d48109db5a5f811ffe7c8860` (parent `9c24de1aa8c345536dccfab19db595c3850b3275`). This follow-up documentation-only commit records that exact implementation SHA; the new E9B-3 tests are still PENDING the user's local Mac execution.
+
+
+## 2026-10-11 — E9B-4 paired equal physical sender payload cap benchmark owner
+
+### Purpose / predecessor
+On the exact E9B-3 branch HEAD bcb4f2483e106dacfb0a63636e0d3a99db9eddf3, the user's Mac passed nine targeted CBAA hard-cap unit tests and the entire 168/168 regression suite; the preexisting unrelated ResourceWarning in test_greedy_communication_comparison remains nonfatal. E9A's past 3-seed nearest K=3 observed traffic comparison was NOT equal-hard-budget. This code change introduces ONE bounded new experiments runner to test true pre-SEND admission for both independent algorithm owners under identical limit B and paired E0 scenario seeds; it is NOT another election algorithm or a new decentralized termination state machine.
+
+### Exact files / functions / ownership
+- NEW experiments/run_e9b_equal_budget.py:
+  - parse_sender_budgets: command-line integer caps.
+  - validate_equal_budget_config: grid shape and sorted unique axes; data/E9B_INVALID_DIMENSIONS, E9B_INVALID_LOSS_GRID, E9B_INVALID_BUDGET_GRID.
+  - prepare_equal_budget_output: immutable output path guards; state/E9B_OUTPUT_SOURCE_COLLISION and E9B_OUTPUT_ALREADY_EXISTS.
+  - run_budgeted_greedy_trial: separate fresh SenderPayloadBudget and original coordination.simulate_democracy_hungarian_retirement in pure 25%, no-fallback, K1 mode.
+  - run_budgeted_cbaa_trial: separate fresh SenderPayloadBudget and original cbaa.simulate_cbaa, no observer winner feedback.
+  - validate_paired_sender_accounting: experiment-contract exact ledger vs physical event accounting and original-task coverage; contract/E9B_PAIRED_SENDER_ACCOUNTING_MISMATCH or E9B_INCOMPLETE_OUTCOME_ACCOUNTING.
+  - budget_stop_fields: format original first-failing network diagnostic without relabeling owner/function/category/code.
+  - build_equal_budget_pair_row: paired primary raw and complete-only cost; contract/E9B_INVALID_GREEDY_REFERENCE_COST.
+  - summarize_equal_budget_conditions: full seed denominators, p/cap groups and completion-only costs.
+  - write_equal_budget_evidence: dedicated immutable raw CSV, summary CSV, SHA256 manifest, pinned data provenance.
+  - run_e9b_equal_budget_experiment: enumerate (seed,p,B) and call original algorithms independently. main: CLI only.
+- NEW tests/test_e9b_equal_budget.py: 10 regression tests for invalid axes, output protection, full paired manifest with SHA256, zero cap, distinct packet-size boundaries, large-cap zero loss, idempotent rejection, seeded replay, independent ledgers, first-failure accounting diagnostics.
+- docs/EXPERIMENT_PROTOCOL.md: canonical §23 added for this E9B-4 paired protocol.
+- docs/CHANGE_CONTINUITY.md: this exact same-change continuity record; no other source modules changed.
+
+### Responsibility movement / behaviors preserved
+No original responsibility moved. Network physical SEND/Bytes and first failure remains exclusively network.reserve_sender_payload. Greedy independent optimizer/vote/safety/Commit and already-bounded retirement remains coordination.simulate_democracy_hungarian_retirement. Original CBAA independent auction/bid consensus and read-only external observer remain cbaa.simulate_cbaa. Previous E2/E3/E4/E8/E9A evidence and their CLI/defaults are unmodified. E9B-4 is the new experiment/evidence OWNER, not a separate protocol state machine, second winner or corrective wrapper.
+
+### Deliberately changed behavior and fairness limitations
+Only NEW E9B runner calls both existing owners under the same configured Byte ceiling, paired seed/scenario/p, and independent fresh ledgers. Persist actual sender Bytes even when different under the shared ceiling, reported separately from physical receiver delivery attempts and elapsed ms. Full outcome types stay different: Greedy full actual Commit vs CBAA full observer agreement (no distributed Commit). All incomplete/conflicted runs count toward failure and are excluded only from completed-only batch-cost means, never discarded. CSV records task IDs, physical accounting, original stop Diagnostic, losses and fixed method-specific round/iteration budgets. Numeric p and caps do not equalize message loss-stage structure, packet sizes, channel airtime, wireless contention, reliable controls or algorithm optimizer quality. No tuning based on CBAA success or performance. Pilot default R100 T50 3seeds 3losses 6caps = 54 paired conditions = 108 method executions; no E9B-4 numerical results have run yet.
+
+### Diagnostic contract / error categories
+- experiments.run_e9b_equal_budget.validate_equal_budget_config / data / E9B_INVALID_DIMENSIONS / E9B_INVALID_LOSS_GRID / E9B_INVALID_BUDGET_GRID; individual network.validate_packet_loss_probability / data / INVALID_PACKET_LOSS_PROBABILITY and network.validate_sender_payload_budget / data / INVALID_SENDER_PAYLOAD_BUDGET preserved.
+- experiments.run_e9b_equal_budget.prepare_equal_budget_output / state / E9B_OUTPUT_SOURCE_COLLISION / E9B_OUTPUT_ALREADY_EXISTS.
+- experiments.run_e9b_equal_budget.validate_paired_sender_accounting / contract / E9B_PAIRED_SENDER_ACCOUNTING_MISMATCH / E9B_INCOMPLETE_OUTCOME_ACCOUNTING with expected/actual cap and SEND ledger.
+- experiments.run_e9b_equal_budget.build_equal_budget_pair_row / contract / E9B_INVALID_GREEDY_REFERENCE_COST.
+- network.reserve_sender_payload / runtime / SEND_PAYLOAD_BUDGET_EXHAUSTED, expected remaining SEND Bytes and actual attempted payload; source Diagnostic owner/function/category/code/expected/actual/details retained verbatim in paired raw output.
+
+### Tests, unresolved risks, next actions
+Only user's 168/168 Mac pass on PREVIOUS revision bcb4f2483e106dacfb0a63636e0d3a99db9eddf3 is verified. NEW E9B-4 runner/tests have NOT executed on Mac or this connector runtime: no fabricated successful test count, no fabricated pilot results. Remote GitHub connector cannot execute the user's Python runtime or inspect locally stored historical evidence. User should run targeted tests, full unittest suite, then 100R/50T 3-seed new-root smoke and verify CSV pairing, SHA256, all cap limits, genuine incomplete outcomes and p=0 cap controls. Formal 100-seed 36-loss sweep must use its own independent fresh root and should not be launched before 3-seed review. Additional remaining concern is harmonization of reliable score/Commit vs CBAA no-Commit, packet-stage loss probability, actual wireless airtime and distributed stopping. A future research paper must disclose these limitations.
+
+### Commit SHA
+Original branch base: `bcb4f2483e106dacfb0a63636e0d3a99db9eddf3`. E9B-4 implementation + ten new tests + canonical §23 + this continuity entry were committed together at `bc13d00b394cba1936dd70ef895074b83f434440`. This follow-up documentation-only commit records the exact implementation SHA; new E9B-4 tests and pilot remain pending Mac verification.
+
+
+## 2026-10-11 — E9B-4 Mac pilot results verified; round-limit sensitivity gate (documentation only)
+
+### Purpose and source
+User Mac verification of E9B-4 SHA 41d9c8e19b28536bb83fe83ae8a58c87757033f2: targeted E9B runner tests 10/10 PASS, full unittest discovery 178/178 PASS. A separate preexisting unclosed-file ResourceWarning from tests/test_greedy_communication_comparison.py is nonfatal. Pilot 100R/50T, seeds 0..2, p=(0,.30,.50), B=(100000,163800,184800,250000,500000,1000000), max_greedy_rounds=100, max_cbaa_iterations=40: all 54 paired conditions completed (108 independent method evaluations). Terminal reports Mac-local results/e9b_equal_sender_budget_pilot/raw/e9b_pairs_20261011T015151Z.csv, summary.csv and manifest.json. This documentation evidence is from the user's printed terminal log: neither raw per-seed CSV nor manifest SHA256 has been independently obtained here. No code is changed in this documentation-only follow-up.
+
+### Matched physical actual transmitted traffic, B=163800
+- p=0: original Greedy 163800 actual sender Bytes, CBAA 163240; full Greedy actual Commit 3/3, full CBAA POST-HOC observer agreement 1/3; partial task ratios Greedy 1.0000 vs CBAA .9867.
+- p=.30: Greedy 163149 Bytes vs CBAA 163240; full Commit 3/3 vs full observer agreement 0/3; task ratios 1.0000 vs .9200.
+- p=.50: Greedy 163779 Bytes vs CBAA 163240; both full outcomes 0/3; task ratios .3600 actual Commit vs .8933 observer agreement.
+All three conditions have <0.35% difference in mean actual sender payload Bytes. This is the strongest close-ACTUAL-BYTES pilot evidence, NOT yet a formal 100-seed study or equivalent Commit semantics.
+
+### Higher caps expose resource and termination confounds
+- B=184800 p=0: Greedy 3/3 full Commit vs CBAA 3/3 full observer agreement, but Greedy actual Bytes 163800 and CBAA 184800 (+12.82%), so this cap is NOT identical actual traffic. At p=.30: Greedy 3/3 vs CBAA 0/3.
+- B=250000 p=.30: Greedy 3/3 vs CBAA 2/3, but actual 163149 vs 249480 Bytes; p=.50 Greedy 0/3 vs CBAA 1/3, close actual 249992 vs 249480 Bytes.
+- B=500000 p=.30: both methods 3/3 on their distinct metrics, but actual 163149 vs 499576 Bytes, not matched.
+- p=.50 at B=500000 and B=1000000: Greedy 0/3 full with mean 0.8267 committed task ratio and 289915 actual Bytes, Greedy budget_exhausted=0.0. Greedy thus terminates by max_rounds=100, not a hard Bytes ceiling. This is a material experimental limit: no evidence yet that p=.50 prevents eventual completion when max_rounds increases while cap remains fixed.
+- CBAA p=.50 at B=500000 and B=1000000 obtains full external observer agreement in 3/3, but CBAA budget_exhausted=1.0; it retains fixed repeated broadcasts with no proper decentralized convergence stop and NEVER an actual reliable Commit.
+
+### Immediate research next steps, without algorithm changes
+First run an explicitly bounded 3-seed sensitivity: p=.50, B=(500000,1000000), Greedy max_rounds=200 and max_rounds=300 separately, retain original CBAA max_iterations=40, and use NEW immutable output roots. Compare full Commit, remaining tasks, actual Bytes, Greedy cap exhaustion and elapsed time to previous 100-round pilot. Do not claim 50% Packet Loss algorithm superiority from the previous 100-round stop. The eventual 100-seed p0..70 step2 formal experiment must have separate roots and ideally an independent checkpoint/resume evidence concern: current runner writes raw CSV only after every paired condition has executed, so interruption loses the current run's unwritten evidence.
+
+### Owner and diagnostic contracts unchanged
+Documentation only. Original network.reserve_sender_payload / runtime / SEND_PAYLOAD_BUDGET_EXHAUSTED remains physical admission owner, coordination.simulate_democracy_hungarian_retirement remains unique Greedy election/Commit/retirement owner, cbaa.simulate_cbaa remains unique local auction/consensus owner, and experiments.run_e9b_equal_budget remains experiment-only owner. No functional edits, no new diagnostics, no changed canonical specifications or historical raw, no responsibility movement. Source SHA for user-measured behavior remains 41d9c8e19b28536bb83fe83ae8a58c87757033f2.
+
+
+## 2026-10-11 — E9C-1 wire-encoded real task / paid peer-pose information audit
+
+### Purpose and prior verified facts
+The user requires a new apples-to-apples comparison of physical transmitted information size: TASK announcements must not be free, Democracy is allowed to compute costs LOCALLY from received TASK and position data, CBAA must communicate bid/winner knowledge, and no method may silently receive global robot/cost information from the omniscient simulator. This new work follows user-Mac E9B-4 178/178 regression and 100R/50T hard-cap results on executable SHA 41d9c8e19b28536bb83fe83ae8a58c87757033f2; prior E9B runs and stop-rule asymmetries remain unchanged. Research finding motivating scope: Greedy original Cost Row broadcast occurs ONCE, CBAA iterative full bid-vector broadcasts; equal hard-cap does not imply same initial-information availability or end-to-end bytes.
+
+### Files, exact named functions, and owner
+- NEW democracy_mrta/task_information.py is sole owner for actual binary TASK/POSE source packets and receipt:
+  - encode_task_announcement: serialize chunked TASK v1 records, validate source finite coordinates and <=1200 application Bytes per physical send.
+  - decode_task_announcement: verify REAL physically delivered frames, precise lengths/magic/version/ID and no missing tasks.
+  - broadcast_task_information: charge original physical _broadcast_event and per-receiver delivery for every TASK frame, reject missing source content; sender is external task announcer ID=R, never an allocator.
+  - broadcast_robot_positions: each robot physically broadcasts its own encoded pose, receiver must actually get all peer poses before using them to determine all-robot costs.
+  - reconstruct_local_cost_rows: each receiver computes only its OWN row from its OWN position and received tasks. No sharing of source scenario Cost Matrix or hidden peer robot state.
+- democracy_mrta/coordination.py existing original Greedy/membership owner:
+  - build_received_pose_retirement_snapshot: validate all physically received peer pose views and construct existing RetirementCostSnapshot without another state machine.
+  - validate_preknown_retirement_cost_snapshot: contract-boundary for caller-provided fully informed initial Cost view.
+  - simulate_democracy_hungarian_retirement: new OPTIONAL preknown_cost_snapshot parameter, default None. Only when supplied and validated does it bypass the original Cost Row broadcast; all original per-task one-copy vote/25%-qualified Score/reliable Commit/retirement and original E2/E9B behavior are unchanged. No wrapper changes elections.
+- NEW experiments/run_e9c_real_information.py:
+  - validate_e9c_case; prepare_e9c_evidence; require_local_source_consistency (observer-only contract); summarize_greedy_wire_phases; assemble_method_row; run_original_methods_from_local_information; write_e9c_evidence; run_e9c_real_information; parse_iterations; main. New experiment is a one-scene p0 real actual-wire Byte breakdown, not another algorithm or vote/auction state machine.
+- NEW tests/test_e9c_real_information.py: 11 tests verify correct 16/32/20 B binary structs, 1200+432 TASK packets at 50T, paid 36 B POSE per source robot, zero-loss reception, nonzero-loss dependency failure, malformed information, old Greedy winner parity, no free Cost after valid peer pose exchange, CBAA original full vector bytes, immutable evidence and exact source SHA256.
+- docs/EXPERIMENT_PROTOCOL.md: canonical new Section 24 for explicit E9C wire fields, assumptions, cost visibility, phase bytes and runnable commands.
+- docs/CHANGE_CONTINUITY.md: this record, present in same implementation code commit.
+
+### Responsibility movement and preserved behavior
+No old election, bidding, physical transport, cost optimizer or retirement responsibility moves. Original network/coordination physical _broadcast_event and _lossy_broadcast_deliveries remain the ONLY packet emission and receiver loss owners. Original Greedy and CBAA algorithm runtime functions remain unique state owners. New task_information owns previously unmodeled TASK and optional POSE information-source messaging. Experiment does not grant free global robot positions/costs: each robot knows only own pose locally, receives actual serialized TASK frames, and either original Greedy broadcasts actual Cost rows or all peers pay for actual POSE broadcasts. CBAA exchanges iterative winning bids / winner origins, NOT full remote Cost rows; do not artificially charge it for data the algorithm does not use. All previous public runners and historical evidence remain untouched. Original optional preknown_cost_snapshot default None gives exact existing Cost stage outcomes without any new packet or random draw. Original unbudgeted/opt-in E9B sender-byte hard caps unchanged.
+
+### Intentionally changed behavior
+Only NEW E9C experiment runs physically serialized Task frames through existing broadcast/loss path and accounts for them as part of method end-to-end application sender bytes. With fully received peer POSE traffic, ORIGINAL Greedy owner can skip redundant 100 Cost row broadcasts because original voters have justified all-robot distance data, while still counting 100 distinct 36 B pose packets. Original Greedy when only task and own pose are available still exchanges Cost rows as before, contrary to an invalid assumption that the original vote optimizer needs no peer information. The first run is p=0 ONLY to avoid unrealistically free task-ACK/ARQ and hidden task reconstruction; lossy announcement reliability, physical PHY airtime/headers, timed MAC contention and true end-to-end hard cap are explicitly out of scope for E9C-1. This is an actual binary/application Byte baseline, NOT full device-network protocol measurement.
+
+### First failing diagnostic contract
+- task_information.encode_task_announcement / data / INVALID_TASK_ANNOUNCEMENT_SOURCE; contract / TASK_PACKET_EXCEEDS_LIMIT; task_information.decode_task_announcement / dependency / TASK_FRAMES_INCOMPLETE or TASK_RECORDS_MISSING; data / TASK_FRAME_MALFORMED or TASK_RECORD_INVALID.
+- task_information.broadcast_task_information / dependency / TASK_ANNOUNCEMENT_INCOMPLETE; task_information.broadcast_robot_positions / data / INVALID_ROBOT_POSITION; contract / POSE_PACKET_INVALID; dependency / ROBOT_POSE_VIEWS_INCOMPLETE; task_information.reconstruct_local_cost_rows / data / TASK_ROBOT_COUNT_MISMATCH.
+- coordination.build_received_pose_retirement_snapshot / dependency / INCOMPLETE_PEER_POSE_VIEWS or contract / INCONSISTENT_PEER_POSE_SOURCE; coordination.validate_preknown_retirement_cost_snapshot / contract / INVALID_PREKNOWN_COST_PROVENANCE.
+- experiments.run_e9c_real_information.validate_e9c_case / data / E9C_INVALID_CASE_SHAPE, E9C_INVALID_CBAA_ITERATIONS; prepare_e9c_evidence / state / E9C_PROTECTED_RESULT_ROOT, E9C_OUTPUT_ALREADY_EXISTS; require_local_source_consistency / contract / E9C_TASK_WIRE_COST_RECONSTRUCTION_MISMATCH; summarize_greedy_wire_phases / contract / E9C_UNKNOWN_GREEDY_WIRE_PHASE, E9C_GREEDY_BYTES_MISMATCH; assemble_method_row / contract / E9C_PHASE_BYTE_SUM_MISMATCH.
+All new errors preserve exact first owner/function/category/code with expected/actual/details where material. Original algorithm and physical SEND first-failure diagnostics remain unchanged.
+
+### Verification and remaining risks
+No new E9C unit suite or Mac 100R/50T actual-wire full simulation has been executed. The prior E9B user-provided local results cannot verify this new E9C code. Physical 16+32T padded-message math and 1200 B frame boundary are exact wire formulas, not claims of benchmark success. User should run targeted tests, full regression suite, then exactly ONE no-loss 100R/50T source trial against CBAA K1/K3/K8 in a NEW root. Review task source framing/reassembly, sender Bytes per method, Greedy original-vs-peer-pose allocation parity, separated observer/Commit semantics, source SHA and manifest SHA256. Only then design separate scoped information reliable-delivery retransmission/ACK models and common hard-cap/no-loss/high-loss experiments before a paper-level conclusion.
+
+### Commit SHA
+Branch base: c4b376b861eb02ba422b92bb62ad13e9a0bea90b. Exact implementation commit (new real-wire source, original coordination opt-in, one-seed runner, 11 tests, canonical Section 24 and same-tree continuity): c15c862672ffcf548c067765e18b1523885f0f1e. This follow-up updates continuity with that real code SHA only. New tests and the complete Mac E9C-1 one-seed run remain unexecuted until locally verified.
+
+
+## 2026-10-11 — E9C-1 user-Mac 100R/50T real-wire verification (documentation-only)
+
+### Purpose / evidence / files
+User Mac terminal output confirms E9C-1 executable SHA 70802ef4e01723370691dc2ca633266f86b68d1c on experiment/e9c-real-task-wire-bytes. New dedicated test_e9c_real_information.py: **11/11 PASS**; entire unittest discovery: **189/189 PASS**. A preexisting ResourceWarning from test_greedy_communication_comparison.py is nonfatal. The new output paths printed on Mac were results/e9c_real_information_R100T50_20261011T041950Z/actual_wire_bytes.csv and manifest.json. This verification note uses pasted terminal output only, not independently retrieved raw CSV or SHA256. Settings: robots=100, tasks=50, seed=0, p=0, Greedy max_rounds=300, CBAA K=1/3/8.
+
+### Physical application sender bytes, actual results
+Common source TASK: 2 actual binary packets, 1632 B. Optional all-peer POSE: 100 real binary packets, 3600 B. Every method is charged common TASK bytes; peer-POSE is charged only in the mode that really uses it. Separate originals:
+- Democracy original COST rows: TASK=1632, COST=41600, VOTE=119200, SCORE=1600, COMMIT=1400; TOTAL=165432 B; 50/50 genuine Commit, full=1.
+- Democracy received peer POSE: TASK=1632, POSE=3600, COST=0, VOTE=119200, SCORE=1600, COMMIT=1400; TOTAL=127432 B; 50/50 genuine Commit, full=1.
+- CBAA K1: TASK=1632, BID_VECTOR=61600; TOTAL=63232 B; 42/50 external observer agreement, full=0.
+- CBAA K3: TASK=1632, BID_VECTOR=184800; TOTAL=186432 B; 50/50 external observer agreement, full=1, NO distributed Commit.
+- CBAA K8: TASK=1632, BID_VECTOR=492800; TOTAL=494432 B; 50/50 external observer agreement, full=1, NO distributed Commit.
+At this ONE zero-loss seed, paid-POSE Democracy transmitted 59000 B less than full-observer-agreed CBAA K3 (31.65% less) while each met its DISTINCT success definition. Original COST Democracy transmitted 21000 B less than K3. The Democracy vote phase uses 119200 B = 3725 actual 32-B direct unicast SEND events.
+
+### Ownership, behavior and diagnostic contract
+This documentation-only follow-up does NOT move responsibility or change code. Unchanged owners/functions: task_information.encode_task_announcement, decode_task_announcement, broadcast_task_information, broadcast_robot_positions, reconstruct_local_cost_rows; coordination.build_received_pose_retirement_snapshot, validate_preknown_retirement_cost_snapshot, simulate_democracy_hungarian_retirement; experiments.run_e9c_real_information.run_e9c_real_information and its named validation/evidence helpers; original cbaa.simulate_cbaa. Existing network/coordination event-loss-transport owner, existing tests, E2/E8/E9B history and canonical Section 24 are unchanged. No new first-failure diagnostic codes; canonical data/dependency/state/contract/runtime codes remain the same. This note is not a retroactive change to the user's executed SHA.
+
+### Limitations, next step
+This is only a one-seed no-loss application sender-byte measurement, NOT a multi-seed significance claim, not physical 802.11 airtime/ACK/MAC headers, and NOT equal algorithm finalization semantics or cost optimality. TASK/POSE frames are really binary encoded and decoded, whereas existing Cost/Vote/Score/Commit/CBAA vectors use physically sent event counters with modeled payload-byte sizes; do not claim every application field has fully serialized bytes. High-loss TASK and peer-POSE dissemination currently fails with a dependency diagnostic when incomplete; it does not silently reconstruct missing truth, but retransmission/ACK and task-completeness repair are NOT implemented yet. CBAA K1 did not fully converge even with zero loss; K3 did so at this one seed only. Next bounded concern: first run multi-seed p0 with K2/K3 to test convergence and actual-byte variation, then implement separately scoped lossy TASK/POSE recovery with physically counted bytes and shared hard budget; do not simply compare E9B high-loss to E9C p0.
+
+### Commit SHA
+User-executed source HEAD: 70802ef4e01723370691dc2ca633266f86b68d1c (E9C implementation commit c15c862672ffcf548c067765e18b1523885f0f1e). This documentation-only follow-up records external evidence and carries no code modification.
+
+
+## 2026-10-11 — E9C-2 original 100-seed real sender-payload communication study
+
+### Purpose, relation to user requirements and prior acceptance
+The user corrected the communication workflow to: each robot physically receives common TASK information, calculates its OWN 50 task Costs locally, broadcasts its own simple Cost row ONCE, and then votes directly to candidates based only on actually received costs. They request an ACTUAL 100-seed comparison of full transmitted information traffic with original CBAA, including a concrete robot information schema and the practical cost of CBAA transmitting original raw robot data. The prior E9C-1 Mac SHA 70802ef4e01723370691dc2ca633266f86b68d1c was verified 11/11 new tests and 189/189 full regression, one no-loss R100T50 scene. However its paid-peer-pose method is NOT the user's clarified original Democracy, so that method is deliberately NOT the E9C-2 primary actor.
+
+### One bounded new responsibility and files
+- NEW experiments/run_e9c_100seed_comms.py is the ONLY new 100-seed experiment and evidence owner. Named functions each handle a distinct concern:
+  - validate_100seed_comms_config: model axes and K grid only.
+  - prepare_100seed_comms_output: strict output path protection.
+  - select_network_sampler / create_seed_sampler: explicit deterministic constant 1ms / 10ms timeout or original Rady pinned latency profile dependency.
+  - capture_seed_information: physically binary TASK announcement and optional physically binary original POSE packets through EXISTING task_information original owner, reconstructed local costs only from actually decoded tasks and own local pose, original E9C observer-only consistency contract.
+  - run_democracy_100seed_case: original coordination.simulate_democracy_hungarian_retirement, Greedy pure25 K1, Cost once, Vote/Score/reliable Commit, no alternative optimizer, Cost and Vote stage bytes from original emitted event ledger.
+  - run_cbaa_100seed_cases: original cbaa.simulate_cbaa independently at every fixed K, plus separate NONSTANDARD exact original-POSE-raw-information transmission ablation. Published CBAA cannot be falsely charged for remote robot pose packets it does not need; the paid robot-info variant is a separate explicit counterfactual.
+  - require_complete_seed_pairing: complete, non-censored method/seed outcome contract.
+  - summarize_100seed_conditions: all-seed mean and min/max sender Bytes, actual Commit vs observer separate success rates, completed-only separate mean.
+  - calculate_offline_minimum_k / summarize_offline_paired_comparison: EXTERNAL only first successful fixed-K POST-HOC convergence lower bound; not a distributed stop signal and never fed back to CBAA robot.
+  - write_100seed_comms_evidence: physically emitted evidence CSV raw + summary + paired offline min K + source SHA and SHA256 manifest.
+  - run_e9c_100seed_comms: bounded seed iteration, one row per ORIGINAL algorithm condition, streamed CSV per seed and completed immutable output; main CLI only.
+- NEW tests/test_e9c_100seed_comms.py: seven named tests covering R2T2 three paired seeds, exact actual Task/Cost/Vote/Bid and optional original POSE bytes, original CBAA versus separately charged unnecessary raw robot data, source SHA and file SHA256, offline-K disclosure, input diagnostics, non-overwrite and no missing method rows.
+- NEW .github/workflows/e9c_100seed_comms.yml: attempt automatic CI 100R/50T 100 Seeds K=(1,2,3,4,5,6,8) zero-loss constant 1ms, dedicated and full tests, upload original raw evidence artifact without modifying source. Workflow success and any result MUST NOT be claimed before execution.
+- docs/EXPERIMENT_PROTOCOL.md: new Section 25 freezes this exact 100-seed information availability and standard/non-standard method distinction.
+- docs/CHANGE_CONTINUITY.md: this record is in same implementation commit; follow-up continuity-only commit records exact implementation SHA.
+
+### Responsibility movement, preservation, deliberate changes
+NO original network, optimizer, task_information, Greedy coordination, CBAA bidding or state machine implementation is modified by E9C-2. The original E9C-1 peer-POSE optimization remains available but is NOT mislabeled primary. Source-faithful CBAA uses TASK + own robot pose + CBAA full winning-bid/winner-ID vectors. Optional cbaa_raw_robot_information_K adds REAL 100 physically encoded robot POSE packets at 36 B each, without impacting original local CBAA state. This is a deliberately overinformed, NONSTANDARD counterfactual only, because published CBAA does not require global peer pose exchange. Common TASK v1 real 2 packet / 1632 B and optional true binary POSE 100 packet / 3600 B are charged per independent method. E0 uses only (robot_id, x,y), so no invented robot capabilities to artificially increase CBAA traffic. Original Cost Row = 416 B * 100 and CBAA bid/winner vector = 616 B * 100 per round at T50; real original emitted Vote, Score and reliable Commit events are all counted, with the SAME existing event packet size as E9C-1. No packet loss in this bounded p0 trial. The portable deterministic timing is NOT empirical Rady latency but does not change p0 physical sender payload bytes. Rady remains an optional documented mode. This is application sender Bytes, not MAC airtime/headers or an end-to-end hard cap.
+
+### New named first-failure diagnostics
+- experiments.run_e9c_100seed_comms.validate_100seed_comms_config / data / E9C2_INVALID_SCENARIO_GRID or E9C2_INVALID_K_GRID; planning/E9C2_UNKNOWN_LATENCY_MODE.
+- experiments.run_e9c_100seed_comms.prepare_100seed_comms_output / state / E9C2_PROTECTED_OUTPUT_ROOT, E9C2_OUTPUT_EXISTS.
+- experiments.run_e9c_100seed_comms.run_cbaa_100seed_cases / dependency / E9C2_ROBOT_INFO_NOT_TRANSMITTED.
+- experiments.run_e9c_100seed_comms.require_complete_seed_pairing / contract / E9C2_PAIRED_OUTCOME_COVERAGE.
+Previous task_information first failing source data/contract/dependency errors, original coordination/physical event diagnostics and original CBAA safety/contract errors are retained unchanged.
+
+### Verification, risks and next steps
+User's 189/189 Mac pass was on PRIOR E9C-1 executable SHA only. E9C-2 new runner and tests plus GitHub Actions workflow remain UNTESTED until CI or user-Mac runs; remote source connector has no direct Mac execution access. Inputs/data are explicit: zero-loss 100R50T 100 seeds 0..99, K1..6+8, max Greedy rounds300. TASK/POSE are really binary encoded and decoded, but original Cost/Vote/Score/Commit and CBAA bid-vector still use the established physically emitted CommunicationEvent payload sizes, not guaranteed all-overhead IP/MAC/PHY bytes. The fixed-K CBAA observer does not implement final distributed Commit or authenticated convergence termination. The offline earliest K is an optimistic lower bound, not online feasible; never compare it as identical success semantics without qualification. The 100-seed raw, summary, offline first-success K and manifest must be validated before any numerical conclusion. Next bounded concern AFTER verification can serialize the original Cost/Vote/Score/Commit and CBAA bid-vector contents and add equal budget with paid retransmissions under nonzero packet loss. Do not mix this future protocol change into current evidence owner.
+
+### Commit SHA
+Branch base e0f3c62315acc2fdf08e18d40788939e2c5dcb82. Exact implementation plus 7 tests plus canonical Section 25 plus same-tree continuity and triggered workflow is 2bcf23ac1b25bf9cad059c7d132a796901601c1b. This documentation-only follow-up records the actual executable SHA. GitHub Actions run 38112565303 has completed the dedicated E9C-2 tests and entire unittest regression with success, while the full 100-seed simulation has STARTED and its numerical results are NOT YET VERIFIED at the time of this note. CI record: https://github.com/andyfu35/Democracy-based-Task-Allocation-in-a-Large-scale-Multi-robot-System/actions/runs/38112565303.
+
+
+## 2026-10-11 — E9C-2 100-seed GitHub Actions completed; original raw evidence SHA256 verified (documentation only)
+
+### Source / execution / reproducibility verification
+The 100R50T no-loss real sender-application-bytes CI run 38112565303 COMPLETED SUCCESSFULLY. Exact tested source commit 2bcf23ac1b25bf9cad059c7d132a796901601c1b, branch experiment/e9c-100seed-comms; its dedicated seven named tests PASS and entire original regression unittest stage PASS, followed by completed 100/100 paired Seeds 0..99. Original CI workflow GitHub URL: https://github.com/andyfu35/Democracy-based-Task-Allocation-in-a-Large-scale-Multi-robot-System/actions/runs/38112565303 . Github artifact ID 11692550724, name e9c-100seed-real-communication-evidence, contains per_seed_method_bytes.csv (1500 raw rows = 100 seeds times 15 separately identified methods), summary.csv (15 method summary rows), offline_min_cbaa_k_per_seed.csv (100 seed rows) and manifest.json. Artifact was downloaded to the analysis container and independently checked: all THREE manifest CSV SHA256s matched their actual extracted bytes; manifest git_sha, raw/expected row count, seed count and method coverage also matched. Experimental network assumption: deterministic constant 1ms latency / deadline10ms, p=0; this is reproducible original packet SEND-byte simulation, NOT measured Wi-Fi airtime or high-loss field results.
+
+### Primary 100-seed actual outcome (distinct outcome semantics)
+Every trial charges exactly 1632 B shared actually binary TASK announcement. Original Greedy Cost+Vote broadcasts its own COST row (41600 B), Vote (119200 B = 3725 physically emitted 32 B unicasts), qualified Score (1600 B), reliable Commit (1400 B). Its end-to-end total is 165432 B on EVERY seed and it completes genuine reliable Commit for 50/50 tasks on 100/100 seeds.
+Source-faithful CBAA physically emits own Bid/Winner vector 61600 B per iteration, never remote full Cost or Pose state:
+- K1: total 63232 B, 0/100 full observer agreement, mean 39.76/50 observer-agreed tasks.
+- K2: total 124832 B, 29/100 full observer agreement, mean 48.49/50 tasks.
+- K3: total 186432 B, 86/100 full observer agreement, mean 49.77/50 tasks.
+- K4: total 248032 B, 98/100 full observer agreement, mean 49.95/50 tasks.
+- K5: total 309632 B, 99/100 full observer agreement, mean 49.98/50 tasks.
+- K6: total 371232 B, 100/100 full observer agreement, 50/50 tasks.
+- K8: total 494432 B, 100/100 full observer agreement, 50/50 tasks.
+CBAA lacks fully decentralized termination detection and never performs an actual reliable Commit. Requiring ONE fixed predeclared K sufficient for ALL 100 tested scenes first occurs at K6 in this particular K grid: Democracy sends 205800 fewer application Bytes than CBAA K6, i.e., 55.44% less than its 371232 B. This is NOT a universal algorithm lower bound or equal completed-Commit semantics. Comparing to K3, Democracy uses 21000 fewer B (11.26%) but CBAA K3 fails full observer agreement in 14/100 tested seeds. CBAA K2 uses fewer B but only 29/100 full observer agreement.
+
+### Per-seed offline optimistic CBAA K sensitivity
+Independent fixed-K per-seed replay identifies FIRST full observer-agreed K distribution: K2:29, K3:57, K4:12, K5:1, K6:1, none unresolved within K8. OFFLINE oracle average first-agreed CBAA sender bytes = 179040; Democracy 165432. Difference = 13608 B and (difference / offline mean CBAA)=7.6005% of aggregate means. Arithmetic average of per-seed % differences is only 2.0050%; both statistics are retained and SHOULD NOT be conflated. Crucially, this offline K is known ONLY to the external analyst after running separate simulations, cannot be used as actual on-line CBAA convergence stopping policy without paid distributed termination protocol. These optimistic per-seed numbers are sensitivity lower bounds only, not headline real protocol end-to-end comparison.
+
+### Full-raw robot data separately measured, not unfairly attributed to original CBAA
+The physically binary transmitted source POSE stage has 100 robots * (16B header + 20B own ID,x,y) = 3600 sender application Bytes. An extra explicitly NONSTANDARD cbaa_raw_robot_information_K ablation physically transmits all 100 source POSE packets, yielding K1=66832 B, K2=128432 B, K3=190032 B, K4=251632 B, K5=313232 B, K6=374832 B, K8=498032 B. Its CBAA observer outcomes are IDENTICAL to standard CBAA for each fixed K because the original CBAA algorithm requires only its own local cost/pose; charging it 3600 B additional for unused remote POSE cannot be represented as standard CBAA communication. No invented robot battery, ability, speed or richer 50-task scenario is claimed.
+
+### Scope / file / responsibility / diagnostics / risks
+This completed verification entry updates docs/CHANGE_CONTINUITY.md ONLY: no source code, no owner/function/state responsibility moved, no newly changed canonical contract. Original owners coordination.simulate_democracy_hungarian_retirement, cbaa.simulate_cbaa, task_information.broadcast_task_information / broadcast_robot_positions, experiments.run_e9c_100seed_comms and all original first-failure data/state/dependency/contract diagnostics are unchanged. Sources are zero loss plus constant synthetic timing; previous E9B high-loss cases are not merged. Cost/Vote/Score/Commit/Bid packet sizes still original physically emitted event PAYLOAD model; TASK and optional POSE are actual packed bytes; 802.11 MAC/PHY, packet ACK, airtime and device energy not modeled. 100 finite Seeds do not mathematically prove guaranteed success for all scenes. Further comparisons must harmonize actual final Commit semantics, implement paid decentralized CBAA convergence stopping and model paid task retransmission at high loss. Existing raw E9B and E9C-1 immutable.
+
+### Commit SHA
+Observed runnable source Git SHA 2bcf23ac1b25bf9cad059c7d132a796901601c1b; CI run 38112565303 completed success. This is a docs-only verification record added afterward and cannot change that executable SHA.
+
+
+## 2026-10-11 — E9C-2r1 correction: ONLY original published-family CBAA, remove invented raw-robot-info method
+
+### User requirement and purpose
+The user explicitly said to use original CBAA only and NOT the previous mistaken suggestion to make CBAA transmit every robot's raw position/state. The previous primary original CBAA rows were valid, but the optional nonstandard cbaa_raw_robot_information_K rows unnecessarily complicated the formal data and could be mistaken for original CBAA. This concern removes THAT OPTIONAL METHOD FROM THE ORIGINAL 100-SEED EXPERIMENT OWNER rather than changing CBAA itself.
+
+### Files, owner, named functions and boundary
+- experiments/run_e9c_100seed_comms.py:
+  - capture_seed_information: single original TASK binary dissemination and own-cost-row reconstruction only; no pose-trace construction and no paid remote-pose SEND simulation.
+  - run_cbaa_100seed_cases: only original cbaa.simulate_cbaa per fixed K, emits and counts original Bid/Winner payload via original CBAA owner, returns ONLY cbaa_original_local_bid_K.
+  - require_complete_seed_pairing: strict exact list original Democracy + original CBAA K methods. Any unexpected raw-state alternative fails original named function with owner=experiments.run_e9c_100seed_comms, function=require_complete_seed_pairing, category=contract, code=E9C2_PAIRED_OUTCOME_COVERAGE and expected/actual method IDs.
+  - summarize_100seed_conditions: no deprecated is_nonstandard flag.
+  - calculate_offline_minimum_k: no invented raw-robot sender-byte counterfactual, retains one true post-hoc optimistic minimum K per seed.
+  - write_100seed_comms_evidence: only original method metadata and no_peer_robot_position_broadcast=true, no_optional_nonstandard_cbaa_variants=true, expected_rows=seeds*(1+len(K)).
+  - run_e9c_100seed_comms: no extra robot-info stage; per seed exactly original Democracy + original CBAA K output. Former optional include_raw_robot_info input removed entirely.
+  - main: obsolete --no-cbaa-raw-robot-info flag REMOVED because no wrong method exists to toggle.
+- tests/test_e9c_100seed_comms.py: updated 2R/2T multi-seed real original-method emitted-byte and manifest coverage; new regression check asserting unexpected cbaa_raw_robot_information_K fails original pairing contract (8 named tests in this runner suite).
+- .github/workflows/e9c_100seed_comms.yml: CI name and artifact changed to clearly say ORIGINAL CBAA ONLY, runs the existing full and targeted unit suite then 100 actual 100R/50T seed scenarios without the extraneous data.
+- docs/EXPERIMENT_PROTOCOL.md: new canonical Section 26 supersedes only historical E9C-2 optional raw-pose variant; previous historical Section 25 and its finished evidence remain traceable.
+- docs/CHANGE_CONTINUITY.md: this same-commit entry, followed by a docs-only exact implementation SHA update.
+
+### Responsibility movement, preservation and intentional behavior
+Only experimental selection/evidence responsibility changes; NO original state machine, planner, optimizer, network owner, packet encoder, or on-wire original CBAA/Greedy algorithm is modified. Original cbaa.simulate_cbaa and cbaa_auction_phase, exchange_cbaa_consensus_packets, cbaa_consensus_phase remain EXACTLY unchanged, with synchronous published-family one-task assignment, local own bid, vector max consensus and origin IDs. Original coordination.simulate_democracy_hungarian_retirement, one initial Cost row, 25% vote, score, Commit and retirement remain unchanged. Original common 50-TASK 1632-B physically serialized announcement preserved. Own 2D robot pose is local to each robot; raw OTHER robot pose is NEVER sent in the new corrected runner. Zero loss, same seed grid, K grid, constant latency, original physical sender message-length model, report-only offline CBAA min K and observer-vs-real Commit distinction all preserved. The optional extra CBAA raw-data condition, optional CLI switch, redundant 3600-B per-scenario robot-pose SENDs and summary/meta fields are INTENTIONALLY removed. Correct raw has 8 method rows *100 seeds = 800, 8 summary conditions, 100 offline paired rows. Historical 1500-row previous artifact remains intact rather than overwritten.
+
+### Diagnostic contract and verification status
+Existing config/data/planning errors E9C2_INVALID_SCENARIO_GRID/E9C2_INVALID_K_GRID/E9C2_UNKNOWN_LATENCY_MODE, output state E9C2_PROTECTED_OUTPUT_ROOT/E9C2_OUTPUT_EXISTS and original network/task dependency errors stay unchanged. The no-longer-reachable E9C2_ROBOT_INFO_NOT_TRANSMITTED dependency failure was removed along with the invalid raw-robot variant; it is not reassigned to another owner. Missing/rogue method is explicitly trapped at require_complete_seed_pairing/contract/E9C2_PAIRED_OUTCOME_COVERAGE with expected/actual. Previous 100-seed original-CBAA CI source SHA 2bcf23ac1b25bf9cad059c7d132a796901601c1b did pass its 7 unit tests and full suite; THIS changed source and new 8th test are NOT YET EXECUTED at the time of this commit. A pushed GitHub Actions workflow should rerun full tests and 100 seeds and retain correct SHA256/raw evidence separately. No numerical claims are made until new run verification.
+
+### Remaining risks and next actions
+100 Seeds and 0% loss do not prove global guarantees; original CBAA is a DOCUMENTED synchronous complete-network reference adaptation, not byte-level original-paper PHY reproduction. Bid/Cost/Vote/Score/Commit use existing modeled original physically SEND event sizes, while TASK itself is actual encoded bytes. CBAA still has no distributed stop/Commit, so compare external observer agreement separately from actual Greedy Commit and treat offline earliest K as non-implementable bound. Future work: paid retry/reliable TASK under packet loss, precise all-message wire serialization, and common terminal agreement semantics, each as a separate bounded code concern. Do NOT reintroduce inflated remote robot-info cost.
+
+### Exact implementation commit SHA
+Source branch before E9C-2r1 code edits: e9856098774963b71ce6fb708b57eff213a57e22. Exact implementation source+tests+canonical+same-tree continuity+workflow commit: d673c00d01c9e1d4b865f1ff2139e8e56f32f893. This follow-up updates only the continuity file; no code changes or retrospective claims about yet-unverified 100-seed CI results.
+
+
+## 2026-10-11 — E9C-2r1 corrected ORIGINAL-ONLY CBAA 100-seed CI successfully verified (docs-only)
+
+### Exact tested revision, artifacts and SHA verification
+GitHub Actions execution run 38112992924 concluded SUCCESS, with original-only executable SHA d673c00d01c9e1d4b865f1ff2139e8e56f32f893. Link: https://github.com/andyfu35/Democracy-based-Task-Allocation-in-a-Large-scale-Multi-robot-System/actions/runs/38112992924 . Dedicated test_e9c_100seed_comms.py 8/8 pass, full unittest regression succeeded, and all 100 seeds (0..99) of 100 Robots / 50 Tasks / zero packet loss / fixed synthetic 1ms latency / original CBAA K=(1,2,3,4,5,6,8) completed.
+
+New GitHub Actions artifact ID 11692341928 is e9c-100seed-original-cbaa-only-evidence. Its extracted files were independently verified in the container, not merely read from CI printouts: manifest.json reports tested Git SHA, seeds=100, expected_rows=all_rows=800, no_optional_nonstandard_cbaa_variants=true, no_peer_robot_position_broadcast=true. Actual CSV parsing confirmed 800 raw rows (100 distinct seed rows per method), 8 distinct methods EXACTLY democracy_task_cost_vote + original CBAA K1,K2,K3,K4,K5,K6,K8, summary.csv 8 rows, offline_min_cbaa_k_per_seed.csv 100 rows, all sender peer-robot pose Bytes=0, all TASK announcement sender Bytes=1632, and every supplied CSV SHA256 matches actual extracted file bytes. Old previously uploaded 1500-row historical CI artifact and original E9B/E9C experiments stay immutable and should NOT be used as corrected primary raw.
+
+### Actual primary method results, preserved original algorithms
+- Democracy original Task + original Cost + Vote + Score + reliable Commit: 165432 sender payload B per seed, 100/100 FULL actual Commit.
+- Original CBAA K1: 63232 B, 0/100 full POST-HOC observer agreement.
+- Original CBAA K2: 124832 B, 29/100 full observer agreement.
+- Original CBAA K3: 186432 B, 86/100 full observer agreement.
+- Original CBAA K4: 248032 B, 98/100 full observer agreement.
+- Original CBAA K5: 309632 B, 99/100 full observer agreement.
+- Original CBAA K6: 371232 B, 100/100 full observer agreement.
+- Original CBAA K8: 494432 B, 100/100 full observer agreement.
+Offline earliest K distribution is K2=29, K3=57, K4=12, K5=1, K6=1; this is NOT implementable CBAA distributed stop, and full observer agreement is NOT an actual final Commit. Actual original-only results coincide with the original method rows in the earlier E9C-2 mixed-method report, verifying that the removed NONSTANDARD robot-POSE ablation did not influence the original CBAA computation.
+
+### Source-change ownership and diagnostic contract
+This successful verification is documentation ONLY. No source, original CBAA owner/auction/consensus, Greedy election/Commit owner, task information owner, first failing diagnostic categories/codes, or canonical specifications change. Section 26 remains current governing protocol, and Section 25 is prior historical design. All original CBAA K variants require just their own locally reconstructed cost row and physically counted Bid/Winner broadcasts after a common TASK announcement. No other robot state broadcast was introduced. Remaining research constraints: synchronous fully connected fixed-K CBAA reference adaptation; observer-versus-actual-Commit distinction; sender application payload modeled for Cost/Vote/Score/Commit/Bid despite TASK actually packed; no packet loss in this specific 100-seed result, no ACK/retransmit/MAC/PHY airtime and no decentralized termination. Do not assert all-packets raw-wire full realism or universal sample-free algorithm superiority.
+
+### Exact SHA
+Executed source SHA d673c00d01c9e1d4b865f1ff2139e8e56f32f893, CI run 38112992924 completed success. This continuity-only follow-up is NOT a code modification or new tested executable.
+
+
+## 2026-10-11 — E9D-1 natural CBAA local-evidence convergence within original owner
+
+### Purpose and exact scope
+The user asks to stop comparing arbitrary fixed CBAA K iterations and instead run original CBAA auction/consensus naturally under increasing loss, measuring physical sender application Bytes and determining observed empirical failure boundary. E9D-1 adds ONLY an opt-in local-evidence convergence/stop diagnostic to the actual democracy_mrta.cbaa owner, not a second auction/consensus state machine. This is a clearly disclosed source-faithful ALGORITHM with an experimental local-evidence termination adaptation; the original paper is not falsely claimed to have implemented a reliable distributed termination handshake. Follow-up E9D-2 must own experiment loss axes and reporting.
+
+### Files / named functions / responsibility moved
+- democracy_mrta/cbaa.py: validate_cbaa_stop_mode owns opt-in fixed versus local_certification mode data validation; update_cbaa_received_peer_evidence owns delivered RECEIVER-specific bid/winner snapshot collection with epoch and checks contract/CBAA_SELF_ON_WIRE; cbaa_local_convergence_certified owns per-node convergence evidence from physically received neighbors only, complete unique 50 task owner and matching peer claims, plus freshness strictly after own last update. The EXISTING original simulate_cbaa is STILL sole CBAA runtime state machine and invokes those named functions only with stop_mode=local_certification, default stop_mode=fixed retains fixed K bit-equivalent algorithm states/actual SENDs and budget behavior. Adds result fields stop_mode/stop_reason/locally_certified_count with backward-compatible defaults.
+- tests/test_cbaa_local_convergence.py: nine focused no-loss, initial collision, missing/stale/incorrect physical receipt, total loss, partial loss deterministic accounting, observer not part of runtime stopping, paid budget denial, invalid mode, legacy fixed result tests. These are proposed until actual test execution.
+- docs/EXPERIMENT_PROTOCOL.md Section 27 canonical adds actual local condition, account/stop contract, published original source and limits.
+- docs/CHANGE_CONTINUITY.md this SAME CODE COMMIT entry.
+
+### Original behavior preserved / intentionally changed
+CBAA scoring, initial state, original per-robot one-task bidding, max-consensus, origin-ID tie breaks, independently lossy per-receiver physical full-vector broadcasts, existing SenderPayloadBudget and all E8/E9B/E9C fixed iteration experiment owners remain UNCHANGED by default. New opt-in mode stops after every node independently reaches a FULL positive/unique task owner vector matching fresh physically RECEIVED peer vector+claim evidence. A silent receiver without messages NEVER counts as converged. Internal simulation scheduler reads per-robot readiness flags to stop when all locally certified; no local robotic state is inferred from the external observer and original audit remains only after the loop. This is an OPTIMISTIC globally synchronized halt via simulator scheduling: it is NOT an implementable all-robots-know-to-stop handshake and does not include real extra stop notification Bytes. It must be described as an experimental lower bound, not the original paper's complete practical end-to-end transmission bytes. Internal max_iterations is ONLY a bounded nonconvergence guard for opt-in, not chosen K for fixed success. Stop reasons fixed_iteration_budget, all_local_evidence_certified, iteration_safety_guard, sender_budget_exhausted explicitly separate runtime completion from guard/budget exhaustion.
+
+### First failure and diagnostic contract
+democracy_mrta.cbaa.validate_cbaa_stop_mode / data / CBAA_UNKNOWN_STOP_MODE with expected fixed/local_certification and actual mode. democracy_mrta.cbaa.update_cbaa_received_peer_evidence / contract / CBAA_SELF_ON_WIRE. All existing owner data/time/contract/safety diagnostics preserved, including CBAA_SEND_BUDGET_LEDGER_MISMATCH and CBAA_DUPLICATE_OBSERVER_AGREEMENT. cbaa_local_convergence_certified returns False for incomplete, stale or conflicting local evidence; it does not fabricate a failure requiring another owner's handler.
+
+### Verification, risks, next step and commit SHA
+This code+tests/canonical+continuity revision must be CI tested; NO new E9D numerical outcomes have been measured at source modification time. Publication restrictions: no fully decentralized final stop/Commit in original reference, loss-induced guard reached is NOT mathematical limit, task announcement reliability may differ from coordination loss. NEXT E9D-2 one concern: separate experiment run for common task announcement, original Greedy Cost/Vote, original CBAA new opt-in local certification, rising loss grid, all loss/delivery/bytes and original raw outcomes; preserve original algorithm owners and update canonical and continuity in a second commit.
+Base branch SHA 6f7728fea27410ed03db357b3f59d24f3b64fa94. Exact E9D-1 original CBAA owner code + tests + Section 27 canonical + same-tree continuity commit: 82156fa75f8ba06e8116e1e7313246ae68edb39c. This follow-up only updates the continuity record, with no new source changes or unexecuted-test success claims.
+
+
+## 2026-10-11 — E9D-2 original Democracy/CBAA increasing-loss paired SEND-byte sweep
+
+### Purpose, files and owner
+User asks to run original published-family CBAA WITHOUT hand-picking K iterations; increase packet loss across scenarios, compare actual sender Bytes and discover the EMPIRICALLY TESTED success boundary versus original Democracy. The CBAA owner was changed as separately bounded E9D-1 (SHA 82156fa75f8ba06e8116e1e7313246ae68edb39c) for peer-receipt-only local evidence; this E9D-2 version introduces only a NEW experiment evidence owner and keeps original Greedy and CBAA auctions/bidding/consensus unchanged.
+- NEW experiments/run_e9d_natural_loss.py:
+  - validate_e9d_natural_loss_axes owns data/config, loss grid and safety bounds; prepare_e9d_output_root owns immutable evidence state.
+  - run_e9d_democracy_loss_case invokes original coordination.simulate_democracy_hungarian_retirement with voting_strategy=greedy_task, quarter_plurality, single Cost broadcast, p_cost=p_vote=p, one Vote per voter, reliably modelled Score/Commit. No changes to other owner.
+  - run_e9d_original_cbaa_loss_case invokes original cbaa.simulate_cbaa(stop_mode=local_certification) with original bid/winner vector packets and p per physical receiver. No global observer winner fed into robots, no forced fixed K. The actual automatic stop only after ALL independent local receiver certificates, OR safety guard (unconverged).
+  - validate_e9d_physical_accounting owns two-method per cell contract and actual physical original SEND sums; summarize_e9d_loss_results owns full seed denominator, separate actual Commit, external CBAA agreement, local certification and guard outcomes; calculate_e9d_empirical_limits owns only sampled frontier, cannot infer theoretical upper bound; write_e9d_final_evidence owns immutable CSV+SHA256/manifest; run_e9d_natural_loss owns one paired seed/loss iteration and flushes raw after every cell; main CLI.
+  - Reuses original E9C capture_seed_information and select_network_sampler so TASK physically serialized/broadcast once per independent paired scenario, no duplicate information state owner; uses original Greedy summarize_greedy_wire_phases owner.
+- NEW tests/test_e9d_natural_loss.py (eight named tests): 2 original actors in every seed/loss, exact task/Cost/Vote/CBAA sender-accounted bytes, p=1 cannot be certified from silence, p=0 convergence and original Commit, uncensored external observer+guard report, immutable output and hashes, invalid loss/guard, first contract failure.
+- NEW .github/workflows/e9d_natural_loss.yml smoke: both E9D test files, full regression suite, R5/T3 2 seeds zero/intermediate/full loss and artifact. Success is NOT claimed until CI executes.
+- docs/EXPERIMENT_PROTOCOL.md canonical Section 28: protocol phases and reliable common task announcement, 0...95% progressive losses, safety-guard not manual K, result limits, original/observer semantics, Mac commands.
+- docs/CHANGE_CONTINUITY.md: same-commit update and exact SHA continuity-only follow-up.
+
+### Responsibilities and preserved versus deliberately changed behavior
+Original CBAA source, published Section III bids/maximum-consensus, per-robot local cost, original winning bid+origin broadcasts, original loss sampler, complete graph and only-source packet charges preserved. Original Democracy 25% strict-greater-than threshold, once-only Cost row, per-voter Vote and reliably modelled control and robot retirement preserved. Original E8/E9B/E9C runners/raw and original fixed-K CBAA default unmodified. The new runner deliberately tests losses simultaneously on Democracy COST/VOTE and CBAA consensus to p=.95, keeping common TASK ANNOUNCEMENT RELIABLE and paid 1632 B for 50 tasks at any p. This is a controlled conditional packet-loss experiment, not all-phases-loss scenario, because task publication and final Commit are assumed reliable in the original protocols. No fake robot position or full cost broadcast for CBAA. The CBAA local-ready aggregation by simulator outer scheduler is an OPTIMISTIC global termination abstraction with no actual distributed halt ACK Bytes: cannot claim full real-network optimal communication, and outcome is not a distributed Commit. Unconverged CBAA at iteration guard is CENSORED, not theoretical failure; Democracy round guard separately reported. Sender application payload only (real encoded TASK, existing event-sized other original messages), not IP/MAC/PHY airtime. Default synthetic constant 1ms latency, optional pinned Rady dataset. Timing-model differences explicitly labelled.
+
+### First diagnostic owner/function/category/code
+- experiments.run_e9d_natural_loss.validate_e9d_natural_loss_axes / data / E9D_INVALID_SCENARIO_OR_GUARD or E9D_INVALID_LOSS_GRID; planning/E9D_UNKNOWN_LATENCY_MODE; invalid numeric p retains network.validate_packet_loss_probability owner.
+- experiments.run_e9d_natural_loss.prepare_e9d_output_root / state / E9D_PROTECTED_OUTPUT_ROOT or E9D_OUTPUT_ALREADY_EXISTS.
+- experiments.run_e9d_natural_loss.validate_e9d_physical_accounting / contract / E9D_PAIRED_METHOD_MISMATCH or E9D_SENDER_BYTES_OR_DELIVERIES_MISMATCH.
+- Original CBAA E9D-1 validation/data/CBAA_UNKNOWN_STOP_MODE, contract/CBAA_SELF_ON_WIRE and existing CBAA owner runtime/safety diagnostic boundaries retained; Greedy original per Cost/Vote owner unchanged.
+
+### Risks, tests, next step and commit SHA
+All new E9D-2 code/tests are NOT YET EXECUTED at time of this source modification; earlier E9C 100-seed zero-loss figures do NOT validate the new dynamic stopping criterion or loss runner. Acceptance requires 9 E9D-1 original owner tests, 8 E9D-2 runner tests, whole regression and small zero/full-loss smoke. Then user runs 3-seed 100R50T pilot before 100-seed formal progressive grid; evidence stays in fresh results/e9d_* roots. Current runner streams per_seed_loss_method.partial.csv but does NOT automatically resume; interrupted formal run must use new root or separate seed partition. High loss can be slow; test and guard before formal. Future scoped work: paid distributed termination handshake, actual binary Cost/Vote/Bid serialization, task reliability/nonzero loss and fair hard-budget retransmission; never change another owner by adding a wrapper.
+Base E9D-1 continuity SHA: 686c2e8f7ad07371c6e5925f0a933785a73377ae. E9D-2 actual implementation + tests + canonical Section 28 + same-tree continuity + smoke workflow SHA: 81ffc52c95eecf0e7ce52fc036f590c0e7a1e568. CI run 38113835314 completed SUCCESS (https://github.com/andyfu35/Democracy-based-Task-Allocation-in-a-Large-scale-Multi-robot-System/actions/runs/38113835314): nine CBAA local-evidence tests, eight E9D paired-loss tests, full repository regression stage and 5R3T two-seed actual smoke p=0,.5,1 all passed. The actual smoke reports for this finite toy model: p=0 CBAA all local certified 2/2 with mean 762 B, Democracy actual full Commit 2/2 with mean 780 B; p=.5 CBAA 2/2 with 1932 B, Democracy 2/2 with 764 B; p=1 CBAA 0/2 and guard reached 2/2, mean 4012 B, Democracy 0/2 and round guard reached 2/2 mean 312 B. This is a tiny acceptance smoke, NOT 100R50T or user-Mac formal results. CBAA local-flag aggregate stop is still an optimistic simulator halt, not an implementable fully decentralized stop handshake. This follow-up updates continuity ONLY, not source code.
+
+
+## 2026-10-11 — E9E-1 dense E9D loss-axis input (52-level union; no optimizer or network change)
+
+### User request and purpose
+User asks to make experimental plots denser and run a new formal comparison, then send complete real data for direct README chart/results publication. Prior E9D-2 100R50T 100-seed original results were 11 levels 0..95%; Democracy completion sharply changed between 50 and 60 percent, and original CBAA peer-local certification changed between 90 and 95 percent under 160-round guard. This concern changes ONLY input sampling to sharpen those two empirically observed boundaries, not invent or publish unsampled success rates.
+
+### Files, functions, one concern and owner
+- experiments/run_e9d_natural_loss.py: NEW named resolve_e9d_loss_grid_profile is the sole experiment data owner for deterministic, ascending integer-percent grid generation; options legacy (original 11 probabilities), transition (5% global plus 1% points 40..65 inclusive, 40 levels), tail (5% global plus 1% points 85..99 inclusive, 32 levels), dense (union, 52 levels). Existing main CLI adds --loss-grid-profile and uses the named data function to resolve selected probabilities; --loss-probabilities remains backwards compatible. Existing run_e9d_natural_loss, run_e9d_democracy_loss_case, run_e9d_original_cbaa_loss_case, validate_e9d_natural_loss_axes, byte accounting and result serializer unchanged.
+- NEW tests/test_e9e_dense_grid.py has 6 named acceptance tests for default legacy parity, dense/focus exact sample membership and lengths, mutually exclusive inputs, unknown profile and original data validation compatibility.
+- docs/EXPERIMENT_PROTOCOL.md new canonical Section 29 freezes exact sampling and honest interpretation.
+- docs/CHANGE_CONTINUITY.md this same-tree record.
+
+### Preserved behavior, intentional change, diagnostics
+Both original algorithm owners democracy_mrta.cbaa.simulate_cbaa and democracy_mrta.coordination.simulate_democracy_hungarian_retirement remain untouched; Cost/Vote and original bid/winner per-receiver-loss, zero-loss paid task announcement, 160/300 safety guards and distinctly labeled observer/Commit semantics are unchanged. Without --loss-grid-profile, default 11-level E9D run and any explicit --loss-probabilities behave exactly as before. Only a named nonlegacy profile adds dense experimental input points, with 100 seeds x52 probabilities x2 methods =10400 simulations for dense. Invalid profile: experiment.owner resolve_e9d_loss_grid_profile / data / E9D_UNKNOWN_LOSS_GRID_PROFILE with expected named modes and actual; conflicting nonlegacy profile plus explicit list: same owner/function/data/E9D_CONFLICTING_LOSS_GRID_CHOICES with actual settings. Existing validation data/contract errors unchanged. No new parser wrapper around an optimizer or second state machine.
+
+### Verification/risk/next step/commit SHA
+6 new tests to execute via full GitHub workflow regression; do not claim code passed before CI. Dense 100seed run may be computation-heavy especially high-loss 160-round censored cells, and results are NOT currently available. User runs Mac formal once tests pass, sends raw per_seed_loss_method.csv, summary_by_loss.csv, manifest.json; next separately bounded E9E-2 change adds reproducible numeric plotting and README figure evidence validation. README numerical outcomes cannot be populated from assumptions or the historical coarse grid.
+Source base: 92e0ef64bceb59dde092a5816452c9884e582575. Actual E9E-1 dense-grid input owner, 6 focused tests, canonical Section 29 and same-tree continuity implementation SHA: 1242fc98577c44a5be2aff7f16d6b2a54a8481b7. This was the immediately previous code commit on this branch.
+
+
+## 2026-10-11 — E9E-2 evidence-verified SVG plotting and README-pending formal publication
+
+### Purpose, source basis and one concern
+The user wants a MUCH denser experimental graph and to send the resulting source CSV once local execution finishes, after which the assistant should directly commit those verified real results and chart images into README. The earlier 100R50T 100-seed E9D formal loss points already exist for 11 points, but must NOT be relabelled as the new E9E-1 52-point data. This change implements pure presentation/reporting and prepares a README evidence slot. No simulation, vote, CBAA original bid/consensus/stop, physical network loss, new p, safety guard or success semantics is changed. The new automated 2-seed CI smoke does NOT constitute a formal 100-seed result.
+
+### Files, owner, named functions and exact responsibility
+- NEW experiments/plot_e9d_results.py: one read-only experimental evidence/figure owner. Named function and boundary:
+  - load_e9d_plot_evidence: dependency/E9E_PLOT_EVIDENCE_MISSING for absent original raw+summary+manifest; data/E9E_PLOT_EVIDENCE_UNREADABLE for malformed files.
+  - verify_e9d_plot_provenance: contract/E9E_PLOT_SHA256_MISMATCH for altered raw/summary; contract/E9E_PLOT_RAW_SUMMARY_CONTRACT for incomplete/duplicate seeds x numeric p x original 2 methods, incorrect Git source SHA, ungrounded summary, altered context or metadata mismatch. Uses original existing evidence owner summarize_e9d_loss_results ONLY to independently recompute summary, no second algorithm or state machine.
+  - prepare_e9d_figure_root: state/E9E_PLOT_OUTPUT_NOT_EMPTY prevents overwrite of previous SVGs/raw.
+  - wilson_interval: pointwise 95% binomial Wilson CI based on actual full counts and seed denominator.
+  - build_e9d_plot_series: pure measured-source data projection, no interpolated unsampled p.
+  - render_e9d_svg_chart: original exact-X, visible markers, accessible title/subtitle and separate condition legends, source-only SVG; logarithmic MB enabled for physical sender payload chart.
+  - e9d_chart_traces: separate true Democracy Commit, optimistic CBAA local certificates and post-hoc observer agreement labels.
+  - e9d_log_ticks: data/E9E_NO_POSITIVE_BYTES for meaningless byte-positive axis.
+  - compose_e9d_figures: up to 6 images, including main 0%-99% success, 40%-65% transition zoom, original CBAA observer versus local certificate, 85%-99% high loss zoom, logarithmic sender application payload, explicit 160/300 guard censoring.
+  - write_e9d_figure_evidence: ONLY new SVGs + figure_manifest.json with SHA256 and source manifest SHA; never write or rename any raw.
+  - plot_e9d_results: read -> validate checksum+paired cells -> output state gate -> plots; main CLI only.
+- NEW tests/test_e9e_figures.py: 6 targeted tests that actually generate small E9D experiment raw and validate native SVG XML/parsing, both zooms, exact raw/summary hashes, refusal to draw from missing/tampered/inconsistent data, refusal to overwrite existing charts while keeping raw immutable.
+- NEW .github/workflows/e9e_dense_figures.yml: E9E tests and full repository regression, 5R3T/2seed 52-p actual smoke, verifies SVG generation, uploads smoke-only evidence. Do NOT claim formal result from CI.
+- README.md: adds E9E experiment instructions and BEGIN/END markers for future evidence-based chart/table publication. It **does not include any unverified new numerical result or image now**, and explicitly says formal evidence is pending. Once the user's complete ZIP is shared, update the actual README block and commit images via a new scoped publication change.
+- docs/EXPERIMENT_PROTOCOL.md: canonical Section 30 freezes plotting correctness/provenance, no fake interpolation, distinct CBAA observer vs local certification, 100seed publication boundary.
+- docs/CHANGE_CONTINUITY.md: this same-tree record of purpose/files/functions/risk/next step; update actual commit SHA after GitHub reports it.
+
+### Preserved behavior and intentionally introduced functionality
+All existing experiment loss grid (legacy unchanged, dense provided by earlier E9E-1), original E9D algorithm owners, default 160/300 safety guard, TASK reliable messaging, raw CSV write and immutable manifest, physical sender message sizes and old historical E9D data unchanged. New figures display numeric p on true linear axis with every measured point marked and no smoothing, giving dense detail only where E9E actually measured 1% increments; success plot explicitly compares true reliable Commit with CBAA optimistic all-node local-certificate, while another plot separates CBAA post-hoc full observer agreement. Sender payload plot includes unsuccessful attempts and uses logarithmic MB scale (1 MB=1e6 Bytes), not MAC/PHY/ACK airtime. Figure metadata records source SHA, source CSV SHA256, exact p list, figure SHA256. Output directory must be new/empty, previous raw NEVER rewritten. README is a PENDING result record, not a claim of 52-point experimental success.
+
+### Verification, risks, future action, SHA
+E9E-1 source commit 1242fc98577c44a5be2aff7f16d6b2a54a8481b7 was committed prior to this plotting-only code addition. Six new plotting tests and whole regression require CI acceptance. Main risk: 100 seeds x 52 p x 2 methods=10400 method simulations, high p guard160 censoring; if interrupted raw partial exists but E9E plotting refuses it until a successful complete run. Native SVG is supported by GitHub README relative images; graphs from 3seed pilot must NOT replace formal 100seed outcomes. User should run first 3seed pilot, then 100seed dense formal, then plots, zip the full output and share. Assistant next verifies complete source ZIP, source SHA/hash, and commits the generated SVGs to docs/figures/e9e_dense and actual tables/figures into README with clear sampled and guard limitations, canonical publication evidence and continuity SHA in separate bounded commit. No asynchronous work or silent future claim; next user message must supply actual evidence.
+Source base at plotting change: 1242fc98577c44a5be2aff7f16d6b2a54a8481b7. Exact E9E-2 SVG evidence implementation, six plot tests, README pending block, canonical Section 30 and same-tree continuity SHA: 9f30cd023ba8fd5f52952e5f84a07adc58c04304. The attached CI run 38130293682 concluded SUCCESS (https://github.com/andyfu35/Democracy-based-Task-Allocation-in-a-Large-scale-Multi-robot-System/actions/runs/38130293682): six E9E grid input tests PASS, six E9E evidence/SVG tests PASS, full repository unittest regression step PASS, and actual R5T3 2-seed x52-loss-point no-synthetic-K smoke PASS (104 paired scenarios = 208 method runs). Smoke generated all SIX expected source-SHA-backed SVGs with figure_manifest.json; artifact e9e-dense-two-seed-smoke-SVG-only, artifact ID 11698748669, is ONLY small smoke and must NOT be published as 100R50T formal results. Real new 100R50T 100seed dense experimental output has not been executed or uploaded as of this record; README formal results still correctly say PENDING. This follow-up updates documentation only, no runnable algorithm or plot code modifications.
+
+
+## 2026-10-11 — E9E-3 README terminal-log preview while original formal ZIP remains absent
+
+### User intent and evidence receipt
+User provided terminal stdout from Mac that shows completion of 100R50T, 100 seeds, 52 unique loss levels, two original methods (10,400 individual original method executions, 5,200 paired seed/loss cells), output git SHA 2808fa12fcd89aa8c2251e7e6438312a95a9df8f and E9E_PLOT_VERIFIED_SOURCE_SHA matching it. Their established request was to put the completed result numbers and loss curves in README. However, only the pasted TERMINAL TEXT was attached: the complete original e9e_dense_formal_evidence.zip with per-seed raw CSV, summary CSV, manifest SHA256, figure_manifest and all six source-generated SVGs was NOT supplied or committed. This change must not pretend independent SHA256 verification or 10,400 raw per-seed record validation.
+
+### One bounded presentation responsibility: files and true owners/functions
+- README.md: adds an explicitly titled E9E terminal-log preview, source SHA and provenance warnings, transcribed representative numerical table, four linked chart previews, and clear full-CBAA-observer vs local-certification vs Democracy-Commit warnings. The preexisting E9E_DENSE_RESULTS_BEGIN/END formal-publication block remains unchanged and explicitly PENDING. It is NOT superseded by terminal-only data.
+- docs/figures/e9e_dense/log_preview_success.svg: source-reported 52-point full outcome curve.
+- docs/figures/e9e_dense/log_preview_democracy_zoom.svg: source-reported 40%..65% 1%-step success zoom.
+- docs/figures/e9e_dense/log_preview_cbaa_tail.svg: source-reported 85%..99% local readiness and guard hit, not observer agreement.
+- docs/figures/e9e_dense/log_preview_sender_bytes.svg: mean modeled sender-application Bytes log-scale MB with incomplete attempts included.
+- docs/figures/e9e_dense/log_preview_summary_rounded.csv: derived from the received 104 terminal summary lines; 52 probabilities and both original methods, with rounded per-method mean Bytes for display; NOT original 10,400-row raw, not original 104-row summary, not complete source provenance manifest.
+- docs/EXPERIMENT_PROTOCOL.md: new canonical Section 31 explicitly names the console-only preview boundary and prevents promotion to independently verified formal data before original raw ZIP inspection.
+- docs/CHANGE_CONTINUITY.md: this same-tree record plus a follow-up exact SHA-only correction.
+
+NO simulation Python module, protocol/network owner, stop condition, runtime state machine, source serializer, plot data dependency function or diagnostic contract is modified. The real formal verification remains owned by experiments.plot_e9d_results.load_e9d_plot_evidence (dependency/E9E_PLOT_EVIDENCE_MISSING) and verify_e9d_plot_provenance (contract/E9E_PLOT_SHA256_MISMATCH and E9E_PLOT_RAW_SUMMARY_CONTRACT); it was NOT bypassed for any claim of official results. The preview only shows stdout-derived samples, with prominent unverified label.
+
+### Preserved behavior, intentionally changed presentation, diagnostic risk
+Original Democracy Cost broadcast/Vote/Score/reliable Commit and CBAA original Bid/Winner peer-local certificate, per-receiver loss, 160/300 safety guards, local simulator aggregate free halt abstraction and all E9D/E9E experiments remain identical. No second state machine or centralized winner. The prior README had only PENDING formal slot; it now also shows a provisional log-based chart gallery and measured printed success/byte example table after that slot, without claiming source SHA256 verification or publishing official six source SVGs. Specific sampled observations: Democracy 48%=99/100, 50%=100/100, 52%=91/100, 53%=65/100, 54%=14/100, 55%=0/100 full genuine Commit. CBAA local-ready 91%=100/100, 92%=97/100, 93%=87/100, 94%=48/100, 95%=2/100. At 30%, user console reports Democracy 164750.1 Bytes and CBAA 838160.0 Bytes, both 100/100 per respective success definitions; Democracy uses 80.34% fewer modeled sender application Bytes. The discrete 100-seed observations do not establish a theoretical maximum loss, and every stop guard censor must be labeled. CBAA observer post-hoc 50 agreed tasks is not automatically a paid distributed final Commit. Received text reports local on-Mac E9E plot script SHA check, but assistant cannot independently verify its source raw without ZIP.
+
+### First diagnostic boundary, remaining risks, next and exact SHA
+No code changes and no new diagnostic boundary. The existing E9E figure-source dependency and contract failure codes remain untouched. Visual data based only on console summaries cannot reproduce Wilson CI or independently verify each seed; static previews contain visible preliminary provenance warnings. Future: user uploads e9e_dense_formal_evidence.zip from their Mac (already generated by zip -r); assistant independently checks all 10,400 raw rows, exact seed/p/method coverage, source commit and SHA256 against manifest, commits the ORIGINAL six source-generated SVGs into docs/figures/e9e_dense/formal, promotes HTML-marker formal block and removes/archives preview with proper continuity/canonical and precise SHA. This source/docs-only preview commit is NOT the final paper result or training modification.
+Base source HEAD before preview: 2808fa12fcd89aa8c2251e7e6438312a95a9df8f. Exact E9E-3 terminal-preview README + four static SVGs + one explicitly log-derived CSV + canonical Section 31 + same-tree continuity commit SHA: 6cb9ee55451eebd9df04cae7ca199530765bf11c. This follow-up changes ONLY continuity text; no experiment execution, algorithm or physical network model was modified. The original Mac per-seed raw/manifest/6 SVG formal ZIP remains requested for independent verification.
+
+
+## 2026-10-11 — E9E-3 derived-CSV preview readability follow-up (documentation/evidence only)
+
+Commit 830124d156d817dacf4c3da8d1770bdb596f0a06 changes ONLY docs/figures/e9e_dense/log_preview_summary_rounded.csv by removing two leading human-only comment lines so the header is the first CSV line for ordinary spreadsheet and csv.DictReader imports. All 52 data rows, probabilities, methods, rounded values and provisional stdout provenance stay IDENTICAL; README continues explicitly calling it UNVERIFIED terminal-log-derived preview, not original raw. No canonical experiment rule, owner function, diagnostic category, runtime behavior, CBAA auction, Democracy vote or network packet model changes. Formal ZIP independent verification and six source-generated SVG replacement remain the next required step. This entry is a continuity-only follow-up; no rerun claimed.
+
+
+## 2026-10-11 — E9E-4 original 100-seed ZIP independently verified; one-time figure publication stage
+
+### Purpose and original evidence independently inspected
+The user uploaded the COMPLETE original Mac experiment ZIP after E9E-3 console-only figures. Original source executable SHA 2808fa12fcd89aa8c2251e7e6438312a95a9df8f. An independent container inspection of the true per_seed_loss_method.csv, summary_by_loss.csv, manifest.json, original figure_manifest.json and all six original SVGs verifies: 10,400 unique and complete (seed,probability,original-method) records; 100 seeds *52 tested losses *2 distinct original methods, all 104 independently recalculated summary groups, per-SEND Byte phase sums, delivered+dropped accounting, and SHA256 matches for both actual CSV files and all six ORIGINAL SVG byte contents. Original per-seed CSV SHA256 e2337a157b96593d441c143b19d5b2b9b1c64604b4bc0a651da1e566c060c727; summary SHA256 3408ccd1978ca66d58ff4dd195d3b31b8e2805c798e1adfa872d5d45ea6706db. All six source SVGs independently parsed as valid SVG.
+
+### Files, named real owners and bounded concern
+A one-time EVIDENCE PUBLICATION stage only: copy the byte-identical original 14,927-byte summary into docs/figures/e9e_dense/formal/summary_by_loss.csv (Git SHA cd26a0f1ef9d8afc18daf8e79a74b4e1b7e19611) and add .github/workflows/e9e_publish_verified_figures.yml. That workflow imports the EXISTING reporting owner experiments.plot_e9d_results.build_e9d_plot_series / compose_e9d_figures. Its single job first verifies the original summary SHA256, 104 distinct p-method cells, 100 seeds per cell and EXACT six source SVG SHA256 against original uploaded figure manifest. Only then may it generate six source-original SVGs and a publication provenance manifest in docs/figures/e9e_dense/formal, and attempt an authenticated contents:write GitHub Actions bot commit. It does not recreate the experiment or synthesize 10,400 fake raw records. The original raw resides in the user's full supplied ZIP, not this compact GitHub figures directory. No optimizer/network/Greedy/CBAA source code, owner functions, diagnostics or behavior change.
+
+### Proven formal observations and continuing scientific qualification
+The independent per-seed raw check confirms: Democracy actual Commit 100/100 at sampled 50% (first decline at 48%=99/100), then 52% 91/100, 53% 65/100, 54% 14/100, 55% 0/100. CBAA optimistic locally certified 100/100 through 91%; 92% 97/100, 93% 87/100, 94% 48/100, 95% 2/100. CBAA original EXTERNAL posthoc 50/50 assignment agreement stays 100/100 to sampled 99% even where certificates time out, so guard censor is not assignment-disagreement proof. At 30% Loss both methods report 100/100 under different terminal semantics and Democracy uses 164750.08 vs CBAA 838160.0 modeled sender Bytes, 80.3438% less. This is simulation of independent per receiver Bernoulli loss, TASK reliable, original CBAA local evidence plus FREE aggregator stop, no actual distributed stop handshake; modeled sender application payload NOT 802.11 MAC/PHY/ACK airtime and never a theoretical loss threshold.
+
+### Diagnostic contract, risks, next step, SHA
+The original plot provenance owner load_e9d_plot_evidence / dependency / E9E_PLOT_EVIDENCE_MISSING and verify_e9d_plot_provenance / contract / E9E_PLOT_SHA256_MISMATCH and E9E_PLOT_RAW_SUMMARY_CONTRACT remain unchanged. Any publisher SHA mismatch is a blocking evidence-contract failure, never success. If GitHub Actions cannot push images because of GitHub token permissions or source renderer determinism, the job must fail rather than falsely represent provenance. Inspect remote tree and source SHA before replacing README formal PENDING marker. Next: verify all six images are present and byte-identical in GitHub; update README and canonical Section 32, clear preview-only text, pin source asset and publication commit SHAs in continuity, remove one-time workflow after use. Initial staging base ff787278b2bf1ae2d826442706c36624faafbd19. Staging implementation SHA will be pinned in follow-up continuity once GitHub reports it; no unexecuted CI claims.
+
+
+## 2026-10-11 — E9E-4 VERIFIED original ZIP and six-byte-identical SVGs formally published in README
+
+### What was independently inspected and why this result is now formal
+The full originally generated e9e_dense_formal_evidence.zip was actually uploaded by the user after only a console transcript had been available. It includes original 2,199,690-byte per_seed_loss_method.csv, 14,927-byte summary_by_loss.csv, original run and figure manifests and six rendered SVGs. Independent file-level verification passed EVERY SHA256 in the two source manifests; every original SVG was XML parsed; all 10,400 unique seed/probability/method records are present and consistent with 104 independently recomputed summary groups; all original physical SEND application payload sums and delivered/dropped counts were cross checked; 100 seeds x 52 p values x 2 ORIGINAL methods, exactly as the experiment contract freezes. Original executable SHA 2808fa12fcd89aa8c2251e7e6438312a95a9df8f. Original per-seed raw SHA256 e2337a157b96593d441c143b19d5b2b9b1c64604b4bc0a651da1e566c060c727; exact summary SHA256 3408ccd1978ca66d58ff4dd195d3b31b8e2805c798e1adfa872d5d45ea6706db.
+
+GitHub Actions run 38146438737 PASSED its summary, full 104 p-method, 100-seed-per-cell and exact six original SVG SHA256 conditions, and successfully pushed original figure/source-summary commit d0311a2ef961c281d4c27b70267ecaffdaea5763. Remote Git Blob SHA of each of SIX new figure files matched the original Git Blob SHA computed from the ZIP bytes. This is an exact byte-for-byte source-SVG publication, not approximate console-derived rendering. Staging source commit caede9d6b65f7a22c6191765da0db5faca185e06, original summary git blob cd26a0f1ef9d8afc18daf8e79a74b4e1b7e19611.
+
+### One bounded publication concern: files and named owners
+README.md: replace E9E_DENSE_RESULTS_BEGIN/END pending content with verified formal protocol, 18-row source-CSV-derived selected data table, six verified original source SVG links, original source and original SHA256 provenance, separate terminal semantics. Remove superseded E9E terminal-log-only preview and historic pending-upload message; raw result is NOT regenerated or overwritten. docs/EXPERIMENT_PROTOCOL.md: Section 32 supersedes prior console-only status, freezes exact original evidence, matched chart hashes and scientific interpretation; earlier Sections 27-31 remain historical. docs/CHANGE_CONTINUITY.md: this record plus a follow-up exact publication commit SHA. docs/figures/e9e_dense/formal/: original byte-exact summary, six source byte-exact original SVG, source SHA and checksums in publication_manifest.json remain preserved and linked. Remove only the one-time publication workflow and optional now-redundant console-preview derivative assets from HEAD; historical previews are still available in earlier Git commits and their continuity, no original full experiment evidence is lost.
+
+Owner responsibilities stay unchanged: experiments.plot_e9d_results.load_e9d_plot_evidence owns source dependency, verify_e9d_plot_provenance owns first-failure contract, build_e9d_plot_series and compose_e9d_figures own SAME original numeric report and SVG generation. Original actual cbaa.simulate_cbaa and original simulate_democracy_hungarian_retirement, physical independent per-receiver loss, task/Cost/Bid phases, Commit, local certification/observer state and all data/time/runtime diagnostic boundaries are UNMODIFIED. One concern is completed publication/recording, not a second optimizer/state machine or a hidden behavior change.
+
+### Source-grounded findings preserved and scientific limitations
+At loss 30%, mean sender application Bytes 164750.08 Democracy versus 838160 original CBAA and 100/100 for each distinct full endpoint; Democracy 80.3438% fewer modeled sender Bytes in that cell. At loss 48% Democracy 99/100, 50% 100/100, 52% 91/100, 53% 65/100, 54% 14/100, 55% 0/100 true reliable Commit. CBAA locally certified 100/100 through 91%, then 92%=97,93%=87,94%=48,95%=2,96-99%=0/100 at 160-iteration guard; all 100/100 CBAA external observer complete assignment agreement nonetheless holds through sampled 99%, so stop-certificate failure is NOT task assignment disagreement. Guard caps mean empirical finite-resource censoring, NOT mathematical loss threshold. Original CBAA aggregation is an OPTIMISTIC all-node simulator stop without paid distributed stop ACK, original Democracy Score/Commit modeled reliable and Tasks reliably announced; source byte accounting is modeled sender-application payload, NOT measured MAC/PHY/ACK Wi-Fi airtime. Any claim of universal algorithm superiority under high loss would exceed evidence.
+
+### Diagnostic contracts, remaining risks and commit SHA
+NO NEW DIAGNOSTIC or runtime code. Existing original report first-failing owner/function/category/code: experiments.plot_e9d_results.load_e9d_plot_evidence/dependency/E9E_PLOT_EVIDENCE_MISSING; verify_e9d_plot_provenance/contract/E9E_PLOT_SHA256_MISMATCH or E9E_PLOT_RAW_SUMMARY_CONTRACT. Reports cannot be promoted from partial/pilot raw. The entire original 10,400-row CSV remains in the supplied full raw ZIP; only the exact original 104-row summary and six exact original SVGs are on GitHub, which must NOT be misrepresented as hosting the entire per-seed raw evidence. Remaining research: equal actual bytes budget with paid CBAA stop-ack and complete final Commit, multiple link models including burst/delayed loss, finer repeated independent seeds, full binary Cost/Vote/Bid serialization and real wireless MAC overhead. None of these are silently included in this README publication.
+Publication base immediately after GitHub Actions six-SVG exact match: d0311a2ef961c281d4c27b70267ecaffdaea5763. Exact VERIFIED formal README table, six embedded original GitHub SVGs, canonical Section 32, same-tree continuity, removal of temporary preview-only files and one-shot workflow: 84d0319b13046b5d6059b58cd8849d31ed3d0d3b. Remote tree was checked afterward: six formal SVGs have exact source Git Blob SHA/size, original 14,927-byte summary blob cd26a0f1ef9d8afc18daf8e79a74b4e1b7e19611 is present; README has exactly six formal figure embeds, verified table/source hashes, zero old preview references, and the one-time workflow was removed. This final continuity-only documentation update does not modify any experiment/source code or figure bytes.
+
+
+## 2026-10-11 — E9E-5 research-facing README information architecture cleanup (documentation only)
+
+### User request / purpose
+The user explicitly requests the project README to display ONLY the research report, not instructions for how to install, test, run experiments or restart the Mac. The desired reader hierarchy is **motivation -> experimental baseline and setup -> why each experiment was conducted -> real results and charts -> reasoned conclusions**. Previously README.md (1,135 lines, 57,426 characters) mixed canonical Hungarian protocol, historical Greedy experiments, implementation planning, numerous executable shell scripts, outdated "pending run" notices and now-verified E9E dense results. That presentation obscured important distinctions between algorithm families and experimentally observed versus merely planned evidence.
+
+### One bounded file owner / sections / responsibility movement
+This is **README.md presentation-only reorganization**, with this mandatory docs/CHANGE_CONTINUITY.md record. No Python source, network owner, optimizer, voting, CBAA, stop-state, actual experiment owner or evidence file is modified; canonical docs/EXPERIMENT_PROTOCOL.md (especially §§27–32), original result CSV and formal six SVG files remain intact. README.md is rebuilt into five numbered research-facing sections:
+1. Research motivation and the three questions (correctness, communication overhead, robustness).
+2. Algorithms, two separate benchmark families, fixed shared controls, packet model, three distinct success endpoints and measured-vs-synthetic latency.
+3. Completed and provisionally characterized studies with each experiment's explicit WHY, SETUP, measured RESULT and SCIENTIFIC INTERPRETATION: E0 500 Hungarian oracle scenarios, E1 Wi-Fi application-delay study, E2 one-round Hungarian 30% sample with explicit vote-audit PENDING label, E9C original-only physical task/Cost/CBAA-message accounting, and E9E verified dense 100R50T / 100 seeds / 52 loss samples / 10400 executions and all SIX exact original SVGs with source-CSV-derived 22-row sample table.
+4. Synthesis that separates actual Democracy Commit, external CBAA assignment observer, optimistic all-robot local certification, sender Byte efficiency under full completion, and guard-censored finite-sample loss limits; plus concise outstanding E3/E4, E5/E6/E7 and fair end-to-end stop-ACK work.
+5. Evidence/references with pinned original source Git SHA and SHA256 links, without runnable commands.
+
+### Preserved results and intentionally changed presentation
+All E0 reference figures remain 5 scene sizes *100 seeds =500 full success, gap0, no safety errors. E1 original full-source selected conditions and physical logical message/payload accounting are recreated DIRECTLY from tracked results/e1_latency/summary.csv, not retyped estimates; E2 pilot 100R50T pcost=pvote=.30 (70.285 visible rows, 15.22% task Commit, 15.06% CER, 98.706% conditional correctness) stays flagged **AUDIT NOT YET ACCEPTED**. E9C original-only p0 common Task 1632 B, Cost stage 41600 B, CBAA per full broadcast round 61600 B, no fictional remote peer-pose extra. E9E original SHA 2808fa12fcd89aa8c2251e7e6438312a95a9df8f, raw SHA256 e2337a157b96593d441c143b19d5b2b9b1c64604b4bc0a651da1e566c060c727 and summary SHA256 3408ccd1978ca66d58ff4dd195d3b31b8e2805c798e1adfa872d5d45ea6706db preserved. All six EXACT formally verified original SVG relative links retained. P30 Democracy 164750.08 B versus CBAA 838160.00 B, both 100/100 by DIFFERENT terminal semantics, saving 80.3438%; at 52,53,54,55% Democracy 91/65/14/0 Commit; at 91,92,93,94,95% CBAA 100/97/87/48/2 locally certified, observer assignment agreement 100/100 through 99%. Strict-majority Hungarian architecture is NOT conflated with Greedy >25% plurality or original CBAA bidding; E1 empirical Rady trace sampling is NOT conflated with E9E fixed 1ms synthetic latency; hard 300/160 guards and CBAA optimistic no-paid-stop signal remain explicit limitations.
+
+Intentional display-only change: remove ALL README shell commands, Mac procedures, developer preflight/install/resume instructions, empty "planned result" scaffolds, inflated historical E2/E3/E4 readiness claims, and false appearance of 100-seed evidence for unpublished pilot studies. README becomes 264 readable lines (25,052 characters), with 5 major chapters, structured headings, source-linked tables and six verified chart embeds. Implementation instructions and historical continuity are NOT deleted from internal canonical/result README/history. Original 104-row summary and all original source charts remain unchanged on GitHub.
+
+### Diagnostic / evidence integrity / remaining risks and next
+NO code change; therefore no first-failure owner/function/category/code changes. Existing actual plotting source boundary experiments.plot_e9d_results.load_e9d_plot_evidence / dependency / E9E_PLOT_EVIDENCE_MISSING and verify_e9d_plot_provenance / contract / E9E_PLOT_SHA256_MISMATCH or E9E_PLOT_RAW_SUMMARY_CONTRACT remains the true provenance gate. New documentation source links were checked against the exact Git HEAD tree (28 total linked resources, no broken relative links), six canonical SVG references exactly matched existing original files, and no command fences / executable CLI were found in rebuilt README. We did not rerun algorithms or invent new experiments. Research risks remain: two endpoint semantics not fully matched, optimistic CBAA simulation-wide stop excludes paid decentralized termination, 100 finite seeds & 160/300 guards, independent Bernoulli rather than burst/real airtime, and E2 forensic vote audit incomplete. Later experiments must be introduced by their actual owner, not this README reformatting change.
+
+### Commit SHA
+Base HEAD at README rewrite: 130161646ed09c37071fe3a4742273983f232979. Exact README.md source-results restructuring + same-tree docs/CHANGE_CONTINUITY.md record commit: 30c28b5f5b9978ef784e313b3bf0ce031840da8f. This follow-up only pins the real SHA in continuity; it does not alter any source code, README table, figures, experimental data or canonical protocol.
+
+
+## 2026-10-11 — E9F-1 ORIGINAL Greedy Cost-source repetition, sender-paid and opt-in
+
+### Reason for this one bounded change
+User asked for the next experiment after verified E9E 100R50T 100 seeds ×52 sampled Packet Loss levels. Observed Democracy Commit collapses around 52–55%, while CBAA keeps rebroadcasting consensus vectors. E9F-1 modifies ONLY the true original Cost communication owner to test whether once-only initial Greedy Cost transmission drives the cliff, rather than masking the issue by a new wrapper/second state machine. Explicit planned Cost copies m=1/2/3/5; every byte/packet and physically independent per-receiver loss must be paid. The E9F-2 experiment/evidence owner is a later bounded concern.
+
+### Exact files, true owner and named functions
+- democracy_mrta/coordination.py:
+  - validate_cost_repetitions / data / INVALID_COST_REPETITIONS rejects noninteger, bool and outside 1..5, with expected/actual.
+  - validate_repeated_cost_scope / contract / REPEATED_COST_REQUIRES_GREEDY_COST_SOURCE rejects repeat>1 for Hungarian and peer-pose preknown_cost_snapshot, ensuring the variant uses the original Cost source.
+  - transmit_cost_row_copies is the sole physically sending owner of additional initial Cost packets, with copy-specific event/loss keys, physically reserved payload including every dropped packet and correct send_budget exhaustion.
+  - _broadcast_event and _lossy_broadcast_deliveries preserve EXACT original zero-copy keys by default and add transmission_index only for actual additional sender Cost copies.
+  - _simulate_lossy_cost_broadcasts remains the same cost visibility owner: only union physically received copies for each source, always self locally available; duplicate Cost receipts do NOT add extra visible rows or extra votes.
+  - capture_retirement_cost_snapshot forwards m once at run beginning and retains its actual paid Cost event+delivery proof across all later retirement epochs.
+  - simulate_democracy_hungarian_retirement exposes opt-in cost_repetitions=1 default, validates source/data and otherwise calls the SAME E2 Greedy voting/quorum/Score/Commit/membership owners.
+- tests/test_e9f_cost_repetition.py: 8 named regression and source-contract tests; runs along with entire old unittest regression in CI.
+- docs/EXPERIMENT_PROTOCOL.md canonical Section 33 freezes cost-packet schema/clock/copy-specific loss keys, statistical premise/limitations and legacy defaults.
+- .github/workflows/e9f_cost_repetition.yml tests original owner plus whole regression; CI success must be OBSERVED not asserted in advance.
+- docs/CHANGE_CONTINUITY.md this same implementation commit entry and SHA follow-up.
+
+### Preserved and deliberately changed behavior
+Original E0–E9E algorithms and source-faithful original CBAA, all Cost/Vote one-copy sender/receiver keys, default E9D/E9E 100-seed result pipeline, original Cost once, original per-voter votes, >25% Greedy plurality, reliability of Score/Commit, membership retirement, and observed source data all remain unchanged for m=1. Only m>1 pays a Cost packet of 16+8*T B per sender per extra copy, with separate Bernoulli loss keyed per physical copy. Original Cost readyness timer is retained EXACTLY for m=1; m>1 deliberately waits through m consecutive Cost timeout windows so future votes cannot use a late copy before it is physically delivered. One Cost source remains at round_id=0 no matter how many later voting rounds happen. No hidden robot states, no other owner bypass, no duplicate packet state machine. If a hard byte budget denies a Cost copy, that packet is NOT emitted, and no false Commit occurs.
+
+### First-failure diagnostic contract, risk and next
+New coordination.validate_cost_repetitions / data / INVALID_COST_REPETITIONS with expected integer [1,5] and actual value. New coordination.validate_repeated_cost_scope / contract / REPEATED_COST_REQUIRES_GREEDY_COST_SOURCE with expected actual source and copy inputs. Prior network.validate_packet_loss_probability, SenderPayloadBudget/denied physical SEND, original Greedy and CBAA diagnostics unchanged. Copy-specific loss keys ensure independent potential receipts, though random outcomes in 100 finite seeds are still statistical observations. Main risks: per-Cost m>1 open-loop timeout overhead, one-time source snapshot cannot change after announcement, CBAA stopping criteria still optimistic and not a paid distributed Commit. This code does NOT prove 55% success recovery; only the next 100seed measured Cost repetition sweep can conclude that. E9F-2 must re-run same paired seeds / loss conditions and retain actual Cost bytes, Vote, Score, Commit, CBAA local and external agreement, effective Cost reach and guard censor; then user runs on Mac, sends raw ZIP; publish only after independent SHA checking and user-approved new results.
+
+### Commit SHA
+E9F branch base exact SHA f39c6adc2951409354eb484dc79329c1039150cb. E9F-1 original coordination owner source + 8 tests + canonical Section 33 + workflow + same-tree continuity executable commit SHA 456dcac9b5e444c17e8ec31c19a2c00d174d34f8. GitHub Actions run 38153640680 finished SUCCESS: all 8 new named Cost-owner tests PASS and full repository unittest regression PASS. The CI did NOT run any formal 100R50T multi-seed Cost-copy experiment; that is E9F-2. This SHA-pinning follow-up is documentation-only.
+
+
+## 2026-10-11 — E9F-2 original CBAA vs sender-paid Greedy Cost-repeat causal experiment
+
+### Purpose
+The user said "next experiment" following independently verified E9E Loss 100R50T x100seed 52-grid. At p52..55% original Greedy full Commit collapsed while original CBAA physically repeated Bid/Winner during max-consensus. E9F-1 already changed ONLY true Cost sender owner and passed all 8 named tests + full regression at source SHA 456dcac9b5e444c17e8ec31c19a2c00d174d34f8; this separate concern implements full paired E9F experiment evidence reporting with 4 Cost-copy ablations and the original E9D CBAA once per matched seed/p. The user will run on Mac and share original data, and README results should be updated only after verification.
+
+### Exact new experiment owner and named functions
+- NEW experiments/run_e9f_cost_redundancy.py:
+  - parse_e9f_cost_copy_grid, validate_e9f_cost_grid: data/E9F_INVALID_COST_GRID, unique ascending valid m in 1..5 with mandatory original 1-copy control; reuses true original Cost validator. No silent alternate modes.
+  - validate_e9f_sweep_axes: delegates E9D scenario/loss validation and requires >=2 robots to support meaningful physically received peer-Cost coverage; data/E9F_ROBOTS_REQUIRE_PEER_RECEIPTS.
+  - prepare_e9f_output_root: state/E9F_PROTECTED_OUTPUT_ROOT, E9F_OUTPUT_EXISTS. Never overwrite E0..E9E and prior E9F raw or partial.
+  - run_e9f_democracy_cost_case: invokes the ACTUAL original coord.simulate_democracy_hungarian_retirement(...cost_repetitions=m) and existing original Greedy emitted-message reporting owner summarize_greedy_wire_phases. Measures distinct physical receipt sender->receiver Cost pairs only from original trace. Asserts first-round mean visible Cost rows matches physical unique pair observations, contract/E9F_VISIBLE_COST_SOURCE_MISMATCH, never infers oracle source availability or counts duplicated Cost twice.
+  - run_e9f_cbaa_reference_case: delegates EXACT original E9D natural CBAA function run_e9d_original_cbaa_loss_case ONCE per matched seed/p with original real single-task auction and max-consensus, no Cost or robot-pose sharing or fake new termination signal.
+  - require_e9f_paired_sender_contract: contract/E9F_METHOD_PAIRING_MISMATCH, E9F_PHYSICAL_SENDER_BYTES_MISMATCH, E9F_FAKE_CBAA_COST, E9F_COST_RETRANSMISSION_LEDGER: strict 5 methods per pair, all paid original Task+Cost/Vote/Score/Commit or Bid/Winner sender Bytes exactly add to original physical ledger, all Cost duplicates counted, per-receiver Cost delivery attempts match m*N*(N-1).
+  - summarize_e9f_cost_study: p x method per-100seed summary with full-success denominator ALL seeds, separate actual Democracy Commit, CBAA local certificate, CBAA external observer agreement, cost peer delivery coverage, Cost Bytes versus total Bytes, guard censoring, completed-only mean SECONDARY.
+  - calculate_e9f_empirical_frontier: only highest TESTED all/any sample success and first decline, NOT theoretical p limit.
+  - write_e9f_cost_evidence: immutable full per_seed_cost_copy_method.csv, summary_cost_copies_by_loss.csv, manifest.json with original executable git SHA, exact configured Cost m/p/guards/copy model, each CSV SHA256, distinct method labels, actual 24 points and 100 seeds. If interrupted, partial raw remains but no fake summary/manifests.
+  - run_e9f_cost_redundancy: one original-task-per-seed physically packed broadcast, then each original Cost-copy scenario and one original CBAA, all same scene/seed/loss; stream 5 method rows per paired cell; printed progress/summary. main CLI only.
+- NEW tests/test_e9f_cost_study.py: 8 named tests for 2-seed 5R3T E9F actual path, exact physical Cost payload, original m=1 E9D baseline parity, zero/full loss source receipt, different completion semantics, SHA256 and exact raw coverage, invalid grid and state/root, forged method/Byte contract.
+- UPDATED .github/workflows/e9f_cost_repetition.yml: add new runner focused tests to existing 8 source tests and full suite, then smoke original 5R3T x2 seeds x p(0,.5,1) x cost copies(1,2,3,5) plus original CBAA, upload only smoke raw evidence (not formal 100R50T).
+- docs/EXPERIMENT_PROTOCOL.md Section 34 freezes inputs 100R50T, paired 100seed, original CBAA unaffected, 24 p points (0,30,40,45,48,50..65,70,80,90%), 4 Cost copy levels 1/2/3/5, 12,000 real original actor runs, data and scientific conclusion boundaries.
+- docs/CHANGE_CONTINUITY.md this same-tree record plus implementation SHA follow-up.
+
+### Responsibility unchanged versus deliberately changed
+All E9F-1 actual Cost sender behavior and original Greedy and CBAA optimizer/voting/auctions, original E9D runner outputs (source untouched), historical E9E raw figures, results-only README unchanged. The only change in E9F-2 is an explicit new experimental CAUSAL ABLATION with correctly paid original Cost repeats. Per-receiver independent Cost copy loss and on-air sender bytes are counted. Original task binary announcement stays reliably delivered but sender charged, original Cost and Vote are lossy at same p, Score/Commit remain reliable, no hidden peer pose, original CBAA uses its own Bid vector only, and its optimistic simulator-wide aggregate local ready stop is NOT actual distributed Commit. Sender application payload not Wi-Fi MAC/PHY/ACK airtime. CBAA is simulated just ONCE per matched seed/p not once per Cost variant, avoiding artificially inflated CBAA study cost.
+
+### First failure, remaining scientific risks, verification, next, SHA
+All named E9F data/state/contract diagnostics include actual/expected/details as useful. Existing true coordination.validate_cost_repetitions data/INVALID_COST_REPETITIONS and validate_repeated_cost_scope contract/REPEATED_COST_REQUIRES_GREEDY_COST_SOURCE remain original first failures for sender misuse. NOTE this study is not yet equal end-to-end total sender-B cap, and comparing a greedy real Commit to CBAA uncommitted optimistic all-local-ready requires clear disclosure. Guard-censored incomplete attempts stay in mean sender Bytes, not silently excluded. High loss can require many simulation rounds; 100seed formal should start only after small smoke and 3seed pilot. E9F data must be generated by running user Mac; E9E success gains cannot be reused or inferred. Next distinct concerns may create independent graph report after real source evidence is supplied, then a separate E9G equal-B hard-cap + paid stop ACK experiment.
+Base E9F-1 continuity-only HEAD: 874853dea6f0afaf9aa5bafec032dcd46c39c0a3. E9F-2 NEW experiment owner + 8 tests + canonical Section 34 + workflow + same-tree continuity exact runnable SHA: a7f8a556c8789f5adb07c7d90f526b4f0b6cf484. GitHub Actions run 38154032972 completed SUCCESS: E9F-1 original Cost owner 8/8 tests pass, E9F-2 new 8/8 tests pass, full repository unittest regression passes, and REAL 5R3T x2 seeds x p(0,.5,1.0) x original Cost copies(1,2,3,5) plus original CBAA (30 physical actor simulations) smoke completes with uploaded E9F raw/summary/manifest. At p=.50 small smoke original m1 Cost peer reach mean .55, m2 .875, m3 .925, m5 .975; sender bytes respectively 764, 980, 1180, 1580 B, and original CBAA 1932 B, all each 2/2 fully completed by DIFFERENT endpoint semantics. This is 5R3T 2seed SMOKE ONLY, NOT 100R50T empirical proof. README remains unchanged; 100seed formal still to be executed by user Mac. This documentation-only SHA pinning follow-up changes no Python/runtime code.
+
+
+## 2026-10-12 — E9G-0 literature attribution and calibrated Wi-Fi timing research contract
+
+### Purpose and first bounded milestone
+The user requests that the next original Voting-only communication timing study account for IEEE 802.11ax packet size, PHY airtime, AP uplink/downlink, EDCA contention/queueing, ACK/retries, OFDMA on/off, ROS/application residual delay, and exact citations **for every paper referenced**, so that RA-L manuscript methods can be reconstructed from README. This milestone documents a vetted source-to-assumption map, explicit research boundaries and future implementation owners; it does not silently replace the existing E1/E9E/E9F Rady-bootstrap simulator, nor claim any ns-3 runs.
+
+### Changed files, exact sections/functions, ownership
+- NEW \`docs/references/e9g_wifi_timing.bib\`: machine-readable bibliographic keys and DOI/URL references for Rady 2024 (industrial robotics), Liu & Choi 2023 (commercial Wi-Fi 6 measurement), NIST Montgomery & Candell 2024 (OFDMA), Bianchi 2000 (DCF contention), Riley & Henderson 2010 + ns-3 official Wi-Fi documentation (future network backend), Choi et al. 2009 (consensus task allocation context). Literature register is documentation **only**.
+- UPDATED \`README.md\` §3.6: each study separately cited and explicitly connected to calibration, validation or modeling; multi-user extrapolation/100-client limits, source data pinning and no-double-count rule explained. New methodology marked **design**, not results. Previous E9E report, plots, raw evidence and conclusions unchanged.
+- UPDATED \`docs/EXPERIMENT_PROTOCOL.md\` §35: canonical causal network-arrival integration, proposed real network owner responsibilities, deterministic trace/provenance/diagnostics, versioned simulator acceptance gates, failure/censoring and reference data controls.
+- UPDATED \`docs/CHANGE_CONTINUITY.md\` (this exact entry).
+- No Python, test, CI or application owner function changed. The exact existing owner methods were read before scoping: \`democracy_mrta.network.EmpiricalLatencySampler.sample_ms\`, \`democracy_mrta.network.load_rady_latency_profile\`, \`democracy_mrta.coordination._broadcast_event\`, \`coordination._unicast_event\`, \`coordination._lossy_broadcast_deliveries\`, \`coordination._lossy_unicast_delivery\`, \`coordination.simulate_democracy_hungarian_retirement\` and \`task_information.broadcast_task_information\`. These owners' existing runtime duties remain unchanged.
+
+### Responsibility movement, preserved/deliberate behavior
+No responsibility moved at all in this source-only citation/design milestone. Historical protocol code, Cost/Vote/Score/Commit, E9F sender cost repetitions, original E9E/E1 Rady bootstrap sampler, 531.535123 ms timeout, source sender application Bytes, CBAA comparison and all stored prior evidence are untouched. Deliberate change is **documentation-only**, adding literature attribution and a committed future acceptance protocol. Future network-level MAC/PHY queue/ACK data cannot be claimed as measured from Rady's application-delay samples or derived merely from a fixed-rate division; ns-3 must interact with causal protocol decisions if arrivals affect votes.
+
+### Diagnostic contract, evidence, risks and next
+No new diagnostic is executable yet. Later separate concern must implement at true \`network\` owner the named data/dependency/contract/time boundaries described canonically (E9G_INVALID_WIFI_PHY, E9G_CALIBRATION_MISSING, E9G_EVENT_TRACE_MISMATCH, E9G_NONCAUSAL_PACKET_ARRIVAL), including expected/actual/details. Current first failure to beware is misrepresenting an *offline post-hoc network trace* as causal Voting end-to-end time; reject or label it lower-bound/trace-study only. Physical ns-3 and external measurement PCAP are not installed/materialized/validated in this session. README contains no invented 100-client Wi-Fi timing measurements. Initial Git reference branch \`experiment/e9g-wifi6e-calibration\` forked from E9F commit \`57d46026c221a566e1c7136c4ebdf49c8c77c473\`. First bibliographic commit \`ae6de53b6570766b713720626bf40bc8b26e8766\`; README methodology commit \`2b940f67c4f9db12f704d994c29a9d526025deb1\`; canonical commit \`56c636ebd446f5d6555117de56a326b774af4373\`. This continuity entry commit SHA is produced by GitHub and can be pinned by a documentation-only follow-up; no Python code is changed. Next: independently verify original Liu public data revision and NIST tables; install/pin compatible ns-3 on user's Mac/Linux; implement one opt-in packet-timing owner + tests with causal arrivals before formal 20×100seed execution.
+
 ## 2026-10-11 — Default-branch README GitHub mathematical typesetting compatibility (documentation only)
 
 ### Purpose and first source of the failure
@@ -1950,3 +2587,18 @@ Before commit, independently read AGENTS.md, docs/AI_CHANGE_PROTOCOL.md, this co
 
 ### Commit SHA
 Base main HEAD: 8b8e50ab595ac58269d93ac3cb516d5a1e0a94a5. Exact README.md local-subscript display change + same-commit continuity source SHA: 6496ee210b2db3e2e4f7c67d919ed56a4e5e9f03. This SHA-pinning follow-up changes continuity text only; it does not modify the source README, canonical specifications or experiment behavior.
+
+
+## 2026-10-12 — Main integration: prior E9C/E9D/E9E/E9F implementation and E9G Wi-Fi literature documentation
+
+### Purpose and exact integration
+The user explicitly requests **all current experimental work in main, no further experiment branches**. True merge preserves both parents: previous main \`4cf310d0d2e63f96b69129948fe3604589ca854d\` (includes the GitHub math-rendering and local-matrix symbol readability fixes) and source E9G \`2032303cac5b19189a642e2c8de5082e39982eae\` (includes all ancestor E9C–E9F code, E9E original verified SVGs/summary and E9G per-paper bibliography, canonical model scope). No force-push, no discard of main history, no unrelated repository merge.
+
+### Exact files / functions and responsibility
+Integration tree uses the E9G verified branch tree for all previously changed existing owners and new files: \`democracy_mrta.network\` (sender-byte admission, empirical Rady sampler), \`democracy_mrta.coordination\` (original SEND, Cost repetition, vote/commit semantics), \`democracy_mrta.cbaa\` (auction/consensus), \`democracy_mrta.task_information\` (actual announced source), \`experiments.run_e9c_100seed_comms\`, \`experiments.run_e9d_natural_loss\`, \`experiments.run_e9f_cost_redundancy\`, targeted tests, experiment protocols and E9E published measured evidence. Their diagnostic owner/function/category/code and decision logic remain unchanged from their named original commits; this is a merge, not a new state machine.
+- \`README.md\`: retain the E9E/E9G published research-facing layout, paper-source descriptions and verified E9E figure links; include explicit main's readable $C_{i,\mathrm{local}}$ notation and row/matrix distinction, without restoring old long superseded README section layout.
+- \`docs/CHANGE_CONTINUITY.md\`: preserve all E9C/E9F/E9G history, append the **two distinct main-only** 2026-10-11 README typographic fix records with their own original commit SHAs, plus this integration entry. This is deliberately not a blind replacement of the main continuity history.
+- \`docs/EXPERIMENT_PROTOCOL.md\`, \`docs/references/e9g_wifi_timing.bib\`, original E9E figures/manifest, existing source owners and tests: retained from the E9G content snapshot, no merge-specific code edits.
+
+### Preserved behavior, deliberate change, diagnostics, risk and next
+Preserved: all algorithm and packet source behavior, underlying experiment measurements and SHA publication contracts, default Rady latency model, task allocation semantic endpoints, legacy loss/timeout parameters, existing continuous-change rules and git ancestry. Deliberate documentation change: main README switches from older verbose architecture to current experimental-results-oriented version, preserves citation links and main notation semantics. First failure diagnostic: none newly created by this merge; existing owners and allowed categories (data/time/state/dependency/planning/safety/runtime/contract) remain authoritative. Risks: the branch's older code has been smoke/regression-tested previously but merging alone does not produce fresh 100-seed ns-3 results; E9G is **literature-design only**, and E9F large formal unexecuted results are not fabricated. The user should run full unittest suite on checked-out main and provide new data before adding plots. Commit SHA: parents main \`4cf310d0d2e63f96b69129948fe3604589ca854d\` and E9G \`2032303cac5b19189a642e2c8de5082e39982eae\`; merge commit SHA is produced as a real Git commit and a separate docs-only follow-up may pin it.
