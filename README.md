@@ -14,7 +14,7 @@
 
 Voting's **full, reliable final Commit** and CBAA's **local consensus certificate + posthoc external observer agreement** are **different completion guarantees**. The current CBAA model uses a simulator-wide *free* stop check rather than paying a real distributed stop/Commit protocol. It must not be presented as an identical endpoint.
 
-## 2. Four principal verified results
+## 2. Principal verified findings
 
 ### A. Correctness and decentralized agreement overhead — E0 / E1
 
@@ -59,42 +59,32 @@ The full original E9I experiment contains 16,000 arm/case records; **15,998 comp
 
 CBAA transmitted **10.54×** as many application Bytes but had **32.21% shorter modeled elapsed time** relative to guarded Voting at N100 (paired-bootstrap 95% CI **30.34%–34.06%**). The crossover around N55–60 is statistically inconclusive at 95%, while the paired mean time difference from N65 excludes zero in this model. CBAA also showed better observer-evaluated assignment cost. **Voting is not universally faster or higher-quality.**
 
-The original [E9J optimistic baseline time/Bytes chart](docs/figures/e9j_cbaa/formal/primary_time_and_sender_bytes.svg) is preserved; the single updated four-method figure below now includes its unchanged source means.
+The original [E9J optimistic baseline time/Bytes chart](docs/figures/e9j_cbaa/formal/primary_time_and_sender_bytes.svg) is preserved; the following three-algorithm figure below includes these unchanged original results.
 
-For the original 2-method result, see the [E9J independent cost-quality figure](docs/figures/e9j_cbaa/formal/primary_cost_quality.svg). The updated E9L four-method conditional quality figure appears below.
+For the original 2-method result, see the [E9J independent cost-quality figure](docs/figures/e9j_cbaa/formal/primary_cost_quality.svg). The updated E9L three-algorithm conditional quality figure appears below.
 
 **Fairness limit:** CBAA's simulated all-robots-certified stopping condition is free; a physically distributed stop/Commit would introduce additional traffic and delay. Its original Bid/Winner packet contents differ from Voting Cost/Vote/Score. This is an **algorithm-native modeled trade-off**, not an equal on-wire-budget or physically equivalent-finalization result. [20-point plot source](docs/figures/e9j_cbaa/formal/plot_source_20point_rounded.csv) · [E9J provenance](docs/figures/e9j_cbaa/formal/source_manifest.json).
 
-### E. Paid local CBAA finalization — E9K (formal 100 seeds)
+### E. Distributed price auction — E9L (formal 100 Seeds)
 
-**Original-source verified:** 20 sizes N=T=5..100, 100 paired seeds/size, **2,000/2,000 paid two-wave local READY/COMMIT completions**, no guard stops. Native original Auction/Max-Consensus and final assignment quality were unchanged relative to E9J across **every one of 2,000 matched cases**. E9I Voting and E9J original CBAA baselines were reused without rerunning.
+**Actual new user-run source verified:** Same N=T=5..100 (step5), 100 Seeds per N, 30% independent BID/AWARD drops, epsilon10.0 physical cost units, original 28B BID/AWARD packets and reliable paid TASK announcement. Original E9I Voting and E9J native CBAA are the two official frozen algorithm baselines; neither was rerun. The historical E9L input also retained E9K's technical-protocol record, which is excluded from all algorithm rankings. E9L is a networked **Bertsekas-style price auction variant**, **not original CBBA**, and its end condition is still optimistic all-local AWARD certification plus observer.
 
-At N100, the simulated **37.527s** paid-finalization CBAA took **17.395s longer** than original Voting (**20.132s**) (paired bootstrap CI95 **16.798–18.038s**) and **23.880s longer** than E9J's optimistic free-stop CBAA (**13.647s**). Mean original sender payload grew to **4,074.4kB** vs Voting **255.5kB** (15.95×). Of the added 23.880s, **17.523s** were conservative paid-control phase waits and **6.356s** extra native consensus-round waits. **The increased modeled time is strongly dependent on charging E9J's conservative full-vector phase window to each small 48B control wave**; it is **not a physical 100-node Wi-Fi timing verdict**.
-
-![E9L: four methods, modeled stopping time and attempted sender traffic](docs/figures/e9l_price/formal/primary_four_method_time_and_sender_bytes.svg)
-
-The [original three-method E9K figure](docs/figures/e9k_paid/formal/primary_three_way_time_and_sender_bytes.svg) is preserved as supplementary research evidence.
-
-[Formal audit and caveats](docs/E9K_FORMAL_100SEED.md) · [20-point source-derived plot values](docs/figures/e9k_paid/formal/verified_20point.csv) · [source SHA provenance](docs/figures/e9k_paid/formal/source_manifest.json). Existing E9J source plot, all original archives and full README historical appendix remain unchanged.
-
-### F. New distributed price auction — E9L (formal 100 Seeds)
-
-**Actual new user-run source verified:** Same N=T=5..100 (step5), 100 Seeds per N, 30% independent BID/AWARD drops, epsilon10.0 physical cost units, original 28B BID/AWARD packets and reliable paid TASK announcement. Existing E9I/E9J/E9K controls were paired read-only and were not rerun. E9L is a networked **Bertsekas-style price auction variant**, **not original CBBA**, and its end condition is still optimistic all-local AWARD certification plus observer.
+![E9L: Voting vs original CBAA vs distributed Price Auction, modeled time and attempted sender payload](docs/figures/e9l_price/formal/primary_three_algorithm_time_and_sender_bytes.svg)
 
 E9L locally completed **1,867/2,000** cases; **133** reached the 160-round guard. The observer found a full assignment in 1,880 cases, including 13 not locally certifiable — therefore observer agreement and local distributed evidence are **not interchangeable**.
 
-| N=100, all 100 Seeds unless marked | Voting | Original CBAA | Paid CBAA | **Price Auction E9L** |
-|---|---:|---:|---:|---:|
-| Completion by its own distinct contract | 100/100 | 100/100 | 100/100 | **78/100** |
-| Mean modeled stop time (all Seeds) | 20.132 s | 13.647 s | 37.527 s | **135.828 s** (guard-censored) |
-| Mean time of successful cases only | 20.132 s | 13.647 s | 37.527 s | **122.329 s** (78 Seeds) |
-| Mean attempted sender payload (all Seeds) | 255.5 kB | 2,693.0 kB | 4,074.4 kB | **353.9 kB** |
+| N=100, all 100 Seeds unless marked | Voting | Original CBAA | **Price Auction E9L** |
+|---|---:|---:|---:|
+| Completion under each method's own rule | 100/100 | 100/100 | **78/100** |
+| Mean modeled stop time (all Seeds) | 20.132 s | 13.647 s | **135.828 s** (guard-censored) |
+| Mean time of successful cases only | 20.132 s | 13.647 s | **122.329 s** (78 Seeds) |
+| Mean attempted sender payload (all Seeds) | 255.5 kB | 2,693.0 kB | **353.9 kB** |
 
 E9L's finished-assignment Cost/Hungarian ratio is **1.1173** versus Voting **1.3668** and CBAA **1.2348** **on exactly the same 78 E9L-successful N100 Seeds**, not all 100. In that matched subset E9L−Voting successful time was **+102.13s** (paired Bootstrap CI95 **+93.83 to +110.48s**) and E9L−CBAA Cost ratio was **−0.11743** (paired CI95 **−0.13170 to −0.10409**). This shows a **conditional quality advantage but poor latency and declining success** at high N; it does not show a universally better allocator. E9L sends **38.5% more application Bytes than Voting**, despite 28B small packets.
 
-![E9L: locally certified success rate and same-success-seed assignment quality](docs/figures/e9l_price/formal/primary_e9l_completion_and_quality.svg)
+![E9L: local completion and same-success-seed assignment quality, only three original algorithms](docs/figures/e9l_price/formal/primary_three_algorithm_completion_and_quality.svg)
 
-**Major caveat:** E9L uses a free simulator-wide aggregation of separate local evidence, Voting pays a real reliable Commit, and Paid CBAA uses physical two-stage local receipts; the outcomes differ. Rady+hypothetical 144Mbps is **not** physical Wi-Fi ns-3. ε=10 was a fixed design-stage setting and cannot be retrospectively tuned to improve these archived formal results. [Detailed formal audit](docs/E9L_FORMAL_100SEED.md) · [derived 20-point CSV](docs/figures/e9l_price/formal/plot_source_20point_rounded.csv) · [original source SHA manifest](docs/figures/e9l_price/formal/source_manifest.json). Original E9J/E9K figures and all immutable raw ZIP sources remain unchanged.
+**Major caveat:** E9L and original CBAA use free simulator aggregation of local evidence; Voting pays a reliable Commit. Their stopping guarantees differ. Rady+hypothetical 144Mbps is **not** physical Wi-Fi ns-3. ε=10 was a fixed design-stage setting and cannot be retrospectively tuned to improve these archived formal results. [Detailed formal audit](docs/E9L_FORMAL_100SEED.md) · [derived 20-point CSV](docs/figures/e9l_price/formal/plot_source_20point_rounded.csv) · [original source SHA manifest](docs/figures/e9l_price/formal/source_manifest.json). Original E9J figures and all immutable source ZIP records remain unchanged; E9K's internal protocol-extension data remain in the technical archive, not the algorithm comparison.
 
 ## 3. Other studies: status only
 
@@ -102,7 +92,6 @@ E9L's finished-assignment Cost/Hungarian ratio is **1.1173** versus Voting **1.3
 |---|---|---|
 | **E2** | **Provisional:** original Hungarian Cost/Vote one-round aggregate has not passed full per-vote forensic acceptance | [E2 notes](results/e2_packet_loss/README.md) |
 | **E9C** | Sender packet-size/SEND accounting **control**, not a certified dynamic-stop comparison | [Historical results](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md) |
-| **E9K: paid CBAA terminal proof** | **Formal 100-seed E9K original source verified;** optional engineering addition, not a real Wi-Fi experiment. | [Mac reproducibility steps](docs/E9K_PAID_CBAA.md) |
 | **E9L** | **Formal user-run 100-seed source verified:** 1,867/2,000 full local certificates; 133 guard-censored; original source SHA auditable. | [Results report](docs/E9L_FORMAL_100SEED.md) |
 | **E9H** | Implemented deadline hypothesis and pilot, but its **full original factorial 100-seed study is not published**; E9I is a separate completed Cost30 follow-up | [Canonical design](docs/EXPERIMENT_PROTOCOL.md) |
 | **E9F, E3–E7, older pilots** | Historical/incomplete for present core claims; preserve rather than merge into E9E/E9J | [Full history](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md) |

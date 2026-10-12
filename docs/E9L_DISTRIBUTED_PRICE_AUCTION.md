@@ -3,6 +3,8 @@
 **Status: complete user-run 20×100 formal E9L original source is now independently verified;** see [full 100-seed report](E9L_FORMAL_100SEED.md). This guide preserves original reproducibility commands and predeclared epsilon10.0, not a new requirement to repeat old controls.
 No CI or background execution is required. User Mac runs the actual source.
 
+> **Official algorithm comparator rule (2026-10-12):** compare **Voting (E9I), original CBAA (E9J), and Distributed Price Auction (E9L)** only. The E9K paid-stop modification is our own engineering protocol study, **not another literature algorithm**. The historical user-executed E9L CLI and SHA-pinned raw manifest happen to require E9K as an old archival source-integrity input; the commands below are preserved **only for reproducibility**, and E9K's numbers must not appear in official benchmark tables, charts, or rankings. Future benchmark implementations should accept only the needed published algorithm baseline inputs, without altering or relabeling the frozen E9L original source SHA.
+
 ## Why this comparator first?
 
 The 2009 Choi–Brunet–How work defines CBBA as a **multi-task
@@ -40,13 +42,13 @@ different 1:1 method which reuses the exact N=T=5..100 E9I/E9J/E9K evidence.
   a paid distributed acknowledgment or the reliable Voting Commit.
   Never compare endpoint labels as if those success guarantees were identical.
 
-## Comparison (all pre-existing controls read-only)
+## Historical run inputs and official algorithm comparators (original source unchanged)
 
 | Method | Actual source | Original loss / endpoint |
 |---|---|---|
 | Voting guarded received plurality | Frozen E9I original 100-seed ZIP | Cost30%, Vote30%, actual reliable Commit |
 | Native original CBAA | Frozen E9J 100-seed ZIP | Bid/Winner30%, optimistic local certification and observer |
-| Original CBAA + paid READY/COMMIT extension | Frozen E9K 100-seed ZIP | Bid/Ready/Commit30%, per-node double receipt, no common knowledge |
+| E9K (internal, **not a comparator**) | Historical source ZIP for this frozen E9L CLI's provenance only | Our own modified paid-stop engineering validation, excluded from ranking |
 | **E9L distributed price auction** | **New source run** | BID30%, AWARD30%, optimistic per-node local all-task proof |
 
 The same independent Hungarian oracle is used **only for external final
