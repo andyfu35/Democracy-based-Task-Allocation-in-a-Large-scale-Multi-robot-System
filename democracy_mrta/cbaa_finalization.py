@@ -12,7 +12,7 @@ common-knowledge handshake remain outside this model.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import hashlib
 import math
 
@@ -126,7 +126,7 @@ def exchange_paid_cbaa_control_packets(
     phase: str, iteration: int, start_ms: float, timeout_ms: float,
     sampler, loss_sampler, loss_probability: float,
     capture_audit: bool, send_budget: SenderPayloadBudget | None,
-) -> tuple[int, int, int, int, float, tuple, tuple, bool]:
+) -> tuple[int, int, int, int, int, float, tuple, tuple, bool]:
     """One causal paid broadcast per eligible robot; receipts are local only."""
     robots = len(proof.expected_digest)
     if phase not in (READY_PHASE, COMMIT_PHASE) or len(eligible) != robots:
