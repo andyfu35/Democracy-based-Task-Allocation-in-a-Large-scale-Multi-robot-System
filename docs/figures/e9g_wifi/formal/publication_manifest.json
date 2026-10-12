@@ -1,0 +1,75 @@
+{
+  "publication": "E9G-2 Voting-only formally verified shared-medium proxy",
+  "result_status": "actual_8000_runs_of_SIMPLIFIED_MODEL_NOT_80211ax_NS3_OR_MEASURED_RF",
+  "publication_date": "2026-10-12",
+  "executable_source_git_sha": "910c5eac738367738907b18fce86e56adf86697d",
+  "original_user_zip": "e9g_wifi_formal.zip",
+  "original_user_zip_sha256": "c0d9722d13242a67eb9b2662df124ff0174701912a5275d348d1c68d26cec6fd",
+  "original_source_files_not_committed": {
+    "per_seed_wifi_timing.csv": {
+      "rows": 8000,
+      "sha256": "ba79fd138d84d6d3bb7f04430a36a8c3e973d7ca0978834d4ad3b1d3f85be6"
+    },
+    "scaling_by_size_mode.csv": {
+      "rows": 80,
+      "sha256": "bdc2b784297d1465800e094fe2dd611c79578c20a7ec2efb04216faecd77a590"
+    },
+    "empirical_scaling_exponents.csv": {
+      "rows": 4,
+      "sha256": "5a36eab796192de8c95d18c06ee31ac573c9aae697e9648c71ebd3312866d62f"
+    },
+    "manifest.json": {
+      "purpose": "recorded exact rates, source SHA, Rady blob, 609.1129ms common timeout"
+    }
+  },
+  "analyses_independently_verified": {
+    "original_csv_checksums_match_manifest": true,
+    "unique_pair_grid_count": 8000,
+    "successes": 8000,
+    "safety_guard_hits": 0,
+    "recompute_all_80_source_summary_rows": true,
+    "max_abs_numeric_recalculation_error": 1.4551915228366852e-11,
+    "original_percentile_definition": "sort(values)[int(p * (len(values)-1))]",
+    "recomputed_all_four_empirical_exponent_rows": true,
+    "all_8000_exact_source_application_sender_byte_and_send_formulas": true
+  },
+  "publication_file_git_blob_shas": {
+    "fig01_allocation_time.svg": "6d0b612da222f0d6536c443365989bcd8664a8dd",
+    "fig02_added_latency.svg": "7d8508a26241c4a9468f708ef31bba8260a2d086",
+    "fig03_application_bytes.svg": "f6032906e700117916771b3ae38857af11090224",
+    "fig04_send_count.svg": "a52dff8d463b376aea8d153efa8e48a9991dcad0",
+    "fig05_radio_airtime.svg": "ce45c17cdf44047efc7ffdb070290285cbd48b2b",
+    "fig06_fixed_timeout.svg": "942bb372864de0c2e4fadf65bb399ed6a8ace1c8",
+    "scaling_20points_verified.csv": "cc17bcd44447cf1f868e0eabb1b39620d9fc41d6"
+  },
+  "figures_data_precision": "Per-N numeric means presented to 0.001 ms; figures visualized from rounded published 20-point CSV, not asserted byte-identical to original 80-row CSV",
+  "study": {
+    "robot_task_ratio": "N:N",
+    "N": "5..100 step 5",
+    "seeds_per_cell": 100,
+    "modes": [
+      "rady_bootstrap_no_shared_channel",
+      "e9g_shared_medium_backoff_proxy@144_assumedMbps",
+      "e9g_shared_medium_backoff_proxy@600_assumedMbps",
+      "e9g_shared_medium_backoff_proxy@1200_assumedMbps"
+    ],
+    "application_loss": 0,
+    "cost_copies": 1,
+    "original_vote_copies": 1,
+    "phase_timeout_ms": 609.1129007777778,
+    "source_rady_commit": "1996e5bb69b9ba4d25060cbc14838ddedf65cff2",
+    "source_rady_dataset_blob": "11e70e685229cc26458f272b0c954487c87d7953"
+  },
+  "major_interpretation": "Nominal 100x609.1129ms deadline accounts for 89.39% of Rady-only mean 68.143s at N100 as budget arithmetic; not additive phase time",
+  "unverified_real_80211ax_features": [
+    "spatial_phy",
+    "collisions",
+    "per_sta_edca_queues",
+    "mac_arq_retransmission",
+    "rate_adaptation",
+    "ap_ofdma_scheduler",
+    "client_measured_throughput",
+    "100_station_rf_field_trial"
+  ],
+  "literature_references": "README.md §3.6–3.7; docs/references/e9g_wifi_timing.bib"
+}
