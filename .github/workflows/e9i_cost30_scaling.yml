@@ -1,0 +1,61 @@
+name: E9I Cost30 1-to-1 Voting Scaling
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - experiments/run_e9i_cost30_scaling.py
+      - experiments/run_e9h_adaptive_deadline.py
+      - tests/test_e9i_cost30_scaling.py
+      - .github/workflows/e9i_cost30_scaling.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verified-original-cost30-voting-scaling:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+      - name: E9I cost30 and independent Vote 0/30 original-owner tests
+        run: python -m unittest discover -s tests -p 'test_e9i_cost30_scaling.py' -v
+      - name: E9H and E9G original semantics compatibility
+        run: |
+          python -m unittest discover -s tests -p 'test_e9h_adaptive_deadline.py' -v
+          python -m unittest discover -s tests -p 'test_e9g_wifi_timing.py' -v
+      - name: Actual 20 sizes times 10 seeds fixed Cost30 original Vote simulator
+        run: |
+          python -m experiments.run_e9i_cost30_scaling \
+            --sizes 5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100 \
+            --seeds 10 --max-rounds 300 \
+            --rate-mbps 144 --design-rate-mbps 144 \
+            --output-root results/e9i_cost30_dense_10seed
+          python - <<'PY'
+          import csv,hashlib,json
+          from pathlib import Path
+          root=Path('results/e9i_cost30_dense_10seed')
+          m=json.loads((root/'manifest.json').read_text())
+          assert m['raw_cases']==1600 and m['cost_loss_probability_fixed']==.30
+          rows=list(csv.DictReader((root/'per_seed_e9i_cost30.csv').open()))
+          assert len(rows)==1600
+          assert sorted({int(r['robots']) for r in rows})==list(range(5,101,5))
+          assert {float(r['vote_loss_probability']) for r in rows}=={0.,.3}
+          for name,digest in m['source_files_sha256'].items():
+              assert hashlib.sha256((root/name).read_bytes()).hexdigest()==digest
+          print('E9I_ORIGINAL_COST30_REAL_SIMULATION_ROWS',len(rows))
+          PY
+      - name: Archive original 20N Cost30 pilot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e9i-cost30-vote0-vote30-20sizes-10seeds
+          path: results/e9i_cost30_dense_10seed/
+          if-no-files-found: warn
+          retention-days: 30
