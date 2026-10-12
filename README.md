@@ -82,6 +82,7 @@ At N100, the simulated **37.527s** paid-finalization CBAA took **17.395s longer*
 | **E2** | **Provisional:** original Hungarian Cost/Vote one-round aggregate has not passed full per-vote forensic acceptance | [E2 notes](results/e2_packet_loss/README.md) |
 | **E9C** | Sender packet-size/SEND accounting **control**, not a certified dynamic-stop comparison | [Historical results](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md) |
 | **E9K: paid CBAA terminal proof** | **Formal 100-seed E9K original source verified;** optional engineering addition, not a real Wi-Fi experiment. | [Mac reproducibility steps](docs/E9K_PAID_CBAA.md) |
+| **E9L** | **New distributed epsilon-price auction implemented; 100-seed results pending local execution.** Native BID/AWARD packets, SHA-verified E9I/J/K comparisons, no CI. | [Experiment guide](docs/E9L_DISTRIBUTED_PRICE_AUCTION.md) |
 | **E9H** | Implemented deadline hypothesis and pilot, but its **full original factorial 100-seed study is not published**; E9I is a separate completed Cost30 follow-up | [Canonical design](docs/EXPERIMENT_PROTOCOL.md) |
 | **E9F, E3–E7, older pilots** | Historical/incomplete for present core claims; preserve rather than merge into E9E/E9J | [Full history](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md) |
 
