@@ -418,3 +418,201 @@ class BernoulliLossSampler:
         ).digest()
         unit = int.from_bytes(digest[:8], "big") / float(1 << 64)
         return unit >= probability
+
+
+# E9G-1: explicitly modeled shared-radio *sensitivity*, not an ns-3 PHY result.
+# Rady (2024) supplies measured ROS delay, Bianchi (2000) motivates the
+# contention/backoff abstraction, and NIST IR 8506 (2024) cautions against
+# assuming OFDMA is always active. Per-hop parameters remain hypotheses.
+@dataclass(frozen=True)
+class WifiTimingConfig:
+    phy_rate_mbps: float
+    mac_overhead_bytes: int = 64
+    phy_preamble_us: float = 120.0
+    aifs_us: float = 34.0
+    slot_us: float = 9.0
+    cw_min: int = 15
+    mac_ack_us: float = 45.0
+    reference_ros_payload_bytes: int = 16
+
+
+def validate_wifi_phy_config(config: WifiTimingConfig) -> WifiTimingConfig:
+    """Data boundary for an opt-in, non-ns-3 shared-medium sensitivity model."""
+    valid = (
+        type(config) is WifiTimingConfig
+        and type(config.phy_rate_mbps) in (int, float)
+        and math.isfinite(config.phy_rate_mbps)
+        and 0 < config.phy_rate_mbps <= 10000
+        and type(config.mac_overhead_bytes) is int
+        and config.mac_overhead_bytes >= 0
+        and type(config.cw_min) is int and 0 <= config.cw_min <= 1023
+        and type(config.reference_ros_payload_bytes) is int
+        and config.reference_ros_payload_bytes > 0
+    )
+    if valid:
+        for value in (
+            config.phy_preamble_us, config.aifs_us, config.slot_us,
+            config.mac_ack_us,
+        ):
+            if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                valid = False
+                break
+    if not valid:
+        raise ProtocolError(Diagnostic(
+            owner="network", function="validate_wifi_phy_config",
+            category="data", code="E9G_INVALID_WIFI_PHY",
+            expected="finite positive PHY Mbps; nonnegative MAC/PHY timing and overhead; CWmin 0..1023",
+            actual=repr(config),
+        ))
+    return config
+
+
+class WifiCausalTimingSampler:
+    """Causal opt-in single-shared-medium service model, NOT an ns-3 emulator.
+
+    Each original application SEND is scheduled by the original packet owner
+    as it occurs. A modeled infrastructure BSS adds two radio hops for
+    inter-robot traffic (uplink -> AP and AP -> peer[s]) and one AP downlink
+    for TASK announcement. Each hop includes size-sensitive PHY time,
+    deterministic seeded BE backoff and hypothesized MAC ACK cost. All hops
+    share ONE serialized resource; there is no simulated collision, RU
+    allocation, per-STA EDCA queue, retransmission or correlated RF loss.
+    Preserve a measured ROS delay residual without adding all of the
+    Rady end-to-end delay on top of another full modeled network delay.
+    """
+
+    def __init__(self, profile: EmpiricalLatencyProfile, seed: int,
+                 config: WifiTimingConfig):
+        self.config = validate_wifi_phy_config(config)
+        if type(profile) is not EmpiricalLatencyProfile or not profile.samples_ms:
+            raise ProtocolError(Diagnostic(
+                owner="network", function="WifiCausalTimingSampler.__init__",
+                category="dependency", code="E9G_CALIBRATION_MISSING",
+                expected="verified nonempty EmpiricalLatencyProfile",
+                actual=type(profile).__name__,
+            ))
+        self._empirical = EmpiricalLatencySampler(profile, seed)
+        self._seed = int(seed)
+        self._epoch_start_ms = 0.0
+        self._last_release_ms = 0.0
+        self._medium_free_ms = 0.0
+        self.packet_trace: list[dict[str, float | int | str]] = []
+
+    def set_epoch_start_ms(self, elapsed_ms: float) -> None:
+        """Advance original Voting epoch clock, never rewind network history."""
+        value = float(elapsed_ms)
+        if not math.isfinite(value) or value < self._epoch_start_ms - 1e-9:
+            raise ProtocolError(Diagnostic(
+                owner="network", function="WifiCausalTimingSampler.set_epoch_start_ms",
+                category="time", code="E9G_NONCAUSAL_EPOCH_START",
+                expected=f">={self._epoch_start_ms} ms", actual=elapsed_ms,
+            ))
+        self._epoch_start_ms = value
+
+    def _frame_airtime_ms(self, payload_bytes: int) -> float:
+        c = self.config
+        return (c.phy_preamble_us / 1000.0
+                + 8.0 * (payload_bytes + c.mac_overhead_bytes)
+                / (1000.0 * c.phy_rate_mbps))
+
+    def _backoff_ms(self, key: str, hop: int) -> float:
+        c = self.config
+        digest = hashlib.sha256(
+            f"{self._seed}|e9g-backoff|{key}|hop={hop}".encode("utf-8")
+        ).digest()
+        slots = int.from_bytes(digest[:8], "big") % (c.cw_min + 1)
+        return (c.aifs_us + slots * c.slot_us) / 1000.0
+
+    def _reference_service_ms(self) -> float:
+        c = self.config
+        return (
+            self._frame_airtime_ms(c.reference_ros_payload_bytes)
+            + (c.aifs_us + 0.5 * c.cw_min * c.slot_us + c.mac_ack_us) / 1000.0
+        )
+
+    def sample_packet_ms(self, *, key: str, phase: str,
+                         sender_id: int, receiver_id: int,
+                         send_time_ms: float, payload_bytes: int) -> float:
+        """Schedule one original SEND causally and return its observed latency.
+
+        Events MUST be submitted by increasing absolute release time. In
+        particular, original vote emission is sorted by sender ready-time
+        only in this opt-in model; all legacy owners preserve their order.
+        """
+        if (type(payload_bytes) is not int or payload_bytes <= 0
+            or not math.isfinite(float(send_time_ms)) or send_time_ms < 0):
+            raise ProtocolError(Diagnostic(
+                owner="network", function="WifiCausalTimingSampler.sample_packet_ms",
+                category="data", code="E9G_INVALID_PACKET_INPUT",
+                expected="positive application payload Bytes and finite nonnegative send time",
+                actual={"bytes": payload_bytes, "send_time_ms": send_time_ms},
+            ))
+        release = self._epoch_start_ms + float(send_time_ms)
+        if release < self._last_release_ms - 1e-9:
+            raise ProtocolError(Diagnostic(
+                owner="network", function="WifiCausalTimingSampler.sample_packet_ms",
+                category="time", code="E9G_NONCAUSAL_PACKET_RELEASE",
+                expected={"minimum_release_ms": self._last_release_ms},
+                actual={"release_ms": release, "phase": phase, "key": key},
+                details="Original packets must enter shared-medium timing in release order",
+            ))
+        self._last_release_ms = release
+        is_broadcast = receiver_id == -1
+        hops = 1 if phase == "task_announcement" else 2
+        # Peer broadcast: STA->AP is an acknowledged uplink, AP->peer[s]
+        # is multicast/broadcast without normal per-recipient MAC ACK.
+        acked_hops = (0 if phase == "task_announcement" else
+                      1 if is_broadcast else 2)
+        airtime = hops * self._frame_airtime_ms(payload_bytes)
+        backoff = sum(self._backoff_ms(key, hop) for hop in range(hops))
+        ack = acked_hops * self.config.mac_ack_us / 1000.0
+        wait = max(0.0, self._medium_free_ms - release)
+        finish = max(self._medium_free_ms, release) + airtime + backoff + ack
+        self._medium_free_ms = finish
+
+        # Reference is a light-load single-hop ROS control packet; its
+        # empirical end-to-end latency already includes PHY/MAC service.
+        # Subtract the reference *expected* service and clamp residual >=0.
+        empirical = float(self._empirical.sample_ms(key))
+        residual = max(0.0, empirical - self._reference_service_ms())
+        arrival = finish + residual
+        latency = arrival - release
+        if not math.isfinite(latency) or latency < 0:
+            raise ProtocolError(Diagnostic(
+                owner="network", function="WifiCausalTimingSampler.sample_packet_ms",
+                category="time", code="E9G_NONCAUSAL_PACKET_ARRIVAL",
+                expected="arrival >= release and finite",
+                actual={"arrival": arrival, "release": release},
+            ))
+        self.packet_trace.append({
+            "key": key, "phase": phase, "sender_id": sender_id,
+            "receiver_id": receiver_id, "payload_bytes": payload_bytes,
+            "release_abs_ms": release, "start_abs_ms": release + wait,
+            "media_finish_abs_ms": finish, "arrival_abs_ms": arrival,
+            "queue_ms": wait, "airtime_ms": airtime,
+            "backoff_ms": backoff, "mac_ack_ms": ack,
+            "rady_nonoverlap_residual_ms": residual,
+            "wireless_hops": hops,
+            "wireless_payload_equivalent_bytes": hops * (
+                payload_bytes + self.config.mac_overhead_bytes
+            ),
+        })
+        return latency
+
+    def summarize_network(self) -> dict[str, float | int]:
+        """Accounting: sums are service costs, NOT additional elapsed time."""
+        rows = self.packet_trace
+        return {
+            "packet_count": len(rows),
+            "application_sender_bytes": sum(int(r["payload_bytes"]) for r in rows),
+            "radio_hop_count": sum(int(r["wireless_hops"]) for r in rows),
+            "radio_payload_equivalent_bytes": sum(
+                int(r["wireless_payload_equivalent_bytes"]) for r in rows),
+            "total_airtime_ms": sum(float(r["airtime_ms"]) for r in rows),
+            "total_backoff_ms": sum(float(r["backoff_ms"]) for r in rows),
+            "total_ack_ms": sum(float(r["mac_ack_ms"]) for r in rows),
+            "total_queue_ms": sum(float(r["queue_ms"]) for r in rows),
+            "total_residual_ms": sum(
+                float(r["rady_nonoverlap_residual_ms"]) for r in rows),
+            "medium_busy_until_ms": self._medium_free_ms,
+        }
