@@ -490,7 +490,7 @@ Evidence: [rounded plot-driving 20-point data](docs/figures/e9i_cost30/pilot/der
 
 **Time and radio:** Network-owned CBAA iteration deadline uses pinned maximum Rady ROS delay plus modeled two AP radio hops for each of N complete Bid/Winner packet SENDs and full-CW delay, plus a 1ms guard. The same hypothetical **144 Mbps** E9G shared-radio sampler computes causal queue, airtime, backoff and packet delivery, not true ns-3 or measured 100-device PHY. CBAA native simulated completion is TASK announcement time + actual iteration count × bounded per-iteration synchronization deadline; sending Bytes, total modeled airtime and protocol WAIT are reported separately. Guard at 160 iterations is a censor, *not* user-tuned natural convergence K.
 
-**Paired experiment:** N=T=5,10,...,100 and seed0..99, original CBAA simulated once per (N,seed), paired offline to original E9I fixed_received and adaptive_guarded_k1_received at Vote drops 0%/30% (4 archived Voting control rows each). CBAA local-certification and observer agreement are NOT semantically equivalent to Voting reliable full Commit, so only compare complete-run timing **conditional on each method's own success**, with separate all-seed stopping time. Output original CBAA raw, original E9I matched CSV, summaries and SHA256 manifest; no E9J formal result claimed until the new actual 100seed source is audited.
+**Paired experiment:** N=T=5,10,...,100 and seed0..99, original CBAA simulated once per (N,seed), paired offline to original E9I fixed_received and adaptive_guarded_k1_received at Vote drops 0%/30% (4 archived Voting control rows each). CBAA local-certification and observer agreement are NOT semantically equivalent to Voting reliable full Commit, so only compare complete-run timing **conditional on each method's own success**, with separate all-seed stopping time. Output original CBAA raw, original E9I matched CSV, summaries and SHA256 manifest; the E9J 100-seed paired results have now been source-audited and are published below.
 
 **Local run:** run the following from project root, after downloading the unchanged E9I formal ZIP to the path given:
 
@@ -512,7 +512,39 @@ python -m experiments.run_e9j_cbaa_vs_e9i --sizes 5,10,15,20,25,30,35,40,45,50,5
 | 10 | 1.692s | 5.408s | 3,560 | 13,936 | 10 |
 | 20 | 3.317s | 8.268s | 11,936 | 77,456 | 15 |
 
-At N20 in THIS source-aligned single seed, original CBAA emitted about 6.49× the original sender Bytes (77,456/11,936) and took more modeled synchronization time. The information in this 1-seed/three-N table must NOT be promoted to 100-seed formal causal superiority, 100R extrapolation or physical AP measurements. CBAA's posthoc Cost/Hungarian was 1.2358 (N5), 1.0481 (N10), 1.2710 (N20); Voting guarded was 1.1072, 1.0481, 1.2407, respectively. Original paper and transport assumptions in §3.10 remain essential qualifications. [3-point verified source preview CSV](docs/figures/e9j_cbaa/pilot/source_aligned_seed0.csv) and [CI/source integrity manifest](docs/figures/e9j_cbaa/pilot/source_manifest.json). Next: Mac 3-seed native full paired pilot with SHA-verified E9I reference, then full N5..100 100-seed CBAA run and dense 20-point curves.
+At N20 in THIS source-aligned single seed, original CBAA emitted about 6.49× the original sender Bytes (77,456/11,936) and took more modeled synchronization time. The information in this 1-seed/three-N table must NOT be promoted to 100-seed formal causal superiority, 100R extrapolation or physical AP measurements. CBAA's posthoc Cost/Hungarian was 1.2358 (N5), 1.0481 (N10), 1.2710 (N20); Voting guarded was 1.1072, 1.0481, 1.2407, respectively. Original paper and transport assumptions in §3.10 remain essential qualifications. [3-point verified source preview CSV](docs/figures/e9j_cbaa/pilot/source_aligned_seed0.csv) and [CI/source integrity manifest](docs/figures/e9j_cbaa/pilot/source_manifest.json). The rows above remain a historical one-seed pilot; see the complete 20-point, 100-seed E9J results below.
+
+#### E9J formal: verified 20-size × 100-seed original CBAA against E9I (Cost30%, Vote30%)
+
+**Original source evidence (user-run):** E9J ZIP SHA256 `106fc14aa9088edf980a744bf9e129c516ce8cabf9c23322baa76be9b33c82bb`; executed Git source `3a69bdef32fa4f430de5949768bf38a54987ffd1`. Pinned E9I baseline source ZIP SHA256 `5d275bebd8d6f985e8eef1bbba9a0947991cd71660c1cc49817619e6bc276ee5` is **reused rather than rerun**. The E9J archive contains 2,000 unique native CBAA runs (20 N × 100 seeds), 8,000 offline matched comparison rows (two original Vote-loss arms × two original Voting deadlines), 80 source summary rows and 40 user-extracted Vote30 source summary rows. Independently checked every grid key, all declared source-file hashes, per-CBAA original sender accounting and every summary mean from the 8,000 source rows. Original CBAA CSV SHA256 `a586b364a5861fc383c62f5f327afa16a796b46076e42d15ef4722dad40ba189`; matched CSV SHA256 `58da8db65ef32fee20e9d94601ed391337bc664caaccbcd23c01f5d6769cb3a2`; source summary CSV SHA256 `5c2e89ed8962ca54377aea8204fde0126ae5fb99acbbd70379818276b1e6ac83`. Only 20-point derived plot-source CSV and source SHA manifest are committed here: **original raw archive remains the user-uploaded immutable evidence**, not silently copied or regenerated.
+
+Primary readout: original Cost receiver loss30%, Vote receiver loss30% for **Voting**; native Bid/Winner receiver loss30% for **CBAA**; N=T in `5,10,...,100`, seeds 0–99, original E9G 144Mbps *hypothetical* shared radio plus pinned Rady latency samples. Voting uses original `adaptive_guarded_k1_received` (main) and `fixed_received` (secondary), both archived. CBAA runs **once** per (N,seed), not once per Voting arm.
+
+| N=robots=tasks | Voting guarded mean time (s) | CBAA optimistic certificate (s) | Voting sender bytes (B) | CBAA sender bytes (B) | Voting Cost/Hungarian | CBAA Cost/Hungarian |
+|---:|---:|---:|---:|---:|---:|---:|
+| 5 | 1.278 | 4.050 | 1,096 | 3,018 | 1.233 | 1.073 |
+| 20 | 3.745 | 7.136 | 11,973 | 67,267 | 1.307 | 1.156 |
+| 50 | 9.141 | 10.325 | 66,907 | 557,264 | 1.331 | 1.192 |
+| 60 | 11.231 | 11.076 | 94,935 | 844,525 | 1.349 | 1.219 |
+| 65 | 12.495 | 11.267 | 110,765 | 999,659 | 1.362 | 1.218 |
+| 100 | 20.132 | 13.647 | 255,498 | 2,693,040 | 1.362 | 1.235 |
+
+**Liveness and scaling observation:** All 2,000/2,000 CBAA cases show local certificate **and posthoc observer full agreement** with 0 original 160-iteration guards; all 2,000/2,000 matched Vote30 guarded Voting runs show actual complete Commit. Every CBAA case reports N observer-confirmed tasks. The confidence-bounded time crossover lies *near* N55–60: paired `CBAA − Voting` mean at N55 +0.167s, bootstrap CI95 [−0.152,+0.492]s; at N60 −0.155s CI95 [−0.499,+0.182]s. Neither distinguishes the two means at 95%; N65 is −1.228s CI95 [−1.572,−0.879]s. At N100, CBAA − Voting is −6.484s (paired CI95 [−6.901,−6.062]s), i.e. **32.21% shorter modeled elapsed time** relative to Voting (paired-bootstrap CI95 [30.34%,34.06%]), yet **10.54× the original sender application bytes** (ratio of means). CBAA's mean independent Hungarian cost ratio N100 is 1.2353 versus Voting guarded 1.3622; paired difference −0.1269 CI95 [−0.1439,−0.1102] (lower is better). Independent analysis uses 10,000 seed-paired bootstrap draws; source means, not inferred physical timings. The older Voting `fixed_received` mean N100 modeled time is 71.918s, so the comparator deadline choice materially changes conclusions.
+
+**Interpretation and limits:** Voting saves bandwidth by a large margin, but is **not faster or closer to the Hungarian cost oracle** for large N in this execution model. CBAA's short time is **optimistic**: all-agent local certificate is aggregated by simulator without paid distributed termination/Commit, unlike actual Voting reliable Commit. The CBAA and Voting messages are algorithm-native, not matched packet sizes; TASK reliable; sender application bytes count physical source SENDs but not real AP overhead or measured Wi-Fi congestion. Rady application-delay samples are real inputs, whereas the 144Mbps radio, CW/backoff, and 30% independent per-receiver packet loss are model assumptions, not ns-3/real 100-robot RF validation. These caveats mean **no claim of physical time superiority** and no theoretical Big-O assertion. All posthoc success endpoints remain explicitly non-equivalent.
+
+**Formal source-backed figures and numerical plot evidence:** [20-point plot CSV](docs/figures/e9j_cbaa/formal/plot_source_20point_rounded.csv), [source SHA / limitations manifest](docs/figures/e9j_cbaa/formal/source_manifest.json). The plotted CSV is rounded to 5 decimal places for figures; original raw source remains only in the ZIP. These eight SVG figures can be used directly in the paper:
+ 
+![E9J time full](docs/figures/e9j_cbaa/formal/01_timing_full.svg)
+![E9J time crossover](docs/figures/e9j_cbaa/formal/02_timing_zoom.svg)
+![E9J original sender bytes](docs/figures/e9j_cbaa/formal/03_sender_bytes.svg)
+![E9J cost ratio](docs/figures/e9j_cbaa/formal/04_quality_ratio.svg)
+![E9J modeled radio airtime](docs/figures/e9j_cbaa/formal/05_radio_airtime.svg)
+![E9J bytes vs time](docs/figures/e9j_cbaa/formal/06_sender_bytes_vs_time.svg)
+![E9J time ratio](docs/figures/e9j_cbaa/formal/07_time_ratio.svg)
+![E9J CBAA iterations](docs/figures/e9j_cbaa/formal/08_cbaa_iterations.svg)
+
+Next decisive validation: add **paid native distributed CBAA stop/Commit** and real packet-level ns-3 Wi-Fi/MAC traces before claiming physical real-time performance. That must be a separately scoped source change, not hidden in this evidence publication.
 
 ## 4. Synthesis and conclusions
 
@@ -523,6 +555,8 @@ At N20 in THIS source-aligned single seed, original CBAA emitted about 6.49× th
 3. **Communication efficiency in the sampled robust regime (E9E):** at **30% loss**, Democracy completed all 50 tasks in 100/100 scenarios using **80.34% fewer modeled sender application Bytes** than the CBAA reference under its own fully certified local outcome.
 4. **High-loss resilience and termination knowledge (E9E):** the CBAA reference retained full *external observer assignment agreement* even at 99% sampled loss, while its **per-robot stopping certificate** reached 0/100 by 96% under the 160-iteration limit.
 5. **Bounded robustness (E9E):** Democracy's complete Commit success rapidly declined across the densely sampled **52–55%** region; CBAA's observed local-certification success declined across **92–96%**.
+
+6. **E9J 100-seed paired model comparison:** original native CBAA at N100 sends 10.54× as many application bytes as guarded Voting while its *optimistic, unpaid-stop* modeled time is 32.21% shorter and cost/Hungarian is lower. Confidence-bounded time crossover is after N60; see §3.10 for non-equivalent completion guarantees and PHY limitations.
 
 ### 4.2 Interpretation boundaries
 

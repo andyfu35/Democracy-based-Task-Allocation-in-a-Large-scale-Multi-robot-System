@@ -1,0 +1,32 @@
+{
+  "study": "E9J original CBAA versus immutable E9I Voting",
+  "publication_date": "2026-10-12",
+  "source_git_sha": "3a69bdef32fa4f430de5949768bf38a54987ffd1",
+  "uploaded_e9j_zip_sha256": "106fc14aa9088edf980a744bf9e129c516ce8cabf9c23322baa76be9b33c82bb",
+  "original_e9i_zip_sha256": "5d275bebd8d6f985e8eef1bbba9a0947991cd71660c1cc49817619e6bc276ee5",
+  "original_cbaa_csv_sha256": "a586b364a5861fc383c62f5f327afa16a796b46076e42d15ef4722dad40ba189",
+  "original_paired_csv_sha256": "58da8db65ef32fee20e9d94601ed391337bc664caaccbcd23c01f5d6769cb3a2",
+  "original_summary_csv_sha256": "5c2e89ed8962ca54377aea8204fde0126ae5fb99acbbd70379818276b1e6ac83",
+  "vote30_summary_sha256": "36ff0e8c33af3ecad43fc40e50f5cfb74819e0a344d306f5fd1eabcd7696e092",
+  "original_cases": {
+    "cbaa": 2000,
+    "paired": 8000,
+    "summary": 80,
+    "vote30_summary": 40
+  },
+  "grid": "N=T=5..100 step 5; seeds 0..99; Voting Cost30 Vote30 primary; CBAA Bid30",
+  "numerical_note": "plot CSV rounded to five decimal places from original source; full raw rows NOT stored in this repository",
+  "bootstrap_note": "10,000 deterministic seed-paired bootstrap resamples (rng 20261012) for reported paired CIs; per-method time band bootstraps separately; source-dependent only",
+  "network_evidence": "Rady empirical application latency samples and assumed 144Mbps E9G shared-medium service; NOT measured 100-node Wi-Fi or ns-3",
+  "success_contract": "CBAA local certification + posthoc observer with free simulator stop; Voting paid reliable final Commit",
+  "figures": [
+    "01_timing_full.svg",
+    "02_timing_zoom.svg",
+    "03_sender_bytes.svg",
+    "04_quality_ratio.svg",
+    "05_radio_airtime.svg",
+    "06_sender_bytes_vs_time.svg",
+    "07_time_ratio.svg",
+    "08_cbaa_iterations.svg"
+  ]
+}
