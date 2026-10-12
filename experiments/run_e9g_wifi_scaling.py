@@ -118,7 +118,8 @@ def create_e9g_sampler(*, profile, seed: int,
 
 
 def run_e9g_one_voting_case(*, profile, n: int, seed: int, max_rounds: int,
-                            phy_rate_mbps: float | None) -> dict[str, object]:
+                            phy_rate_mbps: float | None,
+                            timeout_ms: float) -> dict[str, object]:
     """Calls original task wire and original Greedy Vote/Score/Commit owners.
 
     TASK is reliable and precedes Cost, but is sender-paid. The same modeled
@@ -150,7 +151,7 @@ def run_e9g_one_voting_case(*, profile, n: int, seed: int, max_rounds: int,
     coord_sampler = create_e9g_sampler(
         profile=profile, seed=seed, phy_rate_mbps=phy_rate_mbps,
     )
-    deadline = float(summarize_latency_profile(profile)["max_ms"])
+    deadline = timeout_ms
     result = simulate_democracy_hungarian_retirement(
         cost_matrix=costs, sampler=coord_sampler, loss_sampler=loss_sampler,
         p_loss=0.0, p_vote_loss=0.0, phase_timeout_ms=deadline,
@@ -203,6 +204,7 @@ def run_e9g_one_voting_case(*, profile, n: int, seed: int, max_rounds: int,
         "rounds_executed": len(result.rounds),
         "task_announcement_ms": task_arrival,
         "coordination_ms": result.global_agreement_ms,
+        "phase_timeout_ms": timeout_ms,
         "allocation_ms": task_arrival + result.global_agreement_ms,
         "task_send_count": task_count,
         "coord_send_count": result.logical_message_count,
@@ -306,11 +308,30 @@ def summarize_e9g_exponents(summary: list[dict[str, object]]) -> list[dict[str, 
     return output
 
 
+def calculate_e9g_phase_timeout_ms(*, profile, sizes, rates) -> float:
+    """A shared fixed deadline, bounded from the largest selected radio burst.
+
+    This is a stated protocol sensitivity assumption, not a result measured
+    by Rady or an undocumented per-N timeout that manufactures scaling.
+    """
+    config = WifiTimingConfig(phy_rate_mbps=min(rates))
+    maximum_n = max(sizes)
+    maximum_cost_bytes = 16 + 8 * maximum_n
+    hop_service_us = (
+        config.phy_preamble_us + config.aifs_us +
+        config.cw_min * config.slot_us + config.mac_ack_us +
+        8 * (maximum_cost_bytes + config.mac_overhead_bytes) /
+        config.phy_rate_mbps
+    )
+    worst_single_stage_radio_burst_ms = 2 * maximum_n * hop_service_us / 1000.0
+    return max(profile.samples_ms) + worst_single_stage_radio_burst_ms + 1.0
+
+
 def write_e9g_evidence(*, root: Path, rows: list[dict[str, object]],
                        summary: list[dict[str, object]],
                        exponents: list[dict[str, object]],
                        profile, sizes, rates, seeds, first_seed, max_rounds,
-                       source_sha: str) -> None:
+                       source_sha: str, timeout_ms: float) -> None:
     """Immutable exact raw, CSV/checksums, manifest; no fabricated ns-3 results."""
     targets = (
         ("per_seed_wifi_timing.csv", rows),
@@ -335,7 +356,9 @@ def write_e9g_evidence(*, root: Path, rows: list[dict[str, object]],
         "rates_mbps_hypothetical_not_measured": list(rates),
         "max_rounds": max_rounds,
         "packet_loss": 0.0, "cost_copies": 1,
-        "phase_timeout_ms": max(profile.samples_ms),
+        "phase_timeout_ms": timeout_ms,
+        "phase_timeout_policy": "fixed_Rady_max_plus_max_grid_single_stage_radio_burst_bound",
+        "no_claim_timeout_measured_in_papers": True,
         "task_announcement_policy": "reliable_paid_no_deadline_before_cost",
         "rady_git_commit": RADY_SOURCE_COMMIT,
         "rady_source_blob_sha": RADY_SOURCE_BLOB_SHA,
@@ -374,6 +397,9 @@ def run_e9g_wifi_scaling(*, sizes: tuple[int, ...], rates: tuple[float, ...],
             code="E9G_INVALID_SOURCE_SHA", expected="40-hex Git HEAD",
             actual=source_sha,
         ))
+    timeout_ms = calculate_e9g_phase_timeout_ms(
+        profile=profile, sizes=sizes, rates=rates,
+    )
     rows: list[dict[str, object]] = []
     partial = output_root / "per_seed_wifi_timing.partial.csv"
     with partial.open("w", newline="", encoding="utf-8") as f:
@@ -384,6 +410,7 @@ def run_e9g_wifi_scaling(*, sizes: tuple[int, ...], rates: tuple[float, ...],
                     row = run_e9g_one_voting_case(
                         profile=profile, n=n, seed=seed,
                         max_rounds=max_rounds, phy_rate_mbps=rate,
+                        timeout_ms=timeout_ms,
                     )
                     rows.append(row)
                     if writer is None:
@@ -406,7 +433,7 @@ def run_e9g_wifi_scaling(*, sizes: tuple[int, ...], rates: tuple[float, ...],
         root=output_root, rows=rows, summary=summary, exponents=exponents,
         profile=profile, sizes=sizes, rates=rates, seeds=seeds,
         first_seed=first_seed, max_rounds=max_rounds,
-        source_sha=source_sha,
+        source_sha=source_sha, timeout_ms=timeout_ms,
     )
     partial.unlink()
     print(f"E9G_COMPLETE={output_root} source={source_sha} rows={len(rows)}")
