@@ -772,3 +772,39 @@ def estimate_e9j_cbaa_consensus_window_ms(
         +config.cw_min*config.slot_us+config.mac_ack_us)/1000.0
     hop+=8*(size+config.mac_overhead_bytes)/(1000.0*config.phy_rate_mbps)
     return max(profile.samples_ms)+2*robots*hop+1.0
+
+
+def estimate_e9l_price_auction_stage_ms(
+    *, profile: EmpiricalLatencyProfile, robots: int, packet_bytes: int,
+    reference_phy_mbps: float,
+) -> float:
+    """Size-aware, conservative Rady+E9G upper wave for 28B BID/AWARD.
+
+    One full stage is charged only if it has actual SENDs; this is a
+    shared-medium model, not measured 802.11/nS-3 throughput or MAC ACK.
+    """
+    if (type(robots) is not int or robots < 2
+        or type(packet_bytes) is not int or not 16 <= packet_bytes <= 1200):
+        raise ProtocolError(Diagnostic(
+            owner="network", function="estimate_e9l_price_auction_stage_ms",
+            category="data", code="E9L_INVALID_PRICE_WAVE",
+            expected="robots>=2, 16<=actual packet Bytes<=1200",
+            actual=(robots,packet_bytes),
+        ))
+    config=validate_wifi_phy_config(WifiTimingConfig(
+        phy_rate_mbps=reference_phy_mbps,
+    ))
+    if (type(profile) is not EmpiricalLatencyProfile or not profile.samples_ms
+        or any(not math.isfinite(x) or x < 0 for x in profile.samples_ms)):
+        raise ProtocolError(Diagnostic(
+            owner="network", function="estimate_e9l_price_auction_stage_ms",
+            category="dependency", code="E9L_RADY_PROFILE_MISSING",
+            expected="verified nonempty finite Rady ROS application delay",
+            actual=type(profile).__name__,
+        ))
+    perhop_ms=(config.phy_preamble_us+config.aifs_us
+        +config.cw_min*config.slot_us+config.mac_ack_us)/1000.0
+    perhop_ms+=8.0*(packet_bytes+config.mac_overhead_bytes)/(
+        1000.0*config.phy_rate_mbps
+    )
+    return max(profile.samples_ms)+2*robots*perhop_ms+1.0
