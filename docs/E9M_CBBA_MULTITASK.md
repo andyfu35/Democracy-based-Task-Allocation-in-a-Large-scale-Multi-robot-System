@@ -27,7 +27,7 @@ From the voting repository root, with Codex CLI installed:
     git pull --ff-only
     git status --short
     codex --version
-    codex exec --full-auto "$(cat docs/E9M_CODEX_IMPLEMENT.md)"
+    codex exec --sandbox workspace-write "$(cat docs/E9M_CODEX_IMPLEMENT.md)"
 
 Only AFTER the native E9M modules and tests have been implemented and validated, run these local commands:
 
