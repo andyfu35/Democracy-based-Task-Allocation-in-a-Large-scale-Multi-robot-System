@@ -1,6 +1,6 @@
 # Internal Experiment ID Index — archived technical crosswalk
 
-**Purpose:** keep historical \`E...\` implementation labels, failed/provisional controls, old artifact links and exact study identities discoverable **without presenting them as scientific categories or mandatory unfinished experiments in README**. The public experiment map is [A–D](../README.md). Historical source files and Git history are never renamed or deleted.
+**Purpose:** keep historical `E...` implementation labels, failed/provisional controls, old artifact links and exact study identities discoverable **without presenting them as scientific categories or mandatory unfinished experiments in README**. The public experiment map is [A–D](../README.md). Historical source files and Git history are never renamed or deleted.
 
 | Research group | Historical ID | Descriptive study | Evidence status / disposition |
 |---|---|---|---|
