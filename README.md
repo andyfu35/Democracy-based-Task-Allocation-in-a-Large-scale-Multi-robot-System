@@ -44,21 +44,28 @@ The earlier one-round lossy Hungarian Vote pilot did not receive full per-vote a
 
 ## B. Packet-loss resilience and communication traffic
 
-**Scientific question:** under the same task scenario, how do **native protocol completion** and actual attempted sender Bytes change as packet loss rises?
+**Research question:** at identical 100-robot/100-task geometry and capacity **one**, how do the **four original assignment algorithms** trade original native completion, modeled stop-time, attempted sender Bytes and assignment quality as packet loss rises? The historical user-authored **Voting Multi-task** C1 variant and Paid CBAA are **not official comparison methods**.
 
-**Formal setting:** 100 robots/50 tasks; 52 loss probabilities × 100 Seeds × 2 methods = **10,400 original executions**, independent per-receiver loss, original synthetic communication timing. The plot combines **two metrics from the same evidence cohort**. The Bytes axis uses logarithmic kB.
+**NEW verified formal P2 source:** original ZIP independently audited, **4,000 original method cases**, 10 loss levels (0%..90% every 10%), 100 paired Seeds per loss, exactly `Original Voting / original CBAA / original CBBA / Price Auction`, Rady sampled ROS delay + *hypothetical* shared 144Mbps. All original 4,000 geometry/Hungarian/assignment and native sender/receiver ledgers, 40 group summaries, 4,000 original Terminal rows and the original P1 30%-loss 400-row control verified with **zero audit errors**. The source contains **730 native guard failures** (200 CBBA + 530 Price Auction); no failure was removed from the denominator.
 
-![Packet-loss sweep: Voting and original CBAA native completion and sender Bytes](docs/figures/e9e_dense/formal/primary_loss_completion_and_bytes.svg)
+![Source-audited four original algorithms versus packet loss: completion, modeled stop, attempted sender Bytes, and success-only quality](docs/figures/p2/formal/primary_four_original_loss_robustness.svg)
 
-| Receiver loss | Voting: paid full Commit | CBAA: local certificate | Attempted sender Bytes |
-|---|---:|---:|---|
-| **30%** | 100/100 | 100/100 | Voting **164,750 B** vs CBAA **838,160 B**; Voting uses **80.34% fewer** |
-| **55%** | 0/100 | 100/100 | Voting hit its configured guard without full Commit |
-| **96%** | 0/100 | 0/100 | CBAA external observer still saw agreement, **not** locally provable termination |
+| Loss | Voting complete | Original CBAA complete | Original CBBA complete | Price Auction complete |
+|---|---:|---:|---:|---:|
+| **0%** | 100/100 | 100/100 | 100/100 | **98/100** |
+| **30%** | 100/100 | 100/100 | 100/100 | 78/100 |
+| **50%** | 100/100 | 100/100 | 100/100 | 31/100 |
+| **70%** | 100/100 | 100/100 | 100/100 | 9/100 |
+| **80%** | 100/100 | 100/100 | **0/100** | **0/100** |
+| **90%** | 100/100 | 100/100 | **0/100** | **0/100** |
 
-**Important:** CBAA's observer consensus is not a local certificate and neither is equivalent to Voting's fully charged reliable Commit. Guard-bound outcomes are **not theoretical thresholds**. This group uses the older synthetic time model; its time cannot be combined with the later Rady+144 Mbps model.
+At **90% loss**, Voting used **254.23 kB/seed** original attempted application payload versus CBAA **14,135.60 kB/seed** (**98.20% fewer Bytes**); native modeled stop averaged **27.497 s** versus CBAA **71.383 s**, but this is **not equal paid termination**. Importantly, CBAA observed its **first full feasible assignment at 12.770 s**, earlier than Voting at 27.497 s. Original CBBA and Auction both hit the configured round-160 guard in all 100 Seeds at 80% and 90%; Auction also failed two **0%-loss** Seeds, so its failure is not purely packet-loss induced. These are guard-dependent simulation results, **not theoretical packet-loss thresholds**.
 
-**Evidence:** [104-row original loss source](docs/figures/e9e_dense/formal/summary_by_loss.csv) · [original source manifest](docs/figures/e9e_dense/formal/publication_manifest.json) · [combined-chart source identity](docs/figures/e9e_dense/formal/primary_loss_completion_and_bytes_manifest.json).
+**Critical quality trade-off:** Among the **same 100 fully successful Voting/CBAA Seeds at 90%**, their mean independent Euclidean/Hungarian cost ratios were **2.4175 (Voting)** versus **1.2353 (CBAA)** (lower is better). Voting maintains completion with far less communication at a substantial cost-quality penalty. The four-method all-success intersection is **zero** at 80–90%, so no four-way paired quality figure is defined there. The presented success-only quality panel uses **different successful-sample subsets** where methods fail, and must not be read as a fair all-seed ranking of Auction.
+
+**Limits:** Voting charges reliable Score/Commit; original CBAA's local certificate, CBBA simulator agreement and Auction optimistic stop are not equivalent paid terminal knowledge. These are **attempted sender application Bytes**, not physical RF airtime or MAC retries. [Complete original-ZIP audit](docs/P2_FORMAL_100SEED.md) · [10-point figure source](docs/figures/p2/formal/verified_10point_plot_source.csv) · [exact ZIP/manifest identity](docs/figures/p2/formal/source_manifest.json).
+
+The **older independent loss-control** (100R/50T, 52 loss points, older *synthetic* channel, Voting/CBAA only) remains unchanged as [its original combined graph](docs/figures/e9e_dense/formal/primary_loss_completion_and_bytes.svg) and [104-row original source](docs/figures/e9e_dense/formal/summary_by_loss.csv). Its 55%-loss Voting guard finding is **not comparable** to P2's 100R/100T newer guarded/Rady protocol; never pool the two cohorts.
 
 ## C. Coordination time and deadline design
 
