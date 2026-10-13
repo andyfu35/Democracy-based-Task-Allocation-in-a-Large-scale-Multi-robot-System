@@ -1,6 +1,6 @@
 # E9M: Genuine multi-task CBBA versus Voting
 
-Status as of 2026-10-13: **NATIVE MAC 14/14 E9M UNIT TESTS AND CORRECTED 100-SEED TERMINAL LOG COMPLETED.** The original E9M ZIP containing per_seed CSV/manifest is still NOT uploaded/independently SHA-audited; terminal-derived summary is archived in [E9M corrected terminal evidence](E9M_CORRECTED_TERMINAL_100SEED.md). The next E9N capacity-one comparison has its own [formal preregistration and commands](E9N_ONE_TASK_FIVE_METHOD.md). No CI.
+Status as of 2026-10-13: **NATIVE MAC 14/14 E9M UNIT TESTS; CORRECTED FULL 100-SEED ORIGINAL ZIP RECEIVED AND INDEPENDENTLY SOURCE-VERIFIED.** Detailed original CSV, Manifest SHA, route and packet audits at [E9M verified original ZIP audit](E9M_CORRECTED_ORIGINAL_ZIP_AUDIT_100SEED.md). The earlier [terminal-only note](E9M_CORRECTED_TERMINAL_100SEED.md) is preserved as historical provenance. The original ZIP itself is archived unchanged in personal Library `/投票演算法/E9M/`; not physically measured Wi-Fi. Next study [E9N capacity1](E9N_ONE_TASK_FIVE_METHOD.md) remains separate and pending. No CI.
 
 Reference: Choi / Brunet / How (2009), Consensus-Based Decentralized Auctions for Robust Task Allocation, IEEE T-RO, DOI 10.1109/TRO.2009.2022423, MIT CBBA project https://acl.mit.edu/projects/consensus-based-bundle-algorithm. CBBA is multi-task bundle/path and original winner/bid/timestamp consensus, not four independent CBAA votes.
 

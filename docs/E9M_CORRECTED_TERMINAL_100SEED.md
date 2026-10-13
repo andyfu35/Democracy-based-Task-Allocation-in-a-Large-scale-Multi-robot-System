@@ -22,3 +22,8 @@ Derived paired 100-seed mean Voting − CBBA time: +56.144450s; all 100 Seeds Vo
 **Evidence:** [200 terminal-only derived rows](figures/e9m_multitask/terminal_corrected_v1_100seed.csv) · [summary with source SHA](figures/e9m_multitask/terminal_corrected_v1_summary.json). Derived rows retain only seed, method, success, coverage, rounds, elapsed seconds, sender Bytes and printed failure; these cannot prove path quality, physical per-message accounting, native manifest SHA or original CSV completeness. Old source `f347e26` is superseded and must remain separate.
 
 **Next experiment:** E9N same-workload capacity1 native comparison. Do not reuse E9M capacity4 times as capacity1 competitive ranking. The original E9I/J/L N=T archived results may be displayed alongside new E9N native experiments only with exact scenario/protocol caveats and honest original-source provenance.
+
+
+## Source status update (2026-10-13)
+
+**Historical record retained:** this entire page was correct as a Terminal-only audit at the moment it was written. The user has since supplied the exact complete original `e9m_fixed_25r100t_loss30_100seed.zip`, independently checked against `manifest.json`, 200 original route/packet ledgers and all original summary/Terminal rows. The authoritative **now verified** original-source report is [E9M corrected original ZIP audit](E9M_CORRECTED_ORIGINAL_ZIP_AUDIT_100SEED.md) with ZIP SHA256 `de68d1cce8045a46b8e37f2d8f91e3988004db39d29544e1865d4759336e46b5`. Do not treat this older status as an outstanding missing-source blocker. Source ZIP and audit JSON persisted in the user's Library under `/投票演算法/E9M`. No original values modified.
