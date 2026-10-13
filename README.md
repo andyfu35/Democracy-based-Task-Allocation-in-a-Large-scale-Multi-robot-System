@@ -22,28 +22,37 @@ Voting's **full, reliable final Commit** and CBAA's **local consensus certificat
 
 **E1:** Re-aggregation of the repository's **2,000 original records** reproduces 20 official source groups. At **100 robots / 50 tasks**, Democracy–Hungarian required **477.7 ms** to reach an actionable decision, **796.2 ms** for global agreement and **201,400 sender Bytes**. Leader–Hungarian global agreement was **477.4 ms** with **41,600 Bytes**. This demonstrates the additional cost of distributed agreement, **not** a universal speed advantage. Delays are resampled from measured industrial ROS application traces, not measured on 100 robots. [Original rows](results/e1_latency/raw/e1_20261009T144026Z.csv) · [summary](results/e1_latency/summary.csv).
 
-### B. Packet-loss robustness and transmitted data
+### B. Packet-loss resilience and communication traffic
 
-**Formal source-verified P2 experiment (2026-10-13):** 100 robots / 100 tasks; **capacity 1**, 100 paired Seeds per receiver-loss setting; **0%–90% in 10% steps** × exactly **4 independent original task-allocation algorithms** (Original Voting, original CBAA, original CBBA, Price Auction) = **4,000 newly executed original method-cases**. User-authored Voting Multi-task and Paid CBAA are **excluded from the official benchmark**. The original ZIP's SHA256, 4,000 independently checked scenarios/packet ledgers, 4,000 terminal rows, 40 summary groups and 400 exact original P1 30%-loss control rows were verified with **zero discrepancies**.
+**Verified P2-B formal experiment (2026-10-13):** **Voting (batched Greedy)** was rerun for **1,000 new native trials**; **CBAA, CBBA, Price Auction** were **not rerun**. Their exact original **3,000 independently SHA-verified native baseline trials** were reused on the same 100 robots / 100 tasks, robot capacity=1, 100 paired Seeds per packet-loss value, PL=0%..90% in 10% steps. Combined evidence: **4,000 source-attributed records**, 40 independently recomputed groups, no audit discrepancies. Voting Multi-task and Paid CBAA remain outside the four-method primary comparator.
 
-![P2 four original algorithms: native completion, modeled stop time, attempted application sender Bytes, and success-only assignment quality](docs/figures/p2/formal/primary_four_original_loss_robustness.svg)
+![P2-B: 4 panels for native completion, modeled stop, attempted sender traffic and conditional allocation quality](docs/figures/p2b/formal/p2b_packet_loss_four_panel.svg)
 
-| Receiver loss | Original Voting | Original CBAA | Original CBBA | Price Auction |
+| Packet loss | Voting native complete | CBAA | CBBA | Price Auction |
 |---|---:|---:|---:|---:|
 | **0%** | 100/100 | 100/100 | 100/100 | 98/100 |
 | **30%** | 100/100 | 100/100 | 100/100 | 78/100 |
-| **50%** | 100/100 | 100/100 | 100/100 | 31/100 |
+| **60%** | 100/100 | 100/100 | 100/100 | 14/100 |
 | **70%** | 100/100 | 100/100 | 100/100 | 9/100 |
 | **80%** | 100/100 | 100/100 | **0/100** | **0/100** |
 | **90%** | 100/100 | 100/100 | **0/100** | **0/100** |
 
-At **90% loss**, Original Voting used **254,229 original sender application Bytes/Seed**, versus original CBAA **14,135,600 Bytes/Seed**, a **98.20% reduction**, while both completed all tested Seeds under their own native stopping rules. Their **modeled native stop** means were 27.497 s versus 71.383 s, but CBAA reached **first external feasible assignment** at 12.770 s versus Voting 27.497 s. These metrics have **different proof/stop contracts**: Voting's reliable Score/Commit is paid; CBAA/CBBA/Auction original simulator/local termination does not pay an equivalent global finalization. They are not real measured Wi-Fi timings.
+**Batching accounts for the original Voting time discrepancy.** The old protocol already announced all TASK and Cost data once, but serialized up to 100 separate task Vote/Score/Commit rounds. New Voting prepares all-task Greedy proposals from genuinely received Cost rows and uses physically charged batch Vote/Score packets, while the same original retirement owner retries only pending tasks. All **100 no-loss Seeds** reproduce full-information sequential Greedy **exactly**, with one batch epoch and 100 initial Cost sends, not 100 repeated Cost rounds. At PL0 the mean `Voting / full-information Greedy cost=1.000`, but `Voting / global Hungarian cost=1.351`; **Greedy is not Hungarian**.
 
-**Assignment-quality penalty:** on the **same 100 successful Voting/CBAA 90%-loss Seeds**, Euclidean assignment Cost/Hungarian optimum averaged **2.4175 (Voting)** versus **1.2353 (CBAA)**. Voting's strong communication savings and completion rate do **not** imply low assignment cost at extreme loss. CBBA and Auction reached original safety round limits at 80%/90%; Price Auction also had 2 guard failures at **zero loss**, so these outcomes are **not theoretical packet-loss thresholds**. Success-only quality samples vary when methods fail, and the all-four-method success subset is empty at 80% and 90%; do not invent failed-seed costs.
+| PL | Old serial Voting stop | New Voting stop | Relative stop reduction | New Voting sender kB | New Voting cost/Hungarian |
+|---|---:|---:|---:|---:|---:|
+| 0% | 16.474 s | **2.027 s** | **87.7%** | 171.65 | 1.351 |
+| 30% | 20.132 s | **3.120 s** | **84.5%** | 156.94 | 1.825 |
+| 60% | 22.326 s | **4.745 s** | **78.7%** | 144.06 | 2.399 |
+| 90% | 27.497 s | **11.742 s** | **57.3%** | 142.01 | **3.840** |
 
-**Evidence:** [independently recomputed original ZIP audit](docs/P2_FORMAL_100SEED.md) · [original SHA/provenance and published plot source](docs/figures/p2/formal/source_manifest.json) · [10-point derived figure CSV](docs/figures/p2/formal/verified_10point_plot_source.csv). Original per-seed ZIP is retained by the user, **not committed to Git**.
+**Fast but quality-constrained:** at **90% loss**, Voting sends mean **142.01 kB per Seed** versus CBAA **14,135.60 kB** (**98.995% less**), and its native modeled stop mean is 11.742 s versus CBAA 71.383 s. Both natively complete 100/100, but **on those same 100 Seeds** their mean independent Euclidean assignment cost / Hungarian optimum is **3.8404 (Voting) versus 1.2353 (CBAA)**. CBAA reaches first externally feasible at 12.770 s and Voting at 11.742 s; native stopping definitions and paid terminal knowledge differ. This is a substantial **allocation-quality penalty** relative to the original serial Voting's 90%-loss cost ratio 2.418, not an unqualified algorithmic dominance claim.
 
-**Distinct historical control, not pooled with P2:** the earlier 100R/50T, 52-level Voting-vs-CBAA loss study uses a different original synthetic timing/protocol configuration. It observed Voting 100/100 and CBAA 100/100 at 30% (sender Bytes 164,750 vs 838,160), Voting 0/100 versus CBAA 100/100 at 55%, and both 0/100 at 96% under their respective guards. It is retained as [original archived plot](docs/figures/e9e_dense/formal/primary_loss_completion_and_bytes.svg), [104-row source](docs/figures/e9e_dense/formal/summary_by_loss.csv) and [SHA provenance](docs/figures/e9e_dense/formal/publication_manifest.json). These original conditions are **not equivalent** to the 100R/100T P2 Rady + assumed144 Mbps loss sweep.
+**Chart integrity:** A's overlapping 100%-completion curves use different dashed patterns and concentric hollow markers at **identical numerical positions**. B/C use clearly labeled **logarithmic axes** so smaller native modeled times and lower sender payloads remain visible. D is explicitly **native-success-conditional cost**, using each method's own successfully completed Seeds; CBAA and Voting have n=100 at all PL values, while CBBA and Auction have no defined quality at 80/90%. The **all-four simultaneously successful** subset also becomes empty there; failed runs never receive a fabricated zero cost. Data are simulated Rady-sampled application latency + **hypothetical 144 Mbps**, not measured robot-to-robot Wi-Fi RF airtime. Voting reliable Score/Commit is paid; other native methods have different terminal certificates.
+
+[Independently audited original-ZIP P2-B results, Greedy sanity, stage-time decomposition](docs/P2B_FORMAL_100SEED.md) · [40-group source and old/new Git provenance](docs/figures/p2b/formal/verified_40point_summary.csv) · [immutable archive SHA256 evidence](docs/figures/p2b/formal/source_manifest.json).
+
+**Historical, different protocol:** the [earlier serialized Voting P2 audit](docs/P2_FORMAL_100SEED.md) and its [original figure](docs/figures/p2/formal/primary_four_original_loss_robustness.svg) remain unchanged. The [older 100R/50T E9E source figure](docs/figures/e9e_dense/formal/primary_loss_completion_and_bytes.svg) concerns a different synthetic network/task configuration and must not be pooled with this P2-B study. Other manuscript A/C/D benchmark figures using serialized Voting on different robot/task scales remain original-protocol evidence until a **matched new Voting-only run** is performed for those respective scenarios.
 
 ## C. Communication-time and deadline sensitivity — E9G / E9I
 
