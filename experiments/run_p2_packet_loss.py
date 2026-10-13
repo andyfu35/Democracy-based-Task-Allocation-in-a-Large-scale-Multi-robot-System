@@ -1,4 +1,4 @@
-"""P2: four unmodified P1 native methods under paired packet-loss conditions."""
+"""P2-B: batched Greedy Voting versus three unchanged native baseline methods."""
 from __future__ import annotations
 
 import argparse
@@ -21,6 +21,7 @@ from experiments.p2_packet_loss_plot import render_p2_figure
 OWNER = "experiments.run_p2_packet_loss"
 METHODS = ("voting", "cbaa", "cbba", "price_auction")
 LOSSES = tuple(range(0, 91, 10))
+P2_VOTING_STRATEGY = "greedy_batch"
 FIELDS = ("loss_percent",) + OUTPUT_FIELDS
 
 
@@ -45,6 +46,9 @@ def validate_config(args):
     if args.formal and (percentages != LOSSES or args.seeds != 100 or args.first_seed != 0):
         fail("validate_config", "contract", "P2_FORMAL_GRID_NOT_FROZEN",
              (LOSSES, 100, 0), (percentages, args.seeds, args.first_seed))
+    if args.formal and args.voting_strategy != P2_VOTING_STRATEGY:
+        fail("validate_config", "contract", "P2_BATCH_FORMAL_VOTING_STRATEGY",
+             P2_VOTING_STRATEGY, args.voting_strategy)
     return percentages
 
 
@@ -57,6 +61,7 @@ def prepare_evidence(args, sha, percentages):
     identity = {"git_sha": sha, "loss_percent": percentages, "seeds": args.seeds,
                 "first_seed": args.first_seed, "methods": METHODS, "robots": 100,
                 "tasks": 100, "capacity": 1, "formal": args.formal,
+                "voting_strategy": args.voting_strategy,
                 "rady_json": str(args.rady_json)}
     root = args.output_root
     configuration = root / "run_config_p2.json"
@@ -156,7 +161,8 @@ def run_p2(args):
             scene = generate_e0_scenario(seed, 100, 100)
             verify_one_scene(scene)
             r = {"loss_percent": p,
-                 **run_matched_case(scene, profile, method, p / 100, 160, 300)}
+                 **run_matched_case(scene, profile, method, p / 100, 160, 300,
+                                    voting_strategy=args.voting_strategy)}
             writer.writerow(r)
             f.flush()
             os.fsync(f.fileno())
@@ -174,14 +180,14 @@ def run_p2(args):
         fig.write_text(render_p2_figure(summary, percentages), encoding="utf-8")
         attested.append(fig)
     manifest = {
-        "study": "P2_packet_loss_four_original_C1",
+        "study": "P2_batch_greedy_versus_three_original_native_C1",
         "source_sha": sha,
         "config": identity,
         "completed_utc": datetime.now(timezone.utc).isoformat(),
         "cases": len(rows),
         "failures": sum(not int(r["native_success"]) for r in rows),
         "sha256": {p.name: sha256_file(p) for p in attested},
-        "native_stop_caveat": "Voting paid Commit; other native stops differ",
+        "native_stop_caveat": "Batched Greedy Voting reliable paid Score/Commit; CBAA/CBBA/Auction original native stops differ",
     }
     (args.output_root / "manifest_p2.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(f"P2_COMPLETE cases={len(rows)} root={args.output_root}", flush=True)
@@ -191,6 +197,8 @@ def run_p2(args):
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--formal", action="store_true")
+    parser.add_argument("--voting-strategy", choices=("greedy_batch", "greedy_task"),
+                        default=P2_VOTING_STRATEGY)
     parser.add_argument("--losses", default=",".join(f"{p/100:.2f}" for p in LOSSES))
     parser.add_argument("--seeds", type=int, default=2)
     parser.add_argument("--first-seed", type=int, default=0)
