@@ -74,7 +74,7 @@ class P2ContractTests(unittest.TestCase):
         self.assertEqual(auction["completion_rate"], .75)
         figure = render_p2_figure(summary, losses)
         self.assertIn("Packet-loss robustness", figure)
-        self.assertIn("Batched Greedy", figure)
+        self.assertIn("Global Greedy", figure)
         self.assertNotIn("Original Voting", figure)
         self.assertIn("stroke-dasharray", figure)
         self.assertIn("concentric markers", figure)
