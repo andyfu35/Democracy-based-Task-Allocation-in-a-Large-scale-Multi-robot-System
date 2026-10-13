@@ -2331,7 +2331,9 @@ def simulate_democracy_hungarian_retirement(
     )
     return MultiRoundRetirementResult(
         method=(
-            "democracy_greedy_received_plurality_retirement"
+            "democracy_batched_greedy_received_plurality_retirement"
+            if voting_strategy == "greedy_batch"
+            else "democracy_greedy_received_plurality_retirement"
             if vote_decision_rule == "received_plurality"
             else (
                 "democracy_greedy_quarter_plurality_retirement"
