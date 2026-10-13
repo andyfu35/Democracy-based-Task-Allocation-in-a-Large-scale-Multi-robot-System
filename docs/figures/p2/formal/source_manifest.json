@@ -60,13 +60,13 @@
   "presentation_files": [
     {
       "path": "docs/figures/p2/formal/verified_10point_plot_source.csv",
-      "git_blob_sha": "8d0342cfc908f49fbfa0bde297544c49a84453a8"
+      "git_blob_sha": "5d8531107571fabc0e0ea2f1ddba66d5e81ec861"
     },
     {
       "path": "docs/figures/p2/formal/primary_four_original_loss_robustness.svg",
       "git_blob_sha": "ab57ccba739f9d1fec1d50056e1ffb67fbcfcabd"
     }
   ],
-  "presentation_metric_note": "quality panel uses successful-only cost/Hungarian means per original algorithm with visibly conditional sample counts and is not the original run's same-four-success cost subset; original 4-panel SVG and original summary hashes are preserved above. Sender data plotted MB decimal on logarithmic y axis.",
+  "presentation_metric_note": "Presentation CSV retains exact original 40 summary-row mean time (ms) and sender Bytes alongside six-decimal time (s)/sender (MB) plot rounding; conditional native-success mean cost ratios independently recomputed and rounded to four decimal places, not the original run's same-four-success quality. The original ZIP SVG and manifest hashes remain immutable.",
   "study_limits": "method-native stop semantics differ; assumed 144Mbps plus Rady application delay is not physical Wi-Fi; guards are configured, not fundamental robustness limits"
 }
