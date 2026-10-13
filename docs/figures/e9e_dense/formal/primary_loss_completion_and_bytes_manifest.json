@@ -1,0 +1,22 @@
+{
+  "study": "E9E",
+  "status": "verified_presentation_combination_only",
+  "source_path": "docs/figures/e9e_dense/formal/summary_by_loss.csv",
+  "source_git_blob_sha": "cd26a0f1ef9d8afc18daf8e79a74b4e1b7e19611",
+  "source_rows": 104,
+  "loss_points": 52,
+  "paired_method_seeds": 100,
+  "robots": 100,
+  "tasks": 50,
+  "methods": [
+    "democracy_cost_vote",
+    "cbaa_original_local_certified"
+  ],
+  "figure_panels": [
+    "method_specific_completion_rate",
+    "mean_attempted_sender_bytes_log_kB"
+  ],
+  "new_experiment": false,
+  "summary_values_unchanged": true,
+  "cannot_compare_radio_time_with": "E9I/E9N Rady 144Mbps model"
+}

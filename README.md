@@ -1,131 +1,141 @@
 # Democracy-based Task Allocation in a Large-scale Multi-robot System
 
-**Research focus:** Fully decentralized multi-robot task allocation under unreliable communication. We measure correctness, packet-loss resilience, attempted application-layer communication, and modeled coordination time. **Target venue:** IEEE Robotics and Automation Letters (RA-L).
+**Research focus:** fully decentralized multi-robot task allocation under unreliable communication. The experiments test assignment correctness, robustness to packet loss, communication delay, and the cost of distributed agreement. **Target venue:** IEEE Robotics and Automation Letters (RA-L).
 
-**Last evidence audit: 2026-10-12.** This README contains only principal verified findings. The complete former README (27 images, all historical tables, exploratory results and run commands) is saved in [Detailed Experiment Results Archive](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md). The [cross-experiment evidence audit](docs/EXPERIMENT_RESULTS_AUDIT_20261012.md) separates verified, provisional and pilot studies.
+> **Read the conditions before comparing numbers.** "Time" means simulated protocol allocation/stop time, not Python runtime or measured robot communication time. Sender Bytes are attempted **application-layer** payload, including dropped packets. The Rady timing traces are measured application delays; the later 144 Mbps shared-medium model is an **assumption**, not validated Wi-Fi MAC/PHY or ns-3.
 
-## 1. Method and comparison boundaries
+## Research and experiment map
 
-| Study family | Methods / evaluation question | Essential condition |
+The README follows four **research questions**, not the historical E0-E9 implementation order.
+
+| Group | Research question | Main experiments | What can be combined? |
+|---|---|---|---|
+| **[A. Correctness](#a-correctness-and-agreement)** | Can distributed decisions reproduce the reference assignment? | E0, E1; E2 provisional | Same-optimizer controls only; E0 and E1 have different experimental conditions |
+| **[B. Packet loss](#b-packet-loss-robustness-and-communication-volume)** | How do full completion, local consensus and sender traffic change with loss? | E9D/E9E | **One E9E two-panel figure** for completion and Bytes on the same 100R/50T seeds |
+| **[C. Time and deadlines](#c-communication-time-and-deadline-design)** | What does deadline choice change, and what does the radio proxy add? | E9G, E9I | E9I deadline variants share one figure; E9G is a separate zero-loss timing control |
+| **[D. Algorithms](#d-algorithm-comparison-and-multi-task-extension)** | How do native allocation methods scale, and what changes with task capacity? | E9J, E9L, E9N; E9M | **Five methods in one capacity-one figure**; E9M capacity-four is a separate comparison |
+
+### Protocol and code architecture
+
+```text
+Reliable task announcement
+  -> Local robot-to-task cost or marginal route utility
+  -> Method-owned coordination (no permanent central allocator)
+     - Voting: Cost -> candidate-targeted Vote -> Score -> paid Commit
+     - CBAA: local bid -> native max-consensus / local certificate
+     - Price Auction: price -> bid -> task-home award
+     - CBBA: ordered bundle/path -> winner/bid/timestamp consensus
+  -> Read-only audit: assignment coverage, duplicates, capacity, quality
+  -> Physical message ledger: SENDs, sender Bytes, receipts, drops, modeled time
+```
+
+| Responsibility | Source of truth |
+|---|---|
+| Task announcements and voting coordination | [`task_information.py`](democracy_mrta/task_information.py), [`coordination.py`](democracy_mrta/coordination.py), [`voting_multitask.py`](democracy_mrta/voting_multitask.py) |
+| Native alternative algorithms | [`cbaa.py`](democracy_mrta/cbaa.py), [`price_auction.py`](democracy_mrta/price_auction.py), [`cbba_multitask.py`](democracy_mrta/cbba_multitask.py) |
+| Network model and native packet accounting | [`network.py`](democracy_mrta/network.py), [`multitask_wire.py`](democracy_mrta/multitask_wire.py) |
+| Scenes, route scores and external audit | [`scenario.py`](democracy_mrta/scenario.py), [`multitask_scenario.py`](democracy_mrta/multitask_scenario.py), [`multitask_evaluation.py`](democracy_mrta/multitask_evaluation.py) |
+| Reproducible seed runners and figures | [`experiments/`](experiments/), [`Canonical Experiment Protocol`](docs/EXPERIMENT_PROTOCOL.md) |
+
+**Endpoint distinction:** Voting completes a reliable, physically charged Commit; CBAA/CBBA/Price Auction use their own local certificate and/or simulator-observed stop. These are **not identical termination guarantees**, even when the scene and packet-loss probability match. The external observer evaluates outcomes but must not repair an agent's assignment.
+
+## A. Correctness and agreement
+
+**Question:** if local decision optimization is held constant, can decentralized messages preserve correct assignment? This is a **Hungarian-controlled** research family, not a comparison with Greedy Voting or CBBA.
+
+| Experiment | Setting | Verified result |
 |---|---|---|
-| **E0–E2: controlled Hungarian** | All local proposals use the same Hungarian optimizer; test whether communication and quorum preserve the reference assignment | E0 zero-loss correctness; E1 trace-sampled delays; E2 one-round lossy votes (provisional) |
-| **E9E: original Greedy Voting vs native CBAA** | Actual attempted sender Bytes, full task Commit, local consensus certification and observer agreement versus packet loss | **100 robots / 50 tasks**, independent per-receiver loss, fixed synthetic timing |
-| **E9I and E9J: adaptive-plurality Voting vs native CBAA** | Same robot/task seeds; compare deadline, original SEND payload, modeled elapsed time and Hungarian-relative cost | **N robots = N tasks**, N=5,10,...,100; 100 seeds/N; original Cost/Vote **30%** loss, native CBAA Bid/Winner **30%** loss |
+| **E0: zero-loss correctness** | Complete information; 5 robot/task scales, 100 Seeds each | **500/500** full assignments; 0% optimality gap, zero reference mismatches or recorded safety failures |
+| **E1: agreement overhead** | Original 2,000 records, 20 source groups; 100R/50T representative cell | Democracy-Hungarian: **477.7 ms** actionable, **796.2 ms** global agreement, **201,400 B**. Leader-Hungarian: **477.4 ms** global agreement, **41,600 B** |
+| **E2: lossy votes** | Historical one-round lossy-Hungarian experiment | **Provisional**; not promoted to a formally verified comparison |
 
-Voting's **full, reliable final Commit** and CBAA's **local consensus certificate + posthoc external observer agreement** are **different completion guarantees**. The current CBAA model uses a simulator-wide *free* stop check rather than paying a real distributed stop/Commit protocol. It must not be presented as an identical endpoint.
+**Interpretation:** correctness at zero loss does not imply low agreement overhead. E0 and E1 should not be merged into a single numerical speed comparison because they answer different questions.
 
-## 2. Principal verified findings
+Source: [E0 original CSV](results/e0_protocol_correctness/raw/e0_corrected_20261009T141508Z.csv) / [summary](results/e0_protocol_correctness/summary.csv); [E1 original CSV](results/e1_latency/raw/e1_20261009T144026Z.csv) / [summary](results/e1_latency/summary.csv); [E2 provisional record](results/e2_packet_loss/README.md).
 
-### A. Correctness and decentralized agreement overhead — E0 / E1
+## B. Packet-loss robustness and communication volume
 
-**E0:** The original 500 zero-loss Hungarian-controlled scenarios yielded **500/500 complete assignments**, zero optimality gap, zero oracle mismatch and zero recorded voting/safety failures. [500-row original source](results/e0_protocol_correctness/raw/e0_corrected_20261009T141508Z.csv) · [summary](results/e0_protocol_correctness/summary.csv).
+**Question:** under the **same** 100-robot/50-task E9E experiment, how do sender traffic and full task completion change as receiver packet loss increases?
 
-**E1:** Re-aggregation of the repository's **2,000 original records** reproduces 20 official source groups. At **100 robots / 50 tasks**, Democracy–Hungarian required **477.7 ms** to reach an actionable decision, **796.2 ms** for global agreement and **201,400 sender Bytes**. Leader–Hungarian global agreement was **477.4 ms** with **41,600 Bytes**. This demonstrates the additional cost of distributed agreement, **not** a universal speed advantage. Delays are resampled from measured industrial ROS application traces, not measured on 100 robots. [Original rows](results/e1_latency/raw/e1_20261009T144026Z.csv) · [summary](results/e1_latency/summary.csv).
+**E9E formal:** 52 loss probabilities, 100 Seeds per probability and method, **10,400 method executions**; independent per-receiver loss; fixed synthetic timing. Voting and original CBAA send their own native messages, so compare their **native** completion definitions separately.
 
-### B. Packet-loss robustness and transmitted data — E9E
+![E9E: two-panel comparison of native completion and attempted sender Bytes over 52 packet-loss probabilities](docs/figures/e9e_dense/formal/primary_loss_completion_and_bytes.svg)
 
-**Formal study:** 52 loss probabilities × 100 seeds × two original methods = **10,400 original executions**, using **100 robots / 50 tasks** and synthetic transmission-time assumptions.
-
-| Loss | Voting complete Commit | CBAA local certificate | Key observation |
+| Receiver loss | Voting full Commit | CBAA local certificate | Consequence |
 |---|---:|---:|---|
-| **30%** | 100/100 | 100/100 | Voting sent **164,750 B** vs CBAA **838,160 B** per seed on average: **80.34% fewer application sender Bytes** |
-| **55%** | 0/100 | 100/100 | Voting no longer completed all 50 tasks within its original safety guard |
-| **96%** | 0/100 | 0/100 | CBAA's external observer still saw 100/100 agreeing assignments, but robots lacked enough received evidence to certify global termination |
+| **30%** | 100/100 | 100/100 | Voting **164,750 B**, CBAA **838,160 B** average attempted sender payload; Voting uses **80.34% fewer Bytes** |
+| **55%** | 0/100 | 100/100 | Voting reached its configured guard before completing all tasks |
+| **96%** | 0/100 | 0/100 | CBAA observer still saw agreement in 100/100, **without** local proof of completion |
 
-![E9E — Complete assignment outcomes versus packet loss](docs/figures/e9e_dense/formal/e9d_full_success.svg)
+**Interpretation:** fewer Bytes do not automatically mean greater loss resilience; guard-hit percentages are **empirical outcomes of the declared settings**, not theoretical packet-loss thresholds. The combined plot's right panel uses a logarithmic kB axis; no model time from E9I/E9N is mixed into E9E.
 
-**Interpretation:** Voting strongly reduces sender traffic while **both methods complete** under the sampled 30% condition, but CBAA maintains locally certifiable assignment at much higher loss rates. Observer agreement is not the same as local knowledge or final Commit. The discrete 55% and 96% outcomes are **guard-dependent experimental results, not theoretical failure thresholds**. [104-row source summary](docs/figures/e9e_dense/formal/summary_by_loss.csv) · [SHA/source manifest](docs/figures/e9e_dense/formal/publication_manifest.json).
+Sources: [104 original summary rows](docs/figures/e9e_dense/formal/summary_by_loss.csv) / [original publication manifest](docs/figures/e9e_dense/formal/publication_manifest.json) / [new two-panel figure identity](docs/figures/e9e_dense/formal/primary_loss_completion_and_bytes_manifest.json). [Historical precursor and other loss pilots](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md).
 
-### C. Communication-time and deadline sensitivity — E9G / E9I
+## C. Communication time and deadline design
 
-**E9G, supporting control:** In the simplified zero-loss N=100 study, the fixed-deadline Rady bootstrap took **68.143 s** versus **68.224 s** under the *assumed* 144 Mbps shared-medium proxy, an additional **81.722 ms** in that particular model. This highlights the dominating effect of the fixed **609.113 ms** task wait; it is **not** evidence of negligible real Wi-Fi contention. [20-point data](docs/figures/e9g_wifi/formal/scaling_20points_verified.csv) · [manifest](docs/figures/e9g_wifi/formal/publication_manifest.json).
+**Question:** how much time is spent waiting for cost/vote messages, and how much is added by a modeled shared radio?
 
-**E9I formal:** Cost loss = **30%**, Vote loss = **30%**, 100 seeds per N. With **100 robots / 100 tasks**, changing from historical *fixed received-plurality deadline* to **one-time guarded Cost + adaptive Vote deadlines** reduced average simulated completion time from **71.918 s to 20.132 s**, or **72.01%**. Both selected arms fully committed at N100 in 100/100 seeds. There was **no comparable 72% saving in transmitted Bytes**; making the initial Cost deadline too short reduced local cost visibility and worsened the assignment oracle ratio.
+### E9I: deadline policy, common N=T and Cost/Vote loss
 
-![E9I — Formal deadline sensitivity under Cost30 / Vote30](docs/figures/e9i_cost30/formal/fig02_time_vote30.svg)
+20 sizes N=T=5..100, 100 Seeds each; Cost loss **30%**, Vote loss **30%**. The figure keeps only compatible E9I deadline variants on the same axes.
 
-The full original E9I experiment contains 16,000 arm/case records; **15,998 completed full Commit**. The two failures belonged to the legacy **fixed-quarter** control rather than the selected guarded-received variant. [20-point plot source](docs/figures/e9i_cost30/formal/formal_20point_plot_data.csv) · [original raw-source SHA/failed-case manifest](docs/figures/e9i_cost30/formal/formal_publication_manifest.json).
+![E9I: fixed and adaptive received-plurality deadlines under the same 30 percent loss](docs/figures/e9i_cost30/formal/fig02_time_vote30.svg)
 
-### D. Native CBAA vs frozen Voting baseline — E9J
+At **100 robots / 100 tasks**, the historical fixed-received-plurality policy averaged **71.918 s** versus **20.132 s** with guarded one-time Cost and adaptive Vote deadlines (**72.01% less modeled time**). Both selected arms completed all 100 tasks on 100/100 N100 Seeds. This was **not** a 72% reduction in sender Bytes; shorter Cost deadlines also reduced local information and could worsen assignment quality. Across the 16,000 original arm/case records, **15,998** completed; two failed in a legacy fixed-quarter control.
 
-**Formal study:** N=T=5..100 step 5; **100 seeds per N**. Original Cost/Vote receiver loss is 30% for Voting; native CBAA Bid/Winner loss is 30%. The original E9I Voting results are reused **without retraining/rerunning**. The source contains **2,000 native CBAA cases** plus **8,000 offline comparison rows** across the archived two Vote loss settings and two Voting controls.
+Source: [E9I original 20-point plotting CSV](docs/figures/e9i_cost30/formal/formal_20point_plot_data.csv) / [full source SHA and failure manifest](docs/figures/e9i_cost30/formal/formal_publication_manifest.json).
 
-| N = 100 robots and 100 tasks | Voting guarded adaptive | CBAA native, optimistic stop |
-|---|---:|---:|
-| Mean modeled allocation / stop time | **20.132 s** | **13.647 s** |
-| Original attempted sender payload | **255.5 kB** | **2,693.0 kB** |
-| Mean assignment Cost / independent Hungarian optimum | **1.362** | **1.235** |
-| Own separately defined success | **100/100 real full Commit** | **100/100 local certificate + observer agreement**; no paid stop/Commit |
+### E9G: separate shared-radio timing sensitivity control
 
-CBAA transmitted **10.54×** as many application Bytes but had **32.21% shorter modeled elapsed time** relative to guarded Voting at N100 (paired-bootstrap 95% CI **30.34%–34.06%**). The crossover around N55–60 is statistically inconclusive at 95%, while the paired mean time difference from N65 excludes zero in this model. CBAA also showed better observer-evaluated assignment cost. **Voting is not universally faster or higher-quality.**
+At **N=100, zero packet loss**, the fixed-deadline Rady-sampled bootstrap modeled **68.143 s**; adding an *assumed* 144 Mbps shared radio yielded **68.224 s** (about **81.7 ms** extra). The task wait was fixed at **609.113 ms**, so this result does **not** demonstrate negligible actual wireless contention. E9G and E9I use different conditions; their seconds are deliberately **not combined in the same figure**.
 
-The original [E9J optimistic baseline time/Bytes chart](docs/figures/e9j_cbaa/formal/primary_time_and_sender_bytes.svg) is preserved; the following three-algorithm figure below includes these unchanged original results.
+Source: [E9G original 20-point timing data](docs/figures/e9g_wifi/formal/scaling_20points_verified.csv) / [manifest](docs/figures/e9g_wifi/formal/publication_manifest.json).
 
-For the original 2-method result, see the [E9J independent cost-quality figure](docs/figures/e9j_cbaa/formal/primary_cost_quality.svg). The updated E9L three-algorithm conditional quality figure appears below.
+## D. Algorithm comparison and multi-task extension
 
-**Fairness limit:** CBAA's simulated all-robots-certified stopping condition is free; a physically distributed stop/Commit would introduce additional traffic and delay. Its original Bid/Winner packet contents differ from Voting Cost/Vote/Score. This is an **algorithm-native modeled trade-off**, not an equal on-wire-budget or physically equivalent-finalization result. [20-point plot source](docs/figures/e9j_cbaa/formal/plot_source_20point_rounded.csv) · [E9J provenance](docs/figures/e9j_cbaa/formal/source_manifest.json).
+**Question:** at a common assignment capacity, how do Voting, original CBAA, Price Auction and original CBBA trade modeled time, application Bytes and completion?
 
-### E. Distributed price auction — E9L (formal 100 Seeds)
+### D1. Capacity one: five methods on one figure (E9I/J/L/N)
 
-**Actual new user-run source verified:** Same N=T=5..100 (step5), 100 Seeds per N, 30% independent BID/AWARD drops, epsilon10.0 physical cost units, original 28B BID/AWARD packets and reliable paid TASK announcement. Original E9I Voting and E9J native CBAA are the two official frozen algorithm baselines; neither was rerun. The historical E9L input also retained E9K's technical-protocol record, which is excluded from all algorithm rankings. E9L is a networked **Bertsekas-style price auction variant**, **not original CBBA**, and its end condition is still optimistic all-local AWARD certification plus observer.
+**Common workload:** N=T=5,10,...,100; each robot may execute **at most one task**; 100 Seeds per N; 30% receiver loss on method-native packet types. The first three curves reuse **6,000 historical E9I/J/L method cases**; newly executed Voting Multi-task C1 and CBBA C1 contribute **4,000 E9N method cases**. This is not a fresh five-method rerun from one source commit, and success endpoints differ.
 
-The [original E9L three-method modeled time/Bytes figure](docs/figures/e9l_price/formal/primary_three_algorithm_time_and_sender_bytes.svg) remains preserved. The new **five-method capacity-one** primary comparison appears in Section G below.
+![E9N: five original-method series on one capacity-one chart for modeled time, sender Bytes and source-supported completion](docs/figures/e9n/formal/primary_five_method_time_bytes_success.svg)
 
-E9L locally completed **1,867/2,000** cases; **133** reached the 160-round guard. The observer found a full assignment in 1,880 cases, including 13 not locally certifiable — therefore observer agreement and local distributed evidence are **not interchangeable**.
-
-| N=100, all 100 Seeds unless marked | Voting | Original CBAA | **Price Auction E9L** |
-|---|---:|---:|---:|
-| Completion under each method's own rule | 100/100 | 100/100 | **78/100** |
-| Mean modeled stop time (all Seeds) | 20.132 s | 13.647 s | **135.828 s** (guard-censored) |
-| Mean time of successful cases only | 20.132 s | 13.647 s | **122.329 s** (78 Seeds) |
-| Mean attempted sender payload (all Seeds) | 255.5 kB | 2,693.0 kB | **353.9 kB** |
-
-E9L's finished-assignment Cost/Hungarian ratio is **1.1173** versus Voting **1.3668** and CBAA **1.2348** **on exactly the same 78 E9L-successful N100 Seeds**, not all 100. In that matched subset E9L−Voting successful time was **+102.13s** (paired Bootstrap CI95 **+93.83 to +110.48s**) and E9L−CBAA Cost ratio was **−0.11743** (paired CI95 **−0.13170 to −0.10409**). This shows a **conditional quality advantage but poor latency and declining success** at high N; it does not show a universally better allocator. E9L sends **38.5% more application Bytes than Voting**, despite 28B small packets.
-
-![E9L: local completion and same-success-seed assignment quality, only three original algorithms](docs/figures/e9l_price/formal/primary_three_algorithm_completion_and_quality.svg)
-
-**Major caveat:** E9L and original CBAA use free simulator aggregation of local evidence; Voting pays a reliable Commit. Their stopping guarantees differ. Rady+hypothetical 144Mbps is **not** physical Wi-Fi ns-3. ε=10 was a fixed design-stage setting and cannot be retrospectively tuned to improve these archived formal results. [Detailed formal audit](docs/E9L_FORMAL_100SEED.md) · [derived 20-point CSV](docs/figures/e9l_price/formal/plot_source_20point_rounded.csv) · [original source SHA manifest](docs/figures/e9l_price/formal/source_manifest.json). Original E9J figures and all immutable source ZIP records remain unchanged; E9K's internal protocol-extension data remain in the technical archive, not the algorithm comparison.
-
-### F. E9M — separately verified capacity-four multi-task experiment
-
-The [corrected E9M original-ZIP audit](docs/E9M_CORRECTED_ORIGINAL_ZIP_AUDIT_100SEED.md) confirms 25 Robots, 100 Tasks, capacity4, 100 paired Seeds and 30% Loss. Voting Multi-task modeled time63.023s, 116.83 kB versus original CBBA 6.878s, 1,006.87 kB, both 100/100. **E9M capacity4 is not mixed with E9N capacity1** in the new figure. Source ZIP remains in the user Library with cryptographic identity.
-
-### G. E9N — original five-method capacity-one comparison, complete source audit
-
-**Formal original user ZIP received and independently verified:** N=T=5..100 in steps of5, C1, 30% loss, 100 Seeds per N. Two **newly executed** algorithms (Voting Multi-task/CBBA: 4,000 original per-seed cases) are plotted alongside three frozen previously audited E9I/J/L series (6,000 historical cases). The five series share capacity-one original scene geometry, but method-specific traffic, termination and source commits differ.
-
-![E9N: Five methods on one capacity-one graph, modeled allocation time, sender Bytes and supported success rates](docs/figures/e9n/formal/primary_five_method_time_bytes_success.svg)
-
-| 100 Robots/Tasks, C1, 30% Loss | Voting E9I | CBAA E9J | Price Auction E9L | Voting Multi-task E9N | CBBA E9N |
+| N=T=100; capacity 1; 30% loss | Voting (E9I) | CBAA (E9J) | Price Auction (E9L) | Voting Multi-task C1 (E9N) | CBBA C1 (E9N) |
 |---|---:|---:|---:|---:|---:|
-| Mean modeled stop seconds | 20.132 | 13.647 | 135.828 | 101.919 | **12.368** |
-| Sender application kB | 255.50 | 2,693.04 | 353.94 | 305.39 | 6,488.06 |
-| Completion available in frozen plotted CSV / new raw | n/a | n/a | 78/100 | **100/100** | **100/100** |
+| Mean modeled time | 20.132 s | 13.647 s | 135.828 s | 101.919 s | **12.368 s** |
+| Sender application traffic | 255.50 kB | 2,693.04 kB | 353.94 kB | 305.39 kB | 6,488.06 kB |
+| Complete outcomes **supported by this plot source** | n/a | n/a | 78/100 | **100/100** | **100/100** |
 
-For the **two newly executed E9N methods only**, CBBA has **8.24× shorter modeled observer-stop time** but requires **21.24× sender Bytes** relative to Voting Multi-task C1; CBBA has shorter total travel, whereas Voting has shorter mean maximum route/makespan. These modeled native endpoints are **not identical distributed finalization guarantees**. E9I/J per-N success counts are deliberately not fabricated from the frozen aggregate figure; E9L has guard-censored cases. The network uses Rady delay traces plus assumed 144 Mbps, **not physical Wi-Fi**. Paid CBAA E9K remains excluded.
+Here **n/a** means the frozen E9I/J plotting source does not contain per-N completion numerators; it is **not** a failure count. E9L's all-seed time includes its 22/100 N100 guard-censored trials. In the 4,000 **new** E9N cases, both methods complete all tasks at every N; at N100 CBBA models **8.24x shorter observer-stop time** but **21.24x more sender Bytes** than Voting Multi-task. That is a protocol-native trade-off, not equal paid termination or a measured Wi-Fi result.
 
-[Original E9N 4,000-row source audit, SHA and N100 route analysis](docs/E9N_FORMAL_100SEED.md) · [original five-method source CSV](docs/figures/e9n/formal/original_five_method_common_cap1_source.csv) · [machine-readable audit](docs/figures/e9n/formal/verified_original_zip_audit_100seed.json).
+**Assignment quality needs a controlled subset.** At N100, original Price Auction's Hungarian cost ratio **1.1173** versus Voting **1.3668** and CBAA **1.2348** is evaluated **only on the same 78 seeds on which Price Auction finished**. Do not combine these ratios with E9N's path-discounted reward. [Original three-method conditional-quality chart](docs/figures/e9l_price/formal/primary_three_algorithm_completion_and_quality.svg) / [E9J two-method quality chart](docs/figures/e9j_cbaa/formal/primary_cost_quality.svg).
 
-## 3. Other studies: status only
+Sources: [E9N fully audited 4,000-row ZIP report](docs/E9N_FORMAL_100SEED.md) / [100-row five-method original figure source](docs/figures/e9n/formal/original_five_method_common_cap1_source.csv) / [source-audit JSON](docs/figures/e9n/formal/verified_original_zip_audit_100seed.json) / [E9L formal audit](docs/E9L_FORMAL_100SEED.md) / [E9J source manifest](docs/figures/e9j_cbaa/formal/source_manifest.json).
 
-| Study | Status | Evidence / explanation |
-|---|---|---|
-| **E2** | **Provisional:** original Hungarian Cost/Vote one-round aggregate has not passed full per-vote forensic acceptance | [E2 notes](results/e2_packet_loss/README.md) |
-| **E9C** | Sender packet-size/SEND accounting **control**, not a certified dynamic-stop comparison | [Historical results](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md) |
-| **E9N** | **Original 4,000-row capacity-one ZIP verified:** 20 sizes, 100 Seeds, two new methods 100% complete; figure adds frozen E9I/J/L source without rerun | [Original ZIP audit](docs/E9N_FORMAL_100SEED.md) |
-| **E9M** | **Original corrected 100-seed source ZIP verified:** two methods complete 100/100; original SHA, path and packet ledgers audited; observer vs paid-Commit end conditions differ | [Original ZIP source audit](docs/E9M_CORRECTED_ORIGINAL_ZIP_AUDIT_100SEED.md) |
-| **E9L** | **Formal user-run 100-seed source verified:** 1,867/2,000 full local certificates; 133 guard-censored; original source SHA auditable. | [Results report](docs/E9L_FORMAL_100SEED.md) |
-| **E9H** | Implemented deadline hypothesis and pilot, but its **full original factorial 100-seed study is not published**; E9I is a separate completed Cost30 follow-up | [Canonical design](docs/EXPERIMENT_PROTOCOL.md) |
-| **E9F, E3–E7, older pilots** | Historical/incomplete for present core claims; preserve rather than merge into E9E/E9J | [Full history](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md) |
+### D2. Capacity four: genuine multi-task CBBA versus Voting (E9M)
 
-## 4. Data provenance and scientific limits
+**Different workload; intentionally NOT added to the capacity-one graph.** 25 robots, 100 tasks, maximum 4 tasks/robot, 30% loss, 100 paired Seeds. The corrected original raw ZIP was independently SHA-, route-, and message-ledger verified.
 
-The four main figures above preserve verified historical evidence and use a publication-layout-only E9N SVG derived from the original user source; no original numeric plot data are overwritten. **All former figures, source tables, old pilot notes and run commands remain accessible in the archive and experiment-specific directories**; no original experiment is deleted.
+| E9M (25R / 100T / capacity 4) | Voting Multi-task | Original CBBA |
+|---|---:|---:|
+| Complete assignments | **100/100** | **100/100** |
+| Mean modeled allocation/stop | 63.023 s | **6.878 s** |
+| Attempted sender payload | **116.83 kB** | 1,006.87 kB |
+| Mean total robot travel | 1,319.76 m | **1,209.48 m** |
+| Mean longest robot route / makespan | **134.55 s** | 148.64 s |
 
-The loss model uses independent Bernoulli drops **per receiver** and pays each original broadcast sender payload once, whether received or dropped. This is **application-layer attempted transmission**, not measured Wi-Fi MAC/PHY, actual ACK/retry cost or radio energy. Only sampled Rady ROS application delay is an empirical timing input. The 144 Mbps shared-radio/backoff service is hypothetical; **no verified ns-3 or 100-robot RF test** is claimed.
+CBBA reduces modeled observer-stop time and total route length, whereas Voting sends fewer application Bytes and has a shorter average maximum route. **Makespan is physical route duration (at 1 m/s), not coordination time.** The two capacity conditions must remain independent in scientific comparisons.
 
-**Do not combine E9E's 80.34% saving (100R/50T, synthetic timing) and E9J's 10.54× payload ratio (100R/100T, modeled shared channel) as results from identical conditions.** Future publication-grade timing fairness requires separately modeling native **paid distributed CBAA termination and Commit**, then validating with packet-level Wi-Fi/MAC and physical traces.
+Source: [E9M independent original ZIP/route/packet audit](docs/E9M_CORRECTED_ORIGINAL_ZIP_AUDIT_100SEED.md) / [E9M experiment procedure](docs/E9M_CBBA_MULTITASK.md). The pre-fix E9M Vote-broadcast run is retained as superseded, not substituted for the corrected 100-seed data.
 
-**Project references:** [Complete detailed experiment history](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md) · [Independent evidence audit and source identities](docs/EXPERIMENT_RESULTS_AUDIT_20261012.md) · [Canonical experiment specification](docs/EXPERIMENT_PROTOCOL.md) · [Change continuity](docs/CHANGE_CONTINUITY.md) · [Bibliography](docs/references/e9g_wifi_timing.bib).
+## Evidence, limitations and reproducibility
 
-**Original evidence:** the E0/E1 per-seed CSVs and E9E published 104-row summary are available here. The full E9E/E9G/E9I/E9J source archives are referenced by immutable SHA256 manifests; in studies where complete per-seed raw records remain in prior user ZIPs, GitHub's 20-point plotting CSV is **derived display evidence, not a substitute for the source raw**.
+- **Data provenance:** original ZIPs, Git SHAs, failure/guard cases and source audits are retained; the E9M and E9N original binaries are also archived in the project Library. All older tables, figures and pilot experiments remain in the [historical results archive](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md).
+- **Native endpoint fairness:** Voting pays reliable Score/Commit; CBAA, CBBA and Price Auction rely on their own local certificates and/or optimistic observer stopping. Those times are not equal guarantees of distributed completion, and E9K Paid CBAA is a separate protocol extension, not a literature-original comparator.
+- **No real RF measurement claim:** application-layer attempted Bytes and a Rady plus hypothetical 144 Mbps radio model are **not** actual Wi-Fi airtime, radio energy or a 100-robot deployment. E9E uses different synthetic timing.
+- **Publication boundary:** figures group only source-compatible experimental cohorts. Capacity-one N=T curves are never pooled with E9M's 25R/100T/capacity-four results; path-discounted rewards are never interpreted as Hungarian ratios.
+
+**Documents:** [Canonical Experiment Protocol](docs/EXPERIMENT_PROTOCOL.md) | [Experiment evidence audit](docs/EXPERIMENT_RESULTS_AUDIT_20261012.md) | [Change Continuity](docs/CHANGE_CONTINUITY.md) | [E9N source audit](docs/E9N_FORMAL_100SEED.md) | [E9M source audit](docs/E9M_CORRECTED_ORIGINAL_ZIP_AUDIT_100SEED.md) | [Bibliography](docs/references/e9g_wifi_timing.bib).
+
+**Source and runners:** [`experiments/`](experiments/) | [E9N capacity-one run guide](docs/E9N_ONE_TASK_FIVE_METHOD.md) | [E9M multi-task run guide](docs/E9M_CBBA_MULTITASK.md). New experiments must keep their exact Git SHA, config, per-seed CSV, summary, original network SEND ledger and guard outcomes.
