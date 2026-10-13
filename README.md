@@ -44,6 +44,9 @@ The earlier one-round lossy Hungarian Vote pilot did not receive full per-vote a
 
 ## B. Packet-loss resilience and communication traffic
 
+**P2-B revised Voting communication-flow experiment — source ready, fresh results pending:** The original verified 4,000-case P2 results **below** were produced by **sequential per-task Greedy voting** (although TASK and Cost were already announced just once). They are preserved as *historical pre-correction evidence*, **not** the timing or communication performance of the new one-TASK/one-Cost **batched Greedy Vote/Score** protocol. The newly implemented protocol is documented in [P2-B corrected batching contract](docs/P2_BATCH_GREEDY_PROTOCOL.md) and must run 4,000 fresh cases before replacing any graph, time comparison, or numerical interpretation here. Original CBAA/CBBA/Price native algorithms remain unchanged.
+
+
 **Research question:** at identical 100-robot/100-task geometry and capacity **one**, how do the **four original assignment algorithms** trade original native completion, modeled stop-time, attempted sender Bytes and assignment quality as packet loss rises? The historical user-authored **Voting Multi-task** C1 variant and Paid CBAA are **not official comparison methods**.
 
 **NEW verified formal P2 source:** original ZIP independently audited, **4,000 original method cases**, 10 loss levels (0%..90% every 10%), 100 paired Seeds per loss, exactly `Original Voting / original CBAA / original CBBA / Price Auction`, Rady sampled ROS delay + *hypothetical* shared 144Mbps. All original 4,000 geometry/Hungarian/assignment and native sender/receiver ledgers, 40 group summaries, 4,000 original Terminal rows and the original P1 30%-loss 400-row control verified with **zero audit errors**. The source contains **730 native guard failures** (200 CBBA + 530 Price Auction); no failure was removed from the denominator.
