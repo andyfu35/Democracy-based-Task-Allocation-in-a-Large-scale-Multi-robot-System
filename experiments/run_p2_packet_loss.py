@@ -12,6 +12,8 @@ from pathlib import Path
 from democracy_mrta.diagnostics import Diagnostic, ProtocolError
 from democracy_mrta.network import ensure_rady_dataset, load_rady_latency_profile
 from democracy_mrta.scenario import generate_e0_scenario
+from democracy_mrta.optimizer import solve_sequential_greedy_reference
+from democracy_mrta.task_information import encode_task_announcement
 from experiments.run_p1_matched_five import (
     DEFAULT_RADY, OUTPUT_FIELDS, read_source_sha, run_matched_case,
     verify_one_scene, scene_sha256, write_csv, sha256_file,
@@ -113,6 +115,49 @@ def validate_complete_grid(rows, percentages, first_seed, seeds):
                  scene_by_seed[seed], digest)
 
 
+def validate_batched_voting_evidence(scene, row):
+    """Reject wrong one-time TASK/Cost, missing phase time, or zero-loss non-Greedy result."""
+    if row["method"] != "voting":
+        return
+    try:
+        ledger = json.loads(row["original_traffic_ledger_json"])
+        batch = ledger["batch"]
+        expected_task_frames = len(encode_task_announcement(scene.task_positions))
+        if (batch["task_announcement_sender_frames"] != expected_task_frames
+                or batch["cost_sender_frames"] != scene.num_robots
+                or batch["commit_sender_frames"] != len(json.loads(row["native_assignment_json"]))):
+            fail("validate_batched_voting_evidence", "contract",
+                 "P2_BATCH_ONE_TIME_PHASE_CONTRACT",
+                 {"task_frames": expected_task_frames, "cost_frames": scene.num_robots,
+                  "commit_frames": "one per accepted assigned pair"}, batch)
+        timing = batch["phase_timing"]
+        expected_ms = float(row["native_stop_ms"])
+        actual_ms = sum(float(timing[k]) for k in (
+            "task_ms", "cost_once_ms", "vote_and_score_ms", "commit_ms"))
+        if abs(actual_ms - expected_ms) > 1e-5:
+            fail("validate_batched_voting_evidence", "time",
+                 "P2_BATCH_TIME_LEDGER_MISMATCH", expected_ms, actual_ms)
+        if int(row["loss_percent"]) == 0:
+            observed = tuple(sorted(
+                (int(pair[0]), int(pair[1]))
+                for pair in json.loads(row["native_assignment_json"])
+            ))
+            expected = tuple(sorted(solve_sequential_greedy_reference(
+                scene.cost_matrix).assigned_pairs))
+            if not int(row["native_success"]) or observed != expected:
+                fail("validate_batched_voting_evidence", "contract",
+                     "P2_BATCH_NO_LOSS_GREEDY_MISMATCH",
+                     expected, observed)
+            if int(timing["epochs"]) != 1:
+                fail("validate_batched_voting_evidence", "contract",
+                     "P2_BATCH_NO_LOSS_REQUIRES_ONE_EPOCH",
+                     1, timing["epochs"])
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        fail("validate_batched_voting_evidence", "data",
+             "P2_BATCH_EVIDENCE_MISSING", "complete native batch ledger",
+             str(exc))
+
+
 def summarize(rows, percentages):
     out = []
     for p in percentages:
@@ -163,6 +208,8 @@ def run_p2(args):
             r = {"loss_percent": p,
                  **run_matched_case(scene, profile, method, p / 100, 160, 300,
                                     voting_strategy=args.voting_strategy)}
+            if args.voting_strategy == "greedy_batch":
+                validate_batched_voting_evidence(scene, r)
             writer.writerow(r)
             f.flush()
             os.fsync(f.fileno())
