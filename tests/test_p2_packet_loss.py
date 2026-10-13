@@ -7,8 +7,11 @@ from pathlib import Path
 import unittest
 
 from democracy_mrta.diagnostics import ProtocolError
-from experiments.run_p2_packet_loss import LOSSES, METHODS, validate_config, summarize, validate_complete_grid, prepare_evidence
+from experiments.run_p2_packet_loss import LOSSES, METHODS, validate_config, summarize, validate_complete_grid, prepare_evidence, validate_batched_voting_evidence
 from experiments.p2_packet_loss_plot import render_p2_figure
+from democracy_mrta.scenario import generate_e0_scenario
+from democracy_mrta.optimizer import solve_sequential_greedy_reference
+from democracy_mrta.task_information import encode_task_announcement
 
 
 def case(p, seed, method):
@@ -85,6 +88,38 @@ class P2ContractTests(unittest.TestCase):
             with self.assertRaises(ProtocolError) as cm:
                 prepare_evidence(args, "new-batched-git-sha", (0,))
             self.assertEqual(cm.exception.diagnostic.code, "P2_RESUME_CONFIG_MISMATCH")
+
+    def test_per_seed_native_batch_task_cost_and_zero_loss_greedy_gate(self):
+        scene = generate_e0_scenario(0, 2, 2)
+        optimum_greedy = solve_sequential_greedy_reference(scene.cost_matrix)
+        evidence = {
+            "task_announcement_sender_frames": len(encode_task_announcement(scene.task_positions)),
+            "cost_sender_frames": 2, "vote_sender_frames": 2,
+            "score_sender_frames": 2, "commit_sender_frames": 2,
+            "phase_timing": {
+                "task_ms": 1.0, "cost_once_ms": 2.0,
+                "vote_and_score_ms": 3.0, "commit_ms": 4.0,
+                "total_ms": 10.0, "epochs": 1,
+            },
+        }
+        row = {
+            "method": "voting", "loss_percent": 0,
+            "native_success": 1, "native_stop_ms": 10.0,
+            "native_assignment_json": json.dumps(optimum_greedy.assigned_pairs),
+            "original_traffic_ledger_json": json.dumps({"batch": evidence}),
+        }
+        validate_batched_voting_evidence(scene, row)
+        evidence["cost_sender_frames"] = 4
+        row["original_traffic_ledger_json"] = json.dumps({"batch": evidence})
+        with self.assertRaises(ProtocolError) as cm:
+            validate_batched_voting_evidence(scene, row)
+        self.assertEqual(cm.exception.diagnostic.code, "P2_BATCH_ONE_TIME_PHASE_CONTRACT")
+        evidence["cost_sender_frames"] = 2
+        evidence["phase_timing"]["epochs"] = 2
+        row["original_traffic_ledger_json"] = json.dumps({"batch": evidence})
+        with self.assertRaises(ProtocolError) as cm:
+            validate_batched_voting_evidence(scene, row)
+        self.assertEqual(cm.exception.diagnostic.code, "P2_BATCH_NO_LOSS_REQUIRES_ONE_EPOCH")
 
     def test_missing_sender_accounting_not_zero(self):
         rows = [case(30, seed, method) for seed in range(100) for method in METHODS]
