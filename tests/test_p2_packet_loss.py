@@ -1,10 +1,13 @@
 """P2 validation: exact grid, guards, missing values, and figure source."""
 from __future__ import annotations
 from argparse import Namespace
+import json
+import tempfile
+from pathlib import Path
 import unittest
 
 from democracy_mrta.diagnostics import ProtocolError
-from experiments.run_p2_packet_loss import LOSSES, METHODS, validate_config, summarize, validate_complete_grid
+from experiments.run_p2_packet_loss import LOSSES, METHODS, validate_config, summarize, validate_complete_grid, prepare_evidence
 from experiments.p2_packet_loss_plot import render_p2_figure
 
 
@@ -65,6 +68,23 @@ class P2ContractTests(unittest.TestCase):
         self.assertIn("concentric markers", figure)
         with self.assertRaises(ProtocolError):
             validate_complete_grid(rows[1:], losses, 0, 100)
+
+    def test_old_sequential_source_cannot_resume_batched_formal(self):
+        with tempfile.TemporaryDirectory() as root:
+            args = Namespace(
+                output_root=Path(root) / "study", resume=False,
+                losses="0.00", first_seed=0, seeds=2, formal=False,
+                voting_strategy="greedy_batch", rady_json=Path("profile.json"),
+            )
+            prepare_evidence(args, "new-batched-git-sha", (0,))
+            config = args.output_root / "run_config_p2.json"
+            stored = json.loads(config.read_text(encoding="utf-8"))
+            stored["voting_strategy"] = "greedy_task"
+            config.write_text(json.dumps(stored), encoding="utf-8")
+            args.resume = True
+            with self.assertRaises(ProtocolError) as cm:
+                prepare_evidence(args, "new-batched-git-sha", (0,))
+            self.assertEqual(cm.exception.diagnostic.code, "P2_RESUME_CONFIG_MISMATCH")
 
     def test_missing_sender_accounting_not_zero(self):
         rows = [case(30, seed, method) for seed in range(100) for method in METHODS]
