@@ -8,7 +8,7 @@ from democracy_mrta.diagnostics import Diagnostic, ProtocolError
 
 OWNER = "experiments.p2_packet_loss_plot"
 METHODS = ("voting", "cbaa", "cbba", "price_auction")
-LABELS = ("Voting (Batched Greedy)", "CBAA", "CBBA", "Price Auction")
+LABELS = ("Voting (Global Greedy)", "CBAA", "CBBA", "Price Auction")
 COLORS = ("#186FAF", "#B57B22", "#CA5549", "#815AB3")
 
 
@@ -96,7 +96,7 @@ def render_p2_figure(summary: list[dict], losses: tuple[int, ...]) -> str:
     xml = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1350 1020" role="img" aria-label="P2 batched Greedy Voting versus three native baselines across 10 packet-loss levels">',
            '<rect width="1350" height="1020" fill="#FFFFFF"/>',
            '<g font-family="Arial,Helvetica,sans-serif" fill="#25394A">',
-           '<text x="44" y="43" font-size="30" font-weight="bold">B. Packet-loss robustness — batched Greedy Voting vs native baselines</text>',
+           '<text x="44" y="43" font-size="30" font-weight="bold">B. Packet-loss robustness — Global Greedy Voting vs native baselines</text>',
            '<text x="44" y="73" font-size="16">100 robots = 100 tasks, capacity 1, 100 paired seeds, 0–90% PL in 10% steps</text>']
     for idx, (label, color) in enumerate(zip(LABELS, COLORS)):
         xx = 48 + idx * 316
