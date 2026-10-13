@@ -67,3 +67,7 @@ If interrupted, `--formal --seeds 100 --output-root "$P2B_ROOT" --resume` resume
 - `experiments.p2_packet_loss_plot.panel/render_p2_figure`: graphical overlap representation uses distinct dash segments and concentric rings at exactly the same measured data coordinate; there is **no numeric point shifting** and no Original prefix.
 
 **Unfinished:** new code has not been proven on the user's Mac, no formal 4,000 fresh runs executed, and no revised result or claim of measured timing improvement is asserted. High-loss batch retries or large score vectors can still be substantial; receiver-independent Bernoulli drops and hypothetical 144Mbps remain experimental limitations.
+
+## Per-seed result gates
+
+Before writing each revised Voting row, `experiments.run_p2_packet_loss.validate_batched_voting_evidence` verifies task-frame count, exactly N initial Cost SENDs, each Commit matching a task, and additive TASK/Cost/Vote-and-Score/Commit milliseconds. At zero packet loss it requires a single voting epoch and the identical full-information sequential Greedy pairing. Failures identify the original diagnostic or their validation category/code; old P2 evidence must not be substituted.
