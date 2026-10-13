@@ -189,6 +189,41 @@ def iter_e9h_arms(margins: tuple[float,...]) -> tuple[tuple[str,str,float|None,b
     )
 
 
+def summarize_e9h_phase_timing(*, task_ms: float, result) -> dict:
+    """Decompose physically scheduled native stages without charging Cost twice."""
+    epochs = tuple(result.rounds)
+    cost_ms = sum(e.coordination.cost_phase_completion_ms for e in epochs)
+    vote_score_ms = sum(
+        e.coordination.decision_completion_ms - e.coordination.cost_phase_completion_ms
+        for e in epochs
+    )
+    commit_ms = sum(
+        e.coordination.global_agreement_ms - e.coordination.decision_completion_ms
+        for e in epochs
+    )
+    pieces = (task_ms, cost_ms, vote_score_ms, commit_ms)
+    if any(not math.isfinite(value) or value < -1e-7 for value in pieces):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="summarize_e9h_phase_timing",
+            category="time", code="P2_BATCH_NEGATIVE_PHASE_DURATION",
+            expected="finite nonnegative TASK/Cost/Vote+Score/Commit durations",
+            actual=pieces,
+        ))
+    expected = task_ms + result.global_agreement_ms
+    actual = sum(pieces)
+    if abs(expected-actual) > 1e-5:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="summarize_e9h_phase_timing",
+            category="time", code="P2_BATCH_STAGE_TIME_MISMATCH",
+            expected=expected, actual=actual,
+        ))
+    return {
+        "task_ms":task_ms, "cost_once_ms":cost_ms,
+        "vote_and_score_ms":vote_score_ms, "commit_ms":commit_ms,
+        "total_ms":expected, "epochs":len(epochs),
+    }
+
+
 def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
                                 rate, max_rounds, fixed_timeout_ms,
                                 arm, schedules, oracle_total_cost,
@@ -331,6 +366,10 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
             expected=expected_cost_receivers,actual=cost_receiver_observations,
             details=f"n={n} seed={seed} cost_loss={p_loss} vote_loss={vote_loss}",
         ))
+    if voting_strategy == "greedy_batch":
+        phase_timing = summarize_e9h_phase_timing(task_ms=task_ms, result=result)
+    else:
+        phase_timing = None
     if commit_sends!=len(result.assigned_pairs):
         raise ProtocolError(Diagnostic(
             owner=OWNER,function="run_e9h_original_voting_case",
@@ -376,6 +415,11 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
         ),
         "total_sender_application_bytes":task_trace.sender_bytes+result.payload_bytes,
         "total_original_send_count":len(task_trace.events)+result.logical_message_count,
+        "voting_strategy":voting_strategy,
+        "task_announcement_sender_frames":len(task_trace.events),
+        "cost_sender_frames":sum(e.phase=="cost" for epoch in result.rounds for e in epoch.coordination.events),
+        "vote_sender_frames":sum(e.phase=="vote" for epoch in result.rounds for e in epoch.coordination.events),
+        "phase_timing":phase_timing,
         "vote_score_send_count":score_sends,
         "commit_send_count":commit_sends,
         "late_remote_vote_delivery_count":original_physical_late,
