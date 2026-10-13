@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+import struct
 
 from .diagnostics import Diagnostic, ProtocolError
 
@@ -18,6 +19,7 @@ from .optimizer import (
     AssignmentSolution,
     solve_visible_hungarian_assignment,
     solve_all_visible_greedy_task_votes,
+    solve_visible_batched_greedy_assignment,
     validate_cost_matrix,
 )
 from .protocol import (
@@ -1142,14 +1144,14 @@ def validate_epoch_voting_strategy(
     strategy: str,
     num_tasks: int,
 ) -> None:
-    if strategy not in ("hungarian", "greedy_task"):
+    if strategy not in ("hungarian", "greedy_task", "greedy_batch"):
         raise ProtocolError(
             Diagnostic(
                 owner="coordination",
                 function="validate_epoch_voting_strategy",
                 category="data",
                 code="UNKNOWN_VOTING_STRATEGY",
-                expected=("hungarian", "greedy_task"),
+                expected=("hungarian", "greedy_task", "greedy_batch"),
                 actual=strategy,
             )
         )
@@ -1174,7 +1176,12 @@ def build_epoch_local_proposals(
     physical_tasks: tuple[int, ...],
     strategy: str,
 ) -> tuple[AssignmentSolution, ...]:
-    if strategy == "greedy_task":
+    if strategy == "greedy_batch":
+        local_solutions = tuple(
+            solve_visible_batched_greedy_assignment(cost_matrix, rows)
+            for rows in visible
+        )
+    elif strategy == "greedy_task":
         local_solutions = solve_all_visible_greedy_task_votes(
             cost_matrix=cost_matrix,
             visible_by_voter=visible,
@@ -1273,7 +1280,9 @@ def validate_vote_decision_rule(
             )
         )
     if rule in ("quarter_plurality", "received_plurality") and (
-        voting_strategy != "greedy_task" or num_tasks != 1
+        (voting_strategy == "greedy_task" and num_tasks != 1)
+        or (voting_strategy == "greedy_batch" and rule != "received_plurality")
+        or voting_strategy not in ("greedy_task", "greedy_batch")
     ):
         raise ProtocolError(
             Diagnostic(
@@ -1281,7 +1290,7 @@ def validate_vote_decision_rule(
                 function="validate_vote_decision_rule",
                 category="planning",
                 code="PLURALITY_REQUIRES_ONE_TASK_GREEDY",
-                expected="greedy_task on a single pending task",
+                expected="one-task Greedy, or multi-task greedy_batch using received_plurality",
                 actual=(voting_strategy, num_tasks),
             )
         )
@@ -1929,7 +1938,7 @@ def simulate_democracy_hungarian_retirement(
     )
     if isinstance(sampler, WifiCausalTimingSampler) and (
         cost_repetitions != 1 or vote_repetitions != 1 or
-        voting_strategy != "greedy_task"
+        voting_strategy not in ("greedy_task", "greedy_batch")
     ):
         raise ProtocolError(Diagnostic(
             owner="coordination", function="simulate_democracy_hungarian_retirement",
@@ -1974,7 +1983,7 @@ def simulate_democracy_hungarian_retirement(
                 cost_repetitions=cost_repetitions,
                 enforce_cost_deadline=enforce_vote_deadline,
             )
-            if voting_strategy == "greedy_task" else None
+            if voting_strategy in ("greedy_task", "greedy_batch") else None
         )
     membership = initialize_retirement_membership(
         num_robots=num_robots,
