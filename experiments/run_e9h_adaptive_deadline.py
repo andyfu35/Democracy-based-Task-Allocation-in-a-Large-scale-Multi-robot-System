@@ -191,7 +191,8 @@ def iter_e9h_arms(margins: tuple[float,...]) -> tuple[tuple[str,str,float|None,b
 def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
                                 rate, max_rounds, fixed_timeout_ms,
                                 arm, schedules, oracle_total_cost,
-                                guarded_cost_ms=None, p_vote_loss=None):
+                                guarded_cost_ms=None, p_vote_loss=None,
+                                external_observer=None):
     """Original TASK, local cost, physical ballots, Score and Commit only.
 
     Opt-in p_vote_loss separates Vote drop from Cost p_loss; the original
@@ -240,6 +241,14 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
         per_active_round_deadline_ms=active_schedule,
         enforce_vote_deadline=True,
     )
+    if external_observer is not None:
+        # Read-only replay of *original* committed-round immutable traces.
+        # No additional message, selector, actor or stop condition.
+        committed = ()
+        for epoch in result.rounds:
+            if not epoch.coordination.budget_exhausted:
+                committed += epoch.newly_committed_pairs
+            external_observer(task_ms + epoch.elapsed_end_ms, committed)
     if isinstance(coord_sampler,WifiCausalTimingSampler):
         a=task_sampler.summarize_network()
         b=coord_sampler.summarize_network()

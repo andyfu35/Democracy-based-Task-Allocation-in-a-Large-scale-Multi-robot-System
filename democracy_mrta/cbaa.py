@@ -462,6 +462,7 @@ def simulate_cbaa(
     capture_audit: bool = False,
     send_budget: SenderPayloadBudget | None = None,
     stop_mode: str = "fixed",
+    external_observer=None,
 ) -> CBAAResult:
     """Original TWO-PHASE CBAA with opt-in local-evidence convergence monitor.
 
@@ -531,6 +532,14 @@ def simulate_cbaa(
                     if (states[robot_id] != previous_states[robot_id]
                         or bidding[robot_id] != previous_states[robot_id]):
                         own_last_change[robot_id] = iteration
+            if external_observer is not None:
+                # Immutable native completed-consensus snapshot; read-only.
+                # Observer return value is deliberately ignored.
+                external_observer(
+                    processed_iterations * phase_timeout_ms,
+                    tuple((state.robot_id, state.assigned_task)
+                          for state in states if state.assigned_task is not None),
+                )
         logical_messages += nmessages
         payload_bytes += nbytes
         attempts += nattempts

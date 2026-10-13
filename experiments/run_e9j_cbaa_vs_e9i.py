@@ -96,7 +96,8 @@ def prepare_e9j_root(root:Path) -> None:
 
 
 def run_e9j_original_cbaa_case(*,scenario,profile,seed,n,
-                               guard,phase_deadline_ms,oracle_cost)->dict:
+                               guard,phase_deadline_ms,oracle_cost,
+                               p_bid_loss=None,external_observer=None)->dict:
     """Call existing paper CBAA state machine; charge actual original SENDs."""
     task_sampler=create_e9g_sampler(profile=profile,seed=seed,phy_rate_mbps=DESIGN_RATE)
     loss_sampler=BernoulliLossSampler(seed=seed)
@@ -112,11 +113,14 @@ def run_e9j_original_cbaa_case(*,scenario,profile,seed,n,
     require_local_source_consistency(reconstructed=costs,expected=scenario.cost_matrix)
     task_time=max((event.arrival_time_ms for event in announced.events),default=0.0)
     channel=create_e9g_sampler(profile=profile,seed=seed,phy_rate_mbps=DESIGN_RATE)
+    effective_bid_loss = CBAA_BID_LOSS if p_bid_loss is None else p_bid_loss
     cbaa=simulate_cbaa(
         cost_matrix=costs,sampler=channel,loss_sampler=loss_sampler,
-        loss_probability=CBAA_BID_LOSS,phase_timeout_ms=phase_deadline_ms,
+        loss_probability=effective_bid_loss,phase_timeout_ms=phase_deadline_ms,
         max_iterations=guard,stop_mode="local_certification",
         capture_audit=False,
+        external_observer=(None if external_observer is None else
+            lambda ms,pairs: external_observer(task_time+ms,pairs)),
     )
     radio=channel.summarize_network()
     task_radio=task_sampler.summarize_network()
@@ -158,7 +162,7 @@ def run_e9j_original_cbaa_case(*,scenario,profile,seed,n,
     return {
         "seed":seed,"robots":n,"tasks":n,
         "method":"cbaa_original_local_bid_winner",
-        "Bid_receiver_loss_probability":CBAA_BID_LOSS,
+        "Bid_receiver_loss_probability":effective_bid_loss,
         "phy_mbps_ASSUMED":DESIGN_RATE,
         "cbaa_iteration_timeout_ms":phase_deadline_ms,
         "cbaa_iterations":cbaa.iterations,

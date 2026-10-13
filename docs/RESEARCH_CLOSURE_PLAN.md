@@ -1,6 +1,6 @@
 # Research Closure Plan — freeze the completed A–D experiments
 
-**Status 2026-10-13: proposed limited follow-up scope; NOT new formal preregistration and NOT new completed evidence.** The accepted original-source studies shown in [README A–D](../README.md) remain valid **under their own model and endpoint contracts**. This plan identifies only the remaining gaps for a defensible cross-method statement. It does not silently revise earlier experiments, method packet formats or reward definitions.
+**Status 2026-10-13: P1 formal study has been preregistered and its source implemented for USER-LOCAL PREFLIGHT only. NO P1 smoke or 100-seed numerical results exist yet.** The accepted original-source studies shown in [README A–D](../README.md) remain valid **under their own model and endpoint contracts**. This plan identifies only the remaining gaps for a defensible cross-method statement. It does not silently revise earlier experiments, method packet formats or reward definitions.
 
 ## Accepted / frozen (do not rerun)
 
@@ -42,3 +42,8 @@ The already accepted 25R/100T/C4 pair is one formal multi-task point. A defensib
 Do not automatically rerun the provisional single-round Vote audit, the packet-size control, exploratory Cost-source repetitions, abandoned larger deadline factorial, old E3–E7 pilots or the team's Paid CBAA as an official literature comparator. Preserve their raw identities in [the internal study index](EXPERIMENT_LEGACY_INDEX.md). If the manuscript does not require a claim they would uniquely support, leave them archived.
 
 **No CI, no automatic new experiment execution, and no production algorithm behavior changes are authorized by this plan.** Before Priority 1 changes code, the engineering protocol applies: AGENTS → AI_CHANGE_PROTOCOL → CHANGE_CONTINUITY → canonical spec → actual owner function, with one concern/owner/function/diagnostic and same-commit continuity.
+
+
+## P1 implementation status — no results implied
+
+The bounded Priority 1 method/geometry/metric contract is now frozen in [P1 matched five-native experiment](P1_MATCHED_FIVE_NATIVE.md); native algorithm behavior is preserved with optional read-only observer callbacks, and the historical Price Auction source is restored from its genuine owner. Local isolated 7/7 unit tests cover the external observer, paired grid/quality and synthetic evidence outputs (NOT native simulator integration). Four original native policy callback-invariance regressions plus original guarded Voting observation are provided for user Mac. **Do not promote this study before native tests, zero-loss and 30%-loss Smoke, formal 1,500 cases and original ZIP audit**. Deadline or radio experiments beyond P1 remain conditional as above; abandoned historical pilots remain closed.

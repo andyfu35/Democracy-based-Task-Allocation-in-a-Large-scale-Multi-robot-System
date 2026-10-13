@@ -158,7 +158,7 @@ def observer_cbba_agreement(agents: list[CBBALocal], capacity: int) -> bool:
 
 
 def run_cbba(scene: MultiTaskScene, channel: E9MChannel,
-             p_loss: float, max_rounds: int) -> MethodRun:
+             p_loss: float, max_rounds: int, external_observer=None) -> MethodRun:
     local_announcements = announce_tasks(channel, scene.task_positions)
     agents = [CBBALocal(i, scene.tasks, scene.robots) for i in range(scene.robots)]
     for agent in agents:
@@ -192,6 +192,11 @@ def run_cbba(scene: MultiTaskScene, channel: E9MChannel,
                                                robots=scene.robots, tasks=scene.tasks)
                 if decoded is not None:
                     accept_consensus(agent, sender, decoded, channel.clock_ms)
+        if external_observer is not None:
+            external_observer(
+                channel.clock_ms,
+                tuple((agent.robot_id, task)
+                      for agent in agents for task in agent.path))
         if observer_cbba_agreement(agents, scene.capacity):
             break
     agreed = observer_cbba_agreement(agents, scene.capacity)

@@ -145,7 +145,7 @@ def transmit_commit(scene: MultiTaskScene, channel: E9MChannel, task: int,
 
 
 def run_voting_multitask(scene: MultiTaskScene, channel: E9MChannel,
-                        p_loss: float) -> MethodRun:
+                        p_loss: float, external_observer=None) -> MethodRun:
     announcements = announce_tasks(channel, scene.task_positions)
     routes: list[list[int]] = [[] for _ in range(scene.robots)]
     counts = [0] * scene.robots
@@ -157,6 +157,11 @@ def run_voting_multitask(scene: MultiTaskScene, channel: E9MChannel,
         votes = transmit_votes(scene, channel, task, cost_views, counts, p_loss)
         winners = transmit_scores(scene, channel, task, counts, votes)
         transmit_commit(scene, channel, task, winners, routes, counts)
+        if external_observer is not None:
+            external_observer(
+                channel.clock_ms,
+                tuple((robot_id, item) for robot_id, route in enumerate(routes)
+                      for item in route))
     channel.audit_physical_bytes()
     return MethodRun(
         method="voting_multitask", routes=tuple(tuple(route) for route in routes),

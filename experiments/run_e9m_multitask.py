@@ -75,7 +75,7 @@ def get_e9m_git_sha() -> str:
 
 
 def run_e9m_case(scene, method: str, profile, loss: float,
-                 max_rounds: int) -> dict:
+                 max_rounds: int, external_observer=None) -> dict:
     seed = scene.seed
     salt = 0 if method == "voting_multitask" else 1
     timing = WifiCausalTimingSampler(profile, seed * 2 + salt,
@@ -84,9 +84,15 @@ def run_e9m_case(scene, method: str, profile, loss: float,
                          loss_seed=seed * 2 + salt, method=method)
     try:
         if method == "cbba":
-            result = run_cbba(scene, channel, loss, max_rounds)
+            result = (run_cbba(scene, channel, loss, max_rounds)
+                      if external_observer is None else
+                      run_cbba(scene, channel, loss, max_rounds,
+                               external_observer=external_observer))
         else:
-            result = run_voting_multitask(scene, channel, loss)
+            result = (run_voting_multitask(scene, channel, loss)
+                      if external_observer is None else
+                      run_voting_multitask(scene, channel, loss,
+                                           external_observer=external_observer))
         audit = audit_routes(scene, result.routes)
         ok = bool(audit.feasible and result.observer_agreement and
                   result.local_certificates == scene.robots and not result.guard_censored)
@@ -106,6 +112,8 @@ def run_e9m_case(scene, method: str, profile, loss: float,
                   "total_distance_m": audit.total_distance_m, "makespan_s": audit.makespan_s,
                   "discounted_reward": audit.discounted_reward, "allocation_ms": result.elapsed_ms}
     except ProtocolError as exc:
+        if external_observer is not None and exc.diagnostic.owner == "experiments.p1_feasibility":
+            raise  # preserve first failing observer diagnostic, not a method failure
         ok, failure, diagnostic = False, exc.diagnostic.code, json.dumps(exc.diagnostic.__dict__)
         routes = tuple(tuple() for _ in range(scene.robots))
         fields = {"rounds": 0, "guard_censored": 0,

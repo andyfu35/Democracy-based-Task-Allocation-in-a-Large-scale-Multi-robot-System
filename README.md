@@ -98,6 +98,8 @@ For **assignment quality**, the original Price Auction's Hungarian Cost ratios a
 
 **Evidence:** [complete 4,000-row new-method audit](docs/E9N_FORMAL_100SEED.md) · [original combined 100-row source](docs/figures/e9n/formal/original_five_method_common_cap1_source.csv) · [original auction study](docs/E9L_FORMAL_100SEED.md) · [original CBAA source manifest](docs/figures/e9j_cbaa/formal/source_manifest.json).
 
+**P1 measurement-closure candidate (source ready; NOT yet user-run):** the [matched five-original-method experiment](docs/P1_MATCHED_FIVE_NATIVE.md) will freshly execute N=T=25/50/100, 100 paired Seeds each, p30/C1. It records the read-only first globally feasible assignment event **without** stopping native protocols and independently computes one Euclidean/Hungarian cost on the same Seed. The original five-algorithm chart above remains source-verified prior evidence, not a P1 result; no new P1 figure is published until its original ZIP is audited.
+
 ### Multi-task assignment — separate capacity-four cohort
 
 **Formal cell:** 25 robots, 100 tasks, maximum **4 tasks per robot**, 30% loss, 100 paired Seeds; corrected full source ZIP, route and packet ledgers independently verified.
