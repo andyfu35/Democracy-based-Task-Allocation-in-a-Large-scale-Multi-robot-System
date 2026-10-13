@@ -1,0 +1,41 @@
+loss_percent,method,display_method,trials,native_complete,mean_native_stop_s,mean_sender_MB,mean_native_success_cost_over_hungarian,cost_success_n,source_role,executed_source_git_sha
+0,voting,Voting (Global Greedy),100,100,2.014440,0.171648,1.235261,100,new_batched_voting,8038370205d586c697295b42eb255812be7aa88e
+0,cbaa,CBAA,100,100,6.744911,1.325040,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+0,cbba,CBBA,100,100,6.969766,3.612232,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+0,price_auction,Price Auction,100,98,76.459007,0.193107,1.117831,98,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+10,voting,Voting (Global Greedy),100,100,2.381530,0.165661,1.230762,100,new_batched_voting,8038370205d586c697295b42eb255812be7aa88e
+10,cbaa,CBAA,100,100,9.953815,1.961008,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+10,cbba,CBBA,100,100,9.928230,5.208487,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+10,price_auction,Price Auction,100,99,94.697863,0.243618,1.115439,99,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+20,voting,Voting (Global Greedy),100,100,2.551260,0.158307,1.232382,100,new_batched_voting,8038370205d586c697295b42eb255812be7aa88e
+20,cbaa,CBAA,100,100,11.628827,2.292976,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+20,cbba,CBBA,100,100,11.275934,5.913980,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+20,price_auction,Price Auction,100,90,115.680353,0.300511,1.119138,90,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+30,voting,Voting (Global Greedy),100,100,2.685966,0.150765,1.233312,100,new_batched_voting,8038370205d586c697295b42eb255812be7aa88e
+30,cbaa,CBAA,100,100,13.647431,2.693040,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+30,cbba,CBBA,100,100,12.367643,6.488062,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+30,price_auction,Price Auction,100,78,135.828345,0.353939,1.117319,78,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+40,voting,Voting (Global Greedy),100,100,2.859268,0.143108,1.232581,100,new_batched_voting,8038370205d586c697295b42eb255812be7aa88e
+40,cbaa,CBAA,100,100,15.874644,3.134448,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+40,cbba,CBBA,100,100,14.281759,7.523814,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+40,price_auction,Price Auction,100,51,155.808238,0.407133,1.116241,51,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+50,voting,Voting (Global Greedy),100,100,3.094175,0.135622,1.238456,100,new_batched_voting,8038370205d586c697295b42eb255812be7aa88e
+50,cbaa,CBAA,100,100,18.420907,3.639088,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+50,cbba,CBBA,100,100,18.252823,9.699849,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+50,price_auction,Price Auction,100,31,171.357493,0.444878,1.126248,31,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+60,voting,Voting (Global Greedy),100,100,3.284568,0.128164,1.247855,100,new_batched_voting,8038370205d586c697295b42eb255812be7aa88e
+60,cbaa,CBAA,100,100,22.316996,4.411248,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+60,cbba,CBBA,100,100,27.593683,14.842903,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+60,price_auction,Price Auction,100,14,182.854336,0.474531,1.128247,14,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+70,voting,Voting (Global Greedy),100,100,3.607016,0.120827,1.261912,100,new_batched_voting,8038370205d586c697295b42eb255812be7aa88e
+70,cbaa,CBAA,100,100,27.728572,5.483760,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+70,cbba,CBBA,100,100,58.659340,31.819772,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+70,price_auction,Price Auction,100,9,187.170905,0.490582,1.120349,9,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+80,voting,Voting (Global Greedy),100,100,4.075096,0.113441,1.281368,100,new_batched_voting,8038370205d586c697295b42eb255812be7aa88e
+80,cbaa,CBAA,100,100,38.987349,7.715120,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+80,cbba,CBBA,100,0,116.065023,61.881408,,0,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+80,price_auction,Price Auction,100,0,191.469464,0.514830,,0,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+90,voting,Voting (Global Greedy),100,100,4.493584,0.105671,1.296574,100,new_batched_voting,8038370205d586c697295b42eb255812be7aa88e
+90,cbaa,CBAA,100,100,71.383177,14.135600,1.235261,100,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+90,cbba,CBBA,100,0,112.530442,56.343948,,0,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
+90,price_auction,Price Auction,100,0,192.189893,0.558031,,0,verified_reused_baseline,f514cfa3613e7b0bad5c739d136b09fea8c3f92c
