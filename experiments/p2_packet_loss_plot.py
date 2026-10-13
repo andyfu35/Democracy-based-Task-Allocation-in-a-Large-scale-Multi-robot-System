@@ -8,7 +8,7 @@ from democracy_mrta.diagnostics import Diagnostic, ProtocolError
 
 OWNER = "experiments.p2_packet_loss_plot"
 METHODS = ("voting", "cbaa", "cbba", "price_auction")
-LABELS = ("Original Voting", "Original CBAA", "Original CBBA", "Price Auction")
+LABELS = ("Voting (Batched Greedy)", "CBAA", "CBBA", "Price Auction")
 COLORS = ("#186FAF", "#B57B22", "#CA5549", "#815AB3")
 
 
@@ -64,7 +64,9 @@ def panel(rows: list[dict], losses: tuple[int, ...], field: str,
 
         def flush() -> None:
             if len(segment) >= 2:
-                out.append(f'<polyline points="{" ".join(segment)}" fill="none" stroke="{COLORS[idx]}" stroke-width="2.8"/>')
+                dashes = (f' stroke-dasharray="6 18" stroke-dashoffset="{idx*6}"'
+                          if field == "completion_rate" and idx else "")
+                out.append(f'<polyline points="{" ".join(segment)}" fill="none" stroke="{COLORS[idx]}" stroke-width="2.8"{dashes}/>')
             segment.clear()
 
         for pct in losses:
@@ -81,24 +83,27 @@ def panel(rows: list[dict], losses: tuple[int, ...], field: str,
             yy = bottom - (value - floor) / (maximum - floor) * (bottom - top)
             yy = min(max(yy, top), bottom)
             segment.append(f"{xx:.2f},{yy:.2f}")
-            out.append(f'<circle cx="{xx:.2f}" cy="{yy:.2f}" r="2.9" fill="{COLORS[idx]}"/>')
+            if field == "completion_rate":
+                out.append(f'<circle cx="{xx:.2f}" cy="{yy:.2f}" r="{9-2*idx}" fill="none" stroke="{COLORS[idx]}" stroke-width="1.9"/>')
+            else:
+                out.append(f'<circle cx="{xx:.2f}" cy="{yy:.2f}" r="2.9" fill="{COLORS[idx]}"/>')
         flush()
     return out
 
 
 def render_p2_figure(summary: list[dict], losses: tuple[int, ...]) -> str:
     validate_plot_source(summary, losses)
-    xml = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1350 1020" role="img" aria-label="P2 four original algorithms across 10 packet-loss levels">',
+    xml = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1350 1020" role="img" aria-label="P2 batched Greedy Voting versus three native baselines across 10 packet-loss levels">',
            '<rect width="1350" height="1020" fill="#FFFFFF"/>',
            '<g font-family="Arial,Helvetica,sans-serif" fill="#25394A">',
-           '<text x="44" y="43" font-size="30" font-weight="bold">B. Packet-loss robustness — four original methods</text>',
+           '<text x="44" y="43" font-size="30" font-weight="bold">B. Packet-loss robustness — batched Greedy Voting vs native baselines</text>',
            '<text x="44" y="73" font-size="16">100 robots = 100 tasks, capacity 1, 100 paired seeds, 0–90% PL in 10% steps</text>']
     for idx, (label, color) in enumerate(zip(LABELS, COLORS)):
         xx = 48 + idx * 316
         xml.append(f'<line x1="{xx}" x2="{xx+29}" y1="105" y2="105" stroke="{color}" stroke-width="4"/>')
         xml.append(f'<text x="{xx+38}" y="110" font-size="15">{escape(label)}</text>')
     xml.extend(panel(summary, losses, "completion_rate", "A. Native full completion (%)",
-                     "Denominator: all 100 seeds, including guard/failure", 40, 133,
+                     "Overlaps: dashed overlays + concentric markers; 100 seeds", 40, 133,
                      scale=100.0, cap=100.0))
     xml.extend(panel(summary, losses, "mean_all_seed_native_stop_ms", "B. Modeled native stop (s)",
                      "Only plotted if all 100 time records exist", 699, 133, scale=0.001))
@@ -109,7 +114,7 @@ def render_p2_figure(summary: list[dict], losses: tuple[int, ...]) -> str:
                      699, 519, floor=1.0))
     xml.extend([
         '<text x="43" y="928" font-size="15" font-weight="bold">Scientific limits and evidence rules</text>',
-        '<text x="43" y="952" font-size="14">Each method retains its original packet loss, native guard, stopping certificate and application payload accounting.</text>',
+        '<text x="43" y="952" font-size="14">Voting uses batched Vote/Score and paid Commit; baselines retain native traffic and stop.</text>',
         '<text x="43" y="974" font-size="14">Voting pays reliable Score/Commit; other methods lack equivalent paid global finalization. Times are NOT identical guarantees.</text>',
         '<text x="43" y="996" font-size="14">Rady sampled latency plus assumed 144 Mbps is a simulated proxy, not measured multi-robot Wi-Fi.</text>',
         '</g></svg>'])
