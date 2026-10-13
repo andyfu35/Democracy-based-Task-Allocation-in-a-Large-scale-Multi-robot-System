@@ -1,6 +1,6 @@
 """P2 validation: exact grid, guards, missing values, and figure source."""
 from __future__ import annotations
-from argparse import Namespace
+from argparse import Namespace, SimpleNamespace
 import json
 import tempfile
 from pathlib import Path
@@ -10,7 +10,7 @@ from democracy_mrta.diagnostics import ProtocolError
 from experiments.run_p2_packet_loss import LOSSES, METHODS, validate_config, summarize, validate_complete_grid, prepare_evidence, validate_batched_voting_evidence, keys
 from experiments.p2_packet_loss_plot import render_p2_figure
 from democracy_mrta.scenario import generate_e0_scenario
-from democracy_mrta.optimizer import solve_sequential_greedy_reference
+from democracy_mrta.optimizer import solve_visible_batched_greedy_assignment
 from democracy_mrta.task_information import encode_task_announcement
 
 
@@ -100,7 +100,8 @@ class P2ContractTests(unittest.TestCase):
 
     def test_per_seed_native_batch_task_cost_and_zero_loss_greedy_gate(self):
         scene = generate_e0_scenario(0, 2, 2)
-        optimum_greedy = solve_sequential_greedy_reference(scene.cost_matrix)
+        optimum_greedy = solve_visible_batched_greedy_assignment(
+            scene.cost_matrix, frozenset(range(scene.num_robots)))
         evidence = {
             "task_announcement_sender_frames": len(encode_task_announcement(scene.task_positions)),
             "cost_sender_frames": 2, "vote_sender_frames": 2,
@@ -130,6 +131,39 @@ class P2ContractTests(unittest.TestCase):
         with self.assertRaises(ProtocolError) as cm:
             validate_batched_voting_evidence(scene, row)
         self.assertEqual(cm.exception.diagnostic.code, "P2_BATCH_NO_LOSS_REQUIRES_ONE_EPOCH")
+
+    def test_zero_loss_rejects_historical_task_id_greedy_pairing(self):
+        scene = SimpleNamespace(
+            num_robots=2, num_tasks=2,
+            task_positions=((0.0, 0.0), (1.0, 1.0)),
+            cost_matrix=((2.0, 1.0), (3.0, 100.0)),
+        )
+        frame_count = len(encode_task_announcement(scene.task_positions))
+        batch = {
+            "task_announcement_sender_frames": frame_count,
+            "cost_sender_frames": 2, "commit_sender_frames": 2,
+            "phase_timing": {
+                "task_ms": 1.0, "cost_once_ms": 1.0,
+                "vote_and_score_ms": 1.0, "commit_ms": 1.0,
+                "epochs": 1,
+            },
+        }
+        old_task_first = ((0, 0), (1, 1))
+        row = {
+            "method": "voting", "loss_percent": 0,
+            "native_diagnostic": "", "native_success": 1,
+            "native_stop_ms": 4.0,
+            "native_assignment_json": json.dumps(old_task_first),
+            "original_traffic_ledger_json": json.dumps({"batch": batch}),
+        }
+        with self.assertRaises(ProtocolError) as cm:
+            validate_batched_voting_evidence(scene, row)
+        self.assertEqual(
+            cm.exception.diagnostic.code, "P2_GLOBAL_GREEDY_NO_LOSS_MISMATCH"
+        )
+        # The same real stage-count and time evidence should admit the GLOBAL plan.
+        row["native_assignment_json"] = json.dumps(((1, 0), (0, 1)))
+        validate_batched_voting_evidence(scene, row)
 
     def test_missing_sender_accounting_not_zero(self):
         rows = [case(30, seed, method) for seed in range(100) for method in METHODS]
