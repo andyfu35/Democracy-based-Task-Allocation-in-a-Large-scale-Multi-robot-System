@@ -6,6 +6,7 @@ import unittest
 from democracy_mrta.coordination import (
     decode_greedy_batch_packet, encode_greedy_batch_packet,
     simulate_democracy_hungarian_retirement, validate_vote_decision_rule,
+    resolve_capacity_one_batch_winners,
 )
 from democracy_mrta.optimizer import (
     solve_sequential_greedy_reference, solve_visible_batched_greedy_assignment,
@@ -22,6 +23,12 @@ MATRIX = (
 )
 
 
+ADVERSARIAL = (
+    (2.0, 1.0),
+    (3.0, 100.0),
+)
+
+
 class OneMsSampler:
     def sample_ms(self, key):
         return 1.0
@@ -32,9 +39,9 @@ class DeterministicLoss:
         return probability < 1.0
 
 
-def run_voting(mode, packet_loss=0.0):
+def run_voting(mode, packet_loss=0.0, cost_matrix=MATRIX):
     return simulate_democracy_hungarian_retirement(
-        cost_matrix=MATRIX, sampler=OneMsSampler(), loss_sampler=DeterministicLoss(),
+        cost_matrix=cost_matrix, sampler=OneMsSampler(), loss_sampler=DeterministicLoss(),
         p_loss=packet_loss, p_vote_loss=packet_loss,
         phase_timeout_ms=20.0, max_rounds=8,
         voting_strategy=mode, vote_decision_rule="received_plurality",
@@ -43,15 +50,40 @@ def run_voting(mode, packet_loss=0.0):
 
 
 class P2BatchedGreedyTests(unittest.TestCase):
-    def test_full_cost_one_batch_matches_unmodified_sequential_greedy(self):
+    def test_full_cost_global_minimum_pair_greedy_and_partial_high_index_tasks(self):
         visible = frozenset(range(4))
         proposal = solve_visible_batched_greedy_assignment(MATRIX, visible)
-        self.assertEqual(proposal.assigned_pairs,
-                         solve_sequential_greedy_reference(MATRIX).assigned_pairs)
+        self.assertEqual(proposal.assigned_pairs, ((0, 0), (1, 1), (2, 2), (3, 3)))
+        globally_ranked = solve_visible_batched_greedy_assignment(ADVERSARIAL, {0, 1})
+        self.assertEqual(globally_ranked.assigned_pairs, ((1, 0), (0, 1)))
+        self.assertNotEqual(globally_ranked.assigned_pairs,
+                            solve_sequential_greedy_reference(ADVERSARIAL).assigned_pairs)
         partial = solve_visible_batched_greedy_assignment(MATRIX, {0, 2})
         self.assertEqual(len(partial.assigned_pairs), 2)
         self.assertEqual(len({robot for robot, _ in partial.assigned_pairs}), 2)
-        self.assertTrue(all(task in (0, 1) for _, task in partial.assigned_pairs))
+        self.assertEqual(set(t for _, t in partial.assigned_pairs), {0, 2})
+
+    def test_global_score_order_prevents_earlier_task_from_stealing_high_voted_robot(self):
+        # Task 1 has five received votes for R0; Task 0 only one for R0 and R1.
+        # Task-ID-first would commit R0 on task 0 and strand task 1.
+        winners, ties = resolve_capacity_one_batch_winners(
+            scores={(0, 0): 1, (0, 1): 1, (1, 0): 5},
+            physical_tasks=(0, 1), physical_robots=(0, 1),
+        )
+        self.assertEqual(winners, ((1, 0), (0, 1)))
+        self.assertEqual(ties, 1)
+        validate_one_to_one_commits(winners)
+
+    def test_zero_loss_adversarial_global_greedy_via_real_vote_score_commit(self):
+        result = run_voting("greedy_batch", cost_matrix=ADVERSARIAL)
+        self.assertTrue(result.full_assignment_success)
+        self.assertEqual(len(result.rounds), 1)
+        self.assertEqual(result.assigned_pairs, ((1, 0), (0, 1)))
+        self.assertEqual(result.total_cost, 4.0)
+        phase_events = result.rounds[0].coordination.events
+        self.assertEqual(sum(e.phase == "cost" for e in phase_events), 2)
+        self.assertEqual(sum(e.phase == "vote" for e in phase_events), 2)
+        self.assertEqual(sum(e.phase == "commit" for e in phase_events), 2)
 
     def test_batch_rejects_implicit_strict_majority_rule(self):
         with self.assertRaises(ProtocolError) as ctx:
@@ -80,7 +112,7 @@ class P2BatchedGreedyTests(unittest.TestCase):
         self.assertTrue(result.full_assignment_success)
         self.assertEqual(len(result.rounds), 1)
         self.assertEqual(result.assigned_pairs,
-                         solve_sequential_greedy_reference(MATRIX).assigned_pairs)
+                         solve_visible_batched_greedy_assignment(MATRIX, frozenset(range(4))).assigned_pairs)
         events = result.rounds[0].coordination.events
         self.assertEqual(sum(e.phase == "cost" for e in events), 4)
         self.assertEqual(sum(e.phase == "vote" for e in events), 4)
