@@ -104,6 +104,7 @@ class P2ContractTests(unittest.TestCase):
         }
         row = {
             "method": "voting", "loss_percent": 0,
+            "native_diagnostic": "",
             "native_success": 1, "native_stop_ms": 10.0,
             "native_assignment_json": json.dumps(optimum_greedy.assigned_pairs),
             "original_traffic_ledger_json": json.dumps({"batch": evidence}),
