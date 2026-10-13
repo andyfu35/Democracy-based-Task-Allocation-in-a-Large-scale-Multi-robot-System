@@ -130,7 +130,7 @@ def _render_panel(lines: list[str], rows: list[dict], *, top: int,
         for x,y in pts:
             lines.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.2" fill="{COLORS[method]}"/>')
     if show_missing:
-        lines.append(f'<text x="1136" y="{top+18}" text-anchor="end" font-size="12" fill="#697A89">E9I/J complete rates omitted: per-N counts absent in frozen plot source</text>')
+        lines.append(f'<text x="1136" y="{ybottom+68}" text-anchor="end" font-size="12" fill="#697A89">E9I/J complete rates omitted: per-N counts absent in frozen plot source</text>')
 
 
 def render_five_method_svg(rows: list[dict]) -> str:
@@ -143,8 +143,8 @@ def render_five_method_svg(rows: list[dict]) -> str:
     max_kb = max(float(r["mean_sender_bytes"])/1000 for r in rows)
     ceiling_time = max(10, math.ceil(max_time/10)*10)
     ceiling_kb = max(50, math.ceil(max_kb/500)*500)
-    parts = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 1140" role="img" aria-label="Five algorithms, same capacity-one N equals T geometry, three native metrics">',
-             '<rect width="1240" height="1140" fill="#fff"/>',
+    parts = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 1240" role="img" aria-label="Five algorithms, same capacity-one N equals T geometry, three native metrics">',
+             '<rect width="1240" height="1240" fill="#fff"/>',
              '<g font-family="Arial,Helvetica,sans-serif">',
              '<text x="73" y="44" fill="#223648" font-size="27" font-weight="bold">Five-algorithm comparison | single task per robot</text>',
              '<text x="75" y="72" fill="#52697C" font-size="15">E9I/J/L frozen original 100seed means (dashed) + E9N newly executed 100seed means (solid)</text>']
@@ -156,12 +156,12 @@ def render_five_method_svg(rows: list[dict]) -> str:
         parts.append(f'<text x="{x+39}" y="{y+5}" fill="#324A5C" font-size="15">{html.escape(label)}</text>')
     _render_panel(parts, rows, top=220, label="A. Modeled allocation / stop time (seconds)",
                   field="mean_stop_s", ceiling=ceiling_time, unit="s")
-    _render_panel(parts, rows, top=510, label="B. Attempted application sender Bytes (decimal kB)",
+    _render_panel(parts, rows, top=540, label="B. Attempted application sender Bytes (decimal kB)",
                   field="mean_sender_bytes", ceiling=ceiling_kb, unit="kB")
-    _render_panel(parts, rows, top=800, label="C. Complete assignment under method-specific endpoint (%)",
+    _render_panel(parts, rows, top=860, label="C. Complete assignment under method-specific endpoint (%)",
                   field="success_rate", ceiling=100, unit="%",show_missing=True)
-    parts.extend(['<text x="74" y="1105" font-size="12" fill="#596D7D">Not equal end guarantees: Voting paid Commit; CBAA / Auction / CBBA modeled optimistic local / observer stop.</text>',
-                  '<text x="74" y="1124" font-size="12" fill="#596D7D">Rady ROS delay samples + assumed 144Mbps shared radio, not physical Wi-Fi; frozen vs new runs use different code commits.</text>',
+    parts.extend(['<text x="74" y="1195" font-size="12" fill="#596D7D">Not equal end guarantees: Voting paid Commit; CBAA / Auction / CBBA modeled optimistic local / observer stop.</text>',
+                  '<text x="74" y="1215" font-size="12" fill="#596D7D">Rady ROS delay samples + assumed 144Mbps shared radio, not physical Wi-Fi; frozen vs new runs use different code commits.</text>',
                   '</g></svg>'])
     return '\n'.join(parts)+'\n'
 

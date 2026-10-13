@@ -69,7 +69,7 @@ For the original 2-method result, see the [E9J independent cost-quality figure](
 
 **Actual new user-run source verified:** Same N=T=5..100 (step5), 100 Seeds per N, 30% independent BID/AWARD drops, epsilon10.0 physical cost units, original 28B BID/AWARD packets and reliable paid TASK announcement. Original E9I Voting and E9J native CBAA are the two official frozen algorithm baselines; neither was rerun. The historical E9L input also retained E9K's technical-protocol record, which is excluded from all algorithm rankings. E9L is a networked **Bertsekas-style price auction variant**, **not original CBBA**, and its end condition is still optimistic all-local AWARD certification plus observer.
 
-![E9L: Voting vs original CBAA vs distributed Price Auction, modeled time and attempted sender payload](docs/figures/e9l_price/formal/primary_three_algorithm_time_and_sender_bytes.svg)
+The [original E9L three-method modeled time/Bytes figure](docs/figures/e9l_price/formal/primary_three_algorithm_time_and_sender_bytes.svg) remains preserved. The new **five-method capacity-one** primary comparison appears in Section G below.
 
 E9L locally completed **1,867/2,000** cases; **133** reached the 160-round guard. The observer found a full assignment in 1,880 cases, including 13 not locally certifiable — therefore observer agreement and local distributed evidence are **not interchangeable**.
 
@@ -86,13 +86,25 @@ E9L's finished-assignment Cost/Hungarian ratio is **1.1173** versus Voting **1.3
 
 **Major caveat:** E9L and original CBAA use free simulator aggregation of local evidence; Voting pays a reliable Commit. Their stopping guarantees differ. Rady+hypothetical 144Mbps is **not** physical Wi-Fi ns-3. ε=10 was a fixed design-stage setting and cannot be retrospectively tuned to improve these archived formal results. [Detailed formal audit](docs/E9L_FORMAL_100SEED.md) · [derived 20-point CSV](docs/figures/e9l_price/formal/plot_source_20point_rounded.csv) · [original source SHA manifest](docs/figures/e9l_price/formal/source_manifest.json). Original E9J figures and all immutable source ZIP records remain unchanged; E9K's internal protocol-extension data remain in the technical archive, not the algorithm comparison.
 
-### F. Corrected E9M original source verified — shared five-method overview in progress
+### F. E9M — separately verified capacity-four multi-task experiment
 
-The `experiments/plot_e9m_unified_comparison.py` presentation owner is ready to display **Voting (E9I), original CBAA (E9J), Price Auction (E9L), multi-task Voting (E9M), and original CBBA (E9M)** in **one six-panel SVG**: time, attempted Bytes and available completion evidence for each workload. The first row plots the formally audited capacity-one N=T scaling series; the second plots the *corrected* E9M 25R/100T/capacity-four 100-seed results. **These are different workloads, not five paired algorithms competing on the same scenario. No cross-row speed ranking is valid.** The runner refuses the superseded E9M f347e26 version, non-descendant code, incomplete 100-seed grids and invalid source SHA. The exact corrected E9M original ZIP has now been received and independently audited ([E9M source/route/packet/manifest audit](docs/E9M_CORRECTED_ORIGINAL_ZIP_AUDIT_100SEED.md)); the mixed-workload unified figure is still not embedded while the equal-capacity E9N study is pending. E9K Paid CBAA remains excluded. [E9M plotting instructions](docs/E9M_CBBA_MULTITASK.md).
+The [corrected E9M original-ZIP audit](docs/E9M_CORRECTED_ORIGINAL_ZIP_AUDIT_100SEED.md) confirms 25 Robots, 100 Tasks, capacity4, 100 paired Seeds and 30% Loss. Voting Multi-task modeled time63.023s, 116.83 kB versus original CBBA 6.878s, 1,006.87 kB, both 100/100. **E9M capacity4 is not mixed with E9N capacity1** in the new figure. Source ZIP remains in the user Library with cryptographic identity.
 
-### G. E9N — shared capacity-one five-method benchmark (source ready, not yet executed)
+### G. E9N — original five-method capacity-one comparison, complete source audit
 
-[E9N experimental plan and local commands](docs/E9N_ONE_TASK_FIVE_METHOD.md). The five-way **same N=T, capacity1, p30** curve will show E9I Voting, E9J original CBAA and E9L distributed Price Auction from frozen source-audited 100-seed aggregates, plus new C1 Voting Multi-task and CBBA from 20×100 paired scene executions. The E9N figure is generated only after the new formal experiment and original CSV/SHA checks. **This is 4000 new algorithm executions +6000 archived outcomes**, not all-five fresh replay; protocol-specific end guarantees still differ. E9M capacity4 25R100T historical results are separate, not mixed into a single pooled speed ranking. E9K Paid CBAA excluded.
+**Formal original user ZIP received and independently verified:** N=T=5..100 in steps of5, C1, 30% loss, 100 Seeds per N. Two **newly executed** algorithms (Voting Multi-task/CBBA: 4,000 original per-seed cases) are plotted alongside three frozen previously audited E9I/J/L series (6,000 historical cases). The five series share capacity-one original scene geometry, but method-specific traffic, termination and source commits differ.
+
+![E9N: Five methods on one capacity-one graph, modeled allocation time, sender Bytes and supported success rates](docs/figures/e9n/formal/primary_five_method_time_bytes_success.svg)
+
+| 100 Robots/Tasks, C1, 30% Loss | Voting E9I | CBAA E9J | Price Auction E9L | Voting Multi-task E9N | CBBA E9N |
+|---|---:|---:|---:|---:|---:|
+| Mean modeled stop seconds | 20.132 | 13.647 | 135.828 | 101.919 | **12.368** |
+| Sender application kB | 255.50 | 2,693.04 | 353.94 | 305.39 | 6,488.06 |
+| Completion available in frozen plotted CSV / new raw | n/a | n/a | 78/100 | **100/100** | **100/100** |
+
+For the **two newly executed E9N methods only**, CBBA has **8.24× shorter modeled observer-stop time** but requires **21.24× sender Bytes** relative to Voting Multi-task C1; CBBA has shorter total travel, whereas Voting has shorter mean maximum route/makespan. These modeled native endpoints are **not identical distributed finalization guarantees**. E9I/J per-N success counts are deliberately not fabricated from the frozen aggregate figure; E9L has guard-censored cases. The network uses Rady delay traces plus assumed 144 Mbps, **not physical Wi-Fi**. Paid CBAA E9K remains excluded.
+
+[Original E9N 4,000-row source audit, SHA and N100 route analysis](docs/E9N_FORMAL_100SEED.md) · [original five-method source CSV](docs/figures/e9n/formal/original_five_method_common_cap1_source.csv) · [machine-readable audit](docs/figures/e9n/formal/verified_original_zip_audit_100seed.json).
 
 ## 3. Other studies: status only
 
@@ -100,6 +112,7 @@ The `experiments/plot_e9m_unified_comparison.py` presentation owner is ready to 
 |---|---|---|
 | **E2** | **Provisional:** original Hungarian Cost/Vote one-round aggregate has not passed full per-vote forensic acceptance | [E2 notes](results/e2_packet_loss/README.md) |
 | **E9C** | Sender packet-size/SEND accounting **control**, not a certified dynamic-stop comparison | [Historical results](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md) |
+| **E9N** | **Original 4,000-row capacity-one ZIP verified:** 20 sizes, 100 Seeds, two new methods 100% complete; figure adds frozen E9I/J/L source without rerun | [Original ZIP audit](docs/E9N_FORMAL_100SEED.md) |
 | **E9M** | **Original corrected 100-seed source ZIP verified:** two methods complete 100/100; original SHA, path and packet ledgers audited; observer vs paid-Commit end conditions differ | [Original ZIP source audit](docs/E9M_CORRECTED_ORIGINAL_ZIP_AUDIT_100SEED.md) |
 | **E9L** | **Formal user-run 100-seed source verified:** 1,867/2,000 full local certificates; 133 guard-censored; original source SHA auditable. | [Results report](docs/E9L_FORMAL_100SEED.md) |
 | **E9H** | Implemented deadline hypothesis and pilot, but its **full original factorial 100-seed study is not published**; E9I is a separate completed Cost30 follow-up | [Canonical design](docs/EXPERIMENT_PROTOCOL.md) |
@@ -107,7 +120,7 @@ The `experiments/plot_e9m_unified_comparison.py` presentation owner is ready to 
 
 ## 4. Data provenance and scientific limits
 
-The four main figures above are deliberately chosen from previously published source-based SVGs. **All former figures, source tables, old pilot notes and run commands remain accessible in the archive and experiment-specific directories**; no original experiment is deleted.
+The four main figures above preserve verified historical evidence and use a publication-layout-only E9N SVG derived from the original user source; no original numeric plot data are overwritten. **All former figures, source tables, old pilot notes and run commands remain accessible in the archive and experiment-specific directories**; no original experiment is deleted.
 
 The loss model uses independent Bernoulli drops **per receiver** and pays each original broadcast sender payload once, whether received or dropped. This is **application-layer attempted transmission**, not measured Wi-Fi MAC/PHY, actual ACK/retry cost or radio energy. Only sampled Rady ROS application delay is an empirical timing input. The 144 Mbps shared-radio/backoff service is hypothetical; **no verified ns-3 or 100-robot RF test** is claimed.
 

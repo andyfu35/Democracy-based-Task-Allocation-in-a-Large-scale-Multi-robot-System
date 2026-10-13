@@ -1,0 +1,219 @@
+{
+  "study": "E9N",
+  "status": "verified_original_source_zip",
+  "original_zip_filename": "e9n_cap1_100seed_20261013_102240.zip",
+  "original_zip_sha256": "f4807e70fe5c58ec9908c6adc39f2fbc50a31312222d757ca8205ee6ca3cc86d",
+  "original_zip_size_bytes": 773072,
+  "executed_git_sha": "5bb3f7ca18c3812413539550edb3a2b370fa11d3",
+  "source_manifest_sha256": "6ef1c2c1140c6a73bdd754e30382c02e13636c4040f515ca497be21f3c144b06",
+  "file_sha256": {
+    "per_seed_e9n.csv": "a0197db3e0821c8d2c5aeec4a6c3f8bbb73a2899cbccfe8446b59d733fbad6da",
+    "summary_e9n.csv": "9923c3ffca528618f2bdf2592d0da89503dd74cd7b425b4c6cbdec8f2842cffa",
+    "five_method_common_cap1.svg": "2753bcb8c336bdd9ba91d1877c7a09bfdef7603b64f902a0f641464819f076f2",
+    "five_method_common_cap1_source.csv": "e7469f50fb47b96d79a467ab2f030597ed76a1d85d0c72a7a3284005856b789f"
+  },
+  "log_sha256": "b40dc61f9d9ab3b0876b628746d8f2cd5b279b8dd67335ece9bb8392699256a6",
+  "original_frozen_legacy_blob_sha": "950ea0c2bd28dff280181fcc2f8b58d6db27633a",
+  "source_rady": {
+    "source_commit": "1996e5bb69b9ba4d25060cbc14838ddedf65cff2",
+    "source_blob_sha": "11e70e685229cc26458f272b0c954487c87d7953",
+    "sample_count": 121
+  },
+  "source_started": "2026-10-13T01:14:32.066757+00:00",
+  "source_finished": "2026-10-13T02:22:39.881172+00:00",
+  "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+  "python": "3.13.5",
+  "counts": {
+    "raw": 4000,
+    "summary": 40,
+    "five_method_plot": 100,
+    "methods": [
+      "voting_multitask",
+      "cbba"
+    ],
+    "sizes": [
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55,
+      60,
+      65,
+      70,
+      75,
+      80,
+      85,
+      90,
+      95,
+      100
+    ],
+    "scene_pairs": 2000,
+    "routes_checked": 4000,
+    "log_lines": 4000
+  },
+  "completed_by_n_method": {
+    "5": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "10": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "15": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "20": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "25": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "30": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "35": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "40": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "45": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "50": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "55": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "60": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "65": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "70": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "75": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "80": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "85": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "90": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "95": {
+      "voting_multitask": 100,
+      "cbba": 100
+    },
+    "100": {
+      "voting_multitask": 100,
+      "cbba": 100
+    }
+  },
+  "last_n_100_summary": {
+    "voting_multitask": {
+      "mean_all_seed_stop_ms": 101919.109639773,
+      "mean_all_seed_sender_bytes": 305393.6,
+      "mean_all_seed_sender_sends": 15110.28,
+      "mean_success_only_total_distance_m": 1385.1476591981339,
+      "mean_success_only_makespan_s": 85.74540677581241,
+      "mean_success_only_discounted_reward": 9863.662518324994,
+      "success_count": 100,
+      "guard": 0
+    },
+    "cbba": {
+      "mean_all_seed_stop_ms": 12367.64325422517,
+      "mean_all_seed_sender_bytes": 6488061.61,
+      "mean_all_seed_sender_sends": 6451.45,
+      "mean_success_only_total_distance_m": 1260.8468915753372,
+      "mean_success_only_makespan_s": 99.44961290513211,
+      "mean_success_only_discounted_reward": 9876.35920828623,
+      "success_count": 100,
+      "guard": 0
+    }
+  },
+  "paired_n100": {
+    "allocation_ms": {
+      "mean_diff": 89551.46638554783,
+      "ci95": [
+        88676.1548857476,
+        90445.48600815583
+      ],
+      "neg": 0,
+      "pos": 100
+    },
+    "sender_bytes": {
+      "mean_diff": -6182668.01,
+      "ci95": [
+        -6459643.85,
+        -5912508.87
+      ],
+      "neg": 100,
+      "pos": 0
+    },
+    "total_distance_m": {
+      "mean_diff": 124.30076762279674,
+      "ci95": [
+        108.25949706845722,
+        141.24696621726733
+      ],
+      "neg": 4,
+      "pos": 96
+    },
+    "makespan_s": {
+      "mean_diff": -13.704206129319706,
+      "ci95": [
+        -17.376577631805905,
+        -9.90518634117272
+      ],
+      "neg": 78,
+      "pos": 22
+    },
+    "discounted_reward": {
+      "mean_diff": -12.696689961235279,
+      "ci95": [
+        -14.304922675570852,
+        -11.17278170502339
+      ],
+      "neg": 97,
+      "pos": 3
+    }
+  },
+  "errors": [],
+  "checked_at_utc": "2026-10-13T02:25:34.230064+00:00",
+  "caveats": [
+    "source original ZIP SHA + internal hashes independently verified; E9I/J/L prior source data not rerun",
+    "different native stopping contracts (CBBA observer vs paid Voting Commit)",
+    "modeled Rady + hypothetical 144Mbps, not measured physical WiFi",
+    "E9M capacity4 is different study and not included in E9N results"
+  ]
+}

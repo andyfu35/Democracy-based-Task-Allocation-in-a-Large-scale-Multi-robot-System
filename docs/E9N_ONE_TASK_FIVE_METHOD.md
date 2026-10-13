@@ -1,6 +1,6 @@
 # E9N — capacity-one, same-coordinate five-algorithm overview
 
-**Status 2026-10-13:** newly implemented experiment candidate. Test on user Mac; **no E9N results exist yet**. Do not claim this is a new 10,000-execution rerun of every algorithm. No CI.
+**Status 2026-10-13:** **Completed original 100seed/20-size E9N ZIP received and independently audited (4,000/4,000 native records valid, 0 audit failures)**; see [E9N original formal source report](E9N_FORMAL_100SEED.md). Executed source Git SHA `5bb3f7c`; original binary preserved unchanged in user Library `/投票演算法/E9N/`. E9I/J/L are previous frozen evidence, not rerun. No CI.
 
 ## Scientific purpose and registered cell
 
@@ -55,3 +55,8 @@ test -f "$E9N_ROOT/manifest_e9n.json" && zip -r "$HOME/Downloads/e9n_all5_cap1_l
 ```
 
 Upload the complete E9N ZIP. We will verify original `per_seed_e9n.csv` and its checksums before promoting the one figure in README, replacing redundant old plots rather than proliferating them.
+
+
+## 2026-10-13 exact formal source result
+
+The exact original `e9n_cap1_100seed_20261013_102240.zip` SHA256 `f4807e70fe5c58ec9908c6adc39f2fbc50a31312222d757ca8205ee6ca3cc86d`, Manifest `5bb3f7c`, contains 4,000 complete raw E9N rows, 40 source summary rows, 100 five-way figure rows. Source-original figure/CSV unchanged, original dataset separately archived in user Library. The [official detailed report](E9N_FORMAL_100SEED.md) independently replays scenario hashes, packet ledgers and route quality. Corrected publication-only image spacing changes no numeric data or experiment protocol; old E9M C4 metrics never added to E9N C1 ranking.

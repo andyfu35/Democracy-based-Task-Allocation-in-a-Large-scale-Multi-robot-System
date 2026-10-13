@@ -1,0 +1,101 @@
+robots,tasks,capacity,method,method_label,mean_stop_s,mean_sender_bytes,success_rate,source,status
+5,5,1,voting_e9i,Voting (E9I),1.277855,1096.48,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+5,5,1,cbaa_e9j,CBAA (E9J),4.050174,3018.4,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+5,5,1,auction_e9l,Price Auction (E9L),8.862592,1877.84,1.0,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+5,5,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),0.9707033127699999,1043.0,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+5,5,1,cbba_cap1_e9n,Original CBBA C1 (E9N),0.4222777275955555,4844.54,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+10,10,1,voting_e9i,Voting (E9I),2.086658,3455.68,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+10,10,1,cbaa_e9j,CBAA (E9J),5.467316,14044.8,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+10,10,1,auction_e9l,Price Auction (E9L),17.616927,6525.12,1.0,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+10,10,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),2.8720249785466687,3562.4,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+10,10,1,cbba_cap1_e9n,Original CBBA C1 (E9N),0.8727592514766663,21482.42,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+15,15,1,voting_e9i,Voting (E9I),2.92835,7084.32,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+15,15,1,cbaa_e9j,CBAA (E9J),6.556518,35864.2,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+15,15,1,auction_e9l,Price Auction (E9L),28.044404,14341.72,1.0,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+15,15,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),5.474317633076667,7578.4,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+15,15,1,cbba_cap1_e9n,Original CBBA C1 (E9N),1.4027995722100002,58534.58,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+20,20,1,voting_e9i,Voting (E9I),3.744999,11973.12,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+20,20,1,cbaa_e9j,CBAA (E9J),7.135577,67267.2,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+20,20,1,auction_e9l,Price Auction (E9L),36.296163,23799.12,1.0,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+20,20,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),8.57718428645332,13093.8,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+20,20,1,cbba_cap1_e9n,Original CBBA C1 (E9N),1.6763563320066672,104946.86,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+25,25,1,voting_e9i,Voting (E9I),4.550013,18064.8,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+25,25,1,cbaa_e9j,CBAA (E9J),7.712998,111100.0,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+25,25,1,auction_e9l,Price Auction (E9L),39.028294,31546.28,1.0,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+25,25,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),12.335563298842139,20114.8,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+25,25,1,cbba_cap1_e9n,Original CBBA C1 (E9N),2.1022704581277796,178992.01,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+30,30,1,voting_e9i,Voting (E9I),5.536018,25383.36,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+30,30,1,cbaa_e9j,CBAA (E9J),8.411118,171642.4,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+30,30,1,auction_e9l,Price Auction (E9L),50.821715,47124.48,1.0,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+30,30,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),16.234785956472034,28638.2,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+30,30,1,cbba_cap1_e9n,Original CBBA C1 (E9N),2.9493203563466768,294060.5,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+35,35,1,voting_e9i,Voting (E9I),6.273109,33944.48,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+35,35,1,cbaa_e9j,CBAA (E9J),8.865065,242701.8,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+35,35,1,auction_e9l,Price Auction (E9L),60.189499,63732.52,1.0,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+35,35,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),20.731537725840745,38652.2,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+35,35,1,cbba_cap1_e9n,Original CBBA C1 (E9N),4.024784985774462,456154.99,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+40,40,1,voting_e9i,Voting (E9I),7.268395,43705.28,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+40,40,1,cbaa_e9j,CBAA (E9J),9.200033,324505.6,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+40,40,1,auction_e9l,Price Auction (E9L),63.089778,75141.0,1.0,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+40,40,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),25.622210903082753,50182.8,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+40,40,1,cbba_cap1_e9n,Original CBBA C1 (E9N),4.51111237286224,618376.5,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+45,45,1,voting_e9i,Voting (E9I),8.191794,54676.96,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+45,45,1,cbaa_e9j,CBAA (E9J),9.711454,427812.8,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+45,45,1,auction_e9l,Price Auction (E9L),74.75001,98699.48,0.98,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+45,45,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),30.75689927116137,63199.2,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+45,45,1,cbba_cap1_e9n,Original CBBA C1 (E9N),5.202019560478906,845587.07,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+50,50,1,voting_e9i,Voting (E9I),9.141287,66906.56,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+50,50,1,cbaa_e9j,CBAA (E9J),10.324887,557264.0,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+50,50,1,auction_e9l,Price Auction (E9L),80.567599,116426.12,0.98,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+50,50,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),36.344867227819805,77711.0,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+50,50,1,cbba_cap1_e9n,Original CBBA C1 (E9N),5.685381260948901,1091605.57,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+55,55,1,voting_e9i,Voting (E9I),10.33627,80289.12,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+55,55,1,cbaa_e9j,CBAA (E9J),10.503377,679955.2,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+55,55,1,auction_e9l,Price Auction (E9L),84.90319,133691.04,0.96,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+55,55,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),42.013454701060255,93731.6,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+55,55,1,cbba_cap1_e9n,Original CBBA C1 (E9N),6.0074196284855645,1336980.45,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+60,60,1,voting_e9i,Voting (E9I),11.2312,94935.04,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+60,60,1,cbaa_e9j,CBAA (E9J),11.07607,844524.8,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+60,60,1,auction_e9l,Price Auction (E9L),91.209334,153431.44,0.92,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+60,60,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),48.116553584887214,111254.2,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+60,60,1,cbba_cap1_e9n,Original CBBA C1 (E9N),7.0212233398966335,1721470.85,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+65,65,1,voting_e9i,Voting (E9I),12.49452,110764.64,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+65,65,1,cbaa_e9j,CBAA (E9J),11.266807,999659.2,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+65,65,1,auction_e9l,Price Auction (E9L),96.74751,175461.12,0.95,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+65,65,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),54.27428033325632,130267.2,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+65,65,1,cbba_cap1_e9n,Original CBBA C1 (E9N),7.819658723173287,2134845.02,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+70,70,1,voting_e9i,Voting (E9I),13.436405,127806.08,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+70,70,1,cbaa_e9j,CBAA (E9J),11.546437,1177902.4,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+70,70,1,auction_e9l,Price Auction (E9L),100.005115,192435.4,0.92,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+70,70,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),60.32001341072203,150789.0,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+70,70,1,cbba_cap1_e9n,Original CBBA C1 (E9N),8.254612645924366,2541736.34,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+75,75,1,voting_e9i,Voting (E9I),14.448072,146071.52,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+75,75,1,cbaa_e9j,CBAA (E9J),11.960016,1386753.0,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+75,75,1,auction_e9l,Price Auction (E9L),108.982308,222669.96,0.86,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+75,75,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),66.80894486366252,172802.6,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+75,75,1,cbba_cap1_e9n,Original CBBA C1 (E9N),8.783402026235482,3031353.29,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+80,80,1,voting_e9i,Voting (E9I),15.55718,165563.52,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+80,80,1,cbaa_e9j,CBAA (E9J),12.454089,1625110.4,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+80,80,1,auction_e9l,Price Auction (E9L),114.809307,248401.52,0.86,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+80,80,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),73.49466441809895,196342.2,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+80,80,1,cbba_cap1_e9n,Original CBBA C1 (E9N),9.356707410341006,3594314.66,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+85,85,1,voting_e9i,Voting (E9I),16.465023,186218.4,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+85,85,1,cbaa_e9j,CBAA (E9J),12.678643,1857311.6,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+85,85,1,auction_e9l,Price Auction (E9L),121.195949,274316.2,0.82,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+85,85,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),80.12239776760148,221347.2,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+85,85,1,cbba_cap1_e9n,Original CBBA C1 (E9N),9.659137249156544,4087519.61,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+90,90,1,voting_e9i,Voting (E9I),17.708026,208100.16,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+90,90,1,cbaa_e9j,CBAA (E9J),13.080378,2124674.4,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+90,90,1,auction_e9l,Price Auction (E9L),125.612117,299401.52,0.82,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+90,90,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),87.72487805711027,247870.4,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+90,90,1,cbba_cap1_e9n,Original CBBA C1 (E9N),10.853284726606446,4946272.55,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+95,95,1,voting_e9i,Voting (E9I),19.061473,231203.36,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+95,95,1,cbaa_e9j,CBAA (E9J),13.415481,2410342.4,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+95,95,1,auction_e9l,Price Auction (E9L),132.237311,331034.64,0.82,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+95,95,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),94.49497467982147,275921.4,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+95,95,1,cbba_cap1_e9n,Original CBBA C1 (E9N),11.810455305184144,5734087.99,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+100,100,1,voting_e9i,Voting (E9I),20.131588,255497.6,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+100,100,1,cbaa_e9j,CBAA (E9J),13.647431,2693040.0,,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+100,100,1,auction_e9l,Price Auction (E9L),135.828345,353939.04,0.78,frozen_E9I_J_L_100seeds_per_N,historically_verified_derived_aggregates
+100,100,1,voting_cap1_e9n,Voting Multi-task C1 (E9N),101.919109639773,305393.6,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
+100,100,1,cbba_cap1_e9n,Original CBBA C1 (E9N),12.36764325422517,6488061.61,1.0,new_E9N_native_100seeds_per_N,executed_source_pending_independent_audit
