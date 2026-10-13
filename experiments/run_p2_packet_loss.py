@@ -119,6 +119,15 @@ def validate_batched_voting_evidence(scene, row):
     """Reject wrong one-time TASK/Cost, missing phase time, or zero-loss non-Greedy result."""
     if row["method"] != "voting":
         return
+    if row["native_diagnostic"]:
+        # Preserve the actual native owner/function/category/code, never replace it
+        # with a misleading "missing batch ledger" postprocessing error.
+        if int(row["loss_percent"]) == 0:
+            fail("validate_batched_voting_evidence", "contract",
+                 "P2_BATCH_ZERO_LOSS_NATIVE_DIAGNOSTIC",
+                 "no original protocol failure at 0% loss",
+                 row["native_diagnostic"])
+        return
     try:
         ledger = json.loads(row["original_traffic_ledger_json"])
         batch = ledger["batch"]
