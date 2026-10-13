@@ -1,0 +1,72 @@
+{
+  "study": "P2_four_original_packet_loss_10pct_100seed",
+  "evidence_status": "Independently audited original user ZIP; original 4,000 per-seed cases not committed to GitHub",
+  "executed_git_sha": "f514cfa3613e7b0bad5c739d136b09fea8c3f92c",
+  "original_zip": {
+    "name": "p2_loss10_100seed.zip",
+    "size_bytes": 1276228,
+    "sha256": "1d08a167308b9368ee2a764737066223ac041a5bd6508621c7b6cd0320036bb9"
+  },
+  "original_file_sha256": {
+    "per_seed_p2.csv": "78c4871a9f0e391c11c92ace9c2b532695d2a2c4ca40d31166e31bf89901e5fc",
+    "summary_p2.csv": "de725d3d2737ceebafb99fa44e57fe583853077db242803e7f82d33e8d587aa7",
+    "run_config_p2.json": "ac7df531f7cffefac514b47246fae23853a126ee00a70f2e85e7b66ae9747da5",
+    "packet_loss_robustness.svg": "f7317099d8f71bcd3cc0ce597d7eea6f5e8bcfc2896a4dcf8aa3116040f73e43"
+  },
+  "original_manifest_cases": 4000,
+  "original_manifest_failures": 730,
+  "original_manifest_completed_utc": "2026-10-13T10:57:28.706185+00:00",
+  "original_zip_members": 7,
+  "original_zip_crc_pass": true,
+  "grid": {
+    "robots": 100,
+    "tasks": 100,
+    "capacity": 1,
+    "loss_percent": [
+      0,
+      10,
+      20,
+      30,
+      40,
+      50,
+      60,
+      70,
+      80,
+      90
+    ],
+    "seeds_per_loss_method": 100,
+    "methods": [
+      "voting",
+      "cbaa",
+      "cbba",
+      "price_auction"
+    ],
+    "runs": 4000,
+    "summary_rows": 40
+  },
+  "independent_checks": {
+    "geometry_and_hungarian_oracle_and_actual_assignments": 4000,
+    "method_native_physical_sender_and_receiver_ledgers": 4000,
+    "summary_groups": 40,
+    "terminal_stdout_matches": 4000,
+    "manifest_file_hashes": 4,
+    "independent_original_p1_loss30_exact_matched_rows": 400,
+    "integrity_discrepancies": 0
+  },
+  "p1_control": {
+    "original_zip_sha256": "d2f30bf39d1f4aff336a5b7220a4f15ee887d0d79ccc8c8a536819f40691de58",
+    "original_executed_git_sha": "24e002695748e976c7b2abdfce661431839c4a7b"
+  },
+  "presentation_files": [
+    {
+      "path": "docs/figures/p2/formal/verified_10point_plot_source.csv",
+      "git_blob_sha": "8d0342cfc908f49fbfa0bde297544c49a84453a8"
+    },
+    {
+      "path": "docs/figures/p2/formal/primary_four_original_loss_robustness.svg",
+      "git_blob_sha": "ab57ccba739f9d1fec1d50056e1ffb67fbcfcabd"
+    }
+  ],
+  "presentation_metric_note": "quality panel uses successful-only cost/Hungarian means per original algorithm with visibly conditional sample counts and is not the original run's same-four-success cost subset; original 4-panel SVG and original summary hashes are preserved above. Sender data plotted MB decimal on logarithmic y axis.",
+  "study_limits": "method-native stop semantics differ; assumed 144Mbps plus Rady application delay is not physical Wi-Fi; guards are configured, not fundamental robustness limits"
+}
