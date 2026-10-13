@@ -145,11 +145,13 @@ def verify_one_scene(scene) -> str:
 
 
 def run_original_voting(scene, profile, loss: float, voting_guard: int,
-                        observer: FirstFeasibleObserver) -> dict:
+                        observer: FirstFeasibleObserver,
+                        voting_strategy: str = "greedy_task") -> dict:
     n=scene.num_robots
     arm=next(a for a in selected_e9i_arms() if a[0]=="adaptive_guarded_k1_received")
     schedule=build_e9h_deadline_schedule(profile=profile,robots=n,
-                                        design_rate_mbps=144.0,margin_factor=1.0)
+                                        design_rate_mbps=144.0,margin_factor=1.0,
+                                        voting_strategy=voting_strategy)
     guarded=estimate_e9h_guarded_initial_cost_ms(
         profile=profile,total_robots=n,total_tasks=n,reference_phy_mbps=144.0)
     oracle=solve_hungarian_assignment(scene.cost_matrix).total_cost
@@ -158,7 +160,8 @@ def run_original_voting(scene, profile, loss: float, voting_guard: int,
         p_vote_loss=loss,rate=144.0,max_rounds=voting_guard,
         fixed_timeout_ms=DEFAULT_OLD_FIXED_MS,arm=arm,
         schedules={1.0:schedule},guarded_cost_ms=guarded,
-        oracle_total_cost=oracle,external_observer=observer.observe)
+        oracle_total_cost=oracle,external_observer=observer.observe,
+        voting_strategy=voting_strategy)
     return {
         "success":bool(native["full_commit"]),
         "reason":"reliable_full_commit" if native["full_commit"] else "native_guard_or_incomplete",
@@ -173,7 +176,11 @@ def run_original_voting(scene, profile, loss: float, voting_guard: int,
                           "cost_receiver_drops":native["cost_remote_packet_drop_count"],
                           "vote_receiver_drops":native["vote_remote_packet_drop_count"],
                           "late_vote_deliveries":native["late_remote_vote_delivery_count"]}},
-        "contract":"paid reliable Score/Commit; original E9I guarded adaptive Cost/Vote"}
+        "contract":(
+            "batched capacity-one Greedy: one TASK + one Cost, batched Vote/Score, paid Commit"
+            if voting_strategy == "greedy_batch"
+            else "paid reliable Score/Commit; original E9I guarded adaptive Cost/Vote"
+        )}
 
 
 def run_original_cbaa(scene, profile, loss: float, guard: int,
@@ -276,7 +283,8 @@ def run_original_multitask(scene, profile, loss: float, guard: int,
 
 
 def run_matched_case(scene, profile, method: str, loss: float,
-                     guard: int, voting_guard: int) -> dict:
+                     guard: int, voting_guard: int,
+                     voting_strategy: str = "greedy_task") -> dict:
     """Orchestrate native run, then independently certify its emitted snapshots.
 
     Native protocol failures are preserved per seed. Independent data/time/
@@ -293,7 +301,8 @@ def run_matched_case(scene, profile, method: str, loss: float,
              expected=METHODS,actual=method)
     try:
         if method=="voting":
-            native=run_original_voting(scene,profile,loss,voting_guard,observer)
+            native=run_original_voting(scene,profile,loss,voting_guard,observer,
+                                       voting_strategy=voting_strategy)
         elif method=="cbaa":
             native=run_original_cbaa(scene,profile,loss,guard,observer)
         elif method=="price_auction":
