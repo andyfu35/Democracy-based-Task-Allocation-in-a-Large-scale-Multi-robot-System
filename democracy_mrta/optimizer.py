@@ -295,12 +295,12 @@ def solve_visible_batched_greedy_assignment(
     cost_matrix: tuple[tuple[float, ...], ...],
     visible_robot_ids: frozenset[int] | set[int] | tuple[int, ...],
 ) -> AssignmentSolution:
-    """One voter's ascending-task capacity-one Greedy plan from received Cost rows.
+    """Global minimum-pair Greedy over this voter's physically visible Cost rows.
 
-    A missing robot's Cost is NOT reconstructed. If fewer rows are visible
-    than tasks, this voter proposes only the first len(visible) tasks;
-    remaining tasks must be decided from other physically received votes
-    or retried in a future membership epoch.
+    Across ALL remaining robot-task pairs select minimum (cost, task_id, robot_id),
+    remove both endpoints, and repeat until no eligible robot or task remains.
+    This removes Task-ID-first planning priority; missing Cost rows are NEVER
+    reconstructed. Each local proposal remains capacity-one, even at high loss.
     """
     num_robots, num_tasks = validate_cost_matrix(cost_matrix)
     visible = tuple(sorted(set(visible_robot_ids)))
@@ -316,16 +316,34 @@ def solve_visible_batched_greedy_assignment(
             category="data", code="BATCH_GREEDY_INVALID_VISIBLE_ROW",
             expected=f"robot IDs in [0,{num_robots})", actual=visible,
         ))
-    available = set(visible)
+    remaining_robots = set(visible)
+    remaining_tasks = set(range(num_tasks))
     assigned: list[tuple[int, int]] = []
-    for task_id in range(min(num_tasks, len(available))):
-        winner = min(available, key=lambda robot_id: (cost_matrix[robot_id][task_id], robot_id))
-        assigned.append((winner, task_id))
-        available.remove(winner)
-    return AssignmentSolution(
-        assigned_pairs=tuple(assigned),
-        total_cost=float(sum(cost_matrix[r][t] for r, t in assigned)),
+    ranked_edges = sorted(
+        (cost_matrix[robot_id][task_id], task_id, robot_id)
+        for robot_id in visible for task_id in range(num_tasks)
     )
+    for _cost, task_id, robot_id in ranked_edges:
+        if robot_id not in remaining_robots or task_id not in remaining_tasks:
+            continue
+        assigned.append((robot_id, task_id))
+        remaining_robots.remove(robot_id)
+        remaining_tasks.remove(task_id)
+        if not remaining_robots or not remaining_tasks:
+            break
+    expected_count = min(len(visible), num_tasks)
+    if len(assigned) != expected_count:
+        raise ProtocolError(Diagnostic(
+            owner="optimizer", function="solve_visible_batched_greedy_assignment",
+            category="planning", code="GLOBAL_GREEDY_CARDINALITY_MISMATCH",
+            expected=expected_count, actual=len(assigned),
+        ))
+    pairs = tuple(sorted(assigned, key=lambda pair: (pair[1], pair[0])))
+    return AssignmentSolution(
+        assigned_pairs=pairs,
+        total_cost=float(sum(cost_matrix[r][t] for r, t in pairs)),
+    )
+
 
 
 def solve_sequential_greedy_reference(
