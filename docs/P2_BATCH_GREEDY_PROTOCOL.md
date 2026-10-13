@@ -1,6 +1,6 @@
 # P2-B — One-shot task and Cost intake, batched Greedy voting (revised comparison)
 
-**Status:** source implemented on independent experiment branch, focused regression tests committed, **local integration/full 4,000-case revised results not yet run or accepted**. The previous 2026-10-13 source-audited P2 4,000-case results are **immutable historical evidence**, not new P2-B results. Do not silently reuse their Voting 20.13s at PL30 or 27.50s at PL90, because those times include up to 100 sequential per-task voting epochs.
+**Status:** runner now executes **1,000 fresh Voting simulations** and reuses **3,000 SHA-verified baseline rows** for the complete four-method comparison; new Voting test/formal results are **not yet validated**. The previous 2026-10-13 source-audited P2 4,000-case results are **immutable historical evidence**, not new P2-B results. Do not silently reuse their Voting 20.13s at PL30 or 27.50s at PL90, because those times include up to 100 sequential per-task voting epochs.
 
 ## Discovered cause and explicit change
 
@@ -18,10 +18,18 @@ Each membership epoch now physically charges the following actual application me
 
 The frames are <=1,200 application Bytes. For 100 tasks, a full Vote payload is 816B. Physical Vote/Score timing uses existing `WifiCausalTimingSampler`; the independent predeclared batch Vote deadline uses the actual 16+8×active frame width in `network.estimate_e9h_adaptive_deadline`, not a falsely fast 32B single-task deadline. All original baseline message owners, payloads, native stop rules and stage guards remain unchanged. This is **not** a claim of a measured physical Wi-Fi network.
 
+## Verified baseline reuse — no re-execution of CBAA, CBBA or Price Auction
+
+The formal run requires `--baseline-zip "$HOME/Downloads/p2_loss10_100seed.zip"`, pointing to the exact **immutable historical P2 ZIP**: ZIP SHA256 `1d08a167308b9368ee2a764737066223ac041a5bd6508621c7b6cd0320036bb9`, raw 4,000-row CSV SHA256 `78c4871a9f0e391c11c92ace9c2b532695d2a2c4ca40d31166e31bf89901e5fc`, and executed original SHA `f514cfa3613e7b0bad5c739d136b09fea8c3f92c`. Dedicated read-only source owner `experiments.p2_baseline_reuse.read_verified_original_baselines` checks ZIP SHA/CRC, original manifest, all 4,000 original keys, 100R100T/C1/PL/seed contract and the 3,000 selected baseline rows against deterministic scene SHA. If missing, tampered, incomplete or re-zipped, **abort before any simulation**. It never re-executes baseline code or imports the 1,000 historical sequential Voting rows.
+
+The revised runner writes new `per_seed_p2.csv` (**1,000 Voting-only rows, append-only/resumable**), `summary_voting_p2b.csv` (10 rows), and read-only evidence-derived `per_seed_p2_combined.csv` (4,000 rows) with explicit `source_role` and `source_git_sha` for **every** new/reused row. Recalculate `summary_p2.csv` (40 groups, including complete original four-way paired-success cost cohort) and regenerate `packet_loss_robustness.svg` **all four panels from scratch**. The new `manifest_p2.json` SHA-attests outputs and records `new_voting_executions=1000`, `baseline_reused_rows=3000`, `combined_comparison_rows=4000`, old archive SHA256, and distinct original/new source identities.
+
+**Chart scope:** regenerate the entire P2 four-panel B comparison after the 1,000 new Voting cases. Do **not** relabel other old A/C/D manuscript charts as batched Voting merely by copying this P2 cohort: their robot counts, task counts, time budgets, or controls may differ. For any other figure that uses old Voting, rerun **Voting only on those exact scenarios** and replot against independently verified unchanged baseline evidence. Preserve all historical original-version plots, and publish new ones with a visible new source version.
+
 ## Study freeze and complete-evidence contract
 
 - Exactly `voting` **(new batched Greedy implementation)** vs `cbaa`, `cbba`, `price_auction` **(unchanged original native baselines)**. The old user-authored `voting_multitask` capacity-one extension and team-authored Paid CBAA remain excluded. Chart names: **Voting (Batched Greedy), CBAA, CBBA, Price Auction**, without 'Original' prefixes.
-- 100 robots/100 tasks; robot capacity one; 100 paired Seeds per PL; original deterministic 100m scenes. PL 0%,10%,...,90% = 10×100×4=**4,000 fresh native method cases** and 40 summary rows.
+- 100 robots/100 tasks; robot capacity one; 100 paired Seeds per PL; original deterministic 100m scenes. PL 0%,10%,...,90% = 10×100×1=**1,000 fresh Voting simulations** and 10×100×3=**3,000 reused original native baseline rows**, yielding **4,000 source-attributed comparison rows** and 40 derived summary rows.
 - Packet-loss probabilities applied to physically announced Cost and Vote as before; reliable TASK/Score/Commit retained as explicitly specified. Voting guard 300 epochs, other baseline guard 160. Never assume time or feasibility of other algorithms' terminal guarantees are equivalent to the paid Voting Commit.
 - Task/Cost/Vote/Score/Commit event sender Bytes and native modeled time are *measured from the new source events*, not estimated by subtracting N times an old task wait. For each newly run Voting row, `original_traffic_ledger_json.batch` contains `task_announcement_sender_frames`, `cost_sender_frames` (must =100), `vote_sender_frames`, `score_sender_frames`, `commit_sender_frames` and additive `phase_timing` with `task_ms, cost_once_ms, vote_and_score_ms, commit_ms, total_ms, epochs`.
 - At PL0 the 100-task one-epoch batch must produce exactly the full-information **sequential Greedy reference assignment**. This does not imply Hungarian optimality: independent Euclidean/Hungarian ratio can still be >1. The relevant no-loss logic sanity is Voting / full-information Greedy=1, not necessarily Voting / Hungarian=1.
@@ -48,14 +56,16 @@ python3 -m experiments.run_p2_packet_loss \
 set -o pipefail
 P2B_ROOT="results/p2_batched_greedy_10pct_100seed_$(date +%Y%m%d_%H%M%S)"
 python3 -m experiments.run_p2_packet_loss \
-  --formal --seeds 100 --output-root "$P2B_ROOT" 2>&1 | tee "$P2B_ROOT.log"
+  --formal --seeds 100 \
+  --baseline-zip "$HOME/Downloads/p2_loss10_100seed.zip" \
+  --output-root "$P2B_ROOT" 2>&1 | tee "$P2B_ROOT.log"
 test -f "$P2B_ROOT/manifest_p2.json" && \
   zip -r "$HOME/Downloads/p2_batched_greedy_10pct_100seed.zip" "$P2B_ROOT" "$P2B_ROOT.log"
 ```
 
-If interrupted, `--formal --seeds 100 --output-root "$P2B_ROOT" --resume` resumes only an exact source/config/prefix, and the log must use a fresh path. Never resume an old original P2 (Git `f514cfa...`) partial directory after this protocol change; old experiment data is immutable.
+If interrupted, `--formal --seeds 100 --baseline-zip "$HOME/Downloads/p2_loss10_100seed.zip" --output-root "$P2B_ROOT" --resume` resumes only an exact source/config/prefix, and the log must use a fresh path. Never resume an old original P2 (Git `f514cfa...`) partial directory after this protocol change; old experiment data is immutable.
 
-**Required independent checks before README promotion:** 4,000 original rows, 40 summary groups, all paired task geometries and Hungarian oracles; native packet framing, sender/receiver ledger sums including dropped batch Vote broadcasts, unique candidate & task Commit for capacity1, TASK broadcasts only once, Cost exactly 100 frames (no more across retries), `phase_timing` summation, no-loss full-Greedy assignment parity, source SHA matching exactly new manifest, and original baselines' paired result preservation. Publication data should not alter the old original P2 raw ZIP/graph.
+**Required independent checks before README promotion:** exactly 1,000 new Voting rows (no other methods executed), 3,000 source-attested original baseline rows, 4,000 combined provenance-marked rows and 40 derived summary groups, all paired task geometries and Hungarian oracles; native packet framing, sender/receiver ledger sums including dropped batch Vote broadcasts, unique candidate & task Commit for capacity1, TASK broadcasts only once, Cost exactly 100 frames (no more across retries), `phase_timing` summation, no-loss full-Greedy assignment parity, source SHA matching exactly new manifest, and original baselines' paired result preservation. Publication data should not alter the old original P2 raw ZIP/graph.
 
 ## Named true owners and first failing diagnostics
 
@@ -66,7 +76,7 @@ If interrupted, `--formal --seeds 100 --output-root "$P2B_ROOT" --resume` resume
 - `experiments.run_p2_packet_loss.validate_config`: `contract/P2_BATCH_FORMAL_VOTING_STRATEGY`; new study identity includes `voting_strategy` so previous P2 raw cannot be silently resumed as new protocol.
 - `experiments.p2_packet_loss_plot.panel/render_p2_figure`: graphical overlap representation uses distinct dash segments and concentric rings at exactly the same measured data coordinate; there is **no numeric point shifting** and no Original prefix.
 
-**Unfinished:** new code has not been proven on the user's Mac, no formal 4,000 fresh runs executed, and no revised result or claim of measured timing improvement is asserted. High-loss batch retries or large score vectors can still be substantial; receiver-independent Bernoulli drops and hypothetical 144Mbps remain experimental limitations.
+**Unfinished:** new code has not been proven on the user's Mac, no formal 1,000 new Voting runs executed, and no revised result or claim of measured timing improvement is asserted. High-loss batch retries or large score vectors can still be substantial; receiver-independent Bernoulli drops and hypothetical 144Mbps remain experimental limitations.
 
 ## Per-seed result gates
 
