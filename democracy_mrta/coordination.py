@@ -1599,26 +1599,39 @@ def resolve_capacity_one_batch_winners(
     physical_tasks: tuple[int, ...],
     physical_robots: tuple[int, ...],
 ) -> tuple[tuple[tuple[int, int], ...], int]:
-    """All robots deterministically apply the same received-Score ranking and capacity-one rule."""
-    eligible = set(physical_robots)
+    """Select ALL available voted pairs globally by score, then enforce capacity one.
+
+    Scores are candidate-reported *received* ballots, not invisible full Cost
+    rows. Higher vote count ranks first; equal counts break deterministically
+    by task ID then robot ID. Unlike the old task-by-task resolver, a strong
+    later-task candidate is not discarded just because an earlier task used
+    its robot first. Hungarian and unreceived Cost are never used.
+    """
+    eligible_robots = set(physical_robots)
+    eligible_tasks = set(physical_tasks)
+    ranked = sorted(
+        ((count, task_id, candidate_id)
+         for (task_id, candidate_id), count in scores.items()
+         if count > 0 and task_id in eligible_tasks and candidate_id in eligible_robots),
+        key=lambda item: (-item[0], item[1], item[2]),
+    )
     winners: list[tuple[int, int]] = []
     ties = 0
-    for task_id in physical_tasks:
-        choices = tuple(
-            (count, candidate_id)
-            for (reported_task, candidate_id), count in scores.items()
-            if reported_task == task_id and candidate_id in eligible and count > 0
-        )
-        if not choices:
+    for count, task_id, candidate_id in ranked:
+        if task_id not in eligible_tasks or candidate_id not in eligible_robots:
             continue
-        maximum = max(count for count, _candidate in choices)
-        tied = tuple(candidate for count, candidate in choices if count == maximum)
-        winner = min(tied)
-        ties += int(len(tied) > 1)
-        winners.append((winner, task_id))
-        eligible.remove(winner)
+        if any(
+            other_task == task_id and other_robot != candidate_id
+            and other_count == count and other_robot in eligible_robots
+            for other_count, other_task, other_robot in ranked
+        ):
+            ties += 1
+        winners.append((candidate_id, task_id))
+        eligible_robots.remove(candidate_id)
+        eligible_tasks.remove(task_id)
     validate_one_to_one_commits(winners)
-    return tuple(winners), ties
+    return tuple(sorted(winners, key=lambda pair: (pair[1], pair[0]))), ties
+
 
 
 def emit_greedy_batch_commits(
