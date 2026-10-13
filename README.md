@@ -2,7 +2,7 @@
 
 **Research focus:** Fully decentralized multi-robot task allocation under unreliable communication. We measure correctness, packet-loss resilience, attempted application-layer communication, and modeled coordination time. **Target venue:** IEEE Robotics and Automation Letters (RA-L).
 
-**Last evidence audit: 2026-10-12.** This README contains only principal verified findings. The complete former README (27 images, all historical tables, exploratory results and run commands) is saved in [Detailed Experiment Results Archive](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md). The [cross-experiment evidence audit](docs/EXPERIMENT_RESULTS_AUDIT_20261012.md) separates verified, provisional and pilot studies.
+**Latest verified P2 evidence: 2026-10-13.** This README contains only principal verified findings. The complete former README (27 images, all historical tables, exploratory results and run commands) is saved in [Detailed Experiment Results Archive](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md). The [cross-experiment evidence audit](docs/EXPERIMENT_RESULTS_AUDIT_20261012.md) separates verified, provisional and pilot studies.
 
 ## 1. Method and comparison boundaries
 
@@ -22,21 +22,30 @@ Voting's **full, reliable final Commit** and CBAA's **local consensus certificat
 
 **E1:** Re-aggregation of the repository's **2,000 original records** reproduces 20 official source groups. At **100 robots / 50 tasks**, Democracy–Hungarian required **477.7 ms** to reach an actionable decision, **796.2 ms** for global agreement and **201,400 sender Bytes**. Leader–Hungarian global agreement was **477.4 ms** with **41,600 Bytes**. This demonstrates the additional cost of distributed agreement, **not** a universal speed advantage. Delays are resampled from measured industrial ROS application traces, not measured on 100 robots. [Original rows](results/e1_latency/raw/e1_20261009T144026Z.csv) · [summary](results/e1_latency/summary.csv).
 
-### B. Packet-loss robustness and transmitted data — E9E
+### B. Packet-loss robustness and transmitted data
 
-**Formal study:** 52 loss probabilities × 100 seeds × two original methods = **10,400 original executions**, using **100 robots / 50 tasks** and synthetic transmission-time assumptions.
+**Formal source-verified P2 experiment (2026-10-13):** 100 robots / 100 tasks; **capacity 1**, 100 paired Seeds per receiver-loss setting; **0%–90% in 10% steps** × exactly **4 independent original task-allocation algorithms** (Original Voting, original CBAA, original CBBA, Price Auction) = **4,000 newly executed original method-cases**. User-authored Voting Multi-task and Paid CBAA are **excluded from the official benchmark**. The original ZIP's SHA256, 4,000 independently checked scenarios/packet ledgers, 4,000 terminal rows, 40 summary groups and 400 exact original P1 30%-loss control rows were verified with **zero discrepancies**.
 
-| Loss | Voting complete Commit | CBAA local certificate | Key observation |
-|---|---:|---:|---|
-| **30%** | 100/100 | 100/100 | Voting sent **164,750 B** vs CBAA **838,160 B** per seed on average: **80.34% fewer application sender Bytes** |
-| **55%** | 0/100 | 100/100 | Voting no longer completed all 50 tasks within its original safety guard |
-| **96%** | 0/100 | 0/100 | CBAA's external observer still saw 100/100 agreeing assignments, but robots lacked enough received evidence to certify global termination |
+![P2 four original algorithms: native completion, modeled stop time, attempted application sender Bytes, and success-only assignment quality](docs/figures/p2/formal/primary_four_original_loss_robustness.svg)
 
-![E9E — Complete assignment outcomes versus packet loss](docs/figures/e9e_dense/formal/e9d_full_success.svg)
+| Receiver loss | Original Voting | Original CBAA | Original CBBA | Price Auction |
+|---|---:|---:|---:|---:|
+| **0%** | 100/100 | 100/100 | 100/100 | 98/100 |
+| **30%** | 100/100 | 100/100 | 100/100 | 78/100 |
+| **50%** | 100/100 | 100/100 | 100/100 | 31/100 |
+| **70%** | 100/100 | 100/100 | 100/100 | 9/100 |
+| **80%** | 100/100 | 100/100 | **0/100** | **0/100** |
+| **90%** | 100/100 | 100/100 | **0/100** | **0/100** |
 
-**Interpretation:** Voting strongly reduces sender traffic while **both methods complete** under the sampled 30% condition, but CBAA maintains locally certifiable assignment at much higher loss rates. Observer agreement is not the same as local knowledge or final Commit. The discrete 55% and 96% outcomes are **guard-dependent experimental results, not theoretical failure thresholds**. [104-row source summary](docs/figures/e9e_dense/formal/summary_by_loss.csv) · [SHA/source manifest](docs/figures/e9e_dense/formal/publication_manifest.json).
+At **90% loss**, Original Voting used **254,229 original sender application Bytes/Seed**, versus original CBAA **14,135,600 Bytes/Seed**, a **98.20% reduction**, while both completed all tested Seeds under their own native stopping rules. Their **modeled native stop** means were 27.497 s versus 71.383 s, but CBAA reached **first external feasible assignment** at 12.770 s versus Voting 27.497 s. These metrics have **different proof/stop contracts**: Voting's reliable Score/Commit is paid; CBAA/CBBA/Auction original simulator/local termination does not pay an equivalent global finalization. They are not real measured Wi-Fi timings.
 
-### C. Communication-time and deadline sensitivity — E9G / E9I
+**Assignment-quality penalty:** on the **same 100 successful Voting/CBAA 90%-loss Seeds**, Euclidean assignment Cost/Hungarian optimum averaged **2.4175 (Voting)** versus **1.2353 (CBAA)**. Voting's strong communication savings and completion rate do **not** imply low assignment cost at extreme loss. CBBA and Auction reached original safety round limits at 80%/90%; Price Auction also had 2 guard failures at **zero loss**, so these outcomes are **not theoretical packet-loss thresholds**. Success-only quality samples vary when methods fail, and the all-four-method success subset is empty at 80% and 90%; do not invent failed-seed costs.
+
+**Evidence:** [independently recomputed original ZIP audit](docs/P2_FORMAL_100SEED.md) · [original SHA/provenance and published plot source](docs/figures/p2/formal/source_manifest.json) · [10-point derived figure CSV](docs/figures/p2/formal/verified_10point_plot_source.csv). Original per-seed ZIP is retained by the user, **not committed to Git**.
+
+**Distinct historical control, not pooled with P2:** the earlier 100R/50T, 52-level Voting-vs-CBAA loss study uses a different original synthetic timing/protocol configuration. It observed Voting 100/100 and CBAA 100/100 at 30% (sender Bytes 164,750 vs 838,160), Voting 0/100 versus CBAA 100/100 at 55%, and both 0/100 at 96% under their respective guards. It is retained as [original archived plot](docs/figures/e9e_dense/formal/primary_loss_completion_and_bytes.svg), [104-row source](docs/figures/e9e_dense/formal/summary_by_loss.csv) and [SHA provenance](docs/figures/e9e_dense/formal/publication_manifest.json). These original conditions are **not equivalent** to the 100R/100T P2 Rady + assumed144 Mbps loss sweep.
+
+## C. Communication-time and deadline sensitivity — E9G / E9I
 
 **E9G, supporting control:** In the simplified zero-loss N=100 study, the fixed-deadline Rady bootstrap took **68.143 s** versus **68.224 s** under the *assumed* 144 Mbps shared-medium proxy, an additional **81.722 ms** in that particular model. This highlights the dominating effect of the fixed **609.113 ms** task wait; it is **not** evidence of negligible real Wi-Fi contention. [20-point data](docs/figures/e9g_wifi/formal/scaling_20points_verified.csv) · [manifest](docs/figures/e9g_wifi/formal/publication_manifest.json).
 
