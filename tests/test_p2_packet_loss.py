@@ -25,10 +25,18 @@ class P2ContractTests(unittest.TestCase):
     def test_formal_grid_frozen(self):
         args = Namespace(losses=",".join(f"{p/100:.2f}" for p in LOSSES),
                          seeds=100, first_seed=0, formal=True)
+        self.assertEqual(LOSSES, (0, 10, 20, 30, 40, 50, 60, 70, 80, 90))
         self.assertEqual(validate_config(args), LOSSES)
+        self.assertEqual(len(LOSSES) * len(METHODS) * args.seeds, 4000)
         args.losses = "0.00,0.30"
         with self.assertRaises(ProtocolError):
             validate_config(args)
+        args.formal = False
+        args.losses = "0.00,0.05,0.10"
+        with self.assertRaises(ProtocolError):
+            validate_config(args)
+        args.losses = "0.00,0.30,0.90"
+        self.assertEqual(validate_config(args), (0, 30, 90))
 
     def test_guards_included_and_cost_uses_same_success_cohort(self):
         losses = (0, 90)
