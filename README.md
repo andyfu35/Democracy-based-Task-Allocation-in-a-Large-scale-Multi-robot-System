@@ -90,6 +90,10 @@ E9L's finished-assignment Cost/Hungarian ratio is **1.1173** versus Voting **1.3
 
 The `experiments/plot_e9m_unified_comparison.py` presentation owner is ready to display **Voting (E9I), original CBAA (E9J), Price Auction (E9L), multi-task Voting (E9M), and original CBBA (E9M)** in **one six-panel SVG**: time, attempted Bytes and available completion evidence for each workload. The first row plots the formally audited capacity-one N=T scaling series; the second plots the *corrected* E9M 25R/100T/capacity-four 100-seed results. **These are different workloads, not five paired algorithms competing on the same scenario. No cross-row speed ranking is valid.** The runner refuses the superseded E9M f347e26 version, non-descendant code, incomplete 100-seed grids and invalid source SHA. The unified figure is **not embedded or published** until the corrected E9M original ZIP has been provided and audited. E9K Paid CBAA remains excluded. [E9M plotting instructions](docs/E9M_CBBA_MULTITASK.md).
 
+### G. E9N — shared capacity-one five-method benchmark (source ready, not yet executed)
+
+[E9N experimental plan and local commands](docs/E9N_ONE_TASK_FIVE_METHOD.md). The five-way **same N=T, capacity1, p30** curve will show E9I Voting, E9J original CBAA and E9L distributed Price Auction from frozen source-audited 100-seed aggregates, plus new C1 Voting Multi-task and CBBA from 20×100 paired scene executions. The E9N figure is generated only after the new formal experiment and original CSV/SHA checks. **This is 4000 new algorithm executions +6000 archived outcomes**, not all-five fresh replay; protocol-specific end guarantees still differ. E9M capacity4 25R100T historical results are separate, not mixed into a single pooled speed ranking. E9K Paid CBAA excluded.
+
 ## 3. Other studies: status only
 
 | Study | Status | Evidence / explanation |
