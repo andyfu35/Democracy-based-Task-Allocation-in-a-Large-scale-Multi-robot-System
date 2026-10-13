@@ -1,0 +1,95 @@
+{
+  "study": "P2C_1000_global_greedy_voting_plus_3000_SHA_pinned_baselines_C1",
+  "audit_status": "COMPLETE_ZERO_INDEPENDENT_DISCREPANCIES",
+  "new_original_zip": {
+    "name": "p2c_global_greedy_100seed.zip",
+    "size_bytes": 1705448,
+    "sha256": "f50068e4569771538f3083b8434bc91bce1f42bdec44e8feb74407be90682055",
+    "executed_git_sha": "8038370205d586c697295b42eb255812be7aa88e",
+    "completed_utc": "2026-10-13T14:52:04.135167+00:00"
+  },
+  "new_original_members_sha256": {
+    "per_seed_p2.csv": "a5f6c59837b80596066752c6546a37a387b4ccf177f8d4f1c03c527309a4a5fe",
+    "run_config_p2.json": "8bec251cc542bf081fe1c4a4ce06a4e3362821a39bf1515da6c4edf18ce7234c",
+    "summary_voting_p2b.csv": "4fd6e858b21fede6efaac66dc39f1e7289e7221c3eaea04b0adef4ad93c97c3b",
+    "per_seed_p2_combined.csv": "859ad11170a387c6d950b7bde82857e6370b4d1cfa1803b62984090eff698448",
+    "summary_p2.csv": "1f6077ee3ec0deed1ec90b7d90f0b8547330a66b97f12dbc76389bd4dfb722ac",
+    "packet_loss_robustness.svg": "615e024a83e13a4e1d354550b47353dfc1704642575d68e1a728817c21a89a1c"
+  },
+  "original_baseline_zip": {
+    "name": "p2_loss10_100seed.zip",
+    "sha256": "1d08a167308b9368ee2a764737066223ac041a5bd6508621c7b6cd0320036bb9",
+    "original_csv_sha256": "78c4871a9f0e391c11c92ace9c2b532695d2a2c4ca40d31166e31bf89901e5fc",
+    "executed_git_sha": "f514cfa3613e7b0bad5c739d136b09fea8c3f92c"
+  },
+  "original_previous_voting_p2b_zip": {
+    "name": "p2_batch_voting_only_100seed.zip",
+    "sha256": "acd3dd389303a58cb27a16f46f29b6008f8b4678ff786d249e13caf60d61c08a",
+    "executed_git_sha": "7c082610bb3e3489ab09d07aaa339d1bbcd9acaa"
+  },
+  "grid": {
+    "robots": 100,
+    "tasks": 100,
+    "capacity": 1,
+    "loss_percent": [
+      0,
+      10,
+      20,
+      30,
+      40,
+      50,
+      60,
+      70,
+      80,
+      90
+    ],
+    "paired_seeds": 100,
+    "new_voting_cases": 1000,
+    "unchanged_original_baseline_cases": 3000,
+    "total_cases": 4000,
+    "method_groups": 40
+  },
+  "independent_recalculation": {
+    "total_validation_checks": 71156,
+    "source_discrepancies": 0,
+    "whole_case_scene_and_hungarian_rechecks": 4000,
+    "fully_feasible_final_assignments_checked": 3293,
+    "method_native_successes": 3270,
+    "new_voting_native_successes": 1000,
+    "zero_loss_global_greedy_pair_matches": 100,
+    "zero_loss_cbaa_pair_matches": 100,
+    "zero_loss_cbba_pair_matches": 100,
+    "voting_packet_and_time_ledgers": 1000,
+    "four_way_summary_groups": 40,
+    "new_voting_summary_groups": 10
+  },
+  "outcome_at_loss90": {
+    "new_voting_native_complete": 100,
+    "original_cbaa_native_complete": 100,
+    "original_cbba_native_complete": 0,
+    "original_price_auction_native_complete": 0,
+    "new_voting_stop_s": 4.493584,
+    "new_voting_sender_kB": 105.67064,
+    "new_voting_cost_over_hungarian": 1.296574,
+    "original_cbaa_cost_over_hungarian": 1.235261,
+    "old_p2b_voting_cost_over_hungarian": 3.840376
+  },
+  "published_derived_files": [
+    {
+      "path": "docs/figures/p2c/formal/verified_40point_summary.csv",
+      "git_blob_sha": "864ff8350fbe7a2fced077f6eefe82e658978174",
+      "description": "Presentation-rounded 40-group native method evidence; never substitute for 4,000 raw source observations"
+    },
+    {
+      "path": "docs/figures/p2c/formal/p2c_packet_loss_four_panel.svg",
+      "git_blob_sha": "ceef80fde986f3eb263f29899b0533ee2abc5ace",
+      "description": "Publication-only, 4 panels, native-success conditional cost not identical to four-way common-success source figure"
+    },
+    {
+      "path": "docs/P2C_FORMAL_100SEED.md",
+      "git_blob_sha": "910454183575a576aa4cf9ef91808d1ac141eddf",
+      "description": "Full independently audited original source and scientific limitations"
+    }
+  ],
+  "provenance_caution": "The original user-uploaded ZIPs and original runtime SVG are preserved outside Git, verified by exact SHA256. The static publication SVG/CSV are re-rendered derived data, NOT a modification of the executable experiment or its original user ZIP."
+}
