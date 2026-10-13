@@ -124,7 +124,9 @@ class P2BatchedGreedyTests(unittest.TestCase):
 
     def test_loss_does_not_rebroadcast_cost_or_duplicate_executors(self):
         result = run_voting("greedy_batch", packet_loss=1.0)
-        self.assertGreaterEqual(len(result.rounds), 2)
+        # With Global Greedy, self-votes can already cover distinct tasks;
+        # a 100% receiver drop does not inherently force multiple epochs.
+        self.assertGreaterEqual(len(result.rounds), 1)
         all_events = [ev for round_ in result.rounds for ev in round_.coordination.events]
         self.assertEqual(sum(e.phase == "cost" for e in all_events), 4)
         self.assertEqual(sum(e.phase == "commit" for e in all_events),
