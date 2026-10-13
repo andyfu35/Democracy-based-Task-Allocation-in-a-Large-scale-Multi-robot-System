@@ -44,6 +44,10 @@ The earlier one-round lossy Hungarian Vote pilot did not receive full per-vote a
 
 ## B. Packet-loss resilience and communication traffic
 
+**Experimental P2-C Global Greedy source, NOT yet formally executed:** current B figure below is the SHA-audited **historical P2-B Task-ID Greedy** run, not the new Global Greedy Voting. The latest experimental branch changes only Voting's actual visible-Cost pair planning and received-Score conflict resolution. Offline full-information 0%×100 Seeds Global Greedy has mean cost/Hungarian **1.23526** vs earlier Voting **1.35119**, and matches original CBAA/CBBA pairings at PL0, but these are **not newly measured Voting native times, loss robustness or quality**. Before changing B, the new protocol must pass **100 native zero-loss Voting Seeds** with exact Global Greedy pairing, then the **1,000 new Voting-only** 10%-resolution PL sweep; original CBAA/CBBA/Auction **3,000 baseline cases are reused**, not rerun. [Canonical P2-C verification and local commands](docs/P2C_GLOBAL_GREEDY_PROTOCOL.md). The main-branch original verified P2-B plots are preserved until the P2-C source ZIP passes full independent audit.
+
+
+
 **Verified P2-B formal experiment (2026-10-13):** **Voting (batched Greedy)** was rerun for **1,000 new native trials**; **CBAA, CBBA, Price Auction** were **not rerun**. Their exact original **3,000 independently SHA-verified native baseline trials** were reused on the same 100 robots / 100 tasks, robot capacity=1, 100 paired Seeds per packet-loss value, PL=0%..90% in 10% steps. Combined evidence: **4,000 source-attributed records**, 40 independently recomputed groups, no audit discrepancies. Voting Multi-task and Paid CBAA remain outside the four-method primary comparator.
 
 ![P2-B: 4 panels for native completion, modeled stop, attempted sender traffic and conditional allocation quality](docs/figures/p2b/formal/p2b_packet_loss_four_panel.svg)
