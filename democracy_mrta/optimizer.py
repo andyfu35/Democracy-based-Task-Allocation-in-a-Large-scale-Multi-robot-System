@@ -291,6 +291,43 @@ def solve_all_visible_greedy_task_votes(
     return tuple(proposals)
 
 
+def solve_visible_batched_greedy_assignment(
+    cost_matrix: tuple[tuple[float, ...], ...],
+    visible_robot_ids: frozenset[int] | set[int] | tuple[int, ...],
+) -> AssignmentSolution:
+    """One voter's ascending-task capacity-one Greedy plan from received Cost rows.
+
+    A missing robot's Cost is NOT reconstructed. If fewer rows are visible
+    than tasks, this voter proposes only the first len(visible) tasks;
+    remaining tasks must be decided from other physically received votes
+    or retried in a future membership epoch.
+    """
+    num_robots, num_tasks = validate_cost_matrix(cost_matrix)
+    visible = tuple(sorted(set(visible_robot_ids)))
+    if not visible:
+        raise ProtocolError(Diagnostic(
+            owner="optimizer", function="solve_visible_batched_greedy_assignment",
+            category="state", code="BATCH_GREEDY_NO_VISIBLE_ROWS",
+            expected="at least own physically known Cost row", actual=visible,
+        ))
+    if any(type(r) is not int or r < 0 or r >= num_robots for r in visible):
+        raise ProtocolError(Diagnostic(
+            owner="optimizer", function="solve_visible_batched_greedy_assignment",
+            category="data", code="BATCH_GREEDY_INVALID_VISIBLE_ROW",
+            expected=f"robot IDs in [0,{num_robots})", actual=visible,
+        ))
+    available = set(visible)
+    assigned: list[tuple[int, int]] = []
+    for task_id in range(min(num_tasks, len(available))):
+        winner = min(available, key=lambda robot_id: (cost_matrix[robot_id][task_id], robot_id))
+        assigned.append((winner, task_id))
+        available.remove(winner)
+    return AssignmentSolution(
+        assigned_pairs=tuple(assigned),
+        total_cost=float(sum(cost_matrix[r][t] for r, t in assigned)),
+    )
+
+
 def solve_sequential_greedy_reference(
     cost_matrix: tuple[tuple[float, ...], ...],
 ) -> AssignmentSolution:
