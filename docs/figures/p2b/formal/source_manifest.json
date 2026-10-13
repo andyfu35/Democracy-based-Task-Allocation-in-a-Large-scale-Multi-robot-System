@@ -1,0 +1,98 @@
+{
+  "study": "P2B_1000_new_batched_voting_plus_3000_SHA_verified_baselines_C1",
+  "evidence_status": "INDEPENDENT_ORIGINAL_ZIP_AUDIT_PASSED",
+  "original_new_zip": {
+    "name": "p2_batch_voting_only_100seed.zip",
+    "size_bytes": 1742540,
+    "sha256": "acd3dd389303a58cb27a16f46f29b6008f8b4678ff786d249e13caf60d61c08a",
+    "executed_git_sha": "7c082610bb3e3489ab09d07aaa339d1bbcd9acaa",
+    "completed_utc": "2026-10-13T13:00:01.494096+00:00"
+  },
+  "original_new_zip_member_sha256": {
+    "per_seed_p2.csv": "0a55d5a3d2016de8346be7b005ae26959202c206205e7164eaeb0a42bb2f0958",
+    "per_seed_p2_combined.csv": "dca1f1b1db3ba1425dc64ae43641d838ea2881b9f6dcc9a94c6d4ad4afb3b24a",
+    "summary_voting_p2b.csv": "ae4ed7bbb288f4f8bb16ab4ef757ae6c8de67c5909a843177765210dd75f531c",
+    "summary_p2.csv": "63ad7ee2c37f93f3f39ef761ab8138fdc1e5a6bc010c95b301d5655d90d6369b",
+    "packet_loss_robustness.svg": "7a3a14e7bd84c6f1d876a1379e75168f51b2db50f0d68042318ae53f10721d88",
+    "run_config_p2.json": "fddb8a4dbbf0f222537941aa95be02067521a934f2ae84d7745aa17958a8c15b"
+  },
+  "immutable_baseline_zip": {
+    "name": "p2_loss10_100seed.zip",
+    "sha256": "1d08a167308b9368ee2a764737066223ac041a5bd6508621c7b6cd0320036bb9",
+    "per_seed_sha256": "78c4871a9f0e391c11c92ace9c2b532695d2a2c4ca40d31166e31bf89901e5fc",
+    "executed_git_sha": "f514cfa3613e7b0bad5c739d136b09fea8c3f92c"
+  },
+  "grid": {
+    "robots": 100,
+    "tasks": 100,
+    "capacity": 1,
+    "loss_percent": [
+      0,
+      10,
+      20,
+      30,
+      40,
+      50,
+      60,
+      70,
+      80,
+      90
+    ],
+    "paired_seeds": 100,
+    "methods": [
+      "voting",
+      "cbaa",
+      "cbba",
+      "price_auction"
+    ],
+    "new_executions": 1000,
+    "reused_baseline_rows": 3000,
+    "comparison_rows": 4000,
+    "summary_rows": 40
+  },
+  "independent_audit": {
+    "archive_crc": "PASS",
+    "original_member_sha256": 6,
+    "new_voting_rows": 1000,
+    "original_reused_baseline_rows_exact_match": 3000,
+    "geometry_and_hungarian_and_final_assignment_verifications": 4000,
+    "voting_send_count_phase_time_and_greedy_verifications": 1000,
+    "original_terminal_rows": 1000,
+    "four_method_summary_groups_recalculated": 40,
+    "voting_only_summary_groups_recalculated": 10,
+    "zero_loss_full_greedy_exact_seeds": 100,
+    "discrepancies": 0
+  },
+  "observed_results": {
+    "new_voting_native_success": 1000,
+    "all_four_native_successes": 3270,
+    "all_four_native_guard_failures": 730,
+    "zero_loss_mean_voting_native_stop_s": 2.0274101589633364,
+    "loss90_mean_voting_native_stop_s": 11.742267169879984,
+    "loss90_voting_sender_bytes_mean": 142007.76,
+    "loss90_mean_voting_cost_over_hungarian": 3.8403758713707212,
+    "loss90_cbaa_mean_cost_over_hungarian": 1.2352608182858986
+  },
+  "publication_only_derived_presentation": [
+    {
+      "path": "docs/figures/p2b/formal/verified_40point_summary.csv",
+      "git_blob_sha": "2328b3e583f822b069934c0ac81a6e3498ad2959",
+      "summary_rows": 40,
+      "rounding": "mean values six decimal places; native-success quality distinct from all-four intersection"
+    },
+    {
+      "path": "docs/figures/p2b/formal/p2b_packet_loss_four_panel.svg",
+      "git_blob_sha": "f9751315b4cbed0fb11deba568b30313d44b4cb0",
+      "description": "4 panels, overlapping native completion rings, log stop, log traffic, success-only cost"
+    }
+  ],
+  "complete_original_raw_evidence": "Retained in user-provided original immutable ZIP; NOT committed into Git",
+  "important_limitations": [
+    "Simulation with Rady sampled application latency + hypothetical shared 144 Mbps",
+    "Receiver Bernoulli packet loss applies to method-native lossy classes; TASK, Voting Score/Commit remain reliable",
+    "Native stop outcomes are not identical distributed finalization certificates",
+    "At PL80/PL90 CBBA/Auction have zero native-success costs; full-four matched cost undefined",
+    "Original run SVG uses full-four common-success cost; publication figure uses successful-only per-method quality; the two metrics MUST NOT be described as identical",
+    "Source report and figures are derived representations, not new physical simulation"
+  ]
+}
