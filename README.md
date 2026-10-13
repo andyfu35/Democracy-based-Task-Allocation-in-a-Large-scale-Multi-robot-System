@@ -24,35 +24,38 @@ Voting's **full, reliable final Commit** and CBAA's **local consensus certificat
 
 ### B. Packet-loss resilience and communication traffic
 
-**Verified P2-B formal experiment (2026-10-13):** **Voting (batched Greedy)** was rerun for **1,000 new native trials**; **CBAA, CBBA, Price Auction** were **not rerun**. Their exact original **3,000 independently SHA-verified native baseline trials** were reused on the same 100 robots / 100 tasks, robot capacity=1, 100 paired Seeds per packet-loss value, PL=0%..90% in 10% steps. Combined evidence: **4,000 source-attributed records**, 40 independently recomputed groups, no audit discrepancies. Voting Multi-task and Paid CBAA remain outside the four-method primary comparator.
+**Verified P2-C formal benchmark (2026-10-13): Global Greedy Voting** — 100 robots, 100 tasks, robot capacity=1; PL 0%,10%,…,90%; 100 paired Seeds per PL. **1,000 new Voting native method-cases** were executed and checked; exactly **3,000 unchanged original CBAA, CBBA and Price Auction method-cases** were reused from a SHA256-verified original ZIP, **never rerun**. The **4,000 combined cases**, 40 groups, 1,000 original terminal log lines, 100 Global Greedy no-loss pairings, source SHA, native sender/phase-time ledgers, scenario geometry, assignment costs and Hungarian oracles passed **71,156 independent check invocations with zero errors**. P2-B Task-ID Greedy, Voting Multi-task and Paid CBAA are **not** the currently recommended four-method primary comparator.
 
-![P2-B: 4 panels for native completion, modeled stop, attempted sender traffic and conditional allocation quality](docs/figures/p2b/formal/p2b_packet_loss_four_panel.svg)
+![P2-C: 4 panels for native full completion, modeled stop, application sender bytes and native-success conditional cost](docs/figures/p2c/formal/p2c_packet_loss_four_panel.svg)
 
-| Packet loss | Voting native complete | CBAA | CBBA | Price Auction |
-|---|---:|---:|---:|---:|
-| **0%** | 100/100 | 100/100 | 100/100 | 98/100 |
-| **30%** | 100/100 | 100/100 | 100/100 | 78/100 |
-| **60%** | 100/100 | 100/100 | 100/100 | 14/100 |
-| **70%** | 100/100 | 100/100 | 100/100 | 9/100 |
-| **80%** | 100/100 | 100/100 | **0/100** | **0/100** |
-| **90%** | 100/100 | 100/100 | **0/100** | **0/100** |
+| Packet loss | Voting (Global Greedy) | CBAA | CBBA | Price Auction |
+|---:|---:|---:|---:|---:|
+| 0% | **100/100** | 100/100 | 100/100 | 98/100 |
+| 30% | **100/100** | 100/100 | 100/100 | 78/100 |
+| 60% | **100/100** | 100/100 | 100/100 | 14/100 |
+| 70% | **100/100** | 100/100 | 100/100 | 9/100 |
+| 80% | **100/100** | 100/100 | 0/100 | 0/100 |
+| 90% | **100/100** | 100/100 | 0/100 | 0/100 |
 
-**Batching accounts for the original Voting time discrepancy.** The old protocol already announced all TASK and Cost data once, but serialized up to 100 separate task Vote/Score/Commit rounds. New Voting prepares all-task Greedy proposals from genuinely received Cost rows and uses physically charged batch Vote/Score packets, while the same original retirement owner retries only pending tasks. All **100 no-loss Seeds** reproduce full-information sequential Greedy **exactly**, with one batch epoch and 100 initial Cost sends, not 100 repeated Cost rounds. At PL0 the mean `Voting / full-information Greedy cost=1.000`, but `Voting / global Hungarian cost=1.351`; **Greedy is not Hungarian**.
+**No-loss correctness and fair baseline:** under full Cost delivery, Global Greedy chooses the current globally lowest eligible Robot–Task pair, removes its robot and task, and repeats until a one-to-one assignment is formed. The native batch Vote→Score→reliable Commit outcome matches the **independent complete-information Global Greedy** pairing in **100/100 Seeds**, and matches the **exact original CBAA and CBBA final assignments** in those 100 Seeds. This is not Hungarian execution: mean Global Greedy Cost/Hungarian = **1.2353**, and optimum Hungarian =1.0000 is only an independent objective reference. The previous Voting Task-ID Greedy yielded 1.3512 at PL0 and systematically penalized later tasks.
 
-| PL | Old serial Voting stop | New Voting stop | Relative stop reduction | New Voting sender kB | New Voting cost/Hungarian |
-|---|---:|---:|---:|---:|---:|
-| 0% | 16.474 s | **2.027 s** | **87.7%** | 171.65 | 1.351 |
-| 30% | 20.132 s | **3.120 s** | **84.5%** | 156.94 | 1.825 |
-| 60% | 22.326 s | **4.745 s** | **78.7%** | 144.06 | 2.399 |
-| 90% | 27.497 s | **11.742 s** | **57.3%** | 142.01 | **3.840** |
+| PL | Previous P2-B Task-ID Voting: Cost/Hungarian | **P2-C Global Greedy: Cost/Hungarian** | Relative cost reduction | P2-B modeled stop | **P2-C modeled stop** |
+|---:|---:|---:|---:|---:|---:|
+| 0% | 1.3512 | **1.2353** | 8.6% | 2.027 s | **2.014 s** |
+| 30% | 1.8249 | **1.2333** | 32.4% | 3.120 s | **2.686 s** |
+| 60% | 2.3994 | **1.2479** | 48.0% | 4.745 s | **3.285 s** |
+| 90% | 3.8404 | **1.2966** | **66.2%** | 11.742 s | **4.494 s** |
 
-**Fast but quality-constrained:** at **90% loss**, Voting sends mean **142.01 kB per Seed** versus CBAA **14,135.60 kB** (**98.995% less**), and its native modeled stop mean is 11.742 s versus CBAA 71.383 s. Both natively complete 100/100, but **on those same 100 Seeds** their mean independent Euclidean assignment cost / Hungarian optimum is **3.8404 (Voting) versus 1.2353 (CBAA)**. CBAA reaches first externally feasible at 12.770 s and Voting at 11.742 s; native stopping definitions and paid terminal knowledge differ. This is a substantial **allocation-quality penalty** relative to the original serial Voting's 90%-loss cost ratio 2.418, not an unqualified algorithmic dominance claim.
+**At PL90, current Global Greedy Voting versus unchanged native CBAA:** both native-complete **100/100 Seeds**; mean modeled native stop **4.494s vs71.383s**, mean attempted sender payload **105.671 kB vs14,135.600 kB** (**99.25% less**), and same-Seed mean Cost/Hungarian **1.2966 vs1.2353** (Voting **4.96% higher**). CBAA's mean first externally complete feasible snapshot is **12.770s**; method-native Stop/observer and reliable global terminal knowledge differ. **Do not claim identical completion guarantees or real Wi-Fi speedup.**
 
-**Chart integrity:** A's overlapping 100%-completion curves use different dashed patterns and concentric hollow markers at **identical numerical positions**. B/C use clearly labeled **logarithmic axes** so smaller native modeled times and lower sender payloads remain visible. D is explicitly **native-success-conditional cost**, using each method's own successfully completed Seeds; CBAA and Voting have n=100 at all PL values, while CBBA and Auction have no defined quality at 80/90%. The **all-four simultaneously successful** subset also becomes empty there; failed runs never receive a fabricated zero cost. Data are simulated Rady-sampled application latency + **hypothetical 144 Mbps**, not measured robot-to-robot Wi-Fi RF airtime. Voting reliable Score/Commit is paid; other native methods have different terminal certificates.
+**Communication evidence and loss semantics:** Voting broadcasts the complete TASK set **once logically** (3 physically framed application SENDs at 100 tasks), every robot broadcasts its own 100-task Cost row **once** (100 physical Cost SENDs for the entire run), then broadcasts batch Vote with receiver-specific loss, reliably disseminates actual candidate-received Score vectors and pays a reliable executor Commit. Remaining task/robot pairs can retry without resending original TASK or Cost. At PL90 the Global Greedy variant takes **7.34 average batch epochs** (old Task-ID 20.78), with native modeled TASK 0.076s, Cost 0.609s, Vote+Score 2.859s, Commit 0.950s, totaling 4.494s. Original Rady application delays and assumed **144Mbps shared medium** are simulated; this is **not** measured physical wireless RF throughput.
 
-[Independently audited original-ZIP P2-B results, Greedy sanity, stage-time decomposition](docs/P2B_FORMAL_100SEED.md) · [40-group source and old/new Git provenance](docs/figures/p2b/formal/verified_40point_summary.csv) · [immutable archive SHA256 evidence](docs/figures/p2b/formal/source_manifest.json).
+**Figure semantics:** panel A distinguishes overlapping exact completion values via concentric markers and dash patterns, without numerical offsets. B/C use logarithmic scales, showing smaller time/traffic values rather than visually hiding them. **D is mean Euclidean assignment cost/Hungarian among each method's own natively successful Seeds**: Voting and CBAA have n=100 for every PL; CBBA and Auction have *no native-success quality* at 80/90 and are therefore omitted, not assigned zero. The original run's **four-way common-success** quality cohort becomes empty at 80/90; that is a **different** conditioning rule, so the original source graph and this publication view must not be conflated. Price Auction successes at low PL form their own smaller, selected cohorts.
 
-**Historical, different protocol:** the [earlier serialized Voting P2 audit](docs/P2_FORMAL_100SEED.md) and its [original figure](docs/figures/p2/formal/primary_four_original_loss_robustness.svg) remain unchanged. The [older 100R/50T E9E source figure](docs/figures/e9e_dense/formal/primary_loss_completion_and_bytes.svg) concerns a different synthetic network/task configuration and must not be pooled with this P2-B study. Other manuscript A/C/D benchmark figures using serialized Voting on different robot/task scales remain original-protocol evidence until a **matched new Voting-only run** is performed for those respective scenarios.
+[Independently audited P2-C formal result, uncertainty and actual native phase breakdown](docs/P2C_FORMAL_100SEED.md) · [40-group derived plotting source](docs/figures/p2c/formal/verified_40point_summary.csv) · [original ZIP SHA256 and figure provenance](docs/figures/p2c/formal/source_manifest.json) · [P2-C canonical and testing contract](docs/P2C_GLOBAL_GREEDY_PROTOCOL.md).
+
+**Older protocols remain available and unchanged:** [P2-B Task-ID Greedy benchmark](docs/P2B_FORMAL_100SEED.md) and its [source figure](docs/figures/p2b/formal/p2b_packet_loss_four_panel.svg); [original serialized P2 benchmark](docs/P2_FORMAL_100SEED.md). Earlier E9 and manuscript A/C/D figures sometimes use other robot/task scales or historical serialized Voting and are **not** new P2-C Global Greedy evidence. Updating those independent comparisons would require *only matched Voting* reruns, not rewriting or rerunning the corresponding native external baselines.
+
 
 ## C. Communication-time and deadline sensitivity — E9G / E9I
 
