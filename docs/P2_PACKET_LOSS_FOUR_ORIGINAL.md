@@ -1,6 +1,6 @@
 # P2 — Four original algorithms, capacity-one packet-loss robustness
 
-Status: source implemented; **user-local revised 4,000-case execution NOT yet completed**. Do not claim completed formal results. This reuses true native algorithms from P1 without modifying a native protocol, global STOP, wire size, safety guard, optimization policy, or read-only first-feasible measurement.
+Status: **formal 4,000-case 10%-resolution source completed and independently verified**; original immutable user ZIP SHA256 `1d08a167308b9368ee2a764737066223ac041a5bd6508621c7b6cd0320036bb9`, executed source Git `f514cfa3613e7b0bad5c739d136b09fea8c3f92c`. [Full original-source audit and results](P2_FORMAL_100SEED.md). Do not claim completed formal results. This reuses true native algorithms from P1 without modifying a native protocol, global STOP, wire size, safety guard, optimization policy, or read-only first-feasible measurement.
 
 ## Preregistered test
 
@@ -55,9 +55,13 @@ test -f "$P2_ROOT/manifest_p2.json" && \
 
 If interrupted, repeat the formal command with the **same P2_ROOT** plus `--resume`, and a new log target; the already stored complete-case prefix is not recomputed.
 
+## Verified original formal results (user ZIP, 2026-10-13)
+
+The source contains 4,000 complete native method-case rows and 40 exact summary rows, 730 native guard outcomes (200 CBBA at 80%/90%; 530 Price Auction across levels), and 0 audit mismatches after independently verifying 4,000 scenario/Hungarian/assignment/packet-ledger and Terminal lines and the exact original P1 30%-loss 400-case cell. No native method-exception or missing sender/stop records in this user run. Original field-for-field cross-check supports preserving P1 rather than rerunning it. Official four-algorithm results are now presented under README B: Voting and CBAA natively complete all Seeds up to PL90, while CBBA and Auction have no native completion at PL80 and PL90; Voting saves 98.20% attempted sender application Bytes versus CBAA at 90% at the expense of Euclidean/Hungarian ratio 2.4175 versus 1.2353 on the same 100 successful Seeds. CBAA reaches first feasible earlier even when its native stop is later, so do not interpret stop times as identical guarantees. Historic 5% run remains separate/superseded. [Source manifest](figures/p2/formal/source_manifest.json) · [verified plot source](figures/p2/formal/verified_10point_plot_source.csv).
+
 ### Acceptance checks
 
-Recompute from uploaded original ZIP: exact 40 summary rows, exactly 4,000 raw records, full paired 100 Seeds at each of 10 PL values; source/manifest/hash/scene checks, native SEND/Bytes/drop/phase ledgers where available, every original failure retained, partial evidence explicitly missing. Cross-check P2 30%-loss 100R/100T cell against the original independently audited P1 results **with attention to differing source SHA**. Publish B panel only after ZIP audit; do not assert P1/P2 values identical before running.
+Recompute from uploaded original ZIP: exact 40 summary rows, exactly 4,000 raw records, full paired 100 Seeds at each of 10 PL values; source/manifest/hash/scene checks, native SEND/Bytes/drop/phase ledgers where available, every original failure retained, partial evidence explicitly missing. Cross-check P2 30%-loss 100R/100T cell against the original independently audited P1 results **with attention to differing source SHA**. B panel published after independent original ZIP audit; P2 30% original 400 rows have been verified field-for-field identical to original P1 at N100.
 
 ### Diagnostic boundaries
 
