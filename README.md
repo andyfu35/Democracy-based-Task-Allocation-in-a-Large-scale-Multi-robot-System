@@ -56,6 +56,8 @@ Voting's **full, reliable final Commit** and CBAA's **local consensus certificat
 
 ## C. Communication-time and deadline sensitivity — E9G / E9I
 
+**Historical-protocol figure:** the E9G/E9I deadline experiments here used earlier sequential-task Voting (or their stated original control), **not** the new P2-B batched Greedy Voting. Their source curves and data are preserved and must not be interpreted as the current batch-protocol latency across robot sizes. Updating these plots would require **new Voting-only runs at the original E9I sizes and seeds**, not rerunning unchanged native baselines.
+
 **E9G, supporting control:** In the simplified zero-loss N=100 study, the fixed-deadline Rady bootstrap took **68.143 s** versus **68.224 s** under the *assumed* 144 Mbps shared-medium proxy, an additional **81.722 ms** in that particular model. This highlights the dominating effect of the fixed **609.113 ms** task wait; it is **not** evidence of negligible real Wi-Fi contention. [20-point data](docs/figures/e9g_wifi/formal/scaling_20points_verified.csv) · [manifest](docs/figures/e9g_wifi/formal/publication_manifest.json).
 
 **E9I formal:** Cost loss = **30%**, Vote loss = **30%**, 100 seeds per N. With **100 robots / 100 tasks**, changing from historical *fixed received-plurality deadline* to **one-time guarded Cost + adaptive Vote deadlines** reduced average simulated completion time from **71.918 s to 20.132 s**, or **72.01%**. Both selected arms fully committed at N100 in 100/100 seeds. There was **no comparable 72% saving in transmitted Bytes**; making the initial Cost deadline too short reduced local cost visibility and worsened the assignment oracle ratio.
@@ -65,6 +67,8 @@ Voting's **full, reliable final Commit** and CBAA's **local consensus certificat
 The full original E9I experiment contains 16,000 arm/case records; **15,998 completed full Commit**. The two failures belonged to the legacy **fixed-quarter** control rather than the selected guarded-received variant. [20-point plot source](docs/figures/e9i_cost30/formal/formal_20point_plot_data.csv) · [original raw-source SHA/failed-case manifest](docs/figures/e9i_cost30/formal/formal_publication_manifest.json).
 
 ### D. Native CBAA vs frozen Voting baseline — E9J
+
+**Historical-protocol benchmark:** E9J's frozen Voting column is the original serialized voting protocol (30% loss), so the 20.132 s result is historical and **not** the new P2-B batched Voting speed. The original CBAA results remain valid for that separate experiment; no new CBAA run is needed. The updated batched comparison at N=T=100 is shown in README B.
 
 **Formal study:** N=T=5..100 step 5; **100 seeds per N**. Original Cost/Vote receiver loss is 30% for Voting; native CBAA Bid/Winner loss is 30%. The original E9I Voting results are reused **without retraining/rerunning**. The source contains **2,000 native CBAA cases** plus **8,000 offline comparison rows** across the archived two Vote loss settings and two Voting controls.
 
