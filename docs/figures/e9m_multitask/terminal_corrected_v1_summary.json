@@ -1,0 +1,48 @@
+{
+  "voting_multitask": {
+    "count": 100,
+    "successes": 100,
+    "mean_elapsed_s": 63.02263,
+    "min_elapsed_s": 53.602,
+    "max_elapsed_s": 72.394,
+    "sd_elapsed_s": 3.482416694399788,
+    "mean_bytes": 116827.4,
+    "min_bytes": 105088,
+    "max_bytes": 125148,
+    "mean_rounds": 100,
+    "max_rounds": 100
+  },
+  "cbba": {
+    "count": 100,
+    "successes": 100,
+    "mean_elapsed_s": 6.87818,
+    "min_elapsed_s": 3.898,
+    "max_elapsed_s": 12.74,
+    "sd_elapsed_s": 1.486878843263786,
+    "mean_bytes": 1006873.34,
+    "min_bytes": 700483,
+    "max_bytes": 1711553,
+    "mean_rounds": 16.81,
+    "max_rounds": 28
+  },
+  "paired": {
+    "all_voting_slower": 100,
+    "all_cbba_more_bytes": 100,
+    "voting_minus_cbba_time_s": 56.14445,
+    "cbba_minus_voting_sender_bytes": 890045.94,
+    "cbba_speedup_ratio_of_means": 9.162689839463345,
+    "cbba_byte_ratio_of_means": 8.618469126249494,
+    "mean_time_difference_CI95_student_approx": [
+      55.39079509868449,
+      56.898104901315506
+    ]
+  },
+  "provenance": {
+    "source_file_sha256": "e634d00290df25296c69a2c474417b9b7e31ecfc68d87d2049b81126342ef3fa",
+    "terminal_only": true,
+    "executed_git_sha": "7e857fd232c9459d0777cf130bc36766467e1ff0",
+    "reported_output_root": "results/e9m_fixed_25r100t_loss30_100seed_20261013_084946",
+    "source_rows": 200,
+    "zip_not_uploaded": true
+  }
+}
