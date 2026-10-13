@@ -175,7 +175,15 @@ def run_original_voting(scene, profile, loss: float, voting_guard: int,
                           "cost_receiver_observations":native["cost_remote_receiver_observation_count"],
                           "cost_receiver_drops":native["cost_remote_packet_drop_count"],
                           "vote_receiver_drops":native["vote_remote_packet_drop_count"],
-                          "late_vote_deliveries":native["late_remote_vote_delivery_count"]}},
+                          "late_vote_deliveries":native["late_remote_vote_delivery_count"]},
+                  **({"batch": {
+                      "task_announcement_sender_frames": native["task_announcement_sender_frames"],
+                      "cost_sender_frames": native["cost_sender_frames"],
+                      "vote_sender_frames": native["vote_sender_frames"],
+                      "score_sender_frames": native["vote_score_send_count"],
+                      "commit_sender_frames": native["commit_send_count"],
+                      "phase_timing": native["phase_timing"],
+                  }} if voting_strategy == "greedy_batch" else {})},
         "contract":(
             "batched capacity-one Greedy: one TASK + one Cost, batched Vote/Score, paid Commit"
             if voting_strategy == "greedy_batch"
