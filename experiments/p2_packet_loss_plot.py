@@ -54,7 +54,7 @@ def panel(rows: list[dict], losses: tuple[int, ...], field: str,
         yy = bottom - (bottom - top) * tick / 4
         out.append(f'<line x1="{left}" x2="{right}" y1="{yy:.2f}" y2="{yy:.2f}" stroke="#E1E8EF"/>')
         out.append(f'<text x="{left-8}" y="{yy+4:.2f}" text-anchor="end" font-size="12" fill="#536273">{val:.2f}</text>')
-    for pct in range(0, 91, 15):
+    for pct in range(0, 91, 10):
         xx = left + (right - left) * pct / 90
         out.append(f'<text x="{xx:.1f}" y="{bottom+23}" text-anchor="middle" font-size="12">{pct}%</text>')
     out.append(f'<text x="{x+18}" y="{y+349}" font-size="12" fill="#596D80">{escape(unit)}</text>')
@@ -88,11 +88,11 @@ def panel(rows: list[dict], losses: tuple[int, ...], field: str,
 
 def render_p2_figure(summary: list[dict], losses: tuple[int, ...]) -> str:
     validate_plot_source(summary, losses)
-    xml = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1350 1020" role="img" aria-label="P2 four original algorithms across 19 packet-loss levels">',
+    xml = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1350 1020" role="img" aria-label="P2 four original algorithms across 10 packet-loss levels">',
            '<rect width="1350" height="1020" fill="#FFFFFF"/>',
            '<g font-family="Arial,Helvetica,sans-serif" fill="#25394A">',
            '<text x="44" y="43" font-size="30" font-weight="bold">B. Packet-loss robustness — four original methods</text>',
-           '<text x="44" y="73" font-size="16">100 robots = 100 tasks, capacity 1, 100 paired seeds, 0–90% PL in 5% steps</text>']
+           '<text x="44" y="73" font-size="16">100 robots = 100 tasks, capacity 1, 100 paired seeds, 0–90% PL in 10% steps</text>']
     for idx, (label, color) in enumerate(zip(LABELS, COLORS)):
         xx = 48 + idx * 316
         xml.append(f'<line x1="{xx}" x2="{xx+29}" y1="105" y2="105" stroke="{color}" stroke-width="4"/>')
