@@ -185,7 +185,7 @@ def run_original_voting(scene, profile, loss: float, voting_guard: int,
                       "phase_timing": native["phase_timing"],
                   }} if voting_strategy == "greedy_batch" else {})},
         "contract":(
-            "batched capacity-one Greedy: one TASK + one Cost, batched Vote/Score, paid Commit"
+            "capacity-one Global Greedy: one TASK + one Cost, batched Vote/Score, paid Commit"
             if voting_strategy == "greedy_batch"
             else "paid reliable Score/Commit; original E9I guarded adaptive Cost/Vote"
         )}
