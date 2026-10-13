@@ -45,3 +45,8 @@ Full paired 100seed run only if the above tests and smoke PASS, without hiding a
     zip -r "$HOME/Downloads/e9m_25r100t_loss30_100seed.zip" "$E9M_ROOT" "$E9M_ROOT.log"
 
 Expected user-run files after implementation: per_seed_e9m.csv, summary_e9m.csv, manifest.json with executed Git SHA, config/seed, original raw SHA, start-time/OS/Python, all methods and exact per-class packet counts. Reject existing output directories and invalid contracts; do not copy old E9I/E9J/E9K/E9L one-task results into this experiment. 10R40T, 50R200T, 100R400T remain future scaling cells, not the first experiment.
+
+
+## Transport correction after preliminary Mac 100-seed smoke (2026-10-13)
+
+First executed source f347e26 ran 100/100 for each method and logged full task coverage, but source audit found Voting remote ballots were broadcast and local self ballots were incorrectly SEND-charged. Those original log/CSV/manifest outputs must be preserved unchanged for audit, **not used as final communication/time baseline**. Corrected source: remote Vote unicast (candidate only); local self-vote zero physical sender packet; Cost, Score and Commit remain unchanged broadcasts. Run local `test_e9m_*.py`, loss0 3-seed and loss30 3-seed again after git pull, then rerun formal loss30 100 seeds in a fresh directory. Prior f347e26 remains traceable by commit SHA. Do not overlay the old output root or use the old ZIP as corrected evidence.

@@ -100,7 +100,7 @@ def decode_small_packet(phase: str, frame: bytes, task_id: int,
 
 
 class E9MChannel:
-    """One physically charged broadcast per emitted frame; receiver drops independent."""
+    """Charge one native broadcast or targeted unicast per emitted frame."""
 
     def __init__(self, *, robots: int, timing: WifiCausalTimingSampler,
                  loss_seed: int, method: str):
@@ -127,9 +127,19 @@ class E9MChannel:
             raise ProtocolError(Diagnostic("multitask_wire", "E9MChannel.send",
                                            "contract", "E9M_PACKET_TOO_LARGE",
                                            expected="1..1200B", actual=len(frame)))
+        if receivers is not None and (
+            len(receivers) != 1 or type(receivers[0]) is not int
+            or not 0 <= receivers[0] < self.robots or receivers[0] == sender
+        ):
+            raise ProtocolError(Diagnostic(
+                "multitask_wire", "E9MChannel.send", "contract",
+                "E9M_INVALID_UNICAST_DESTINATION",
+                expected=f"one remote robot receiver in [0, {self.robots})",
+                actual=receivers, details=f"sender={sender}; phase={phase}"))
         key = f"e9m:{self.method}:{phase}:{round_id}:{sender}:{frame_id}"
+        actual_receiver = -1 if receivers is None else receivers[0]
         latency = self.timing.sample_packet_ms(
-            key=key, phase=phase, sender_id=sender, receiver_id=-1,
+            key=key, phase=phase, sender_id=sender, receiver_id=actual_receiver,
             send_time_ms=0.0, payload_bytes=len(frame))
         arrival = self.clock_ms + latency
         self._phase_end = max(self._phase_end, arrival)

@@ -66,10 +66,12 @@ def transmit_votes(scene: MultiTaskScene, channel: E9MChannel, task: int,
                                            "contract", "E9M_VOTE_FOR_FULL_ROBOT",
                                            expected="eligible candidate", actual=candidate))
         if candidate == sender:
-            received_scores[candidate] += 1  # physically local
+            received_scores[candidate] += 1  # own ballot is local; no radio SEND
+            continue
         frame = encode_small_packet("voting_vote", task, sender, candidate, 1.0)
         delivered = channel.send(phase="voting_vote", sender=sender, frame=frame,
-                                 round_id=task, frame_id=0, p_loss=loss)
+                                 round_id=task, frame_id=0, p_loss=loss,
+                                 receivers=(candidate,))
         if candidate in delivered:
             voted_candidate, _ = decode_small_packet("voting_vote", delivered[candidate],
                                                      task, sender)
