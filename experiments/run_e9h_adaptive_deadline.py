@@ -140,7 +140,8 @@ def verify_historical_e9g_zip(path: Path | None) -> dict[str,object]:
 
 
 def build_e9h_deadline_schedule(*, profile, robots: int,
-                               design_rate_mbps: float, margin_factor: float):
+                               design_rate_mbps: float, margin_factor: float,
+                               voting_strategy: str = "greedy_task"):
     """Call true network numerical-time owner once for Cost + each active Vote size."""
     cost=estimate_e9h_adaptive_deadline(
         profile=profile,active_robots=robots,total_tasks=robots,
@@ -151,7 +152,7 @@ def build_e9h_deadline_schedule(*, profile, robots: int,
         estimate_e9h_adaptive_deadline(
             profile=profile,active_robots=n,total_tasks=robots,
             reference_phy_mbps=design_rate_mbps,margin_factor=margin_factor,
-            phase="vote",
+            phase=("vote_batch" if voting_strategy == "greedy_batch" else "vote"),
         ) for n in range(1,robots+1)
     )
     if votes[-1].deadline_ms > cost.deadline_ms + 1e-9:
@@ -192,13 +193,19 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
                                 rate, max_rounds, fixed_timeout_ms,
                                 arm, schedules, oracle_total_cost,
                                 guarded_cost_ms=None, p_vote_loss=None,
-                                external_observer=None):
+                                external_observer=None, voting_strategy="greedy_task"):
     """Original TASK, local cost, physical ballots, Score and Commit only.
 
     Opt-in p_vote_loss separates Vote drop from Cost p_loss; the original
     E9H behavior defaults p_vote_loss to p_loss without runtime changes.
     """
     name,decision_rule,margin_factor,is_adaptive=arm
+    if voting_strategy not in ("greedy_task", "greedy_batch"):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="run_e9h_original_voting_case",
+            category="data", code="P2_UNKNOWN_VOTING_SCHEDULE",
+            expected=("greedy_task", "greedy_batch"), actual=voting_strategy,
+        ))
     vote_loss = p_loss if p_vote_loss is None else p_vote_loss
     task_sampler=create_e9g_sampler(profile=profile,seed=seed,phy_rate_mbps=rate)
     loss_sampler=BernoulliLossSampler(seed=seed)
@@ -236,7 +243,7 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
     result=simulate_democracy_hungarian_retirement(
         cost_matrix=costs,sampler=coord_sampler,loss_sampler=loss_sampler,
         p_loss=p_loss,p_vote_loss=vote_loss,phase_timeout_ms=cost_timeout,
-        max_rounds=max_rounds,voting_strategy="greedy_task",
+        max_rounds=max_rounds,voting_strategy=voting_strategy,
         vote_decision_rule=decision_rule,vote_repetitions=1,cost_repetitions=1,
         per_active_round_deadline_ms=active_schedule,
         enforce_vote_deadline=True,
