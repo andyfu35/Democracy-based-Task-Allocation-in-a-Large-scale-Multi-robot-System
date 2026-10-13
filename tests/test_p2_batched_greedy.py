@@ -71,7 +71,7 @@ class P2BatchedGreedyTests(unittest.TestCase):
             physical_tasks=(0, 1), physical_robots=(0, 1),
         )
         self.assertEqual(winners, ((1, 0), (0, 1)))
-        self.assertEqual(ties, 1)
+        self.assertEqual(ties, 0)  # competing R0 became ineligible on Task 1
         validate_one_to_one_commits(winners)
 
     def test_zero_loss_adversarial_global_greedy_via_real_vote_score_commit(self):
