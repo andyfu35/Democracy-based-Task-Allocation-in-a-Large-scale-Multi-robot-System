@@ -1279,6 +1279,12 @@ def validate_vote_decision_rule(
                 actual=rule,
             )
         )
+    if voting_strategy == "greedy_batch" and rule != "received_plurality":
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="validate_vote_decision_rule",
+            category="planning", code="BATCH_GREEDY_REQUIRES_RECEIVED_PLURALITY",
+            expected="received_plurality", actual=rule,
+        ))
     if rule in ("quarter_plurality", "received_plurality") and (
         (voting_strategy == "greedy_task" and num_tasks != 1)
         or (voting_strategy == "greedy_batch" and rule != "received_plurality")
