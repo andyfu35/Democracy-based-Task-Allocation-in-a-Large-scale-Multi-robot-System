@@ -1,0 +1,287 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1460 1100" role="img" aria-label="P2-C Global Greedy Voting versus CBAA CBBA Price Auction four plots of packet loss completion time traffic and cost">
+<rect width="1460" height="1100" fill="#fff"/>
+<g font-family="Arial,Helvetica,sans-serif" fill="#26384a">
+<text x="40" y="45" font-size="29" font-weight="bold">P2-C | Global-Greedy Voting versus native methods</text>
+<text x="40" y="81" font-size="17">100 robots · 100 tasks · capacity 1 · 100 paired seeds per PL · 0–90% loss (step 10%)</text>
+<text x="40" y="107" font-size="14">1,000 new Voting executions + 3,000 verified reused original CBAA / CBBA / Price Auction executions</text>
+<line x1="47" y1="145" x2="80" y2="145" stroke="#236BAD" stroke-width="3.4" /><text x="92" y="151" font-size="17">Voting (Global Greedy)</text>
+<line x1="391" y1="145" x2="424" y2="145" stroke="#CA801E" stroke-width="3.4" stroke-dasharray="12 8"/><text x="436" y="151" font-size="17">CBAA</text>
+<line x1="735" y1="145" x2="768" y2="145" stroke="#36904E" stroke-width="3.4" stroke-dasharray="9 4 3 4"/><text x="780" y="151" font-size="17">CBBA</text>
+<line x1="1079" y1="145" x2="1112" y2="145" stroke="#C04F66" stroke-width="3.4" stroke-dasharray="2 10"/><text x="1124" y="151" font-size="17">Price Auction</text>
+<rect x="30" y="175" width="690" height="388" rx="10" fill="#fbfcfe" stroke="#ccd4dd"/>
+<text x="45" y="204" font-size="21" font-weight="bold">A. Native completion (%)</text>
+<line x1="126" y1="487.0" x2="683" y2="487.0" stroke="#dfe5ec"/>
+<text x="115" y="492.0" font-size="14" text-anchor="end">0</text>
+<line x1="126" y1="421.0" x2="683" y2="421.0" stroke="#dfe5ec"/>
+<text x="115" y="426.0" font-size="14" text-anchor="end">25</text>
+<line x1="126" y1="355.0" x2="683" y2="355.0" stroke="#dfe5ec"/>
+<text x="115" y="360.0" font-size="14" text-anchor="end">50</text>
+<line x1="126" y1="289.0" x2="683" y2="289.0" stroke="#dfe5ec"/>
+<text x="115" y="294.0" font-size="14" text-anchor="end">75</text>
+<line x1="126" y1="223.0" x2="683" y2="223.0" stroke="#dfe5ec"/>
+<text x="115" y="228.0" font-size="14" text-anchor="end">100</text>
+<text x="126.0" y="509" font-size="13" text-anchor="middle">0%</text>
+<text x="187.9" y="509" font-size="13" text-anchor="middle">10%</text>
+<text x="249.8" y="509" font-size="13" text-anchor="middle">20%</text>
+<text x="311.7" y="509" font-size="13" text-anchor="middle">30%</text>
+<text x="373.6" y="509" font-size="13" text-anchor="middle">40%</text>
+<text x="435.4" y="509" font-size="13" text-anchor="middle">50%</text>
+<text x="497.3" y="509" font-size="13" text-anchor="middle">60%</text>
+<text x="559.2" y="509" font-size="13" text-anchor="middle">70%</text>
+<text x="621.1" y="509" font-size="13" text-anchor="middle">80%</text>
+<text x="683.0" y="509" font-size="13" text-anchor="middle">90%</text>
+<text x="45" y="544" font-size="13" fill="#566879">Overlapping exact values: concentric outlines and dashed tracks</text>
+<circle cx="126.00" cy="223.00" r="9" fill="none" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="187.89" cy="223.00" r="9" fill="none" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="249.78" cy="223.00" r="9" fill="none" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="311.67" cy="223.00" r="9" fill="none" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="373.56" cy="223.00" r="9" fill="none" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="435.44" cy="223.00" r="9" fill="none" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="497.33" cy="223.00" r="9" fill="none" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="559.22" cy="223.00" r="9" fill="none" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="621.11" cy="223.00" r="9" fill="none" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="683.00" cy="223.00" r="9" fill="none" stroke="#236BAD" stroke-width="1.8"/>
+<polyline points="126.00,223.00 187.89,223.00 249.78,223.00 311.67,223.00 373.56,223.00 435.44,223.00 497.33,223.00 559.22,223.00 621.11,223.00 683.00,223.00" fill="none" stroke="#236BAD" stroke-width="2.6" />
+<circle cx="126.00" cy="223.00" r="7" fill="none" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="187.89" cy="223.00" r="7" fill="none" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="249.78" cy="223.00" r="7" fill="none" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="311.67" cy="223.00" r="7" fill="none" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="373.56" cy="223.00" r="7" fill="none" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="435.44" cy="223.00" r="7" fill="none" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="497.33" cy="223.00" r="7" fill="none" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="559.22" cy="223.00" r="7" fill="none" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="621.11" cy="223.00" r="7" fill="none" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="683.00" cy="223.00" r="7" fill="none" stroke="#CA801E" stroke-width="1.8"/>
+<polyline points="126.00,223.00 187.89,223.00 249.78,223.00 311.67,223.00 373.56,223.00 435.44,223.00 497.33,223.00 559.22,223.00 621.11,223.00 683.00,223.00" fill="none" stroke="#CA801E" stroke-width="2.6" stroke-dasharray="12 8"/>
+<circle cx="126.00" cy="223.00" r="5" fill="none" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="187.89" cy="223.00" r="5" fill="none" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="249.78" cy="223.00" r="5" fill="none" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="311.67" cy="223.00" r="5" fill="none" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="373.56" cy="223.00" r="5" fill="none" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="435.44" cy="223.00" r="5" fill="none" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="497.33" cy="223.00" r="5" fill="none" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="559.22" cy="223.00" r="5" fill="none" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="621.11" cy="487.00" r="5" fill="none" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="683.00" cy="487.00" r="5" fill="none" stroke="#36904E" stroke-width="1.8"/>
+<polyline points="126.00,223.00 187.89,223.00 249.78,223.00 311.67,223.00 373.56,223.00 435.44,223.00 497.33,223.00 559.22,223.00 621.11,487.00 683.00,487.00" fill="none" stroke="#36904E" stroke-width="2.6" stroke-dasharray="9 4 3 4"/>
+<circle cx="126.00" cy="228.28" r="3" fill="none" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="187.89" cy="225.64" r="3" fill="none" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="249.78" cy="249.40" r="3" fill="none" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="311.67" cy="281.08" r="3" fill="none" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="373.56" cy="352.36" r="3" fill="none" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="435.44" cy="405.16" r="3" fill="none" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="497.33" cy="450.04" r="3" fill="none" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="559.22" cy="463.24" r="3" fill="none" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="621.11" cy="487.00" r="3" fill="none" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="683.00" cy="487.00" r="3" fill="none" stroke="#C04F66" stroke-width="1.8"/>
+<polyline points="126.00,228.28 187.89,225.64 249.78,249.40 311.67,281.08 373.56,352.36 435.44,405.16 497.33,450.04 559.22,463.24 621.11,487.00 683.00,487.00" fill="none" stroke="#C04F66" stroke-width="2.6" stroke-dasharray="2 10"/>
+<rect x="745" y="175" width="690" height="388" rx="10" fill="#fbfcfe" stroke="#ccd4dd"/>
+<text x="760" y="204" font-size="21" font-weight="bold">B. Modeled native stop (s, logarithmic)</text>
+<line x1="841" y1="487.0" x2="1398" y2="487.0" stroke="#dfe5ec"/>
+<text x="830" y="492.0" font-size="14" text-anchor="end">1</text>
+<line x1="841" y1="436.2" x2="1398" y2="436.2" stroke="#dfe5ec"/>
+<text x="830" y="441.2" font-size="14" text-anchor="end">3</text>
+<line x1="841" y1="380.4" x2="1398" y2="380.4" stroke="#dfe5ec"/>
+<text x="830" y="385.4" font-size="14" text-anchor="end">10</text>
+<line x1="841" y1="329.6" x2="1398" y2="329.6" stroke="#dfe5ec"/>
+<text x="830" y="334.6" font-size="14" text-anchor="end">30</text>
+<line x1="841" y1="273.8" x2="1398" y2="273.8" stroke="#dfe5ec"/>
+<text x="830" y="278.8" font-size="14" text-anchor="end">100</text>
+<line x1="841" y1="223.0" x2="1398" y2="223.0" stroke="#dfe5ec"/>
+<text x="830" y="228.0" font-size="14" text-anchor="end">300</text>
+<text x="841.0" y="509" font-size="13" text-anchor="middle">0%</text>
+<text x="902.9" y="509" font-size="13" text-anchor="middle">10%</text>
+<text x="964.8" y="509" font-size="13" text-anchor="middle">20%</text>
+<text x="1026.7" y="509" font-size="13" text-anchor="middle">30%</text>
+<text x="1088.6" y="509" font-size="13" text-anchor="middle">40%</text>
+<text x="1150.4" y="509" font-size="13" text-anchor="middle">50%</text>
+<text x="1212.3" y="509" font-size="13" text-anchor="middle">60%</text>
+<text x="1274.2" y="509" font-size="13" text-anchor="middle">70%</text>
+<text x="1336.1" y="509" font-size="13" text-anchor="middle">80%</text>
+<text x="1398.0" y="509" font-size="13" text-anchor="middle">90%</text>
+<text x="760" y="544" font-size="13" fill="#566879">Mean of all 100 seeds; different native terminal guarantees</text>
+<circle cx="841.00" cy="454.58" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="902.89" cy="446.84" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="964.78" cy="443.65" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="1026.67" cy="441.27" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="1088.56" cy="438.37" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="1150.44" cy="434.72" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="1212.33" cy="431.96" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="1274.22" cy="427.62" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="1336.11" cy="421.97" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="1398.00" cy="417.45" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<polyline points="841.00,454.58 902.89,446.84 964.78,443.65 1026.67,441.27 1088.56,438.37 1150.44,434.72 1212.33,431.96 1274.22,427.62 1336.11,421.97 1398.00,417.45" fill="none" stroke="#236BAD" stroke-width="2.6" />
+<circle cx="841.00" cy="398.65" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="902.89" cy="380.64" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="964.78" cy="373.44" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="1026.67" cy="366.03" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="1088.56" cy="359.03" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="1150.44" cy="352.15" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="1212.33" cy="343.27" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="1274.22" cy="333.22" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="1336.11" cy="317.45" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="1398.00" cy="289.45" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<polyline points="841.00,398.65 902.89,380.64 964.78,373.44 1026.67,366.03 1088.56,359.03 1150.44,352.15 1212.33,343.27 1274.22,333.22 1336.11,317.45 1398.00,289.45" fill="none" stroke="#CA801E" stroke-width="2.6" stroke-dasharray="12 8"/>
+<circle cx="841.00" cy="397.13" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="902.89" cy="380.76" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="964.78" cy="374.87" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="1026.67" cy="370.59" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="1088.56" cy="363.93" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="1150.44" cy="352.57" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="1212.33" cy="333.45" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="1274.22" cy="298.54" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="1336.11" cy="266.95" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="1398.00" cy="268.39" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<polyline points="841.00,397.13 902.89,380.76 964.78,374.87 1026.67,370.59 1088.56,363.93 1150.44,352.57 1212.33,333.45 1274.22,298.54 1336.11,266.95 1398.00,268.39" fill="none" stroke="#36904E" stroke-width="2.6" stroke-dasharray="9 4 3 4"/>
+<circle cx="841.00" cy="286.27" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="902.89" cy="276.37" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="964.78" cy="267.11" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="1026.67" cy="259.68" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="1088.56" cy="253.32" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="1150.44" cy="248.92" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="1212.33" cy="245.92" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="1274.22" cy="244.84" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="1336.11" cy="243.78" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="1398.00" cy="243.61" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<polyline points="841.00,286.27 902.89,276.37 964.78,267.11 1026.67,259.68 1088.56,253.32 1150.44,248.92 1212.33,245.92 1274.22,244.84 1336.11,243.78 1398.00,243.61" fill="none" stroke="#C04F66" stroke-width="2.6" stroke-dasharray="2 10"/>
+<rect x="30" y="580" width="690" height="388" rx="10" fill="#fbfcfe" stroke="#ccd4dd"/>
+<text x="45" y="609" font-size="21" font-weight="bold">C. Attempted sender traffic (MB, logarithmic)</text>
+<line x1="126" y1="879.0" x2="683" y2="879.0" stroke="#dfe5ec"/>
+<text x="115" y="884.0" font-size="14" text-anchor="end">0.1</text>
+<line x1="126" y1="839.1" x2="683" y2="839.1" stroke="#dfe5ec"/>
+<text x="115" y="844.1" font-size="14" text-anchor="end">0.3</text>
+<line x1="126" y1="795.4" x2="683" y2="795.4" stroke="#dfe5ec"/>
+<text x="115" y="800.4" font-size="14" text-anchor="end">1</text>
+<line x1="126" y1="755.4" x2="683" y2="755.4" stroke="#dfe5ec"/>
+<text x="115" y="760.4" font-size="14" text-anchor="end">3</text>
+<line x1="126" y1="711.7" x2="683" y2="711.7" stroke="#dfe5ec"/>
+<text x="115" y="716.7" font-size="14" text-anchor="end">10</text>
+<line x1="126" y1="671.8" x2="683" y2="671.8" stroke="#dfe5ec"/>
+<text x="115" y="676.8" font-size="14" text-anchor="end">30</text>
+<line x1="126" y1="628.0" x2="683" y2="628.0" stroke="#dfe5ec"/>
+<text x="115" y="633.0" font-size="14" text-anchor="end">100</text>
+<text x="126.0" y="914" font-size="13" text-anchor="middle">0%</text>
+<text x="187.9" y="914" font-size="13" text-anchor="middle">10%</text>
+<text x="249.8" y="914" font-size="13" text-anchor="middle">20%</text>
+<text x="311.7" y="914" font-size="13" text-anchor="middle">30%</text>
+<text x="373.6" y="914" font-size="13" text-anchor="middle">40%</text>
+<text x="435.4" y="914" font-size="13" text-anchor="middle">50%</text>
+<text x="497.3" y="914" font-size="13" text-anchor="middle">60%</text>
+<text x="559.2" y="914" font-size="13" text-anchor="middle">70%</text>
+<text x="621.1" y="914" font-size="13" text-anchor="middle">80%</text>
+<text x="683.0" y="914" font-size="13" text-anchor="middle">90%</text>
+<text x="45" y="949" font-size="13" fill="#566879">Decimal MB; attempted application bytes include lost sends</text>
+<circle cx="126.00" cy="859.40" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="187.89" cy="860.69" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="249.78" cy="862.34" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="311.67" cy="864.12" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="373.56" cy="866.01" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="435.44" cy="867.96" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="497.33" cy="870.02" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="559.22" cy="872.16" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="621.11" cy="874.45" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="683.00" cy="877.03" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<polyline points="126.00,859.40 187.89,860.69 249.78,862.34 311.67,864.12 373.56,866.01 435.44,867.96 497.33,870.02 559.22,872.16 621.11,874.45 683.00,877.03" fill="none" stroke="#236BAD" stroke-width="2.6" />
+<circle cx="126.00" cy="785.13" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="187.89" cy="770.88" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="249.78" cy="765.20" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="311.67" cy="759.36" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="373.56" cy="753.84" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="435.44" cy="748.42" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="497.33" cy="741.42" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="559.22" cy="733.51" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="621.11" cy="721.11" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="683.00" cy="699.10" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<polyline points="126.00,785.13 187.89,770.88 249.78,765.20 311.67,759.36 373.56,753.84 435.44,748.42 497.33,741.42 559.22,733.51 621.11,721.11 683.00,699.10" fill="none" stroke="#CA801E" stroke-width="2.6" stroke-dasharray="12 8"/>
+<circle cx="126.00" cy="748.68" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="187.89" cy="735.38" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="249.78" cy="730.77" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="311.67" cy="727.40" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="373.56" cy="722.02" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="435.44" cy="712.79" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="497.33" cy="697.33" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="559.22" cy="669.61" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="621.11" cy="645.44" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="683.00" cy="648.85" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<polyline points="126.00,748.68 187.89,735.38 249.78,730.77 311.67,727.40 373.56,722.02 435.44,712.79 497.33,697.33 559.22,669.61 621.11,645.44 683.00,648.85" fill="none" stroke="#36904E" stroke-width="2.6" stroke-dasharray="9 4 3 4"/>
+<circle cx="126.00" cy="855.12" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="187.89" cy="846.68" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="249.78" cy="839.05" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="311.67" cy="833.10" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="373.56" cy="828.02" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="435.44" cy="824.79" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="497.33" cy="822.45" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="559.22" cy="821.24" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="621.11" cy="819.49" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="683.00" cy="816.56" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<polyline points="126.00,855.12 187.89,846.68 249.78,839.05 311.67,833.10 373.56,828.02 435.44,824.79 497.33,822.45 559.22,821.24 621.11,819.49 683.00,816.56" fill="none" stroke="#C04F66" stroke-width="2.6" stroke-dasharray="2 10"/>
+<rect x="745" y="580" width="690" height="388" rx="10" fill="#fbfcfe" stroke="#ccd4dd"/>
+<text x="760" y="609" font-size="21" font-weight="bold">D. Cost / Hungarian (native-success only)</text>
+<line x1="841" y1="875.0" x2="1398" y2="875.0" stroke="#dfe5ec"/>
+<text x="830" y="880.0" font-size="14" text-anchor="end">1.1</text>
+<line x1="841" y1="832.4" x2="1398" y2="832.4" stroke="#dfe5ec"/>
+<text x="830" y="837.4" font-size="14" text-anchor="end">1.15</text>
+<line x1="841" y1="789.8" x2="1398" y2="789.8" stroke="#dfe5ec"/>
+<text x="830" y="794.8" font-size="14" text-anchor="end">1.2</text>
+<line x1="841" y1="747.2" x2="1398" y2="747.2" stroke="#dfe5ec"/>
+<text x="830" y="752.2" font-size="14" text-anchor="end">1.25</text>
+<line x1="841" y1="704.6" x2="1398" y2="704.6" stroke="#dfe5ec"/>
+<text x="830" y="709.6" font-size="14" text-anchor="end">1.3</text>
+<line x1="841" y1="662.1" x2="1398" y2="662.1" stroke="#dfe5ec"/>
+<text x="830" y="667.1" font-size="14" text-anchor="end">1.35</text>
+<text x="841.0" y="914" font-size="13" text-anchor="middle">0%</text>
+<text x="902.9" y="914" font-size="13" text-anchor="middle">10%</text>
+<text x="964.8" y="914" font-size="13" text-anchor="middle">20%</text>
+<text x="1026.7" y="914" font-size="13" text-anchor="middle">30%</text>
+<text x="1088.6" y="914" font-size="13" text-anchor="middle">40%</text>
+<text x="1150.4" y="914" font-size="13" text-anchor="middle">50%</text>
+<text x="1212.3" y="914" font-size="13" text-anchor="middle">60%</text>
+<text x="1274.2" y="914" font-size="13" text-anchor="middle">70%</text>
+<text x="1336.1" y="914" font-size="13" text-anchor="middle">80%</text>
+<text x="1398.0" y="914" font-size="13" text-anchor="middle">90%</text>
+<text x="760" y="949" font-size="13" fill="#566879">Success cohorts differ: CBBA/Auction undefined at PL80–90</text>
+<circle cx="841.00" cy="759.78" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="902.89" cy="763.61" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="964.78" cy="762.23" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="1026.67" cy="761.44" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="1088.56" cy="762.06" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="1150.44" cy="757.06" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="1212.33" cy="749.05" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="1274.22" cy="737.08" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="1336.11" cy="720.51" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<circle cx="1398.00" cy="707.56" r="3.2" fill="#236BAD" stroke="#236BAD" stroke-width="1.8"/>
+<polyline points="841.00,759.78 902.89,763.61 964.78,762.23 1026.67,761.44 1088.56,762.06 1150.44,757.06 1212.33,749.05 1274.22,737.08 1336.11,720.51 1398.00,707.56" fill="none" stroke="#236BAD" stroke-width="2.6" />
+<circle cx="841.00" cy="759.78" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="902.89" cy="759.78" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="964.78" cy="759.78" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="1026.67" cy="759.78" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="1088.56" cy="759.78" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="1150.44" cy="759.78" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="1212.33" cy="759.78" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="1274.22" cy="759.78" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="1336.11" cy="759.78" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<circle cx="1398.00" cy="759.78" r="3.2" fill="#CA801E" stroke="#CA801E" stroke-width="1.8"/>
+<polyline points="841.00,759.78 902.89,759.78 964.78,759.78 1026.67,759.78 1088.56,759.78 1150.44,759.78 1212.33,759.78 1274.22,759.78 1336.11,759.78 1398.00,759.78" fill="none" stroke="#CA801E" stroke-width="2.6" stroke-dasharray="12 8"/>
+<circle cx="841.00" cy="759.78" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="902.89" cy="759.78" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="964.78" cy="759.78" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="1026.67" cy="759.78" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="1088.56" cy="759.78" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="1150.44" cy="759.78" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="1212.33" cy="759.78" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<circle cx="1274.22" cy="759.78" r="3.2" fill="#36904E" stroke="#36904E" stroke-width="1.8"/>
+<polyline points="841.00,759.78 902.89,759.78 964.78,759.78 1026.67,759.78 1088.56,759.78 1150.44,759.78 1212.33,759.78 1274.22,759.78" fill="none" stroke="#36904E" stroke-width="2.6" stroke-dasharray="9 4 3 4"/>
+<circle cx="841.00" cy="859.78" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="902.89" cy="861.82" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="964.78" cy="858.67" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="1026.67" cy="860.22" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="1088.56" cy="861.14" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="1150.44" cy="852.61" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="1212.33" cy="850.91" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<circle cx="1274.22" cy="857.64" r="3.2" fill="#C04F66" stroke="#C04F66" stroke-width="1.8"/>
+<polyline points="841.00,859.78 902.89,861.82 964.78,858.67 1026.67,860.22 1088.56,861.14 1150.44,852.61 1212.33,850.91 1274.22,857.64" fill="none" stroke="#C04F66" stroke-width="2.6" stroke-dasharray="2 10"/>
+<text x="40" y="1005" font-size="16" font-weight="bold">Verified evidence and limits</text>
+<text x="40" y="1031" font-size="14">At 0% PL, Voting = 100/100 full-information Global Greedy assignments; mean cost / Hungarian = 1.235, not 1.0.</text>
+<text x="40" y="1055" font-size="14">At PL80/90 CBBA/Auction have no native-success quality samples; missing values are not zeros. Other cohorts are native-success-conditional.</text>
+<text x="40" y="1079" font-size="14">Rady sampled application latency + hypothetical 144 Mbps shared medium: modeled, not measured Wi-Fi. Native stopping guarantees differ.</text>
+</g></svg>
