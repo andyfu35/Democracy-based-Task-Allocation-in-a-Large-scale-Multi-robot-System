@@ -1,4 +1,4 @@
-"""P2-B: batched Greedy Voting versus three unchanged native baseline methods."""
+"""P2-B: execute batched Voting only, reuse SHA-verified original baseline evidence."""
 from __future__ import annotations
 
 import argparse
@@ -19,9 +19,14 @@ from experiments.run_p1_matched_five import (
     verify_one_scene, scene_sha256, write_csv, sha256_file,
 )
 from experiments.p2_packet_loss_plot import render_p2_figure
+from experiments.p2_baseline_reuse import (
+    COMPARISON_METHODS, ORIGINAL_GIT_SHA, ORIGINAL_ZIP_SHA256,
+    read_verified_original_baselines, merge_paired_baseline_evidence,
+)
 
 OWNER = "experiments.run_p2_packet_loss"
-METHODS = ("voting", "cbaa", "cbba", "price_auction")
+METHODS = COMPARISON_METHODS
+EXECUTE_METHODS = ("voting",)
 LOSSES = tuple(range(0, 91, 10))
 P2_VOTING_STRATEGY = "greedy_batch"
 FIELDS = ("loss_percent",) + OUTPUT_FIELDS
@@ -51,19 +56,24 @@ def validate_config(args):
     if args.formal and args.voting_strategy != P2_VOTING_STRATEGY:
         fail("validate_config", "contract", "P2_BATCH_FORMAL_VOTING_STRATEGY",
              P2_VOTING_STRATEGY, args.voting_strategy)
+    if args.formal and not getattr(args, "baseline_zip", None):
+        fail("validate_config", "dependency", "P2_REUSE_BASELINE_ZIP_REQUIRED",
+             "explicit --baseline-zip original SHA-pinned P2 archive", None)
     return percentages
 
 
 def keys(percentages, first_seed, seeds):
     return [(p, seed, method) for p in percentages
-            for seed in range(first_seed, first_seed + seeds) for method in METHODS]
+            for seed in range(first_seed, first_seed + seeds) for method in EXECUTE_METHODS]
 
 
 def prepare_evidence(args, sha, percentages):
     identity = {"git_sha": sha, "loss_percent": percentages, "seeds": args.seeds,
-                "first_seed": args.first_seed, "methods": METHODS, "robots": 100,
+                "first_seed": args.first_seed, "methods": EXECUTE_METHODS, "robots": 100,
                 "tasks": 100, "capacity": 1, "formal": args.formal,
                 "voting_strategy": args.voting_strategy,
+                "baseline_original_git_sha": ORIGINAL_GIT_SHA,
+                "baseline_zip_sha256": (ORIGINAL_ZIP_SHA256 if getattr(args, "baseline_zip", None) else None),
                 "rady_json": str(args.rady_json)}
     root = args.output_root
     configuration = root / "run_config_p2.json"
@@ -100,8 +110,10 @@ def prepare_evidence(args, sha, percentages):
     return rows, identity
 
 
-def validate_complete_grid(rows, percentages, first_seed, seeds):
-    expected = keys(percentages, first_seed, seeds)
+def validate_complete_grid(rows, percentages, first_seed, seeds,
+                           methods=EXECUTE_METHODS):
+    expected = [(p, seed, method) for p in percentages
+                for seed in range(first_seed, first_seed + seeds) for method in methods]
     actual = [(int(r["loss_percent"]), int(r["seed"]), r["method"]) for r in rows]
     if actual != expected:
         fail("validate_complete_grid", "contract", "P2_INCOMPLETE_OR_DUPLICATE_GRID",
@@ -167,7 +179,7 @@ def validate_batched_voting_evidence(scene, row):
              str(exc))
 
 
-def summarize(rows, percentages):
+def summarize(rows, percentages, methods=METHODS):
     out = []
     for p in percentages:
         group = [r for r in rows if int(r["loss_percent"]) == p]
@@ -175,8 +187,8 @@ def summarize(rows, percentages):
         common = {seed for seed in seeds if all(any(
             int(r["seed"]) == seed and r["method"] == method
             and int(r["native_success"]) and int(r["final_feasible"])
-            for r in group) for method in METHODS)}
-        for method in METHODS:
+            for r in group) for method in methods)}
+        for method in methods:
             cohort = [r for r in group if r["method"] == method]
             successes = [r for r in cohort if int(r["native_success"]) and int(r["final_feasible"])]
             time = [float(r["native_stop_ms"]) for r in cohort if r["native_stop_ms"] != ""]
@@ -204,6 +216,10 @@ def summarize(rows, percentages):
 
 def run_p2(args):
     percentages = validate_config(args)
+    baseline_rows, baseline_provenance = (read_verified_original_baselines(
+        args.baseline_zip, percentages, args.first_seed, args.seeds)
+        if getattr(args, "baseline_zip", None) else ([], None)
+    )
     sha = read_source_sha()
     profile = load_rady_latency_profile(ensure_rady_dataset(args.rady_json))
     rows, identity = prepare_evidence(args, sha, percentages)
@@ -227,21 +243,37 @@ def run_p2(args):
                   f"guard={r['native_guard_censored']} time_ms={r['native_stop_ms']} "
                   f"bytes={r['native_sender_bytes']}", flush=True)
     validate_complete_grid(rows, percentages, args.first_seed, args.seeds)
-    summary = summarize(rows, percentages)
-    summary_path = args.output_root / "summary_p2.csv"
-    write_csv(summary_path, summary)
-    attested = [raw, args.output_root / "run_config_p2.json", summary_path]
-    if args.formal:
-        fig = args.output_root / "packet_loss_robustness.svg"
-        fig.write_text(render_p2_figure(summary, percentages), encoding="utf-8")
-        attested.append(fig)
+    new_summary_path = args.output_root / "summary_voting_p2b.csv"
+    write_csv(new_summary_path, summarize(rows, percentages, methods=EXECUTE_METHODS))
+    attested = [raw, args.output_root / "run_config_p2.json", new_summary_path]
+    comparison_rows = rows
+    if baseline_rows:
+        comparison_rows = merge_paired_baseline_evidence(
+            rows, baseline_rows, percentages, args.first_seed, args.seeds, sha,
+        )
+        validate_complete_grid(comparison_rows, percentages, args.first_seed,
+                               args.seeds, methods=METHODS)
+        combined_path = args.output_root / "per_seed_p2_combined.csv"
+        write_csv(combined_path, comparison_rows)
+        summary_path = args.output_root / "summary_p2.csv"
+        summary = summarize(comparison_rows, percentages)
+        write_csv(summary_path, summary)
+        attested.extend([combined_path, summary_path])
+        if args.formal:
+            fig = args.output_root / "packet_loss_robustness.svg"
+            fig.write_text(render_p2_figure(summary, percentages), encoding="utf-8")
+            attested.append(fig)
     manifest = {
-        "study": "P2_batch_greedy_versus_three_original_native_C1",
+        "study": "P2B_1000_new_batched_voting_plus_3000_SHA_pinned_baselines_C1",
         "source_sha": sha,
         "config": identity,
         "completed_utc": datetime.now(timezone.utc).isoformat(),
         "cases": len(rows),
-        "failures": sum(not int(r["native_success"]) for r in rows),
+        "new_voting_executions": len(rows),
+        "baseline_reused_rows": len(baseline_rows),
+        "combined_comparison_rows": len(comparison_rows),
+        "new_voting_failures": sum(not int(r["native_success"]) for r in rows),
+        "reused_baseline_provenance": baseline_provenance,
         "sha256": {p.name: sha256_file(p) for p in attested},
         "native_stop_caveat": "Batched Greedy Voting reliable paid Score/Commit; CBAA/CBBA/Auction original native stops differ",
     }
@@ -253,6 +285,8 @@ def run_p2(args):
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--formal", action="store_true")
+    parser.add_argument("--baseline-zip", type=Path, default=None,
+                        help="exact SHA-pinned original completed P2 ZIP; reused, never re-run")
     parser.add_argument("--voting-strategy", choices=("greedy_batch", "greedy_task"),
                         default=P2_VOTING_STRATEGY)
     parser.add_argument("--losses", default=",".join(f"{p/100:.2f}" for p in LOSSES))
