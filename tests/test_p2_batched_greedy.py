@@ -5,7 +5,7 @@ import unittest
 
 from democracy_mrta.coordination import (
     decode_greedy_batch_packet, encode_greedy_batch_packet,
-    simulate_democracy_hungarian_retirement,
+    simulate_democracy_hungarian_retirement, validate_vote_decision_rule,
 )
 from democracy_mrta.optimizer import (
     solve_sequential_greedy_reference, solve_visible_batched_greedy_assignment,
@@ -52,6 +52,14 @@ class P2BatchedGreedyTests(unittest.TestCase):
         self.assertEqual(len(partial.assigned_pairs), 2)
         self.assertEqual(len({robot for robot, _ in partial.assigned_pairs}), 2)
         self.assertTrue(all(task in (0, 1) for _, task in partial.assigned_pairs))
+
+    def test_batch_rejects_implicit_strict_majority_rule(self):
+        with self.assertRaises(ProtocolError) as ctx:
+            validate_vote_decision_rule(
+                rule="strict_majority", voting_strategy="greedy_batch", num_tasks=4,
+            )
+        self.assertEqual(ctx.exception.diagnostic.code,
+                         "BATCH_GREEDY_REQUIRES_RECEIVED_PLURALITY")
 
     def test_wire_records_are_framed_and_decoded(self):
         records = ((0, 2), (1, 3), (3, 1))
