@@ -655,7 +655,7 @@ def estimate_e9h_adaptive_deadline(
     correct = (
         type(active_robots) is int and active_robots >= 1
         and type(total_tasks) is int and total_tasks >= active_robots
-        and phase in ("cost", "vote")
+        and phase in ("cost", "vote", "vote_batch")
         and type(margin_factor) in (int, float)
         and math.isfinite(float(margin_factor)) and 0 <= margin_factor <= 4
     )
@@ -663,7 +663,7 @@ def estimate_e9h_adaptive_deadline(
         raise ProtocolError(Diagnostic(
             owner="network", function="estimate_e9h_adaptive_deadline",
             category="data", code="E9H_INVALID_DEADLINE_INPUT",
-            expected="active_robots>=1; total_tasks>=active_robots; phase=cost/vote; k in [0,4]",
+            expected="active_robots>=1; total_tasks>=active_robots; phase=cost/vote/vote_batch; k in [0,4]",
             actual={"active_robots":active_robots,"tasks":total_tasks,
                     "phase":phase,"margin_factor":margin_factor},
         ))
@@ -682,7 +682,11 @@ def estimate_e9h_adaptive_deadline(
         ))
     mean = sum(profile.samples_ms) / len(profile.samples_ms)
     p95 = percentile(profile.samples_ms, 0.95)
-    payload = (16 + 8 * total_tasks) if phase == "cost" else 32
+    payload = (
+        16 + 8 * total_tasks if phase == "cost"
+        else 16 + 8 * active_robots if phase == "vote_batch"
+        else 32
+    )
     frame_ms = (
         config.phy_preamble_us + config.aifs_us
         + 0.5 * config.cw_min * config.slot_us
