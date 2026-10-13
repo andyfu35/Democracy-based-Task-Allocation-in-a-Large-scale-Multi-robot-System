@@ -31,10 +31,17 @@ class P2ContractTests(unittest.TestCase):
     def test_formal_grid_frozen(self):
         args = Namespace(losses=",".join(f"{p/100:.2f}" for p in LOSSES),
                          seeds=100, first_seed=0, formal=True,
-                         voting_strategy="greedy_batch")
+                         voting_strategy="greedy_batch",
+                         baseline_zip=Path("/original/verified-p2.zip"))
         self.assertEqual(LOSSES, (0, 10, 20, 30, 40, 50, 60, 70, 80, 90))
         self.assertEqual(validate_config(args), LOSSES)
+        self.assertEqual(len(LOSSES) * 1 * args.seeds, 1000)
         self.assertEqual(len(LOSSES) * len(METHODS) * args.seeds, 4000)
+        args.baseline_zip = None
+        with self.assertRaises(ProtocolError) as cm:
+            validate_config(args)
+        self.assertEqual(cm.exception.diagnostic.code, "P2_REUSE_BASELINE_ZIP_REQUIRED")
+        args.baseline_zip = Path("/original/verified-p2.zip")
         args.voting_strategy = "greedy_task"
         with self.assertRaises(ProtocolError):
             validate_config(args)
@@ -53,7 +60,7 @@ class P2ContractTests(unittest.TestCase):
         losses = (0, 90)
         rows = [case(p, seed, method) for p in losses for seed in range(100)
                 for method in METHODS]
-        validate_complete_grid(rows, losses, 0, 100)
+        validate_complete_grid(rows, losses, 0, 100, methods=METHODS)
         summary = summarize(rows, losses)
         auction = next(r for r in summary if r["loss_percent"] == 90
                        and r["method"] == "price_auction")
@@ -70,7 +77,7 @@ class P2ContractTests(unittest.TestCase):
         self.assertIn("stroke-dasharray", figure)
         self.assertIn("concentric markers", figure)
         with self.assertRaises(ProtocolError):
-            validate_complete_grid(rows[1:], losses, 0, 100)
+            validate_complete_grid(rows[1:], losses, 0, 100, methods=METHODS)
 
     def test_old_sequential_source_cannot_resume_batched_formal(self):
         with tempfile.TemporaryDirectory() as root:
