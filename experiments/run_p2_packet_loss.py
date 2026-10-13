@@ -1,4 +1,4 @@
-"""P2-B: execute batched Voting only, reuse SHA-verified original baseline evidence."""
+"""P2-C: rerun Global-Greedy Voting only and reuse three SHA-verified native baselines."""
 from __future__ import annotations
 
 import argparse
@@ -12,7 +12,7 @@ from pathlib import Path
 from democracy_mrta.diagnostics import Diagnostic, ProtocolError
 from democracy_mrta.network import ensure_rady_dataset, load_rady_latency_profile
 from democracy_mrta.scenario import generate_e0_scenario
-from democracy_mrta.optimizer import solve_sequential_greedy_reference
+from democracy_mrta.optimizer import solve_visible_batched_greedy_assignment
 from democracy_mrta.task_information import encode_task_announcement
 from experiments.run_p1_matched_five import (
     DEFAULT_RADY, OUTPUT_FIELDS, read_source_sha, run_matched_case,
@@ -163,11 +163,12 @@ def validate_batched_voting_evidence(scene, row):
                 (int(pair[0]), int(pair[1]))
                 for pair in json.loads(row["native_assignment_json"])
             ))
-            expected = tuple(sorted(solve_sequential_greedy_reference(
-                scene.cost_matrix).assigned_pairs))
+            expected = tuple(sorted(solve_visible_batched_greedy_assignment(
+                scene.cost_matrix, frozenset(range(scene.num_robots))
+            ).assigned_pairs))
             if not int(row["native_success"]) or observed != expected:
                 fail("validate_batched_voting_evidence", "contract",
-                     "P2_BATCH_NO_LOSS_GREEDY_MISMATCH",
+                     "P2_GLOBAL_GREEDY_NO_LOSS_MISMATCH",
                      expected, observed)
             if int(timing["epochs"]) != 1:
                 fail("validate_batched_voting_evidence", "contract",
@@ -264,7 +265,7 @@ def run_p2(args):
             fig.write_text(render_p2_figure(summary, percentages), encoding="utf-8")
             attested.append(fig)
     manifest = {
-        "study": "P2B_1000_new_batched_voting_plus_3000_SHA_pinned_baselines_C1",
+        "study": "P2C_1000_global_greedy_voting_plus_3000_SHA_pinned_baselines_C1",
         "source_sha": sha,
         "config": identity,
         "completed_utc": datetime.now(timezone.utc).isoformat(),
