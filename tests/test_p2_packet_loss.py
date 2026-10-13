@@ -7,7 +7,7 @@ from pathlib import Path
 import unittest
 
 from democracy_mrta.diagnostics import ProtocolError
-from experiments.run_p2_packet_loss import LOSSES, METHODS, validate_config, summarize, validate_complete_grid, prepare_evidence, validate_batched_voting_evidence
+from experiments.run_p2_packet_loss import LOSSES, METHODS, validate_config, summarize, validate_complete_grid, prepare_evidence, validate_batched_voting_evidence, keys
 from experiments.p2_packet_loss_plot import render_p2_figure
 from democracy_mrta.scenario import generate_e0_scenario
 from democracy_mrta.optimizer import solve_sequential_greedy_reference
@@ -36,6 +36,8 @@ class P2ContractTests(unittest.TestCase):
         self.assertEqual(LOSSES, (0, 10, 20, 30, 40, 50, 60, 70, 80, 90))
         self.assertEqual(validate_config(args), LOSSES)
         self.assertEqual(len(LOSSES) * 1 * args.seeds, 1000)
+        self.assertEqual(len(keys(LOSSES, 0, 100)), 1000)
+        self.assertEqual({method for _p, _seed, method in keys(LOSSES, 0, 100)}, {"voting"})
         self.assertEqual(len(LOSSES) * len(METHODS) * args.seeds, 4000)
         args.baseline_zip = None
         with self.assertRaises(ProtocolError) as cm:
