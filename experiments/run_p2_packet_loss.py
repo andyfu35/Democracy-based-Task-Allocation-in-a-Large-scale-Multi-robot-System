@@ -20,7 +20,7 @@ from experiments.p2_packet_loss_plot import render_p2_figure
 
 OWNER = "experiments.run_p2_packet_loss"
 METHODS = ("voting", "cbaa", "cbba", "price_auction")
-LOSSES = tuple(range(0, 91, 5))
+LOSSES = tuple(range(0, 91, 10))
 FIELDS = ("loss_percent",) + OUTPUT_FIELDS
 
 
@@ -32,7 +32,7 @@ def validate_config(args):
     try:
         values = tuple(float(x) for x in args.losses.split(","))
     except (ValueError, AttributeError):
-        fail("validate_config", "data", "P2_INVALID_LOSS_GRID", "0%..90% at 5%", args.losses)
+        fail("validate_config", "data", "P2_INVALID_LOSS_GRID", "0%..90% at 10%", args.losses)
     percentages = tuple(round(x * 100) for x in values)
     if (not percentages or any(abs(v * 100 - p) > 1e-9 for v, p in zip(values, percentages))
             or any(p not in LOSSES for p in percentages)
