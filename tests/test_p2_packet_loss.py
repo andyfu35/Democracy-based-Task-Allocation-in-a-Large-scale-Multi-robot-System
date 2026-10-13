@@ -24,10 +24,15 @@ def case(p, seed, method):
 class P2ContractTests(unittest.TestCase):
     def test_formal_grid_frozen(self):
         args = Namespace(losses=",".join(f"{p/100:.2f}" for p in LOSSES),
-                         seeds=100, first_seed=0, formal=True)
+                         seeds=100, first_seed=0, formal=True,
+                         voting_strategy="greedy_batch")
         self.assertEqual(LOSSES, (0, 10, 20, 30, 40, 50, 60, 70, 80, 90))
         self.assertEqual(validate_config(args), LOSSES)
         self.assertEqual(len(LOSSES) * len(METHODS) * args.seeds, 4000)
+        args.voting_strategy = "greedy_task"
+        with self.assertRaises(ProtocolError):
+            validate_config(args)
+        args.voting_strategy = "greedy_batch"
         args.losses = "0.00,0.30"
         with self.assertRaises(ProtocolError):
             validate_config(args)
