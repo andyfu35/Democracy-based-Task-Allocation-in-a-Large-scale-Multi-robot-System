@@ -1442,6 +1442,260 @@ def summarize_budget_exhausted_epoch(
     )
 
 
+_BATCH_HEADER = struct.Struct("<4sIII")
+_BATCH_RECORD = struct.Struct("<II")
+_BATCH_MAX_PACKET_BYTES = 1200
+
+
+def encode_greedy_batch_packet(
+    *, kind: bytes, round_id: int, sender_id: int,
+    records: tuple[tuple[int, int], ...],
+) -> bytes:
+    """Serialize one physically charged batch Vote/Score packet, not N hidden unicasts."""
+    if kind not in (b"BVOT", b"BSCR") or len(records) > 0xFFFFFFFF:
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="encode_greedy_batch_packet",
+            category="data", code="BATCH_GREEDY_INVALID_PACKET_KIND",
+            expected="BVOT/BSCR and 32-bit record count", actual=(kind, len(records)),
+        ))
+    try:
+        data = _BATCH_HEADER.pack(kind, round_id, sender_id, len(records)) + b"".join(
+            _BATCH_RECORD.pack(a, b) for a, b in records
+        )
+    except (struct.error, TypeError, ValueError) as exc:
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="encode_greedy_batch_packet",
+            category="data", code="BATCH_GREEDY_INVALID_PACKET_RECORD",
+            expected="uint32 sender/epoch and (task, candidate-or-count) pairs",
+            actual=str(exc),
+        )) from exc
+    if len(data) > _BATCH_MAX_PACKET_BYTES:
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="encode_greedy_batch_packet",
+            category="contract", code="BATCH_GREEDY_PACKET_EXCEEDS_LIMIT",
+            expected=f"<= {_BATCH_MAX_PACKET_BYTES} sender application bytes",
+            actual=len(data),
+        ))
+    return data
+
+
+def decode_greedy_batch_packet(
+    packet: bytes, *, kind: bytes, round_id: int, sender_id: int,
+) -> tuple[tuple[int, int], ...]:
+    """A receiver uses a decoded delivered frame, never the sender's invisible state."""
+    valid = isinstance(packet, bytes) and len(packet) >= _BATCH_HEADER.size
+    if valid:
+        magic, observed_round, observed_sender, count = _BATCH_HEADER.unpack_from(packet)
+        valid = (magic == kind and observed_round == round_id
+                 and observed_sender == sender_id
+                 and len(packet) == _BATCH_HEADER.size + count * _BATCH_RECORD.size)
+    if not valid:
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="decode_greedy_batch_packet",
+            category="contract", code="BATCH_GREEDY_INVALID_RECEIVED_PACKET",
+            expected=(kind, round_id, sender_id, "valid count and size"),
+            actual={"length": len(packet) if isinstance(packet, bytes) else None},
+        ))
+    return tuple(
+        _BATCH_RECORD.unpack_from(packet, _BATCH_HEADER.size + i * _BATCH_RECORD.size)
+        for i in range(count)
+    )
+
+
+def collect_greedy_batch_votes(
+    *, proposals: tuple[AssignmentSolution, ...],
+    physical_robots: tuple[int, ...],
+    ready_times: tuple[float, ...], round_id: int,
+    cutoff_ms: float, sampler, loss_sampler, p_vote_loss: float,
+) -> tuple[list[CommunicationEvent], list[DeliveryObservation], dict[tuple[int, int], int]]:
+    """One broadcast ballot per voter; only timely delivered votes enter recipient tallies."""
+    events: list[CommunicationEvent] = []
+    deliveries: list[DeliveryObservation] = []
+    counts: dict[tuple[int, int], int] = {}
+    order = (
+        sorted(range(len(physical_robots)), key=lambda i: (ready_times[i], physical_robots[i]))
+        if isinstance(sampler, WifiCausalTimingSampler) else range(len(physical_robots))
+    )
+    for voter_local_id in order:
+        proposal = proposals[voter_local_id]
+        sender_id = physical_robots[voter_local_id]
+        send_time_ms = ready_times[voter_local_id]
+        if not proposal.assigned_pairs:
+            continue
+        records = tuple((task_id, candidate_id) for candidate_id, task_id in proposal.assigned_pairs)
+        packet = encode_greedy_batch_packet(
+            kind=b"BVOT", round_id=round_id, sender_id=sender_id, records=records,
+        )
+        event = _broadcast_event(
+            phase="vote", sender_id=sender_id, round_id=round_id,
+            task_id=None, send_time_ms=send_time_ms,
+            payload_bytes=len(packet), sampler=sampler,
+        )
+        events.append(event)
+        attempts = _lossy_broadcast_deliveries(
+            event=event, num_robots=len(physical_robots),
+            receiver_ids=physical_robots, loss_sampler=loss_sampler,
+            p_loss=p_vote_loss, round_id=round_id,
+        )
+        deliveries.extend(attempts)
+        if send_time_ms <= cutoff_ms:
+            for task_id, candidate_id in records:
+                if candidate_id == sender_id:
+                    key = (task_id, candidate_id)
+                    counts[key] = counts.get(key, 0) + 1
+        for observation in attempts:
+            if (not observation.delivered or observation.arrival_time_ms is None
+                    or observation.arrival_time_ms > cutoff_ms):
+                continue
+            for task_id, candidate_id in decode_greedy_batch_packet(
+                packet, kind=b"BVOT", round_id=round_id, sender_id=sender_id,
+            ):
+                if candidate_id == observation.receiver_id:
+                    key = (task_id, candidate_id)
+                    counts[key] = counts.get(key, 0) + 1
+    return events, deliveries, counts
+
+
+def publish_greedy_batch_scores(
+    *, counted_votes: dict[tuple[int, int], int],
+    physical_robots: tuple[int, ...], round_id: int,
+    release_ms: float, sampler,
+) -> tuple[list[CommunicationEvent], dict[tuple[int, int], int]]:
+    """Each candidate publishes one reliable score vector from its received votes."""
+    events: list[CommunicationEvent] = []
+    certified: dict[tuple[int, int], int] = {}
+    for candidate_id in physical_robots:
+        scores = tuple(sorted(
+            (task_id, count) for (task_id, candidate), count in counted_votes.items()
+            if candidate == candidate_id and count > 0
+        ))
+        if not scores:
+            continue
+        packet = encode_greedy_batch_packet(
+            kind=b"BSCR", round_id=round_id, sender_id=candidate_id, records=scores,
+        )
+        event = _broadcast_event(
+            phase="vote_score_announcement", sender_id=candidate_id,
+            task_id=None, round_id=round_id, send_time_ms=release_ms,
+            payload_bytes=len(packet), sampler=sampler,
+            announced_vote_count=sum(count for _task_id, count in scores),
+        )
+        events.append(event)
+        for task_id, count in decode_greedy_batch_packet(
+            packet, kind=b"BSCR", round_id=round_id, sender_id=candidate_id,
+        ):
+            certified[(task_id, candidate_id)] = count
+    return events, certified
+
+
+def resolve_capacity_one_batch_winners(
+    *, scores: dict[tuple[int, int], int],
+    physical_tasks: tuple[int, ...],
+    physical_robots: tuple[int, ...],
+) -> tuple[tuple[tuple[int, int], ...], int]:
+    """All robots deterministically apply the same received-Score ranking and capacity-one rule."""
+    eligible = set(physical_robots)
+    winners: list[tuple[int, int]] = []
+    ties = 0
+    for task_id in physical_tasks:
+        choices = tuple(
+            (count, candidate_id)
+            for (reported_task, candidate_id), count in scores.items()
+            if reported_task == task_id and candidate_id in eligible and count > 0
+        )
+        if not choices:
+            continue
+        maximum = max(count for count, _candidate in choices)
+        tied = tuple(candidate for count, candidate in choices if count == maximum)
+        winner = min(tied)
+        ties += int(len(tied) > 1)
+        winners.append((winner, task_id))
+        eligible.remove(winner)
+    validate_one_to_one_commits(winners)
+    return tuple(winners), ties
+
+
+def emit_greedy_batch_commits(
+    *, winners: tuple[tuple[int, int], ...], round_id: int,
+    release_ms: float, sampler,
+) -> list[CommunicationEvent]:
+    """Charge each final reliable executor Commit after all batch Scores have arrived."""
+    return [
+        _broadcast_event(
+            phase="commit", sender_id=winner_id, task_id=task_id,
+            round_id=round_id, send_time_ms=release_ms,
+            payload_bytes=COMMIT_PAYLOAD_BYTES, sampler=sampler,
+        )
+        for winner_id, task_id in winners
+    ]
+
+
+def simulate_greedy_batch_vote_epoch(
+    *, cost_matrix: tuple[tuple[float, ...], ...],
+    cost_events: list[CommunicationEvent],
+    cost_deliveries: list[DeliveryObservation],
+    visible: tuple[frozenset[int], ...],
+    ready_times: tuple[float, ...],
+    proposals: tuple[AssignmentSolution, ...],
+    physical_robots: tuple[int, ...], physical_tasks: tuple[int, ...],
+    phase_timeout_ms: float, round_id: int,
+    sampler, loss_sampler, p_vote_loss: float,
+    capture_vote_audit: bool,
+) -> LossyCoordinationResult:
+    """One Cost snapshot -> batched Vote -> reliable Score vectors -> capacity-one Commit."""
+    cost_finished_ms = max(ready_times, default=0.0)
+    vote_cutoff_ms = cost_finished_ms + phase_timeout_ms
+    votes, observed_votes, counts = collect_greedy_batch_votes(
+        proposals=proposals, physical_robots=physical_robots, ready_times=ready_times,
+        round_id=round_id, cutoff_ms=vote_cutoff_ms, sampler=sampler,
+        loss_sampler=loss_sampler, p_vote_loss=p_vote_loss,
+    )
+    score_release_ms = max(
+        vote_cutoff_ms,
+        max((event.arrival_time_ms for event in votes), default=0.0),
+    )
+    scores, certified = publish_greedy_batch_scores(
+        counted_votes=counts, physical_robots=physical_robots,
+        round_id=round_id, release_ms=score_release_ms, sampler=sampler,
+    )
+    winners, tied = resolve_capacity_one_batch_winners(
+        scores=certified, physical_tasks=physical_tasks, physical_robots=physical_robots,
+    )
+    scores_done_ms = max(
+        score_release_ms, max((event.arrival_time_ms for event in scores), default=score_release_ms),
+    )
+    commits = emit_greedy_batch_commits(
+        winners=winners, round_id=round_id,
+        release_ms=scores_done_ms, sampler=sampler,
+    )
+    events = cost_events + votes + scores + commits
+    deliveries = cost_deliveries + observed_votes
+    elapsed = max(
+        scores_done_ms, max((event.arrival_time_ms for event in commits), default=scores_done_ms),
+    )
+    return _summarize_lossy_result(
+        method="democracy_batched_greedy_received_plurality",
+        cost_matrix=cost_matrix, assigned_pairs=winners,
+        cost_phase_completion_ms=cost_finished_ms,
+        decision_completion_ms=scores_done_ms,
+        global_agreement_ms=elapsed,
+        task_timeout_count=len(physical_tasks) - len(winners),
+        visible_counts=[len(ids) for ids in visible],
+        events=events, deliveries=deliveries,
+        robot_ids=physical_robots, task_ids=physical_tasks,
+        vote_decision_rule="received_plurality",
+        announcement_threshold=1,
+        qualified_announcement_count=len(scores),
+        plurality_tie_break_count=tied,
+        plurality_winner_vote_count=max(certified.values(), default=0),
+        audit_visible_rows_by_voter=(
+            tuple(frozenset(physical_robots[r] for r in rows) for rows in visible)
+            if capture_vote_audit else ()
+        ),
+        audit_proposals_by_voter=proposals if capture_vote_audit else (),
+    )
+
+
 def simulate_democracy_hungarian_lossy(
     *,
     cost_matrix: tuple[tuple[float, ...], ...],
@@ -1532,6 +1786,15 @@ def simulate_democracy_hungarian_lossy(
         physical_tasks=physical_tasks,
         strategy=voting_strategy,
     )
+    if voting_strategy == "greedy_batch":
+        return simulate_greedy_batch_vote_epoch(
+            cost_matrix=cost_matrix, cost_events=events,
+            cost_deliveries=deliveries, visible=visible, ready_times=ready_times,
+            proposals=proposals, physical_robots=physical_robots,
+            physical_tasks=physical_tasks, phase_timeout_ms=phase_timeout_ms,
+            round_id=round_id, sampler=sampler, loss_sampler=loss_sampler,
+            p_vote_loss=vote_loss_probability, capture_vote_audit=capture_vote_audit,
+        )
 
     ledgers_by_task: dict[int, dict[int, set[int]]] = {
         task_id: {} for task_id in physical_tasks
