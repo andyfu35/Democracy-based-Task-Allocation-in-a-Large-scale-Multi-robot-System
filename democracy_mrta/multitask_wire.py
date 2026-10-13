@@ -123,6 +123,12 @@ class E9MChannel:
              frame_id: int, p_loss: float, receivers: tuple[int, ...] | None = None
              ) -> dict[int, bytes]:
         validate_packet_loss_probability(p_loss)
+        if phase == "voting_vote" and receivers is None:
+            raise ProtocolError(Diagnostic(
+                "multitask_wire", "E9MChannel.send", "contract",
+                "E9M_VOTE_REQUIRES_UNICAST",
+                expected="one remote candidate recipient", actual="broadcast",
+                details=f"sender={sender}; task_epoch={round_id}"))
         if not 0 < len(frame) <= MAX_FRAME_BYTES:
             raise ProtocolError(Diagnostic("multitask_wire", "E9MChannel.send",
                                            "contract", "E9M_PACKET_TOO_LARGE",

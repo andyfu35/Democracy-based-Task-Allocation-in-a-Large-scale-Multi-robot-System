@@ -28,7 +28,8 @@ class TestE9MVoteDelivery(unittest.TestCase):
         self.assertEqual(dict(votes), {0: 2, 1: 1})
         ledger = channel.ledger()["voting_vote"]
         self.assertEqual(ledger["sender_sends"], 1)
-        self.assertEqual(ledger["sender_bytes"], 24)
+        self.assertEqual(ledger["sender_bytes"],
+                         len(encode_small_packet("voting_vote", 0, 2, 0, 1)))
         self.assertEqual(ledger["receiver_attempts"], 1)
         self.assertEqual(ledger["receiver_delivered"], 1)
         self.assertEqual(ledger["receiver_dropped"], 0)
@@ -45,6 +46,17 @@ class TestE9MVoteDelivery(unittest.TestCase):
                          round_id=0, frame_id=0, p_loss=0.0, receivers=(0,))
         self.assertEqual(raised.exception.diagnostic.code,
                          "E9M_INVALID_UNICAST_DESTINATION")
+        self.assertFalse(channel.timing.packet_trace)
+
+    def test_voting_vote_broadcast_rejected_before_physical_send(self):
+        channel = make_channel()
+        channel.begin_phase()
+        frame = encode_small_packet("voting_vote", 0, 0, 1, 1)
+        with self.assertRaises(ProtocolError) as raised:
+            channel.send(phase="voting_vote", sender=0, frame=frame,
+                         round_id=0, frame_id=0, p_loss=0.0)
+        self.assertEqual(raised.exception.diagnostic.code,
+                         "E9M_VOTE_REQUIRES_UNICAST")
         self.assertFalse(channel.timing.packet_trace)
 
     def test_original_broadcast_phases_remain_broadcast(self):

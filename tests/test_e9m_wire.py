@@ -30,14 +30,14 @@ class TestE9MWire(unittest.TestCase):
                                           "x", "test", 120, 181, (1.0,))
         timing = WifiCausalTimingSampler(profile, 7, WifiTimingConfig(phy_rate_mbps=144))
         channel = E9MChannel(robots=12, timing=timing, loss_seed=5, method="cbba")
-        packet = encode_small_packet("voting_vote", 2, 0, 3, 1)
-        self.assertEqual(decode_small_packet("voting_vote", packet, 2, 0), (3, 1))
+        packet = encode_small_packet("voting_cost", 2, 0, 3, 1)
+        self.assertEqual(decode_small_packet("voting_cost", packet, 2, 0), (3, 1))
         channel.begin_phase()
-        delivered = channel.send(phase="voting_vote", sender=0, frame=packet,
+        delivered = channel.send(phase="voting_cost", sender=0, frame=packet,
                                  round_id=2, frame_id=0, p_loss=0.30)
         channel.end_phase()
         self.assertNotIn(0, delivered)
-        row = channel.ledger()["voting_vote"]
+        row = channel.ledger()["voting_cost"]
         self.assertEqual(row["sender_sends"], 1)
         self.assertEqual(row["sender_bytes"], len(packet))
         self.assertEqual(row["receiver_attempts"], 11)
