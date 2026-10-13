@@ -140,8 +140,10 @@ def merge_paired_baseline_evidence(
     expected_old = {(p, seed, m) for p in percentages
                     for seed in range(first_seed, first_seed + seeds)
                     for m in BASELINE_METHODS}
-    if (len(fresh) != len(expected_new) or set(fresh) != expected_new
-            or len(old) != len(expected_old) or set(old) != expected_old):
+    if (len(voting_rows) != len(expected_new) or len(fresh) != len(expected_new)
+            or set(fresh) != expected_new
+            or len(old_baselines) != len(expected_old) or len(old) != len(expected_old)
+            or set(old) != expected_old):
         _failure("merge_paired_baseline_evidence", "contract", "P2_COMBINED_SOURCE_GRID_MISMATCH",
                  {"new": len(expected_new), "reused": len(expected_old)},
                  {"new": len(voting_rows), "reused": len(old_baselines)})
