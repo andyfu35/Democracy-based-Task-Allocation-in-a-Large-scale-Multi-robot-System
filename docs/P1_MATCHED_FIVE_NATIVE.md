@@ -1,6 +1,6 @@
 # P1 — Five original allocators, one paired capacity-one measurement boundary
 
-**Status: SOURCE IMPLEMENTED FOR USER-LOCAL MAC PREFLIGHT. No formal P1 results have been run, no CI.** This study is the one bounded acceptance experiment selected in [Research Closure Plan](RESEARCH_CLOSURE_PLAN.md). Do not replace historical E9I/J/L/M/N data; they remain separate original measurements.
+**Status (2026-10-13): FORMAL 1,500-CASE ORIGINAL ZIP RECEIVED AND INDEPENDENTLY VERIFIED (0 audit errors).** The frozen original preregistration below is retained for exact methodological provenance. [Completed formal P1 source analysis](P1_FORMAL_100SEED.md). No CI. This study is the one bounded acceptance experiment selected in [Research Closure Plan](RESEARCH_CLOSURE_PLAN.md). Do not replace historical E9I/J/L/M/N data; they remain separate original measurements.
 
 ## Fixed formal contract (freeze before observing results)
 
@@ -96,3 +96,8 @@ zip -r "$HOME/Downloads/p1_matched_five_100seed.zip" "$P1_ROOT" "$P1_ROOT.log"
 ```
 
 Please provide the resulting original ZIP. The README A/B/C/D accepted plots do **not** change until independently verified full original P1 data arrive. This P1 test closes common **external measurement** fairness, NOT equal real distributed paid-finalization guarantee. Do not claim actual Wi-Fi latency or generalize to C4.
+
+
+## Executed original formal source acceptance (2026-10-13)
+
+Original ZIP `p1_matched_five_100seed_20261013_122905.zip` SHA256 `d2f30bf39d1f4aff336a5b7220a4f15ee887d0d79ccc8c8a536819f40691de58`, executed Git `24e002695748e976c7b2abdfce661431839c4a7b`, contains all fixed three-size × 100 Seeds × five native methods (1,500 original cases) with no missing rows. All source member SHA, original 300 seeded scene fingerprints, 1,500 Hungarian/original assignment/ledger checks, 15 source summary rows and 15 same-success quality rows and 1,500 Terminal events independently agree (0 audit errors). Original 1476 native success and 1478 externally observed feasible; 24 original Auction guard limitations remain recorded. Source original ZIP kept unchanged in personal Library `/投票演算法/P1/`; original run image and publication-only adjusted figure separately SHA-attested. CBAA and CBBA output identical final assignments in all 300 paired scenes and have different first feasible/native stop time order at N100. [Full verified result](P1_FORMAL_100SEED.md). Earlier run commands remain for **reproduction**, not an outstanding run requirement.

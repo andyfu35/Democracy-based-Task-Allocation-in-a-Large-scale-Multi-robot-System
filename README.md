@@ -80,25 +80,30 @@ With 100 robots, zero application-layer loss, and a **fixed 609.113 ms task wait
 
 **Scientific question:** on common task-capacity and geometry, what are the trade-offs among original assignment algorithms?
 
-### Five-method single-task assignment
+### Five original algorithms — matched capacity-one, original 100 Seeds verified
 
-**Formal presentation cell:** robots=tasks=5–100 in steps of 5, **capacity 1**, 30% receiver loss, 100 scenario Seeds per size. The original Voting, CBAA and Price Auction curves are **frozen previously executed results** (6,000 method cases); Voting Multi-task and CBBA are **4,000 newly executed method cases**. Do not describe this as a fresh five-way rerun from one executable commit. Methods retain native packet types, local decisions and different endpoint evidence.
+**P1 formal original ZIP independently audited — zero data-integrity errors.** Same N=T=25,50,100, capacity **one**, packet Loss **30%** on each original method-native lossy packet, **100 paired Seeds per N**. All **five methods were newly run in the same source commit (1,500 original method cases)**, rather than mixing frozen historical three-algorithm averages with newer runs. An external observer records the first globally unique feasible assignment **after an originally incurred communication phase**; it neither adds messages nor stops or changes a robot. Native method-specific termination/guard is recorded **separately**.
 
-![Five-method capacity-one comparison: modeled stop time, sender Bytes and supported completion](docs/figures/e9n/formal/primary_five_method_time_bytes_success.svg)
+![P1 verified: five native original algorithms, native stop, external first feasible, Bytes and same-success Hungarian cost](docs/figures/p1/formal/primary_matched_five_protocol_time_bytes_quality.svg)
 
-| At 100 robots/100 tasks, capacity 1 | Voting | Original CBAA | Price Auction | Voting Multi-task | Original CBBA |
+| N=100; 30% Loss; 100 Seeds | Voting | Original CBAA | Price Auction | Voting Multi-task | Original CBBA |
 |---|---:|---:|---:|---:|---:|
-| Modeled stop time | 20.132 s | 13.647 s | 135.828 s | 101.919 s | **12.368 s** |
-| Attempted sender traffic | 255.50 kB | 2,693.04 kB | 353.94 kB | 305.39 kB | 6,488.06 kB |
-| Full completion **supported in plotted input** | — | — | 78/100 | **100/100** | **100/100** |
+| **External first globally feasible (s)** | 20.132 | **7.898** | 119.400¹ | 101.919 | 11.539 |
+| Original protocol modeled stop (s) | 20.132 | 13.647 | 135.828 | 101.919 | **12.368** |
+| Attempted application sender (decimal kB) | **255.50** | 2,693.04 | 353.94 | 305.39 | 6,488.06 |
+| **Native complete** | 100/100 | 100/100 | **78/100** | 100/100 | 100/100 |
+| First feasible observable | 100/100 | 100/100 | 79/100 | 100/100 | 100/100 |
+| Euclidean/Hungarian ratio² (lower better) | 1.3668 | 1.2348 | **1.1173** | 1.3673 | 1.2348 |
 
-**— means unavailable in the frozen per-size plotted source, not failed.** Auction time includes guard-censored cases. In the two new capacity-one methods, CBBA used **21.24× more Bytes** while its modeled observer stop was **8.24× shorter**. Neither quantity establishes equal paid distributed finalization or measured RF performance.
+¹ Auction first-feasible time averages **79 observed Seeds**; 22 guard-limited failures remain in the **all-100-Seed native stop and sender Bytes**. Missing first-feasible timestamps are **not** imputed. ² Hungarian ratios are conditioned on the **same 78 Seeds where all five native methods completed**; this is explicitly different from the unconditional success counts.
 
-For **assignment quality**, the original Price Auction's Hungarian Cost ratios are compared with Voting and CBAA **only on the same 78 successful Auction Seeds**; these ratios are not comparable with the CBBA/Voting Multi-task path-discounted reward. [Original conditional-quality figure](docs/figures/e9l_price/formal/primary_three_algorithm_completion_and_quality.svg).
+**Key discovery — rankings reverse under a common observed event.** At 100 robots CBAA's first feasible assignment is **7.898 s**, ahead of CBBA **11.539 s in all 100 paired Seeds**, but CBBA reaches its **original native stop** sooner (**12.368 s** vs CBAA **13.647 s**). The paired mean CBAA−CBBA first-feasible difference is **−3.640 s** (10k paired-bootstrap 95% CI **[−3.939,−3.364]**). CBAA and CBBA produced **the exact same final assignment on all 300 N/Seed paired scenes**; CBBA transmitted **2.41×** the CBAA application Bytes at N100. Thus this observation isolates their packet and native stopping trade-off, not a change in CBAA/CBBA allocation quality.
 
-**Evidence:** [complete 4,000-row new-method audit](docs/E9N_FORMAL_100SEED.md) · [original combined 100-row source](docs/figures/e9n/formal/original_five_method_common_cap1_source.csv) · [original auction study](docs/E9L_FORMAL_100SEED.md) · [original CBAA source manifest](docs/figures/e9j_cbaa/formal/source_manifest.json).
+**Completion and quality trade-off:** Price Auction has the lowest matched Hungarian cost ratio, but N100 native completion is just **78%**. Of the **1,500 complete original cases**, 1,476 natively completed and 1,478 ever formed a first externally feasible assignment. All **24 original native guard failures** belong to Auction (2 at N50, 22 at N100); two failed native endpoints already had an externally feasible snapshot, proving the two time/stop definitions cannot be substituted.
 
-**P1 measurement-closure candidate (source ready; NOT yet user-run):** the [matched five-original-method experiment](docs/P1_MATCHED_FIVE_NATIVE.md) will freshly execute N=T=25/50/100, 100 paired Seeds each, p30/C1. It records the read-only first globally feasible assignment event **without** stopping native protocols and independently computes one Euclidean/Hungarian cost on the same Seed. The original five-algorithm chart above remains source-verified prior evidence, not a P1 result; no new P1 figure is published until its original ZIP is audited.
+**Limits:** original Voting pays Score/Commit while CBAA, CBBA and Price Auction have native local/observer stopping; **first feasible is a read-only simulator event, not paid distributed termination or common knowledge**. Lossy native packet classes and objective formulations still differ, even with identical geometry/Seed/measurement. Timing combines Rady application-delay traces with a **hypothetical 144Mbps shared radio**, not measured 100-robot Wi-Fi latency.
+
+**Formal evidence:** [Original ZIP independent audit/report](docs/P1_FORMAL_100SEED.md) · [original 15-row summary](docs/figures/p1/formal/original_summary_p1.csv) · [same-five-success quality](docs/figures/p1/formal/original_same_success_quality_p1.csv) · [machine audit](docs/figures/p1/formal/p1_independent_original_zip_audit.json) · [pre-registered implementation](docs/P1_MATCHED_FIVE_NATIVE.md). The previous original **20-size historical descriptive comparison** is retained separately in the [E9N source audit](docs/E9N_FORMAL_100SEED.md) and [archived source figure](docs/figures/e9n/formal/primary_five_method_time_bytes_success.svg), not overwritten or relabeled.
 
 ### Multi-task assignment — separate capacity-four cohort
 
@@ -114,21 +119,20 @@ For **assignment quality**, the original Price Auction's Hungarian Cost ratios a
 
 Total route length and longest route duration are **different** objectives; physical route makespan is not allocation time. This capacity-four cohort is deliberately **not** a point on the capacity-one plot. [Source-verified multi-task report](docs/E9M_CORRECTED_ORIGINAL_ZIP_AUDIT_100SEED.md).
 
-## Remaining acceptance work — a bounded closure plan
+## Remaining acceptance work — P1 completed; next tests conditional
 
-The accepted evidence already covers A/B and the **simulated** portions of C/D. **We are not opening a new backlog for every historical pilot.** See the [two-priority closure plan](docs/RESEARCH_CLOSURE_PLAN.md) for conditions and a stop rule.
+The previously identified **first-priority five-original-method fairness-of-external-measurement study is now COMPLETE and source-verified**. We will not automatically rerun historical pilots or open new optimization baselines. [Bounded closure plan](docs/RESEARCH_CLOSURE_PLAN.md).
 
-| Priority | Need | Smallest useful follow-up |
-|---|---|---|
-| **1 — Common measurement boundary** | Current five-method time and cost curves come from different original source commits, optimization scores and **native termination conditions** | Rerun all **five original algorithms without protocol modification** at one preregistered N=T/C1, 30%-Loss cohort, reporting the **same external first-feasible-assignment event**, original native stop, original Bytes and a shared Euclidean/Hungarian audit. Start with N=25,50,100 × 100 paired Seeds (1,500 algorithm cases). |
-| **2 — Validate modeled communication time** | Measured Rady application delay plus hypothetical shared 144Mbps service is not a packet-level or physical wireless validation | One bounded network timing validation (packet-level or controlled multi-host replay), preserving real unicast/broadcast size and retry effects. Needed **only if the paper claims real network latency**, not for explicitly labeled model comparisons. |
-
-**Conditional only:** a second independently verified capacity-four scale, for example 50 robots/200 tasks, is needed **only** if we claim multi-task scaling beyond the verified 25/100 case. Otherwise freeze the current multi-task evidence. Do **not** revive historical one-round Vote controls, sender-size checks or unfinished deadline factorial studies just because their internal IDs exist.
+| Conditional need | Next action |
+|---|---|
+| **Claim actual network / Wi-Fi communication time** | First validate the hypothetical 144Mbps radio service and packet timing against a packet-level or controlled multi-host setting. Not needed for claims explicitly limited to **modeled communication time**. |
+| **Claim capacity-four multi-task scalability** | One prespecified additional C4 scale (e.g. 50R/200T) if needed; current 25R/100T original result is a single accepted C4 point, not a scaling curve. |
+| **Incomplete exploratory controls** | Archive only; no required backfilling. |
 
 ## Reproducibility, archives and limitations
 
 - [Historical internal study IDs, names and status](docs/EXPERIMENT_LEGACY_INDEX.md) · [Detailed historical results](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md) · [prior README snapshot](docs/README_PRE_ABCD_20261013.md).
 - [Cross-experiment audit](docs/EXPERIMENT_RESULTS_AUDIT_20261012.md) · [canonical protocol](docs/EXPERIMENT_PROTOCOL.md) · [change continuity](docs/CHANGE_CONTINUITY.md) · [bibliography](docs/references/e9g_wifi_timing.bib).
-- [Original single-task source audit](docs/E9N_FORMAL_100SEED.md) · [original multi-task source audit](docs/E9M_CORRECTED_ORIGINAL_ZIP_AUDIT_100SEED.md). Original ZIPs are retained unchanged in the user's personal Library with documented SHA-256 identities.
+- [Matched five-original-method source audit](docs/P1_FORMAL_100SEED.md) · [previous original single-task source audit](docs/E9N_FORMAL_100SEED.md) · [original multi-task source audit](docs/E9M_CORRECTED_ORIGINAL_ZIP_AUDIT_100SEED.md). Original ZIPs are retained unchanged in the user's personal Library with documented SHA-256 identities.
 
 **Comparison boundaries:** *method-native* modeled endpoint ≠ shared paid terminal guarantee; synthetic-timing loss study ≠ Rady radio-proxy experiment; capacity 1 ≠ capacity 4; aggregate historical source ≠ newly rerun paired original source. These limits are preserved in the reports. No actual 100-robot Wi-Fi deployment is claimed.

@@ -1,0 +1,390 @@
+{
+  "original_zip": "p1_matched_five_100seed_20261013_122905.zip",
+  "zip_sha256": "d2f30bf39d1f4aff336a5b7220a4f15ee887d0d79ccc8c8a536819f40691de58",
+  "archive_size": 362773,
+  "entries": [],
+  "source_manifest": {
+    "study": "P1_five_original_matched_first_feasible",
+    "status": "finished_with_all_original_failures_and_guards_retained",
+    "git_sha": "24e002695748e976c7b2abdfce661431839c4a7b",
+    "started_utc": "2026-10-13T04:07:02.506683+00:00",
+    "completed_utc": "2026-10-13T04:29:05.727075+00:00",
+    "python": "3.13.5 (v3.13.5:6cb20a219a8, Jun 11 2025, 12:23:45) [Clang 16.0.0 (clang-1600.0.26.6)]",
+    "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+    "config": {
+      "sizes": [
+        25,
+        50,
+        100
+      ],
+      "seeds": 100,
+      "first_seed": 0,
+      "loss": 0.3,
+      "capacity": 1,
+      "world_m": 100,
+      "methods": [
+        "voting",
+        "cbaa",
+        "price_auction",
+        "voting_multitask",
+        "cbba"
+      ],
+      "cbaa_cbba_auction_guard": 160,
+      "original_voting_guard": 300,
+      "epsilon_cost_m": 10,
+      "assumed_phy_mbps": 144.0,
+      "TASK_reliable": true,
+      "task_service_s": 0.0
+    },
+    "source_note": "Original Price Auction ported from historical native source; observer hooks never control run",
+    "original_price_auction_source_git_blob": "2d2f1c0eaff94143ce256eebf0a0ee30603d8cba",
+    "observer_contract": "first global unique C1 snapshot following incurred native phase; never affects stop",
+    "native_stop_contract": "method-specific paid Commit vs local/observer, report separately",
+    "failure_count": 24,
+    "external_feasible_seen": 1478,
+    "sha256": {
+      "per_seed_p1.csv": "86c2d0473329f479924f5c7233bf77f95fd4a6ca13d02184027d37e31501c4af",
+      "summary_p1.csv": "79a14809f515278095c735e28abd17f8a35a460ccafb0be5b8f64093bc7e2abe",
+      "same_success_quality_p1.csv": "3247136535a56af94e49213b0df4c100cc17344c1a31e3f88de156d12af0e239",
+      "five_original_matched_comparison.svg": "0aaf63d6f5eeba77a5a02ab04f87f45df24c7cc78b9eb9120d048240fc193e97"
+    }
+  },
+  "checks": {
+    "P1_ZIP_ENTRY_UNIQUENESS_checked": 1,
+    "P1_ZIP_CRC_checked": 1,
+    "P1_ZIP_SAFE_MEMBER_checked": 7,
+    "P1_REQUIRED_MEMBERS_checked": 1,
+    "P1_ONE_TERMINAL_LOG_checked": 1,
+    "P1_SOURCE_MEMBER_HASH_checked": 4,
+    "P1_SVG_XML_checked": 1,
+    "P1_STUDY_TAG_checked": 1,
+    "P1_FIXED_SIZES_checked": 1,
+    "P1_METHODS_checked": 1,
+    "P1_FORMAL_FIXED_PARAMS_checked": 1,
+    "P1_ORIGINAL_GUARDS_checked": 1,
+    "P1_CHANNEL_IDENTITY_checked": 1,
+    "P1_EXECUTED_GIT_SHA_checked": 1,
+    "P1_PRICE_SOURCE_SHA_checked": 1,
+    "P1_EXPECTED_GRID_COUNTS_checked": 1,
+    "P1_UNIQUE_SEED_METHOD_checked": 1500,
+    "P1_FORMAL_ROW_AXES_checked": 1500,
+    "P1_SCENE_SEEDED_IDENTICAL_checked": 1500,
+    "P1_HUNGARIAN_INDEPENDENT_checked": 1500,
+    "P1_PAIR_ENCODING_checked": 1500,
+    "P1_ASSIGNMENT_IN_RANGE_checked": 1500,
+    "P1_FINAL_FEASIBLE_FLAG_checked": 1500,
+    "P1_TOTAL_DISTANCE_RECOMPUTED_checked": 1478,
+    "P1_MAKESPAN_RECOMPUTED_checked": 1478,
+    "P1_HUNGARIAN_GAP_RECOMPUTED_checked": 1478,
+    "P1_HUNGARIAN_RATIO_RECOMPUTED_checked": 1478,
+    "P1_BELOW_OPTIMUM_checked": 1478,
+    "P1_OBSERVER_INVOCATIONS_checked": 1500,
+    "P1_COMPLETE_FIRST_FIELDS_checked": 1478,
+    "P1_TIME_POSITIVE_checked": 1478,
+    "P1_FIRST_BEFORE_STOP_checked": 1478,
+    "P1_FIRST_COST_NOT_BELOW_HUNGARIAN_checked": 1478,
+    "P1_SUCCESS_CONSISTENCY_checked": 1476,
+    "P1_NATIVE_TIME_POSITIVE_checked": 1500,
+    "P1_LEDGER_COUNTERS_checked": 1500,
+    "P1_NATIVE_VOTING_LEDGER_checked": 300,
+    "P1_VOTING_COST_DROPS_checked": 300,
+    "P1_CBAA_BYTES_checked": 300,
+    "P1_CBAA_RECEIVERS_checked": 300,
+    "P1_CBAA_TASK_BYTES_checked": 300,
+    "P1_CBAA_VECTOR_PACKET_BYTES_checked": 300,
+    "P1_AUCTION_BYTES_checked": 300,
+    "P1_AUCTION_SENDS_checked": 300,
+    "P1_AUCTION_PACKET_28_BYTES_checked": 300,
+    "P1_AUCTION_RECEIVERS_checked": 300,
+    "P1_E9M_LEDGER_SENDER_BYTES_checked": 600,
+    "P1_E9M_LEDGER_SENDS_checked": 600,
+    "P1_E9M_RECEIVER_ATTEMPTS_checked": 600,
+    "P1_E9M_RECEIVER_DROPS_checked": 600,
+    "P1_E9M_PER_PHASE_RECEIPT_checked": 2100,
+    "P1_INFEASIBLE_DISTANCE_NOT_FABRICATED_checked": 22,
+    "P1_MISSING_INFEASIBLE_QUALITY_checked": 22,
+    "P1_FIRST_NOT_FABRICATED_checked": 22,
+    "P1_1500_UNIQUE_KEYS_checked": 1,
+    "P1_FIVE_PER_SCENE_checked": 300,
+    "P1_SAME_SCENE_FIVE_checked": 300,
+    "P1_SUMMARY_15_checked": 1,
+    "P1_SUMMARY_SEED_N_checked": 15,
+    "P1_SUMMARY_COMPLETE_checked": 15,
+    "P1_SUMMARY_FIRST_checked": 15,
+    "P1_SUMMARY_GUARD_checked": 15,
+    "P1_SUMMARY_FAILURE_checked": 15,
+    "P1_RECOMPUTE_SUMMARY_checked": 60,
+    "P1_METHOD_CONTRACT_AGGREGATE_checked": 15,
+    "P1_PAIRED_QUALITY_15_checked": 1,
+    "P1_SAME_SUCCESS_DENOM_checked": 15,
+    "P1_RECOMPUTE_PAIRED_QUALITY_checked": 15,
+    "P1_TERMINAL_UNIQUE_checked": 1500,
+    "P1_TERMINAL_1500_checked": 1,
+    "P1_TERMINAL_COUNTS_AND_BYTES_checked": 1500,
+    "P1_TERMINAL_TIME_checked": 1500,
+    "P1_TERMINAL_ERROR_PREFIX_checked": 1500,
+    "P1_TERMINAL_COMPLETION_checked": 1,
+    "P1_MANIFEST_NATIVE_FAILURES_checked": 1,
+    "P1_MANIFEST_FIRST_FEASIBLE_checked": 1
+  },
+  "error_count": 0,
+  "errors": [],
+  "aggregate": [
+    {
+      "N": 25,
+      "method": "voting",
+      "success": 100,
+      "first_seen": 100,
+      "guard": 0,
+      "stop_s": 4.550012899025563,
+      "first_s": 4.550012899025563,
+      "sender_kB": 18.064799999999998,
+      "ratio_success": 1.2979443263653014,
+      "fail_diagnostics": {}
+    },
+    {
+      "N": 25,
+      "method": "cbaa",
+      "success": 100,
+      "first_seen": 100,
+      "guard": 0,
+      "stop_s": 7.71299804841,
+      "first_s": 3.888477832448889,
+      "sender_kB": 111.1,
+      "ratio_success": 1.1644568749638429,
+      "fail_diagnostics": {}
+    },
+    {
+      "N": 25,
+      "method": "price_auction",
+      "success": 100,
+      "first_seen": 100,
+      "guard": 0,
+      "stop_s": 39.028293632862216,
+      "first_s": 36.154457384016666,
+      "sender_kB": 31.54628,
+      "ratio_success": 1.05083754353623,
+      "fail_diagnostics": {}
+    },
+    {
+      "N": 25,
+      "method": "voting_multitask",
+      "success": 100,
+      "first_seen": 100,
+      "guard": 0,
+      "stop_s": 12.335563298842139,
+      "first_s": 12.335563298842139,
+      "sender_kB": 20.1148,
+      "ratio_success": 1.2842763510486266,
+      "fail_diagnostics": {}
+    },
+    {
+      "N": 25,
+      "method": "cbba",
+      "success": 100,
+      "first_seen": 100,
+      "guard": 0,
+      "stop_s": 2.1022704581277796,
+      "first_s": 1.8184170816944456,
+      "sender_kB": 178.99201000000002,
+      "ratio_success": 1.1644568749638429,
+      "fail_diagnostics": {}
+    },
+    {
+      "N": 50,
+      "method": "voting",
+      "success": 100,
+      "first_seen": 100,
+      "guard": 0,
+      "stop_s": 9.141286935723347,
+      "first_s": 9.141286935723347,
+      "sender_kB": 66.90656,
+      "ratio_success": 1.33065653839471,
+      "fail_diagnostics": {}
+    },
+    {
+      "N": 50,
+      "method": "cbaa",
+      "success": 100,
+      "first_seen": 100,
+      "guard": 0,
+      "stop_s": 10.32488722200778,
+      "first_s": 5.60196727456,
+      "sender_kB": 557.264,
+      "ratio_success": 1.1919162029676855,
+      "fail_diagnostics": {}
+    },
+    {
+      "N": 50,
+      "method": "price_auction",
+      "success": 98,
+      "first_seen": 99,
+      "guard": 2,
+      "stop_s": 80.56759867087108,
+      "first_s": 76.30031623442083,
+      "sender_kB": 116.42612,
+      "ratio_success": 1.083585641391288,
+      "fail_diagnostics": {
+        "round_safety_guard": 2
+      }
+    },
+    {
+      "N": 50,
+      "method": "voting_multitask",
+      "success": 100,
+      "first_seen": 100,
+      "guard": 0,
+      "stop_s": 36.344867227819805,
+      "first_s": 36.344867227819805,
+      "sender_kB": 77.711,
+      "ratio_success": 1.3258830053293724,
+      "fail_diagnostics": {}
+    },
+    {
+      "N": 50,
+      "method": "cbba",
+      "success": 100,
+      "first_seen": 100,
+      "guard": 0,
+      "stop_s": 5.685381260948902,
+      "first_s": 5.2058680592933495,
+      "sender_kB": 1091.6055700000002,
+      "ratio_success": 1.1919162029676855,
+      "fail_diagnostics": {}
+    },
+    {
+      "N": 100,
+      "method": "voting",
+      "success": 100,
+      "first_seen": 100,
+      "guard": 0,
+      "stop_s": 20.131587781784347,
+      "first_s": 20.131587781784347,
+      "sender_kB": 255.4976,
+      "ratio_success": 1.3621482937374638,
+      "fail_diagnostics": {}
+    },
+    {
+      "N": 100,
+      "method": "cbaa",
+      "success": 100,
+      "first_seen": 100,
+      "guard": 0,
+      "stop_s": 13.647430680582223,
+      "first_s": 7.89839835585,
+      "sender_kB": 2693.04,
+      "ratio_success": 1.2352608182858986,
+      "fail_diagnostics": {}
+    },
+    {
+      "N": 100,
+      "method": "price_auction",
+      "success": 78,
+      "first_seen": 79,
+      "guard": 22,
+      "stop_s": 135.82834510591553,
+      "first_s": 119.39969868854834,
+      "sender_kB": 353.93904,
+      "ratio_success": 1.1173190732536107,
+      "fail_diagnostics": {
+        "round_safety_guard": 22
+      }
+    },
+    {
+      "N": 100,
+      "method": "voting_multitask",
+      "success": 100,
+      "first_seen": 100,
+      "guard": 0,
+      "stop_s": 101.919109639773,
+      "first_s": 101.919109639773,
+      "sender_kB": 305.3936,
+      "ratio_success": 1.3612329041176983,
+      "fail_diagnostics": {}
+    },
+    {
+      "N": 100,
+      "method": "cbba",
+      "success": 100,
+      "first_seen": 100,
+      "guard": 0,
+      "stop_s": 12.36764325422517,
+      "first_s": 11.538602232968564,
+      "sender_kB": 6488.061610000001,
+      "ratio_success": 1.2352608182858986,
+      "fail_diagnostics": {}
+    }
+  ],
+  "paired_success_seeds": {
+    "25": 100,
+    "50": 98,
+    "100": 78
+  },
+  "log_original_sha256": "bfa7ba057852f12edafce54c0c06f679e58fc4e510181e2393d3bb7a67e90f8a",
+  "zip_members_sha256": {
+    "five_original_matched_comparison.svg": "0aaf63d6f5eeba77a5a02ab04f87f45df24c7cc78b9eb9120d048240fc193e97",
+    "manifest_p1.json": "9daa190b5e28ee65dee41527d6225f41248a73ca2d40a08be6e99ea72d0afd02",
+    "per_seed_p1.csv": "86c2d0473329f479924f5c7233bf77f95fd4a6ca13d02184027d37e31501c4af",
+    "same_success_quality_p1.csv": "3247136535a56af94e49213b0df4c100cc17344c1a31e3f88de156d12af0e239",
+    "summary_p1.csv": "79a14809f515278095c735e28abd17f8a35a460ccafb0be5b8f64093bc7e2abe",
+    "p1_matched_five_loss30_100seed_20261013_120702.log": "bfa7ba057852f12edafce54c0c06f679e58fc4e510181e2393d3bb7a67e90f8a"
+  },
+  "recomputed_CBAA_CBBA_assignment_identity_by_N": {
+    "25": 100,
+    "50": 100,
+    "100": 100
+  },
+  "recomputed_exact_common_five_native_success_by_N": {
+    "25": 100,
+    "50": 98,
+    "100": 78
+  },
+  "additional_confirmed_facts": {
+    "native_success_1500": 1476,
+    "native_failure_only_auction": 24,
+    "first_feasible_observed_1500": 1478,
+    "auction_native_fail_but_first_feasible_N_seed": [
+      [
+        50,
+        42
+      ],
+      [
+        100,
+        88
+      ]
+    ],
+    "all_three_sizes_SamePair_CBAA_CBBA": 300,
+    "failed_guard_N50": 2,
+    "failed_guard_N100": 22,
+    "CBAA_minus_CBBA_100R_first_feasible_s": -3.640203877118564,
+    "CBAA_minus_CBBA_100R_native_stop_s": 1.2797874263570526,
+    "CBAA_minus_CBBA_100R_native_sender_bytes": -3795021.61,
+    "CBAA_minus_CBBA_100R_first_feasible_CI95_10k_bootstraps_s": [
+      -3.93868422,
+      -3.36352953
+    ],
+    "CBAA_minus_CBBA_100R_native_stop_CI95_10k_bootstraps_s": [
+      0.95170894,
+      1.59206347
+    ],
+    "CBAA_minus_CBBA_100R_sender_bytes_CI95_10k_bootstraps": [
+      -4031694.089,
+      -3570417.805
+    ],
+    "Auction_minus_CBAA_N100_paired78_quality_ratio": -0.11743278856949019,
+    "Auction_minus_CBAA_N100_paired78_CI95_10k_bootstrap_ratio": [
+      -0.13150435,
+      -0.10350678
+    ]
+  },
+  "derived_presentation_only": {
+    "input_exact_original_svg_sha256": "0aaf63d6f5eeba77a5a02ab04f87f45df24c7cc78b9eb9120d048240fc193e97",
+    "publication_svg_sha256": "30fbd9847ff43da192b56d55217c988ac1cbf566d291ecead0dc1805aa1c3f63",
+    "changes": [
+      "Move panel A/B and C/D footnote baselines outside x labels",
+      "Presentation-only re-scale panel D cost ratio axis to 1.00..1.50 and reposition exact original quality CSV values, per-point pixel audit succeeded",
+      "Preserve all other data and geometry, native time and payload plot lines unchanged"
+    ],
+    "no_simulations_rerun": true
+  }
+}

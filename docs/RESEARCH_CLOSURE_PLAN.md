@@ -1,6 +1,6 @@
 # Research Closure Plan — freeze the completed A–D experiments
 
-**Status 2026-10-13: P1 formal study has been preregistered and its source implemented for USER-LOCAL PREFLIGHT only. NO P1 smoke or 100-seed numerical results exist yet.** The accepted original-source studies shown in [README A–D](../README.md) remain valid **under their own model and endpoint contracts**. This plan identifies only the remaining gaps for a defensible cross-method statement. It does not silently revise earlier experiments, method packet formats or reward definitions.
+**Status (2026-10-13): Priority 1 COMPLETE. User supplied full P1 1,500-case original ZIP; independently source audited, zero errors. Only model-validation and multi-task scale claims remain conditional.** The accepted original-source studies shown in [README A–D](../README.md) remain valid **under their own model and endpoint contracts**. This plan identifies only the remaining gaps for a defensible cross-method statement. It does not silently revise earlier experiments, method packet formats or reward definitions.
 
 ## Accepted / frozen (do not rerun)
 
@@ -11,11 +11,11 @@
 | C. Deadline reduction in Rady-based modeled setting | Closed for **modeled time only** | 100 Seeds at each N, original 30% Cost/30% Vote; separate zero-loss radio sensitivity |
 | D. Algorithm-native C1/C4 behaviors | Original observations accepted, **comparative fairness claims remain limited** | 5-series common C1 chart, source verified 4,000 new E9N cases plus 6,000 historical; 25R/100T C4 source-verified 200 E9M cases |
 
-## Priority 1 — one final matched five-method evaluation cell
+## Priority 1 — COMPLETE: five original methods, same-scene external measurement
 
 **Failure mode to eliminate:** a five-method chart currently juxtaposes archived sources/commits, different allocation utility metrics and **different finalization conditions**. We can report their native numbers descriptively, but not call the ranking fully protocol-fair.
 
-**Minimal proposed experiment, to preregister before code change:**
+**Originally preregistered experiment, executed as frozen:**
 
 - N=T ∈ {25, 50, 100}; capacity C=1; 100 paired Seeds (0–99) each; Cost/real method packet receiver loss p=0.30; 100m geometry; same robot/task positions and common physical channel configuration.
 - **Exactly five original native allocators**: Voting, original CBAA, Distributed Price Auction, Voting Multi-task C1, original CBBA C1. No Paid CBAA. Do not insert an artificial new finalization wrapper or alter a comparator's state machine.
@@ -47,3 +47,8 @@ Do not automatically rerun the provisional single-round Vote audit, the packet-s
 ## P1 implementation status — no results implied
 
 The bounded Priority 1 method/geometry/metric contract is now frozen in [P1 matched five-native experiment](P1_MATCHED_FIVE_NATIVE.md); native algorithm behavior is preserved with optional read-only observer callbacks, and the historical Price Auction source is restored from its genuine owner. Local isolated 7/7 unit tests cover the external observer, paired grid/quality and synthetic evidence outputs (NOT native simulator integration). Four original native policy callback-invariance regressions plus original guarded Voting observation are provided for user Mac. **Do not promote this study before native tests, zero-loss and 30%-loss Smoke, formal 1,500 cases and original ZIP audit**. Deadline or radio experiments beyond P1 remain conditional as above; abandoned historical pilots remain closed.
+
+
+### Verified completion of P1 — 2026-10-13
+
+User Mac executed full frozen N25/50/100 ×100 matched Seeds×5 original methods, Git `24e002695748e976c7b2abdfce661431839c4a7b`; original ZIP `p1_matched_five_100seed_20261013_122905.zip` SHA256 `d2f30bf39d1f4aff336a5b7220a4f15ee887d0d79ccc8c8a536819f40691de58` stored unchanged in personal Library. [Full formal ZIP audit](P1_FORMAL_100SEED.md): 1,500 original rows, 1,476 native successful, 1,478 ever externally feasible, 24 Auction guard cases, all source, Hungarian, geometry, native SEND/Bytes and printed Terminal consistency checks pass (0 errors). P1 shows CBAA vs CBBA **rank reversal** (first feasible vs native stop) at N100 while all 300 CBAA/CBBA paired final assignments are identical. Thus no further matched five-algorithm simulation is mandatory for the common read-only observation claim. Native paid terminal guarantees and modeled-radio physical validation remain distinct and are not proven by this study. Earlier conditional P2 and capacity-four scope remain unchanged.

@@ -1,0 +1,16 @@
+robots,method,trials,native_complete,first_feasible_observed,guard_censored,method_error,mean_all_seed_native_stop_ms,mean_all_seed_sender_bytes,mean_first_feasible_ms_when_seen,mean_native_complete_cost_ratio,native_endpoint
+25,voting,100,100,100,0,0,4550.0128990255635,18064.8,4550.0128990255635,1.2979443263653017,paid reliable Score/Commit; original E9I guarded adaptive Cost/Vote
+25,cbaa,100,100,100,0,0,7712.99804841,111100.0,3888.477832448889,1.1644568749638429,local-certificate + unpaid simulator shared halt; no Commit
+25,price_auction,100,100,100,0,0,39028.293632862216,31546.28,36154.45738401666,1.05083754353623,"native bidder/home 28-byte BID/AWARD, optimistic unpaid local halt"
+25,voting_multitask,100,100,100,0,0,12335.563298842138,20114.8,12335.563298842138,1.2842763510486264,paid reliable Score/Commit
+25,cbba,100,100,100,0,0,2102.2704581277794,178992.01,1818.4170816944454,1.1644568749638429,unpaid external CBBA observer stop
+50,voting,100,100,100,0,0,9141.286935723347,66906.56,9141.286935723347,1.33065653839471,paid reliable Score/Commit; original E9I guarded adaptive Cost/Vote
+50,cbaa,100,100,100,0,0,10324.88722200778,557264.0,5601.96727456,1.1919162029676855,local-certificate + unpaid simulator shared halt; no Commit
+50,price_auction,100,98,99,2,0,80567.59867087108,116426.12,76300.31623442084,1.083585641391288,"native bidder/home 28-byte BID/AWARD, optimistic unpaid local halt"
+50,voting_multitask,100,100,100,0,0,36344.86722781981,77711.0,36344.86722781981,1.3258830053293724,paid reliable Score/Commit
+50,cbba,100,100,100,0,0,5685.381260948901,1091605.57,5205.86805929335,1.1919162029676855,unpaid external CBBA observer stop
+100,voting,100,100,100,0,0,20131.587781784347,255497.6,20131.587781784347,1.362148293737464,paid reliable Score/Commit; original E9I guarded adaptive Cost/Vote
+100,cbaa,100,100,100,0,0,13647.430680582223,2693040.0,7898.39835585,1.2352608182858986,local-certificate + unpaid simulator shared halt; no Commit
+100,price_auction,100,78,79,22,0,135828.34510591553,353939.04,119399.69868854833,1.117319073253611,"native bidder/home 28-byte BID/AWARD, optimistic unpaid local halt"
+100,voting_multitask,100,100,100,0,0,101919.109639773,305393.6,101919.109639773,1.3612329041176983,paid reliable Score/Commit
+100,cbba,100,100,100,0,0,12367.64325422517,6488061.61,11538.602232968566,1.2352608182858986,unpaid external CBBA observer stop

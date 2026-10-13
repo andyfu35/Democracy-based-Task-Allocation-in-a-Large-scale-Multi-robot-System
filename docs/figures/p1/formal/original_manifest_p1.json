@@ -1,0 +1,46 @@
+{
+  "study": "P1_five_original_matched_first_feasible",
+  "status": "finished_with_all_original_failures_and_guards_retained",
+  "git_sha": "24e002695748e976c7b2abdfce661431839c4a7b",
+  "started_utc": "2026-10-13T04:07:02.506683+00:00",
+  "completed_utc": "2026-10-13T04:29:05.727075+00:00",
+  "python": "3.13.5 (v3.13.5:6cb20a219a8, Jun 11 2025, 12:23:45) [Clang 16.0.0 (clang-1600.0.26.6)]",
+  "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+  "config": {
+    "sizes": [
+      25,
+      50,
+      100
+    ],
+    "seeds": 100,
+    "first_seed": 0,
+    "loss": 0.3,
+    "capacity": 1,
+    "world_m": 100,
+    "methods": [
+      "voting",
+      "cbaa",
+      "price_auction",
+      "voting_multitask",
+      "cbba"
+    ],
+    "cbaa_cbba_auction_guard": 160,
+    "original_voting_guard": 300,
+    "epsilon_cost_m": 10,
+    "assumed_phy_mbps": 144.0,
+    "TASK_reliable": true,
+    "task_service_s": 0.0
+  },
+  "source_note": "Original Price Auction ported from historical native source; observer hooks never control run",
+  "original_price_auction_source_git_blob": "2d2f1c0eaff94143ce256eebf0a0ee30603d8cba",
+  "observer_contract": "first global unique C1 snapshot following incurred native phase; never affects stop",
+  "native_stop_contract": "method-specific paid Commit vs local/observer, report separately",
+  "failure_count": 24,
+  "external_feasible_seen": 1478,
+  "sha256": {
+    "per_seed_p1.csv": "86c2d0473329f479924f5c7233bf77f95fd4a6ca13d02184027d37e31501c4af",
+    "summary_p1.csv": "79a14809f515278095c735e28abd17f8a35a460ccafb0be5b8f64093bc7e2abe",
+    "same_success_quality_p1.csv": "3247136535a56af94e49213b0df4c100cc17344c1a31e3f88de156d12af0e239",
+    "five_original_matched_comparison.svg": "0aaf63d6f5eeba77a5a02ab04f87f45df24c7cc78b9eb9120d048240fc193e97"
+  }
+}

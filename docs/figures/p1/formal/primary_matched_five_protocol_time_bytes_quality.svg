@@ -1,0 +1,164 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1070" role="img" aria-label="P1 same geometry five native algorithms. Four-panel source verified figure">
+<rect width="1440" height="1050" fill="white"/>
+<g font-family="Arial,Helvetica,sans-serif" fill="#203445">
+<text x="50" y="48" font-size="30" font-weight="bold">D. Matched original five-algorithm evaluation</text>
+<text x="50" y="80" font-size="17">N = 25 / 50 / 100 · tasks = robots · capacity 1 · packet loss 30% · 100 paired seeds per N</text>
+<line x1="50" y1="111" x2="78" y2="111" stroke="#2576B5" stroke-width="4"/>
+<text x="85" y="116" font-size="14">Voting</text>
+<line x1="323" y1="111" x2="351" y2="111" stroke="#B46A21" stroke-width="4"/>
+<text x="358" y="116" font-size="14">Original CBAA</text>
+<line x1="596" y1="111" x2="624" y2="111" stroke="#9064AA" stroke-width="4"/>
+<text x="631" y="116" font-size="14">Price Auction</text>
+<line x1="869" y1="111" x2="897" y2="111" stroke="#159583" stroke-width="4"/>
+<text x="904" y="116" font-size="14">Voting Multi-task</text>
+<line x1="1142" y1="111" x2="1170" y2="111" stroke="#D74E47" stroke-width="4"/>
+<text x="1177" y="116" font-size="14">Original CBBA</text>
+<text x="58" y="182" font-size="19" font-weight="bold">A. Native protocol modeled stop (s)</text>
+<line x1="127" x2="640" y1="444.0" y2="444.0" stroke="#E0E6EB"/>
+<text x="116" y="449.0" text-anchor="end" font-size="13" fill="#586779">0</text>
+<line x1="127" x2="640" y1="385.0" y2="385.0" stroke="#E0E6EB"/>
+<text x="116" y="390.0" text-anchor="end" font-size="13" fill="#586779">37</text>
+<line x1="127" x2="640" y1="326.0" y2="326.0" stroke="#E0E6EB"/>
+<text x="116" y="331.0" text-anchor="end" font-size="13" fill="#586779">75</text>
+<line x1="127" x2="640" y1="267.0" y2="267.0" stroke="#E0E6EB"/>
+<text x="116" y="272.0" text-anchor="end" font-size="13" fill="#586779">112</text>
+<line x1="127" x2="640" y1="208.0" y2="208.0" stroke="#E0E6EB"/>
+<text x="116" y="213.0" text-anchor="end" font-size="13" fill="#586779">149</text>
+<text x="127.0" y="467" font-size="14" text-anchor="middle">25</text>
+<text x="298.0" y="467" font-size="14" text-anchor="middle">50</text>
+<text x="640.0" y="467" font-size="14" text-anchor="middle">100</text>
+<text x="383.5" y="489" font-size="14" text-anchor="middle">Robots = Tasks; capacity one</text>
+<circle cx="127.0" cy="436.8" r="3.4" fill="#2576B5"/>
+<circle cx="298.0" cy="429.6" r="3.4" fill="#2576B5"/>
+<circle cx="640.0" cy="412.2" r="3.4" fill="#2576B5"/>
+<polyline points="127.0,436.8 298.0,429.6 640.0,412.2" fill="none" stroke="#2576B5" stroke-width="3"/>
+<circle cx="127.0" cy="431.8" r="3.4" fill="#B46A21"/>
+<circle cx="298.0" cy="427.7" r="3.4" fill="#B46A21"/>
+<circle cx="640.0" cy="422.4" r="3.4" fill="#B46A21"/>
+<polyline points="127.0,431.8 298.0,427.7 640.0,422.4" fill="none" stroke="#B46A21" stroke-width="3"/>
+<circle cx="127.0" cy="382.4" r="3.4" fill="#9064AA"/>
+<circle cx="298.0" cy="316.7" r="3.4" fill="#9064AA"/>
+<circle cx="640.0" cy="229.5" r="3.4" fill="#9064AA"/>
+<polyline points="127.0,382.4 298.0,316.7 640.0,229.5" fill="none" stroke="#9064AA" stroke-width="3"/>
+<circle cx="127.0" cy="424.5" r="3.4" fill="#159583"/>
+<circle cx="298.0" cy="386.6" r="3.4" fill="#159583"/>
+<circle cx="640.0" cy="283.0" r="3.4" fill="#159583"/>
+<polyline points="127.0,424.5 298.0,386.6 640.0,283.0" fill="none" stroke="#159583" stroke-width="3"/>
+<circle cx="127.0" cy="440.7" r="3.4" fill="#D74E47"/>
+<circle cx="298.0" cy="435.0" r="3.4" fill="#D74E47"/>
+<circle cx="640.0" cy="424.5" r="3.4" fill="#D74E47"/>
+<polyline points="127.0,440.7 298.0,435.0 640.0,424.5" fill="none" stroke="#D74E47" stroke-width="3"/>
+<text x="60" y="513" fill="#66768A" font-size="12">Native endpoints differ; all-seed only when all timing records exist</text>
+<text x="773" y="182" font-size="19" font-weight="bold">B. First globally feasible (s)</text>
+<line x1="842" x2="1355" y1="444.0" y2="444.0" stroke="#E0E6EB"/>
+<text x="831" y="449.0" text-anchor="end" font-size="13" fill="#586779">0</text>
+<line x1="842" x2="1355" y1="385.0" y2="385.0" stroke="#E0E6EB"/>
+<text x="831" y="390.0" text-anchor="end" font-size="13" fill="#586779">33</text>
+<line x1="842" x2="1355" y1="326.0" y2="326.0" stroke="#E0E6EB"/>
+<text x="831" y="331.0" text-anchor="end" font-size="13" fill="#586779">66</text>
+<line x1="842" x2="1355" y1="267.0" y2="267.0" stroke="#E0E6EB"/>
+<text x="831" y="272.0" text-anchor="end" font-size="13" fill="#586779">99</text>
+<line x1="842" x2="1355" y1="208.0" y2="208.0" stroke="#E0E6EB"/>
+<text x="831" y="213.0" text-anchor="end" font-size="13" fill="#586779">131</text>
+<text x="842.0" y="467" font-size="14" text-anchor="middle">25</text>
+<text x="1013.0" y="467" font-size="14" text-anchor="middle">50</text>
+<text x="1355.0" y="467" font-size="14" text-anchor="middle">100</text>
+<text x="1098.5" y="489" font-size="14" text-anchor="middle">Robots = Tasks; capacity one</text>
+<circle cx="842.0" cy="435.8" r="3.4" fill="#2576B5"/>
+<circle cx="1013.0" cy="427.6" r="3.4" fill="#2576B5"/>
+<circle cx="1355.0" cy="407.8" r="3.4" fill="#2576B5"/>
+<polyline points="842.0,435.8 1013.0,427.6 1355.0,407.8" fill="none" stroke="#2576B5" stroke-width="3"/>
+<circle cx="842.0" cy="437.0" r="3.4" fill="#B46A21"/>
+<circle cx="1013.0" cy="433.9" r="3.4" fill="#B46A21"/>
+<circle cx="1355.0" cy="429.8" r="3.4" fill="#B46A21"/>
+<polyline points="842.0,437.0 1013.0,433.9 1355.0,429.8" fill="none" stroke="#B46A21" stroke-width="3"/>
+<circle cx="842.0" cy="379.0" r="3.4" fill="#9064AA"/>
+<circle cx="1013.0" cy="306.9" r="3.4" fill="#9064AA"/>
+<circle cx="1355.0" cy="229.5" r="3.4" fill="#9064AA"/>
+<polyline points="842.0,379.0 1013.0,306.9 1355.0,229.5" fill="none" stroke="#9064AA" stroke-width="3"/>
+<circle cx="842.0" cy="421.8" r="3.4" fill="#159583"/>
+<circle cx="1013.0" cy="378.7" r="3.4" fill="#159583"/>
+<circle cx="1355.0" cy="260.9" r="3.4" fill="#159583"/>
+<polyline points="842.0,421.8 1013.0,378.7 1355.0,260.9" fill="none" stroke="#159583" stroke-width="3"/>
+<circle cx="842.0" cy="440.7" r="3.4" fill="#D74E47"/>
+<circle cx="1013.0" cy="434.6" r="3.4" fill="#D74E47"/>
+<circle cx="1355.0" cy="423.3" r="3.4" fill="#D74E47"/>
+<polyline points="842.0,440.7 1013.0,434.6 1355.0,423.3" fill="none" stroke="#D74E47" stroke-width="3"/>
+<text x="775" y="513" fill="#66768A" font-size="12">Read-only evaluation; only feasible-observed trials have time</text>
+<text x="58" y="544" font-size="19" font-weight="bold">C. Attempted sender payload (decimal kB)</text>
+<line x1="127" x2="640" y1="806.0" y2="806.0" stroke="#E0E6EB"/>
+<text x="116" y="811.0" text-anchor="end" font-size="13" fill="#586779">0</text>
+<line x1="127" x2="640" y1="747.0" y2="747.0" stroke="#E0E6EB"/>
+<text x="116" y="752.0" text-anchor="end" font-size="13" fill="#586779">1784</text>
+<line x1="127" x2="640" y1="688.0" y2="688.0" stroke="#E0E6EB"/>
+<text x="116" y="693.0" text-anchor="end" font-size="13" fill="#586779">3568</text>
+<line x1="127" x2="640" y1="629.0" y2="629.0" stroke="#E0E6EB"/>
+<text x="116" y="634.0" text-anchor="end" font-size="13" fill="#586779">5353</text>
+<line x1="127" x2="640" y1="570.0" y2="570.0" stroke="#E0E6EB"/>
+<text x="116" y="575.0" text-anchor="end" font-size="13" fill="#586779">7137</text>
+<text x="127.0" y="829" font-size="14" text-anchor="middle">25</text>
+<text x="298.0" y="829" font-size="14" text-anchor="middle">50</text>
+<text x="640.0" y="829" font-size="14" text-anchor="middle">100</text>
+<text x="383.5" y="851" font-size="14" text-anchor="middle">Robots = Tasks; capacity one</text>
+<circle cx="127.0" cy="805.4" r="3.4" fill="#2576B5"/>
+<circle cx="298.0" cy="803.8" r="3.4" fill="#2576B5"/>
+<circle cx="640.0" cy="797.6" r="3.4" fill="#2576B5"/>
+<polyline points="127.0,805.4 298.0,803.8 640.0,797.6" fill="none" stroke="#2576B5" stroke-width="3"/>
+<circle cx="127.0" cy="802.3" r="3.4" fill="#B46A21"/>
+<circle cx="298.0" cy="787.6" r="3.4" fill="#B46A21"/>
+<circle cx="640.0" cy="716.9" r="3.4" fill="#B46A21"/>
+<polyline points="127.0,802.3 298.0,787.6 640.0,716.9" fill="none" stroke="#B46A21" stroke-width="3"/>
+<circle cx="127.0" cy="805.0" r="3.4" fill="#9064AA"/>
+<circle cx="298.0" cy="802.2" r="3.4" fill="#9064AA"/>
+<circle cx="640.0" cy="794.3" r="3.4" fill="#9064AA"/>
+<polyline points="127.0,805.0 298.0,802.2 640.0,794.3" fill="none" stroke="#9064AA" stroke-width="3"/>
+<circle cx="127.0" cy="805.3" r="3.4" fill="#159583"/>
+<circle cx="298.0" cy="803.4" r="3.4" fill="#159583"/>
+<circle cx="640.0" cy="795.9" r="3.4" fill="#159583"/>
+<polyline points="127.0,805.3 298.0,803.4 640.0,795.9" fill="none" stroke="#159583" stroke-width="3"/>
+<circle cx="127.0" cy="800.1" r="3.4" fill="#D74E47"/>
+<circle cx="298.0" cy="769.9" r="3.4" fill="#D74E47"/>
+<circle cx="640.0" cy="591.5" r="3.4" fill="#D74E47"/>
+<polyline points="127.0,800.1 298.0,769.9 640.0,591.5" fill="none" stroke="#D74E47" stroke-width="3"/>
+<text x="60" y="877" fill="#66768A" font-size="12">Native application Bytes including dropped attempts</text>
+<text x="773" y="544" font-size="19" font-weight="bold">D. Euclidean cost / Hungarian optimum</text>
+<line x1="842" x2="1355" y1="806.0" y2="806.0" stroke="#E0E6EB"/>
+<text x="831" y="811.0" text-anchor="end" font-size="13" fill="#586779">1.00</text>
+<line x1="842" x2="1355" y1="747.0" y2="747.0" stroke="#E0E6EB"/>
+<text x="831" y="752.0" text-anchor="end" font-size="13" fill="#586779">1.13</text>
+<line x1="842" x2="1355" y1="688.0" y2="688.0" stroke="#E0E6EB"/>
+<text x="831" y="693.0" text-anchor="end" font-size="13" fill="#586779">1.25</text>
+<line x1="842" x2="1355" y1="629.0" y2="629.0" stroke="#E0E6EB"/>
+<text x="831" y="634.0" text-anchor="end" font-size="13" fill="#586779">1.38</text>
+<line x1="842" x2="1355" y1="570.0" y2="570.0" stroke="#E0E6EB"/>
+<text x="831" y="575.0" text-anchor="end" font-size="13" fill="#586779">1.50</text>
+<text x="842.0" y="829" font-size="14" text-anchor="middle">25</text>
+<text x="1013.0" y="829" font-size="14" text-anchor="middle">50</text>
+<text x="1355.0" y="829" font-size="14" text-anchor="middle">100</text>
+<text x="1098.5" y="851" font-size="14" text-anchor="middle">Robots = Tasks; capacity one</text>
+<circle cx="842.0" cy="665.4" r="3.4" fill="#2576B5"/>
+<circle cx="1013.0" cy="649.5" r="3.4" fill="#2576B5"/>
+<circle cx="1355.0" cy="632.9" r="3.4" fill="#2576B5"/>
+<polyline points="842.0,665.4 1013.0,649.5 1355.0,632.9" fill="none" stroke="#2576B5" stroke-width="3"/>
+<circle cx="842.0" cy="728.4" r="3.4" fill="#B46A21"/>
+<circle cx="1013.0" cy="715.3" r="3.4" fill="#B46A21"/>
+<circle cx="1355.0" cy="695.2" r="3.4" fill="#B46A21"/>
+<polyline points="842.0,728.4 1013.0,715.3 1355.0,695.2" fill="none" stroke="#B46A21" stroke-width="3"/>
+<circle cx="842.0" cy="782.0" r="3.4" fill="#9064AA"/>
+<circle cx="1013.0" cy="766.5" r="3.4" fill="#9064AA"/>
+<circle cx="1355.0" cy="750.6" r="3.4" fill="#9064AA"/>
+<polyline points="842.0,782.0 1013.0,766.5 1355.0,750.6" fill="none" stroke="#9064AA" stroke-width="3"/>
+<circle cx="842.0" cy="671.8" r="3.4" fill="#159583"/>
+<circle cx="1013.0" cy="652.6" r="3.4" fill="#159583"/>
+<circle cx="1355.0" cy="632.6" r="3.4" fill="#159583"/>
+<polyline points="842.0,671.8 1013.0,652.6 1355.0,632.6" fill="none" stroke="#159583" stroke-width="3"/>
+<circle cx="842.0" cy="728.4" r="3.4" fill="#D74E47"/>
+<circle cx="1013.0" cy="715.3" r="3.4" fill="#D74E47"/>
+<circle cx="1355.0" cy="695.2" r="3.4" fill="#D74E47"/>
+<polyline points="842.0,728.4 1013.0,715.3 1355.0,695.2" fill="none" stroke="#D74E47" stroke-width="3"/>
+<text x="775" y="877" fill="#66768A" font-size="12">ONLY same five-way natively successful paired seeds</text>
+<text x="52" y="912" font-size="16" font-weight="bold">Critical endpoint distinction</text>
+<text x="52" y="940" font-size="15">Voting pays reliable Score/Commit; CBAA/CBBA/Auction have local/observer stopping without equivalent paid finalization.</text>
+<text x="52" y="965" font-size="15">External first feasibility is read-only and MUST NOT terminate an algorithm. Incomplete or unobservable events remain missing, not imputed.</text>
+<text x="52" y="990" font-size="15">Rady application delay plus assumed 144 Mbps medium is a model, not measured 802.11 or deployed multi-robot wireless time.</text>
+</g></svg>
