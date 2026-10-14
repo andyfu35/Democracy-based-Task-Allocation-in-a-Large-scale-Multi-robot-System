@@ -3169,3 +3169,22 @@ Code was committed but not run locally in this environment; run it on the user's
 
 ### Commit SHA
 Diagnostic module: `5711f63676a2f665174833349b49a1fbe98256d2`. Continuity-update SHA: recorded in Git history.
+
+
+## 2026-10-14 — P2 receiver-drop attempted-airtime regression boundary (test only)
+
+**Purpose:** Examine whether packet loss accidentally refunds shared-medium transmission time in the P2-C time-vs-payload figure. The source inspection finds original SENDs are scheduled before receiver-specific Bernoulli delivery decisions. A dropped receiver observation therefore does not remove airtime, queued medium service, or sender bytes. No speculative extra loss-dependent delay is added, because that would double-charge emitted transmissions.
+
+**Files:** `tests/test_p2_attempted_transmission_timing.py` (new focused source regression), `docs/CHANGE_CONTINUITY.md` (this record).
+
+**Owner / named functions investigated:** `democracy_mrta.network.WifiCausalTimingSampler.sample_packet_ms` and `summarize_network` own sender-based modeled airtime/queue; `democracy_mrta.coordination._broadcast_event` and `_unicast_event` schedule physical SENDs; `_lossy_broadcast_deliveries` and `_lossy_unicast_delivery` determine receiver-specific observation after emission; `democracy_mrta.multitask_wire.E9MChannel.send` / `end_phase` own CBBA-style framed physical transmission and elapsed stage accounting. CBAA `exchange_cbaa_consensus_packets` and `simulate_cbaa`, and Price Auction `transmit_price_bids` / `transmit_price_awards` / `simulate_price_auction` account SEND attempts separately from receiver drops. No executable named function was changed.
+
+**Test boundary:** Three tests compare the same physical broadcast, unicast, and native CBBA-channel emission under p_loss=0 and p_loss=1, assert full receiver loss where expected, and require identical positive airtime, sender bytes and phase clock for identical physical transmissions. They establish a *fixed-SEND-workload* invariant, not equality of end-to-end allocation time between loss conditions (because dropout legitimately changes votes, retries and overall emitted workload).
+
+**Responsibilities moved:** None. **Preserved behavior:** All existing sender accounting, per-receiver drop choices, native stopping guards, Rady delay sampler, hypothetical 144Mbps shared-medium model, reliable TASK/Score/Commit, original P2-C decision and raw evidence remain unchanged. **Intentionally changed behavior:** None; this commit adds regression coverage only and never rewrites earlier measurements, figures, or README percentages.
+
+**Diagnostic contract:** The tests assert the original network/coordination/multitask_wire trace and clock boundary and do not create a new runtime error or wrapper. Existing first-failure `owner/function/category/code/expected/actual/details` and categories `data/time/state/dependency/planning/safety/runtime/contract` remain unchanged.
+
+**Verification limits / open risks:** This environment can inspect GitHub repository source but cannot clone it for execution because git networking in its code container is unavailable. The three new tests are *not claimed locally PASS*; the user's Mac must execute the focused tests plus complete unit suite. This proxy lacks physical RF retransmission/collisions/ACK failures and identical baseline terminal guarantees. Adding such effects requires a separately designed packet-level radio model, not adding (1-p) to native stops.
+
+**Next:** On Mac, run `python3 -m unittest tests.test_p2_attempted_transmission_timing -v` and `python3 -m unittest discover -s tests -v`. If green, report P2-C previous simulation results as already including attempted sender airtime; rerun original algorithms only if the timing model itself is deliberately changed. **Commit SHA:** test-only source commit `b38b9ceef16bca7f32cb0bfa4b65226abac65777`; this continuity commit SHA is available as the next branch HEAD.
