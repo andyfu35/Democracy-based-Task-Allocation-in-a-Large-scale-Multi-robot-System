@@ -20,7 +20,13 @@ class AssignmentSolution:
 
 def validate_cost_matrix(
     cost_matrix: tuple[tuple[float, ...], ...],
+    *, allow_tasks_exceed_robots: bool = False,
 ) -> tuple[int, int]:
+    """Validate finite rectangular costs; default requires full capacity-one feasibility.
+
+    Batched Greedy alone may accept fewer *received* robot rows than tasks
+    to produce a partial one-shot allocation without inventing lost Cost rows.
+    """
     if not cost_matrix:
         raise ProtocolError(
             Diagnostic(
@@ -59,7 +65,7 @@ def validate_cost_matrix(
             )
         )
 
-    if num_tasks > num_robots:
+    if num_tasks > num_robots and not allow_tasks_exceed_robots:
         raise ProtocolError(
             Diagnostic(
                 owner="optimizer",
@@ -302,7 +308,9 @@ def solve_visible_batched_greedy_assignment(
     This removes Task-ID-first planning priority; missing Cost rows are NEVER
     reconstructed. Each local proposal remains capacity-one, even at high loss.
     """
-    num_robots, num_tasks = validate_cost_matrix(cost_matrix)
+    num_robots, num_tasks = validate_cost_matrix(
+        cost_matrix, allow_tasks_exceed_robots=True,
+    )
     visible = tuple(sorted(set(visible_robot_ids)))
     if not visible:
         raise ProtocolError(Diagnostic(
