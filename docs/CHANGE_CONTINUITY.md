@@ -3169,3 +3169,32 @@ Code was committed but not run locally in this environment; run it on the user's
 
 ### Commit SHA
 Diagnostic module: `5711f63676a2f665174833349b49a1fbe98256d2`. Continuity-update SHA: recorded in Git history.
+
+
+## 2026-10-14 — Traditional Chinese README localization
+
+### Purpose
+Publish a Traditional Chinese version of the current four-family research overview without altering measured results or the existing English narrative.
+
+### Files
+- `README.zh-TW.md` (new)
+- `README.md` (bidirectional language navigation)
+- `docs/CHANGE_CONTINUITY.md` (this record)
+
+### Functions / responsibility movement
+No runtime functions or owners changed. Documentation-only localization; the current experiment owners and canonical specifications remain unchanged.
+
+### Preserved behavior
+All A/B/C/D experimental cohort definitions, figures, formal numbers, reproducibility links, qualification of simulated timing and attempted sender bytes (including dropped frames), and native-stopping distinctions are preserved.
+
+### Intentionally changed behavior
+None in experiment execution. Readers can now navigate between English and Traditional Chinese research summaries.
+
+### Diagnostic contract
+Unchanged: data / time / state / dependency / planning / safety / runtime / contract. No new code diagnostics introduced.
+
+### Verification / open risks / next step
+Compared Chinese section structure and key reported figures against the source English README. Figures and linked reports are reused unchanged; ongoing scientific revisions need to keep both language editions synchronized. No experiment or test runner was executed for this documentation-only update. Next: update both files whenever formally verified results change.
+
+### Commit SHA
+Chinese page: `5255ac30db4c8216d19a78474c0eb7c76854da77`. English language link: `c45a4c7a8d658146f188fe27bb79d0bf9a7f9f64`. This continuity commit: see branch Git history.
