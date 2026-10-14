@@ -3257,3 +3257,26 @@ Default malformed full-assignment input still fails first at `owner=optimizer / 
 
 ### Commit SHA
 Regression tests `24da5a39033e165dec11ce661db759d393e20041`; fix `8b620dc27abf24993d589d267669fc353f843b96`; canonical `e3d7164d83e18016d5dd9e9a19a33b63eae1b296`. Continuity entry commit SHA is this subsequent branch HEAD/history.
+
+
+## 2026-10-14 — P2D 15/15 green; full-suite import and local certifi dependency follow-up
+
+### Purpose and observed local evidence
+User-provided Mac original test log at checked-out branch HEAD `75ce3faf` confirms `python3 -m compileall -q democracy_mrta experiments tests` succeeded and the 15 P2D unit tests all passed (`Ran 15 tests ... OK`). Full regression discovery ran 338 tests and ended with exactly two **errors** (not two P2D algorithm failures): (a) `network.build_verified_https_context` raised its existing first-owner `dependency/CERTIFI_NOT_INSTALLED` because the active Mac Python environment lacked `certifi`; (b) `test_p2_packet_loss` could not import because the test imported `SimpleNamespace` from `argparse` rather than `types`.
+
+### Files, named functions and ownership
+- `tests/test_p2_packet_loss.py` import declaration fixed `from argparse import Namespace, SimpleNamespace` to `from argparse import Namespace` plus `from types import SimpleNamespace`. This restores collection of existing `P2ContractTests` functions without editing their assertions. Fix commit: `29370d184186c199a7d7506a593f7f5e2d4f9f5f`.
+- `requirements.txt` already declares `certifi>=2024.2.2`; no source file change is needed. `democracy_mrta.network.build_verified_https_context` is the real TLS dependency owner; correct local remedy is `python3 -m pip install -r requirements.txt` (in the **already active** environment) followed by HTTPS context and full suite rerun. Do not replace `certifi` with unverified TLS or disable certificate checks.
+- This continuity entry is a mandatory follow-up to the one-line test change; `docs/EXPERIMENT_PROTOCOL.md` canonical and all native optimizer / networking / timing / loss owners remain unchanged.
+
+### Preserved and changed behaviors
+No algorithm, runtime state machine, optimization policy, packet loss, sender traffic, time, scenario, Price Auction exclusion, data source archive or graph behavior has changed. Only the test collection Python import path now resolves `types.SimpleNamespace` correctly. Environment installation of the already-declared `certifi` dependency does not change repository behavior.
+
+### First-failure diagnostics
+The TLS missing dependency is the unchanged `owner=network / function=build_verified_https_context / category=dependency / code=CERTIFI_NOT_INSTALLED`, with expected `certifi installed from requirements.txt`, actual `missing` and install instruction in details. The invalid import is a Python `ImportError` during `unittest.loader._find_test_path`, before any P2 test function executes. No new diagnostic categories or false custom runtime wrappers are introduced.
+
+### Verification and next step
+**Verified on user's Mac before latest change:** P2D unit suite 15/15 PASS; full suite 338 tests, 2 errors as stated. **Not yet rerun after fix:** `tests.test_p2_packet_loss` collection, HTTPS test and the full suite. User should pull branch `experiment/p2d-centralized-one-shot`, install declared requirements in the currently active .venv, then run `python3 -m unittest discover -s tests -v`. The assistant has not executed the user's Mac tests and makes no new full-suite PASS claim. Only after full regression GREEN run P2D 0%/90% smoke then 0% 100-seed acceptance, then formal 10-level × 100-seed study.
+
+### Commit SHA
+Test import fix `29370d184186c199a7d7506a593f7f5e2d4f9f5f`. This continuity entry commit SHA is the next branch HEAD, viewable via Git history.
