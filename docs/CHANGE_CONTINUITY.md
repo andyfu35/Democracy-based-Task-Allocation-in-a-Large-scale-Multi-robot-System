@@ -3230,3 +3230,30 @@ All important new failures retain `owner/function/category/code/expected/actual`
 
 ### Commit SHA
 Native `080959c9ac1da2f4b5c93e75126f43057cf2c95f`; archive `6a190e49065a8ddf452cc4dbb0c546d40a324493`; runner `1ba78376bd7640eb73235aac4cd558b12974bc83`; figure `965a476480dcac3b21ea827fe7b3012a39c8a8c5`; canonical `953dc9a2e03ca539cdf625132585f84c42e8d23e`. This continuity update SHA can be found as subsequent branch HEAD.
+
+
+## 2026-10-14 — P2D 100%-loss partial Greedy matrix validation regression
+
+### Purpose and first failing diagnostic
+The first Mac P2D targeted run reported 13 tests, 11 PASS, 2 ERROR. `CentralizedOneShotTests.test_full_cost_loss_never_uses_hidden_costs` and `test_physical_cost_sends_not_refunded_on_full_drop` both failed at the same first owner/function: `optimizer.validate_cost_matrix` / `contract/TASKS_EXCEED_ROBOTS` (actual `3>1`). Receiver Cost loss leaves the original three task columns but only one physically known robot row. The **full allocation** default validation incorrectly rejected this **valid partial Greedy planning input**, preventing otherwise valid incomplete native Stop/coverage reporting.
+
+### Files and exact named functions
+- `tests/test_p2d_centralized_method.py`: appended `test_partial_greedy_accepts_fewer_known_robots_than_tasks` for one-/two-visible-row partial assignments and `test_full_assignment_validation_still_rejects_more_tasks_than_robots` guarding the original first-error contract; existing native 100%-loss tests remain unchanged. Test-commit `24da5a39033e165dec11ce661db759d393e20041`.
+- `democracy_mrta/optimizer.py`: exact validation owner `validate_cost_matrix` now accepts explicit keyword-only `allow_tasks_exceed_robots=False`, preserving all original calls/diagnostics by default. The actual Greedy planning owner `solve_visible_batched_greedy_assignment` alone passes `allow_tasks_exceed_robots=True` to validate physically received matrices with 1<=rows<=tasks. All prior Greedy ranking, finite/rectangular/nonempty validation and `GLOBAL_GREEDY_CARDINALITY_MISMATCH` unchanged. Code-commit `8b620dc27abf24993d589d267669fc353f843b96`.
+- `docs/EXPERIMENT_PROTOCOL.md` §54.2 P2D canonical updated with this explicit partial-input contract; canonical-commit `e3d7164d83e18016d5dd9e9a19a33b63eae1b296`.
+- `docs/CHANGE_CONTINUITY.md` records the change in this entry.
+
+### Responsibility movement and preserved behavior
+No owner/responsibility movement or additional wrapper/state machine. The matrix validator remains the sole input-shape/cardinality data/contract owner, the batched Greedy planner remains the sole minimum-pair planning owner, and Centralized still only supplies **received physical Cost rows**, never hidden rows or dummy fallback rows. Original `validate_cost_matrix(cost_matrix)` and Hungarian, CBAA, CBBA, P2-C full-shape callers still reject `num_tasks > num_robots` via `optimizer.validate_cost_matrix [contract/TASKS_EXCEED_ROBOTS]`. Original Cost transmission count, no-retry policy, causal radio-time/sender-byte accounting, native completion, Score/Commit, all old raw CSV/ZIP evidence remain unchanged.
+
+### Deliberately changed behavior
+The opt-in batched Greedy owner now accepts a valid rectangular **partial observed** cost matrix with fewer rows than task columns and assigns at most `min(known robot rows, task count)` one-to-one pairs. At 100% remote Cost drop in the 3R3T smoke test, only robot 0 and its known Cost row can be used, producing `((0, 1),)`, native incomplete, 1/3 task coverage, and paying all 2 emitted/dropped Cost sends. No retry, no full-scene Cost access.
+
+### Diagnostic contract
+Default malformed full-assignment input still fails first at `owner=optimizer / function=validate_cost_matrix / category=contract / code=TASKS_EXCEED_ROBOTS` with unchanged expected/actual. Empty, nonrectangular and nonfinite matrix checks still use the original `data` codes. Batched Greedy still uses `state/BATCH_GREEDY_NO_VISIBLE_ROWS`, `data/BATCH_GREEDY_INVALID_VISIBLE_ROW`, and `planning/GLOBAL_GREEDY_CARDINALITY_MISMATCH`. No new diagnostic category or changed terminal protocol; first-failure fields `owner/function/category/code/expected/actual/details` preserved.
+
+### Verification / remaining risk / next step
+**Before fix (actual user Mac execution):** compile succeeded; P2D unit tests 11 PASS/2 ERROR due to the root cause above; the complete test suite was not executed because the targeted suite failed. **After fix:** source/test/canonical committed, but the assistant runtime cannot clone this GitHub repo or run the Mac project tests; no green claim is made. User must `git fetch origin && git pull --ff-only`, rerun `python3 -m unittest discover -s tests -p 'test_p2d*.py' -v` then full `python3 -m unittest discover -s tests -v`. If green, run 0% and 90% two-seed smoke, then 0%-loss 100-seed acceptance; only then formal 100 seeds per packet-loss level. Do not publish before original native evidence audit.
+
+### Commit SHA
+Regression tests `24da5a39033e165dec11ce661db759d393e20041`; fix `8b620dc27abf24993d589d267669fc353f843b96`; canonical `e3d7164d83e18016d5dd9e9a19a33b63eae1b296`. Continuity entry commit SHA is this subsequent branch HEAD/history.
