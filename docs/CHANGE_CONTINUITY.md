@@ -3135,3 +3135,37 @@ Post-publication readback flagged JS binary-floating serialization of a few roun
 **Deliberately altered reporting and sample-denominator semantics:** original user-run P2-C SVG's D uses same-four-native-success seed intersection; at PL80 and PL90 intersection has **0** successes and quality undefined. Publication Figure D **explicitly switches** to each method's own native-success-conditioned mean ratio, so Voting/CBAA n100 at high PL show legitimate, differently conditioned costs; CBBA/Auction n0 have missing quality, never invented as zero. Original SVG SHA remains fixed. Chart A coincident exact points use concentric markers and different dash patterns **without data shifting**. B/C use logarithmic y. Four-method native Stop guarantees remain nonidentical, and native 100% completion is not a proof of RF deployment.
 
 **Risks and next steps:** source model has *reliable TASK/Score/Commit*, lossy per-receiver Cost/Vote, Rady-sampled app delay and hypothetical 144Mbps, not real RF. Native CBAA/CBBA/Auction terminal criteria and guards are different; Price Auction PL0 has 2 native-guard failures even with zero loss. Confidence intervals only cover fixed paired Seed sampling, not unseen distributions. Other manuscript A/C/D sections use original serialized Voting/other N:T ratios, so cannot relabel them P2-C without **Voting-only matched new runs**. For attribution isolate local plan vs Score priority with one-owner ablations; consider unreliable Score, burst loss and scale stress as future separate experiments. **Git record:** publication 40-point figure/source and source-manifest creation commits are discoverable in each branch history; README main promotion `3996b0de123815e1b92a3625a925fd3144215a04`, experiment README `723429657669e4e9a43fc82bb44b3ba3d8baf37c`, new source-branch protocol update `4b609cddf1c48a7011442e8af09bd1cbf52e1679`, main P2-C protocol copy `943dc51167d99f81cf76f4d2e44f74896ceddeb3`, canonical experiment `4725fa0923b2beb89212fb1a67e3a92f7fa854eb` and main `33ef8bba195cb775ca81be290b85eaf02ff14566`. This continuity update's own SHA is in Git history.
+
+
+## 2026-10-14 — Read-only P2-C packet-loss forensics
+
+### Purpose
+Investigate the counterintuitive decline of total attempted sender bytes and small low-loss improvement of assignment quality by inspecting existing immutable P2-C per-seed evidence. No protocol execution or optimizer change.
+
+### Files and named owner functions
+- New `experiments/p2c_loss_diagnostics.py`.
+- `load_voting_rows`: source loading.
+- `validate_paired_grid`: same-seed and full native-success contract.
+- `audit_traffic`: original actual sender-frame counts, one-time TASK/Cost contract and aggregate byte reconciliation.
+- `audit_paired_quality`: PL0-to-PLn paired costs, assignments, and sender bytes.
+- `summarize_diagnostics`: descriptive summaries only.
+- `write_diagnostic_csv`: fresh output files.
+- `main`: CLI orchestration only.
+
+### Responsibility movement
+None; this is a separate, read-only forensic reporting owner. No behavior is moved from planning, coordination, execution or timing.
+
+### Preserved behavior
+All existing P2-C Voting/Score/Commit algorithms, native baselines, packet loss sampling, seeds, experimental outputs, fixed communication contract and manuscript figures remain unchanged. Input raw archives are never modified.
+
+### Intentionally changed behavior
+Adds an optional user-invoked CLI to diagnose already collected experiments. It generates `paired_seed_diagnostics.csv`, `by_loss_diagnostics.csv` and `limitations.txt` in a new output directory.
+
+### Diagnostic contract
+First failing owner `experiments.p2c_loss_diagnostics`, exact function, allowed category and named code: `dependency/P2C_SOURCE_NOT_FOUND`, `data/P2C_SOURCE_AMBIGUOUS`, `data/P2C_NO_VOTING_ROWS`, `contract/P2C_DUPLICATE_CASE`, `contract/P2C_INCOMPLETE_NATIVE_CASE`, `contract/P2C_UNPAIRED_SCENE`, `data/P2C_MISSING_METRIC`, `data/P2C_INVALID_ROW`, `contract/P2C_ZERO_LOSS_REFERENCE_REQUIRED`, `contract/P2C_SEED_SET_MISMATCH`, `contract/P2C_ONE_TIME_SEND_COUNT_MISMATCH`, `contract/P2C_SENDER_LEDGER_MISMATCH`, `data/P2C_PHASE_LEDGER_MISSING`, and `data/P2C_ASSIGNMENT_JSON_INVALID`.
+
+### Verification, risks and next step
+Code was committed but not run locally in this environment; run it on the user's existing Mac repository with their original P2-C ZIP. The P2-C raw ledger stores per-phase sender frame COUNTS but **not per-phase sender bytes**, so this forensic output explicitly does not fabricate phase-byte values. This is paired descriptive evidence, not a significance test or proof of causality. Review diagnostic CSVs; if required, instrument byte accounting in its true runtime owner as a separate change and rerun Voting-only.
+
+### Commit SHA
+Diagnostic module: `5711f63676a2f665174833349b49a1fbe98256d2`. Continuity-update SHA: recorded in Git history.
