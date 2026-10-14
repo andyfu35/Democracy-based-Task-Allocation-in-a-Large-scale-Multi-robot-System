@@ -60,6 +60,34 @@ class CentralizedOneShotTests(unittest.TestCase):
         self.assertEqual(a.cost_sender_bytes, 2 * (16 + 8*3))
         self.assertAlmostEqual(a.cost_airtime_ms, b.cost_airtime_ms)
 
+    def test_partial_greedy_accepts_fewer_known_robots_than_tasks(self):
+        # Regression: 100% Cost loss leaves one visible robot and three tasks.
+        # The real Greedy owner must return a partial assignment, not reject
+        # this legitimate one-shot observation as TASKS_EXCEED_ROBOTS.
+        single = solve_visible_batched_greedy_assignment(
+            ((2.0, 1.0, 4.0),), frozenset({0}),
+        )
+        self.assertEqual(single.assigned_pairs, ((0, 1),))
+        self.assertEqual(single.total_cost, 1.0)
+
+        two = solve_visible_batched_greedy_assignment(
+            ((3.0, 1.0, 4.0), (0.5, 9.0, 2.0)), frozenset({0, 1}),
+        )
+        self.assertEqual(two.assigned_pairs, ((1, 0), (0, 1)))
+        self.assertAlmostEqual(two.total_cost, 1.5)
+
+    def test_full_assignment_validation_still_rejects_more_tasks_than_robots(self):
+        from democracy_mrta.optimizer import validate_cost_matrix
+        from democracy_mrta.diagnostics import ProtocolError
+
+        with self.assertRaises(ProtocolError) as caught:
+            validate_cost_matrix(((2.0, 1.0, 4.0),))
+        diagnostic = caught.exception.diagnostic
+        self.assertEqual(diagnostic.owner, "optimizer")
+        self.assertEqual(diagnostic.function, "validate_cost_matrix")
+        self.assertEqual(diagnostic.category, "contract")
+        self.assertEqual(diagnostic.code, "TASKS_EXCEED_ROBOTS")
+
     def test_rejects_invalid_inputs(self):
         from democracy_mrta.diagnostics import ProtocolError
         with self.assertRaises(ProtocolError) as err:
