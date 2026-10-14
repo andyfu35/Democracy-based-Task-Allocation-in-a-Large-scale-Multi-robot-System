@@ -1,6 +1,7 @@
 """P2 validation: exact grid, guards, missing values, and figure source."""
 from __future__ import annotations
-from argparse import Namespace, SimpleNamespace
+from argparse import Namespace
+from types import SimpleNamespace
 import json
 import tempfile
 from pathlib import Path
