@@ -1,0 +1,288 @@
+"""P2D Centralized Method: one-shot receiver-paid Cost acquisition, no retries.
+
+Robot 0 gathers only physically delivered remote Cost rows, runs the existing
+minimum-pair greedy owner and sends one assignment announcement and one
+executor Commit per selected pair. This is a *one-shot* central comparator,
+not a resilient centralized consensus or ideal full-information oracle.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+import math
+
+from .coordination import (
+    CommunicationEvent, DeliveryObservation, COMMIT_PAYLOAD_BYTES,
+    _broadcast_event, _unicast_event, _lossy_unicast_delivery,
+    cost_row_payload_bytes, assignment_payload_bytes,
+)
+from .diagnostics import Diagnostic, ProtocolError
+from .network import (
+    BernoulliLossSampler, EmpiricalLatencyProfile, WifiCausalTimingSampler,
+    WifiTimingConfig, estimate_e9h_guarded_initial_cost_ms,
+    validate_packet_loss_probability,
+)
+from .optimizer import solve_visible_batched_greedy_assignment, validate_cost_matrix
+from .protocol import validate_one_to_one_commits
+from .task_information import broadcast_task_information
+
+OWNER = "democracy_mrta.centralized_method"
+
+
+@dataclass(frozen=True)
+class CentralizedCostReceipt:
+    visible_rows: tuple[tuple[int, tuple[float, ...]], ...]
+    cost_events: tuple[CommunicationEvent, ...]
+    cost_deliveries: tuple[DeliveryObservation, ...]
+    cost_start_ms: float
+    cost_cutoff_ms: float
+    cost_phase_end_ms: float
+
+    @property
+    def received_robot_ids(self) -> tuple[int, ...]:
+        return tuple(robot_id for robot_id, _row in self.visible_rows)
+
+
+@dataclass(frozen=True)
+class CentralizedResult:
+    assignment: tuple[tuple[int, int], ...]
+    received_robot_ids: tuple[int, ...]
+    native_success: bool
+    task_coverage: float
+    native_stop_ms: float
+    stop_reason: str
+    sender_sends: int
+    sender_bytes: int
+    receiver_attempts: int
+    receiver_drops: int
+    cost_sender_sends: int
+    cost_sender_bytes: int
+    cost_receiver_drops: int
+    decision_sender_sends: int
+    commit_sender_sends: int
+    cost_airtime_ms: float
+    event_ledger: dict
+    phase_times: dict[str, float]
+
+
+def validate_centralized_configuration(
+    *, cost_matrix: tuple[tuple[float, ...], ...],
+    task_positions: tuple[tuple[float, float], ...],
+    coordinator_id: int, p_loss: float,
+) -> int:
+    """Data boundary; never turn a missing Cost row into simulation truth."""
+    robots, tasks = validate_cost_matrix(cost_matrix)
+    validate_packet_loss_probability(p_loss)
+    if (robots != tasks or coordinator_id != 0
+            or len(task_positions) != tasks or robots < 2
+            or any(len(pos) != 2 or any(not math.isfinite(float(v)) for v in pos)
+                   for pos in task_positions)):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="validate_centralized_configuration",
+            category="data", code="P2D_INVALID_CENTRALIZED_GRID",
+            expected="N=T>=2, coordinator=0 and N finite task positions",
+            actual={"robots":robots,"tasks":tasks,"coordinator":coordinator_id,
+                    "task_positions":len(task_positions)},
+        ))
+    return robots
+
+
+def collect_one_shot_cost_rows(
+    *, cost_matrix: tuple[tuple[float, ...], ...],
+    coordinator_id: int, cost_start_ms: float, cutoff_ms: float,
+    sampler: WifiCausalTimingSampler, loss_sampler: BernoulliLossSampler,
+    p_loss: float,
+) -> CentralizedCostReceipt:
+    """Charge each sender once before evaluating receiver loss; no resends."""
+    robots = len(cost_matrix)
+    known = {coordinator_id: tuple(cost_matrix[coordinator_id])}
+    events: list[CommunicationEvent] = []
+    deliveries: list[DeliveryObservation] = []
+    for sender in range(robots):
+        if sender == coordinator_id:
+            continue
+        event = _unicast_event(
+            phase="centralized_cost", sender_id=sender,
+            receiver_id=coordinator_id, round_id=0,
+            send_time_ms=cost_start_ms,
+            payload_bytes=cost_row_payload_bytes(len(cost_matrix[sender])),
+            sampler=sampler,
+        )
+        events.append(event)
+        observation = _lossy_unicast_delivery(
+            event=event, loss_sampler=loss_sampler,
+            p_loss=p_loss, round_id=0,
+        )
+        deliveries.append(observation)
+        if (observation.delivered and observation.arrival_time_ms is not None
+                and observation.arrival_time_ms <= cutoff_ms):
+            known[sender] = tuple(cost_matrix[sender])
+    if len(events) != robots - 1:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="collect_one_shot_cost_rows",
+            category="contract", code="P2D_ONE_SHOT_SEND_COUNT_MISMATCH",
+            expected=robots - 1, actual=len(events),
+        ))
+    phase_end_ms = max(cutoff_ms, max((e.arrival_time_ms for e in events),
+                                     default=cost_start_ms))
+    return CentralizedCostReceipt(
+        visible_rows=tuple(sorted(known.items())),
+        cost_events=tuple(events), cost_deliveries=tuple(deliveries),
+        cost_start_ms=cost_start_ms, cost_cutoff_ms=cutoff_ms,
+        cost_phase_end_ms=phase_end_ms,
+    )
+
+
+def plan_from_received_cost_rows(
+    *, receipt: CentralizedCostReceipt,
+) -> tuple[tuple[int, int], ...]:
+    """Reuse original greedy planner on actually visible, physical-ID-sorted rows."""
+    real_ids = receipt.received_robot_ids
+    if not real_ids:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="plan_from_received_cost_rows",
+            category="state", code="P2D_NO_CENTRALIZED_COST_ROWS",
+            expected="coordinator's own row", actual=real_ids,
+        ))
+    cost_rows = tuple(row for _robot, row in receipt.visible_rows)
+    local_pairs = solve_visible_batched_greedy_assignment(
+        cost_rows, frozenset(range(len(real_ids))),
+    ).assigned_pairs
+    physical_pairs = tuple(
+        sorted(((real_ids[local_id], task_id) for local_id, task_id in local_pairs),
+               key=lambda x: (x[1], x[0]))
+    )
+    validate_one_to_one_commits(physical_pairs)
+    if any(robot not in real_ids for robot, _task in physical_pairs):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="plan_from_received_cost_rows",
+            category="contract", code="P2D_HIDDEN_COST_ROW_USED",
+            expected=real_ids, actual=physical_pairs,
+        ))
+    return physical_pairs
+
+
+def publish_centralized_assignment(
+    *, pairs: tuple[tuple[int, int], ...], coordinator_id: int,
+    release_ms: float, sampler: WifiCausalTimingSampler,
+) -> CommunicationEvent:
+    """One sender-accounted broadcast of current pairs; no second attempt."""
+    payload = assignment_payload_bytes(len(pairs))
+    if payload > 1200:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="publish_centralized_assignment",
+            category="data", code="P2D_ASSIGNMENT_FRAME_TOO_LARGE",
+            expected="<=1200B", actual=payload,
+        ))
+    return _broadcast_event(
+        phase="centralized_assignment", sender_id=coordinator_id,
+        send_time_ms=release_ms, payload_bytes=payload, sampler=sampler,
+    )
+
+
+def emit_centralized_commits(
+    *, pairs: tuple[tuple[int, int], ...],
+    release_ms: float, sampler: WifiCausalTimingSampler,
+) -> tuple[CommunicationEvent, ...]:
+    """One paid reliable native Commit per selected executor."""
+    validate_one_to_one_commits(pairs)
+    return tuple(
+        _broadcast_event(
+            phase="commit", sender_id=robot_id, task_id=task_id,
+            send_time_ms=release_ms, payload_bytes=COMMIT_PAYLOAD_BYTES,
+            sampler=sampler,
+        )
+        for robot_id, task_id in pairs
+    )
+
+
+def simulate_one_shot_centralized(
+    *, cost_matrix: tuple[tuple[float, ...], ...],
+    task_positions: tuple[tuple[float, float], ...],
+    profile: EmpiricalLatencyProfile, seed: int, p_loss: float,
+    coordinator_id: int = 0,
+) -> CentralizedResult:
+    """Single TASK -> lossy one-way Cost -> Greedy -> publish -> Commit run."""
+    robots = validate_centralized_configuration(
+        cost_matrix=cost_matrix, task_positions=task_positions,
+        coordinator_id=coordinator_id, p_loss=p_loss,
+    )
+    sampler = WifiCausalTimingSampler(
+        profile=profile, seed=seed,
+        config=WifiTimingConfig(phy_rate_mbps=144.0),
+    )
+    losses = BernoulliLossSampler(seed)
+    task = broadcast_task_information(
+        task_positions=task_positions, num_robots=robots,
+        sampler=sampler, loss_sampler=losses, p_loss=0.0,
+        phase_timeout_ms=max(profile.samples_ms) + 1000.0,
+    )
+    task_ms = max((e.arrival_time_ms for e in task.events), default=0.0)
+    before_cost = sampler.summarize_network()
+    cost_budget_ms = estimate_e9h_guarded_initial_cost_ms(
+        profile=profile, total_robots=robots, total_tasks=robots,
+        reference_phy_mbps=144.0,
+    )
+    receipt = collect_one_shot_cost_rows(
+        cost_matrix=cost_matrix, coordinator_id=coordinator_id,
+        cost_start_ms=task_ms, cutoff_ms=task_ms + cost_budget_ms,
+        sampler=sampler, loss_sampler=losses, p_loss=p_loss,
+    )
+    after_cost = sampler.summarize_network()
+    pairs = plan_from_received_cost_rows(receipt=receipt)
+    decision = publish_centralized_assignment(
+        pairs=pairs, coordinator_id=coordinator_id,
+        release_ms=receipt.cost_phase_end_ms, sampler=sampler,
+    )
+    commits = emit_centralized_commits(
+        pairs=pairs, release_ms=decision.arrival_time_ms, sampler=sampler,
+    )
+    stop_ms = max(decision.arrival_time_ms,
+                  max((e.arrival_time_ms for e in commits), default=0.0))
+    all_events = (*task.events, *receipt.cost_events, decision, *commits)
+    physical = sampler.summarize_network()
+    expected_sends = len(all_events)
+    expected_bytes = sum(e.payload_bytes for e in all_events)
+    if (int(physical["packet_count"]) != expected_sends or
+            int(physical["application_sender_bytes"]) != expected_bytes):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="simulate_one_shot_centralized",
+            category="contract", code="P2D_SENDER_LEDGER_MISMATCH",
+            expected=(expected_sends, expected_bytes),
+            actual=(physical["packet_count"], physical["application_sender_bytes"]),
+        ))
+    cost_drops = sum(not o.delivered for o in receipt.cost_deliveries)
+    # Physical application SENDs, including dropped Cost, are all charged.
+    total_attempts = len(task.events) * robots + (robots - 1) + (
+        1 + len(commits)) * (robots - 1)
+    complete = len(pairs) == robots
+    return CentralizedResult(
+        assignment=pairs, received_robot_ids=receipt.received_robot_ids,
+        native_success=complete, task_coverage=len(pairs) / robots,
+        native_stop_ms=stop_ms,
+        stop_reason=("one_shot_full_commit" if complete else "one_shot_incomplete"),
+        sender_sends=expected_sends, sender_bytes=expected_bytes,
+        receiver_attempts=total_attempts, receiver_drops=cost_drops,
+        cost_sender_sends=len(receipt.cost_events),
+        cost_sender_bytes=sum(e.payload_bytes for e in receipt.cost_events),
+        cost_receiver_drops=cost_drops,
+        decision_sender_sends=1, commit_sender_sends=len(commits),
+        cost_airtime_ms=(float(after_cost["total_airtime_ms"]) -
+                         float(before_cost["total_airtime_ms"])),
+        event_ledger={
+            "task_sender_frames":len(task.events),
+            "cost_sender_frames":len(receipt.cost_events),
+            "assignment_sender_frames":1,
+            "commit_sender_frames":len(commits),
+            "received_cost_rows":receipt.received_robot_ids,
+            "cost_receiver_attempts":len(receipt.cost_deliveries),
+            "cost_receiver_drops":cost_drops,
+            "network":physical,
+        },
+        phase_times={
+            "task_ms":task_ms,
+            "cost_once_ms":receipt.cost_phase_end_ms-task_ms,
+            "assignment_ms":decision.arrival_time_ms-receipt.cost_phase_end_ms,
+            "commit_ms":stop_ms-decision.arrival_time_ms,
+            "total_ms":stop_ms,
+        },
+    )
