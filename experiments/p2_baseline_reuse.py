@@ -165,3 +165,135 @@ def merge_paired_baseline_evidence(
                                        else ORIGINAL_GIT_SHA),
                 })
     return combined
+
+
+# P2D: the *original* P2-C user-run archive, not rounded publication rows.
+P2C_ZIP_SHA256 = "f50068e4569771538f3083b8434bc91bce1f42bdec44e8feb74407be90682055"
+P2C_RAW_SHA256 = "a5f6c59837b80596066752c6546a37a387b4ccf177f8d4f1c03c527309a4a5fe"
+P2C_EXECUTED_GIT_SHA = "8038370205d586c697295b42eb255812be7aa88e"
+
+
+def read_verified_p2c_voting(
+    archive_path: Path, percentages: tuple[int, ...], first_seed: int, seeds: int,
+) -> tuple[list[dict], dict]:
+    """First original-source SHA/CRC/manifests, then return only native P2-C Voting."""
+    path = Path(archive_path).expanduser()
+    if not path.is_file():
+        _failure("read_verified_p2c_voting", "dependency", "P2D_P2C_ARCHIVE_NOT_FOUND",
+                 "original 1,705,448-byte P2-C user ZIP", str(path))
+    observed_zip_sha = hashlib.sha256(path.read_bytes()).hexdigest()
+    if observed_zip_sha != P2C_ZIP_SHA256:
+        _failure("read_verified_p2c_voting", "contract", "P2D_P2C_ZIP_SHA_MISMATCH",
+                 P2C_ZIP_SHA256, observed_zip_sha)
+    try:
+        with zipfile.ZipFile(path) as archive:
+            bad = archive.testzip()
+            if bad is not None:
+                _failure("read_verified_p2c_voting", "data", "P2D_P2C_ZIP_CRC",
+                         "all members pass ZIP CRC", bad)
+            def member(suffix):
+                names = [name for name in archive.namelist()
+                         if name == suffix or name.endswith("/" + suffix)]
+                if len(names) != 1:
+                    _failure("read_verified_p2c_voting", "contract",
+                             "P2D_P2C_ARCHIVE_MEMBER_AMBIGUOUS", suffix, names)
+                return archive.read(names[0])
+            raw = member("per_seed_p2.csv")
+            import json
+            manifest = json.loads(member("manifest_p2.json").decode("utf-8"))
+            config = json.loads(member("run_config_p2.json").decode("utf-8"))
+    except (OSError, ValueError, UnicodeError, zipfile.BadZipFile) as exc:
+        _failure("read_verified_p2c_voting", "data", "P2D_P2C_INVALID_ZIP",
+                 "valid native P2-C archive", str(exc))
+    raw_sha = hashlib.sha256(raw).hexdigest()
+    if (raw_sha != P2C_RAW_SHA256
+            or manifest.get("source_sha") != P2C_EXECUTED_GIT_SHA
+            or manifest.get("sha256", {}).get("per_seed_p2.csv") != P2C_RAW_SHA256
+            or manifest.get("cases") != 1000):
+        _failure("read_verified_p2c_voting", "contract", "P2D_P2C_SOURCE_MISMATCH",
+                 {"raw":P2C_RAW_SHA256,"git":P2C_EXECUTED_GIT_SHA,"cases":1000},
+                 {"raw":raw_sha,"git":manifest.get("source_sha"),"cases":manifest.get("cases")})
+    if (config.get("robots") != 100 or config.get("tasks") != 100
+            or config.get("capacity") != 1 or config.get("first_seed") != 0
+            or config.get("seeds") != 100
+            or config.get("voting_strategy") != "greedy_batch"
+            or list(config.get("loss_percent", ())) != list(ORIGINAL_LOSSES)):
+        _failure("read_verified_p2c_voting", "contract", "P2D_P2C_CONFIG_MISMATCH",
+                 "100R/100T C1, 100 Seeds, P2-C greedy_batch, 10 loss levels", config)
+    with io.StringIO(raw.decode("utf-8"), newline="") as handle:
+        reader = csv.DictReader(handle)
+        if tuple(reader.fieldnames or ()) != RAW_FIELDS:
+            _failure("read_verified_p2c_voting", "contract", "P2D_P2C_FIELDS_CHANGED",
+                     RAW_FIELDS, reader.fieldnames)
+        all_rows = list(reader)
+    keys = [(int(r["loss_percent"]),int(r["seed"]),r["method"]) for r in all_rows]
+    expected = {(p,s,"voting") for p in ORIGINAL_LOSSES for s in range(100)}
+    if len(all_rows) != 1000 or len(set(keys)) != 1000 or set(keys) != expected:
+        _failure("read_verified_p2c_voting", "contract", "P2D_P2C_INCOMPLETE_GRID",
+                 {"count":1000,"keys":1000}, {"count":len(all_rows),"keys":len(set(keys))})
+    wanted = {(p,s,"voting") for p in percentages
+              for s in range(first_seed,first_seed+seeds)}
+    scene_shas = {s:scene_sha256(generate_e0_scenario(s,100,100))
+                  for s in range(first_seed,first_seed+seeds)}
+    selected = []
+    for row,key in zip(all_rows,keys):
+        if key not in wanted:
+            continue
+        if (row["scene_sha256"] != scene_shas[key[1]]
+                or int(row["robots"]) != 100 or int(row["tasks"]) != 100
+                or int(row["capacity"]) != 1
+                or abs(float(row["p_loss"])-key[0]/100) > 1e-12):
+            _failure("read_verified_p2c_voting", "contract",
+                     "P2D_P2C_PAIRED_SCENE_MISMATCH", key, row.get("scene_sha256"))
+        selected.append(row)
+    if len(selected) != len(wanted):
+        _failure("read_verified_p2c_voting", "contract",
+                 "P2D_P2C_SELECTED_INCOMPLETE", len(wanted), len(selected))
+    return selected, {
+        "p2c_original_zip_sha256":observed_zip_sha,
+        "p2c_original_raw_sha256":raw_sha,
+        "p2c_executed_git_sha":P2C_EXECUTED_GIT_SHA,
+        "p2c_selected_rows":len(selected),
+    }
+
+
+def merge_p2d_paired_evidence(
+    *, voting_rows: list[dict], native_baselines: list[dict],
+    centralized_rows: list[dict], percentages: tuple[int, ...],
+    first_seed: int, seeds: int, centralized_source_sha: str,
+) -> list[dict]:
+    """Only the specified four methods; original method fields unaltered."""
+    groups = (
+        ("voting", voting_rows, P2C_EXECUTED_GIT_SHA, "verified_original_p2c"),
+        ("cbaa", [r for r in native_baselines if r["method"] == "cbaa"],
+         ORIGINAL_GIT_SHA, "verified_original_p2"),
+        ("cbba", [r for r in native_baselines if r["method"] == "cbba"],
+         ORIGINAL_GIT_SHA, "verified_original_p2"),
+        ("centralized", centralized_rows, centralized_source_sha, "new_p2d_native"),
+    )
+    lookups = {}
+    expected_scales = {(p,seed) for p in percentages
+                       for seed in range(first_seed,first_seed+seeds)}
+    for method,values,_sha,_source in groups:
+        keys = [(int(r["loss_percent"]), int(r["seed"])) for r in values
+                if r["method"] == method]
+        if len(keys) != len(values) or len(keys) != len(expected_scales) or set(keys) != expected_scales:
+            _failure("merge_p2d_paired_evidence", "contract", "P2D_SOURCE_GRID_MISMATCH",
+                     {"method":method,"cases":len(expected_scales)},
+                     {"method":method,"cases":len(keys),"unique":len(set(keys))})
+        lookups[method] = {(int(r["loss_percent"]),int(r["seed"])):r for r in values}
+    if len(native_baselines) != 2*len(expected_scales):
+        _failure("merge_p2d_paired_evidence","contract","P2D_EXTRA_NATIVE_BASELINE",
+                 2*len(expected_scales),len(native_baselines))
+    merged = []
+    for loss,seed in sorted(expected_scales):
+        matching = {lookups[method][(loss,seed)]["scene_sha256"]
+                    for method, *_ in groups}
+        if len(matching) != 1:
+            _failure("merge_p2d_paired_evidence","contract","P2D_SCENE_MISMATCH",
+                     "one scene SHA across all methods",
+                     {"loss":loss,"seed":seed,"scene_shas":sorted(matching)})
+        for method,_rows,sha,source in groups:
+            merged.append({**lookups[method][(loss,seed)],
+                           "source_git_sha":sha, "source_role":source})
+    return merged
