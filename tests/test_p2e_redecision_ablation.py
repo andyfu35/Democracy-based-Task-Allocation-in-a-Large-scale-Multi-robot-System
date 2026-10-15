@@ -67,6 +67,15 @@ class P2ERedecisionTests(unittest.TestCase):
             validate_ablation_config(args)
         self.assertEqual(caught.exception.diagnostic.category, "contract")
 
+    def test_nonfinite_loss_grid_has_named_data_diagnostic(self):
+        for text in ("nan", "inf", "-inf", "0.00,nan"):
+            with self.subTest(losses=text):
+                args = Namespace(losses=text, seeds=2, first_seed=0, formal=False)
+                with self.assertRaises(ProtocolError) as caught:
+                    validate_ablation_config(args)
+                self.assertEqual(caught.exception.diagnostic.code,
+                                 "P2E_INVALID_LOSS_GRID")
+
     def test_real_first_epoch_identical_across_limits_and_paid_sender_bytes(self):
         scene = generate_e0_scenario(0, 5, 5)
         small = run_one_ablation_case(
