@@ -13,7 +13,7 @@
 | 類別 | 主要研究問題 | 已接受的實驗證據 |
 |---|---|---|
 | **[A. 正確性](#a-任務分配正確性與分散式共識)** | 去中心化協調能否維持受控的最佳化結果？共識需要多少通訊？ | 完整資訊的 Hungarian 驗證、軌跡抽樣的共識成本 |
-| **[B. 掉包率](#b-封包遺失韌性與通訊流量)** | 封包遺失如何影響原生完成率與實際嘗試發送的 Bytes？ | 100 Seeds 配對的掉包率比較及 P2-C 四方法測試 |
+| **[B. 掉包率](#b-封包遺失韌性與通訊流量)** | 單輪／多輪方法如何隨掉包率改變完成率、通訊量、模擬時間與成本？ | P2D／P2E 兩張四面板曲線，0%～90%，100 Seeds |
 | **[C. 時間](#c-協調時間與-deadline-設計)** | 等待、截止時間與共享無線模型各占多少延遲？ | 30% 掉包下的 Deadline 測試及獨立零掉包控制 |
 | **[D. 演算法](#d-演算法比較與多任務容量)** | 在相同容量與幾何條件下，原生演算法如何取捨？ | 單任務五方法歷史實驗、獨立容量四的多任務比較 |
 
@@ -46,51 +46,34 @@
 
 ## B. 封包遺失韌性與通訊流量
 
-**目前已驗證的 P2-C 正式比較（2026-10-13）：Global Greedy Voting。**實驗固定 **100 Robots、100 Tasks、每台容量 = 1**；掉包率 PL 為 0%、10%……90%，每個 PL 使用 **100 個配對 Seeds**。新執行並檢查 **1,000 個 Voting 原生測試案例**；CBAA、CBBA 與 Price Auction 的 **3,000 個案例**直接沿用經 SHA-256 驗證的原始 ZIP，**未重新執行或改寫**。合併後共 **4,000 Cases、40 個群組**，並對原始終端 Log、100 個零掉包 Global Greedy 配對、原始檔 SHA、各階段時間與發送負載、場景幾何、指派成本及 Hungarian 參考解，執行 **71,156 次獨立檢查，零錯誤**。P2-B Task-ID Greedy、Voting Multi-task 及 Paid CBAA **不是**目前建議的四方法主比較。
+**最新正式主要比較（2026-10-15）：P2D／P2E，100 Seeds。** 固定 **100 Robots、100 Tasks、每台容量 1**，掉包率為 0%～90%（每 10% 一點），各方法使用相同的 **100 個配對 Seeds**。研究分成兩張四面板曲線圖：「單輪決策」比較 **Proposed (Single-Round)** 與 **Centralized (One-Shot)**；「多輪協調」比較 **Proposed (Multi-Round)**、**CBAA**、**CBBA**，並以 Centralized 作單輪參考。合計 **5,000 個獨立方法 × 掉包率 × Seed 案例**：P2E 新執行的 Proposed 2,000 筆、P2D 新執行 Centralized 1,000 筆，以及沿用原始驗證的 CBAA／CBBA 2,000 筆。P2D 另含 1,000 筆歷史 Proposed，與 P2E Multi-Round 配對原生結果一致，**不重複計算**。P2D／P2E 獨立稽核為 **73,463 項檢查、0 錯誤**。
 
-![P2-C：原生完整完成率、模擬停止時間、應用層嘗試發送量、成功條件下的分配成本](docs/figures/p2c/formal/p2c_packet_loss_four_panel.svg)
+### 圖一：單輪決策比較
 
-### 不同掉包率下的原生完整完成率
+![圖一：Proposed Single-Round 與 Centralized One-Shot 在各掉包率的成功率、通訊量、時間與成本上升率](docs/figures/p2de/formal/figure1_one_shot_curve.svg)
 
-| 掉包率 | Voting（Global Greedy） | CBAA | CBBA | Price Auction |
-|---:|---:|---:|---:|---:|
-| 0% | **100/100** | 100/100 | 100/100 | 98/100 |
-| 30% | **100/100** | 100/100 | 100/100 | 78/100 |
-| 60% | **100/100** | 100/100 | 100/100 | 14/100 |
-| 70% | **100/100** | 100/100 | 100/100 | 9/100 |
-| 80% | **100/100** | 100/100 | 0/100 | 0/100 |
-| 90% | **100/100** | 100/100 | 0/100 | 0/100 |
+**Proposed (Single-Round)** 最多只有一個原生決策 Epoch；**Centralized (One-Shot)** 則由遠端機器人各自單次 Unicast Cost 給協調者，接著單次分配，**不重傳 Cost**。在 0% 掉包，兩方法都是 **100/100** 完整成功；在 10% 掉包，Proposed 單輪僅 **1/100** 成功，而 Centralized **0/100**，直到 90% 都沒有完整成功。這裡的單輪指「決策次數限制」，**不是兩種協定具有相同封包數或相同終止保證**。
 
-### 最佳化方法與零掉包公平性
+### 圖二：多輪協調比較（含集中式參考線）
 
-Global Greedy 每次從**尚未分配**的 Robot–Task 配對中，挑選**目前全域 Cost 最低**的一對，移除該機器人及任務，再重複直至形成一對一指派。原生的批次 Vote → Score → 可靠 Commit，在 **100/100 Seeds** 與獨立完整資訊 Global Greedy 的配對相符，也與原生 CBAA、CBBA 在同一批零掉包 Seeds 的最終指派完全一致。
+![圖二：Proposed Multi-Round、CBAA、CBBA 與 Centralized 單輪參考線](docs/figures/p2de/formal/figure2_iterative_curve.svg)
 
-**這不是 Hungarian 最佳化。**零掉包 Global Greedy 的平均 Cost／Hungarian = **1.2353**；Hungarian 的 1.0000 僅作獨立最佳解參考。舊 Task-ID Greedy 的 PL0 比值為 1.3512，存在後續任務受前面決策影響的偏差。
+Proposed Multi-Round 最多可進行 300 個原生分配決策 Epoch，**不是重傳原始 Cost 或 Vote 封包**。CBAA／CBBA 保持原生共識與停止機制（Guard 160）；Centralized 只作**單輪參考線**，不是多輪共識方法。所有曲線只連接真實的 10 個掉包率測試點，**沒有平滑補值或偏移結果**。
 
-| PL | 舊 P2-B Task-ID Voting：Cost/Hungarian | **新 P2-C Global Greedy：Cost/Hungarian** | 相對成本降低 | 舊 P2-B 模擬停止時間 | **新 P2-C 模擬停止時間** |
-|---:|---:|---:|---:|---:|---:|
-| 0% | 1.3512 | **1.2353** | 8.6% | 2.027 s | **2.014 s** |
-| 30% | 1.8249 | **1.2333** | 32.4% | 3.120 s | **2.686 s** |
-| 60% | 2.3994 | **1.2479** | 48.0% | 4.745 s | **3.285 s** |
-| 90% | 3.8404 | **1.2966** | **66.2%** | 11.742 s | **4.494 s** |
+| 90% 掉包率 · 100 Seeds | Proposed 單輪 | **Proposed 多輪** | CBAA | CBBA | Centralized 單輪 |
+|---|---:|---:|---:|---:|---:|
+| **原生完整成功** | 0/100 | **100/100** | 100/100 | 0/100 | 0/100 |
+| **嘗試發送量（十進位 kB）** | 99.42 | **105.67** | 14,135.60 | 56,343.95 | 84.43 |
+| **模擬原生停止時間（s），含失敗** | 2.05 | **4.49** | 71.38 | 112.53 | 0.88 |
+| **相對完整資訊 Global Greedy 成本上升率** | — | **+5.04%** | 0.00% | — | — |
 
-### 90% 掉包時的關鍵比較
+在**本次模型與原生 Guard 設定**下，CBAA 在 90% 掉包仍有 **100/100** 完整成功；CBBA 在 80% 與 90% 均為 **0/100**。這是實驗觀察，**不是兩演算法普遍的掉包理論極限**。PL90 時 Proposed Multi-Round 與 CBAA 都完全成功，但 Proposed 的應用層發送負載約少 **134 倍**、模擬原生停止時間約短 **15.9 倍**；分配成本則較完整資訊 Global Greedy 約高 **5.04%**。Centralized 在掉包後更早停止，是因為**尚未完成分配就停止**，不能宣稱其成功完成速度更快。
 
-Global Greedy Voting 與原生 CBAA 都在 **100/100 Seeds** 原生完整完成，但平均模擬原生停止時間分別為 **4.494 s** 和 **71.383 s**；平均嘗試發送的應用層資料量分別為 **105.671 kB** 與 **14,135.600 kB**，Voting 的資料量**降低 99.25%**。相同 Seeds 的 Cost／Hungarian 平均值則分別為 **1.2966** 和 **1.2353**，Voting **高約 4.96%**，也就是 CBAA 的指派成本較低。
+**四個子圖的共同統計：**(a) 100 Seeds 原生完整完成率、(b) **實際嘗試發送**的應用層負載（kB = 1,000 B，包含遭接收端丟棄的 SEND）、(c) 100 Seeds 平均**模擬原生停止時間**（包含失敗／Guard 案例）、(d) **成功 Seeds** 的分配成本上升率。成本針對每個成功 Seed 計算 `100 ×（該方法的總歐氏分配成本／同一 Seed 完整資訊 Global Greedy 總成本 − 1）`，再取成功 Seed 平均。黑色水平虛線固定在 **0%**，所有方法都使用**相同的完整資訊 Global Greedy**，**不是各方法自己的 0% 掉包成本，也不是 Hungarian 最佳解**。負值是可能的，因 Greedy 並非全域最優解。若該方法沒有完整成功案例，成本**留空，絕不補零**；Proposed 單輪在 10% 的成本只含 **n=1**。
 
-CBAA 第一次被外部觀察者確認已產生完整可行指派的平均時間為 **12.770 s**，不等於原生停止時間。**不能**把兩者描述為相同的完成保證，也不能把模擬時間優勢宣稱為真實 Wi-Fi 的實測加速。
+**研究限制：**模型時間結合 Rady 應用層延遲與假設的共享 144 Mbps 無線速率，**不是實際 Wi-Fi MAC／PHY 量測**。掉包假設作用於 Cost／Vote 接收端；TASK／Score／Commit 在模型中可靠。CBAA／CBBA 原生停止證明與 Proposed 已支付的 Commit 不同，因此曲線可描述特定實驗條件下的速度／通訊量／成功率取捨，不能主張完全相同的分散式終止保證。
 
-### 通訊與掉包計量
-
-Voting 在邏輯上完整公告一次 TASK 集合（100 任務時實際拆為 3 個應用層 SEND）、每個機器人只廣播一次自己的 100 任務 Cost 列（整場共 100 個實體 Cost SEND），接著廣播批次 Vote（接收端各自可能掉包），再可靠傳遞候選者**實際收到**的 Score 向量，並支付執行者 Commit 的可靠通訊成本。剩餘任務可在下一批次重試，不必重傳原始 TASK 或 Cost。
-
-PL90 時，Global Greedy Voting 平均需要 **7.34 個批次 Epoch**（舊 Task-ID 為 20.78）。模擬原生時間由 TASK **0.076 s**、Cost **0.609 s**、Vote+Score **2.859 s**、Commit **0.950 s** 組成，總計 **4.494 s**。採用 Rady 的應用層延遲資料及假設的 **144 Mbps 共享媒介**，**不是**實際量測的無線 RF 吞吐量。
-
-**圖表解讀：**A 圖用同心標記和虛線區分重疊的相同完成率，沒有替數據做偏移。B／C 圖採對數刻度，讓時間和流量的差距可見。D 圖顯示**各演算法自身原生成功 Seeds 條件下**的平均歐氏分配 Cost／Hungarian：Voting 與 CBAA 各 PL 均有 n=100；CBBA 與 Auction 在 PL80／90 沒有原生成功樣本，所以**不繪製品質值，並不是設為零**。舊實驗採四方法**共同成功 Seeds**計算品質；其 PL80／90 的共同樣本為空，和本圖條件不同，不可混用。Price Auction 在低掉包率下的品質是較小且經成功篩選的樣本。
-
-**完整證據：**[P2-C 獨立驗證報告、信賴區間與原生階段分解](docs/P2C_FORMAL_100SEED.md) · [40 群組繪圖來源](docs/figures/p2c/formal/verified_40point_summary.csv) · [ZIP SHA256 與圖表來源](docs/figures/p2c/formal/source_manifest.json) · [P2-C Canonical Protocol](docs/P2C_GLOBAL_GREEDY_PROTOCOL.md)。
-
-**保留的舊研究：**[P2-B Task-ID Greedy](docs/P2B_FORMAL_100SEED.md) 與[原圖](docs/figures/p2b/formal/p2b_packet_loss_four_panel.svg)；[更早期序列式 P2](docs/P2_FORMAL_100SEED.md)。早期 E9 與 A／C／D 圖可能使用不同規模或舊序列式 Voting，**不可當成**最新 P2-C 的證據。若要更新，應只重新執行匹配的 Voting，而非重寫或重跑未改變的外部原生 Baseline。
+**繪圖原始彙總與來源：**[50 組曲線資料與成功樣本數](docs/figures/p2de/formal/verified_50point_summary.csv) · [原始 ZIP SHA256、成本公式及方法限制](docs/figures/p2de/formal/README.md) · [P2D／P2E Canonical](docs/EXPERIMENT_PROTOCOL.md)。舊 [P2-C 四方法 Price Auction 比較圖](docs/figures/p2c/formal/p2c_packet_loss_four_panel.svg) 與[來源驗證報告](docs/P2C_FORMAL_100SEED.md)保留作歷史查證，不再作為最新 README 主圖。
 
 ## C. 協調時間與 Deadline 設計
 
