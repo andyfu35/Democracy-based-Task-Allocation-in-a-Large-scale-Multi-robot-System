@@ -13,7 +13,7 @@ from democracy_mrta.scenario import generate_e0_scenario
 from experiments.run_p2e_redecision_ablation import (
     LOSSES, MODES, validate_ablation_config, validate_ablation_grid,
     validate_paired_initial_epochs, run_one_ablation_case, summarize_ablation,
-    prepare_ablation_evidence,
+    prepare_ablation_evidence, audit_native_sender_phases, count_observed_commits,
 )
 from experiments.p2e_redecision_plot import render_p2e_figure
 
@@ -102,6 +102,31 @@ class P2ERedecisionTests(unittest.TestCase):
             self.assertEqual(row["task_coverage"],
                              row["committed_task_count"] / 5)
             self.assertLessEqual(row["committed_task_count"], 5)
+
+    def test_phase_sender_owner_rejects_missing_or_unpaid_bytes(self):
+        source = {
+            "native_sender_sends": 2, "native_sender_bytes": 816,
+        }
+        phases = {
+            "task": {"sender_sends": 1, "sender_bytes": 16},
+            "cost": {"sender_sends": 1, "sender_bytes": 800},
+            "vote": {"sender_sends": 0, "sender_bytes": 0},
+            "score": {"sender_sends": 0, "sender_bytes": 0},
+            "commit": {"sender_sends": 0, "sender_bytes": 0},
+        }
+        self.assertEqual(audit_native_sender_phases(source, phases)["cost_sender_bytes"], 800)
+        phases["cost"]["sender_bytes"] = 799
+        with self.assertRaises(ProtocolError) as caught:
+            audit_native_sender_phases(source, phases)
+        self.assertEqual(caught.exception.diagnostic.code,
+                         "P2E_SENDER_LEDGER_MISMATCH")
+
+    def test_duplicate_native_commits_first_fail_safety(self):
+        from democracy_mrta.diagnostics import Diagnostic
+        native = {"native_assignment_json": json.dumps(((0, 1), (0, 2)))}
+        with self.assertRaises(ProtocolError) as caught:
+            count_observed_commits(native)
+        self.assertEqual(caught.exception.diagnostic.category, "safety")
 
     def test_first_epoch_mismatch_is_rejected_even_with_same_seed(self):
         a = mock_record(30, 0, "single_round", checksum="first")
