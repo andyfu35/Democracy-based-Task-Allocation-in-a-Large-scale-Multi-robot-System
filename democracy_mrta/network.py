@@ -599,10 +599,17 @@ class WifiCausalTimingSampler:
         })
         return latency
 
-    def summarize_network(self) -> dict[str, float | int]:
-        """Accounting: sums are service costs, NOT additional elapsed time."""
+    def summarize_network(self) -> dict[str, float | int | dict]:
+        """Account every physical SEND, including packets lost by receivers."""
         rows = self.packet_trace
+        by_phase: dict[str, dict[str, int]] = {}
+        for packet in rows:
+            phase = str(packet["phase"])
+            account = by_phase.setdefault(phase, {"sender_sends": 0, "sender_bytes": 0})
+            account["sender_sends"] += 1
+            account["sender_bytes"] += int(packet["payload_bytes"])
         return {
+            "sender_by_phase": {phase: by_phase[phase] for phase in sorted(by_phase)},
             "packet_count": len(rows),
             "application_sender_bytes": sum(int(r["payload_bytes"]) for r in rows),
             "radio_hop_count": sum(int(r["wireless_hops"]) for r in rows),
