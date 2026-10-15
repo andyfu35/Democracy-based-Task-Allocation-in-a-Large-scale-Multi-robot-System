@@ -1,8 +1,10 @@
 # Democracy-based Task Allocation in a Large-scale Multi-robot System
 
+**Language:** **English** | [繁體中文](README.zh-TW.md)
+
 **Research focus:** Fully decentralized multi-robot task allocation under unreliable communication. We measure correctness, packet-loss resilience, attempted application-layer communication, and modeled coordination time. **Target venue:** IEEE Robotics and Automation Letters (RA-L).
 
-**Latest verified P2 evidence: 2026-10-13.** This README contains only principal verified findings. The complete former README (27 images, all historical tables, exploratory results and run commands) is saved in [Detailed Experiment Results Archive](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md). The [cross-experiment evidence audit](docs/EXPERIMENT_RESULTS_AUDIT_20261012.md) separates verified, provisional and pilot studies.
+**Latest verified primary packet-loss evidence: 2026-10-15 (P2D/P2E).** This README contains only principal verified findings. The complete former README (27 images, all historical tables, exploratory results and run commands) is saved in [Detailed Experiment Results Archive](docs/EXPERIMENT_RESULTS_ARCHIVE_20261012.md). The [cross-experiment evidence audit](docs/EXPERIMENT_RESULTS_AUDIT_20261012.md) separates verified, provisional and pilot studies.
 
 ## 1. Method and comparison boundaries
 
@@ -24,38 +26,34 @@ Voting's **full, reliable final Commit** and CBAA's **local consensus certificat
 
 ### B. Packet-loss resilience and communication traffic
 
-**Verified P2-C formal benchmark (2026-10-13): Global Greedy Voting** — 100 robots, 100 tasks, robot capacity=1; PL 0%,10%,…,90%; 100 paired Seeds per PL. **1,000 new Voting native method-cases** were executed and checked; exactly **3,000 unchanged original CBAA, CBBA and Price Auction method-cases** were reused from a SHA256-verified original ZIP, **never rerun**. The **4,000 combined cases**, 40 groups, 1,000 original terminal log lines, 100 Global Greedy no-loss pairings, source SHA, native sender/phase-time ledgers, scenario geometry, assignment costs and Hungarian oracles passed **71,156 independent check invocations with zero errors**. P2-B Task-ID Greedy, Voting Multi-task and Paid CBAA are **not** the currently recommended four-method primary comparator.
+**Current 100-seed primary comparison (2026-10-15).** The native P2D/P2E studies use **100 robots, 100 tasks, capacity 1**, receiver packet loss 0–90% in 10% increments, and the same **100 paired seeds** per loss level. We compare **Proposed (Single-Round)** versus **Centralized (One-Shot)** as one-decision methods, and **Proposed (Multi-Round)** versus **native CBAA / CBBA** with the same Centralized result retained as a one-shot reference. There are **5,000 unique method × loss × seed cases**: 2,000 new P2E Proposed, 1,000 new P2D Centralized, and 2,000 original SHA-verified P2 CBAA/CBBA runs reused without rerunning. The 1,000 additional P2D historical Proposed rows exactly match the P2E Multi-Round results and are **not double-counted**. Independent P2D/P2E audit: **73,463 checks, 0 errors**.
 
-![P2-C: 4 panels for native full completion, modeled stop, application sender bytes and native-success conditional cost](docs/figures/p2c/formal/p2c_packet_loss_four_panel.svg)
+### Figure 1 — One-shot decision comparison
 
-| Packet loss | Voting (Global Greedy) | CBAA | CBBA | Price Auction |
-|---:|---:|---:|---:|---:|
-| 0% | **100/100** | 100/100 | 100/100 | 98/100 |
-| 30% | **100/100** | 100/100 | 100/100 | 78/100 |
-| 60% | **100/100** | 100/100 | 100/100 | 14/100 |
-| 70% | **100/100** | 100/100 | 100/100 | 9/100 |
-| 80% | **100/100** | 100/100 | 0/100 | 0/100 |
-| 90% | **100/100** | 100/100 | 0/100 | 0/100 |
+![Figure 1: Two native one-decision methods across packet loss; native success, emitted application Bytes, modeled stop and allocation-cost increase](docs/figures/p2de/formal/figure1_one_shot_curve.svg)
 
-**No-loss correctness and fair baseline:** under full Cost delivery, Global Greedy chooses the current globally lowest eligible Robot–Task pair, removes its robot and task, and repeats until a one-to-one assignment is formed. The native batch Vote→Score→reliable Commit outcome matches the **independent complete-information Global Greedy** pairing in **100/100 Seeds**, and matches the **exact original CBAA and CBBA final assignments** in those 100 Seeds. This is not Hungarian execution: mean Global Greedy Cost/Hungarian = **1.2353**, and optimum Hungarian =1.0000 is only an independent objective reference. The previous Voting Task-ID Greedy yielded 1.3512 at PL0 and systematically penalized later tasks.
+**Proposed (Single-Round)** permits only one voting/decision epoch; **Centralized (One-Shot)** has one lossy Cost unicast per remote robot and one coordinator decision, with **no Cost retransmission**. At PL0 both deliver full assignments in 100/100 seeds. At PL10 Proposed Single-Round succeeds in **1/100** seeds and Centralized in **0/100**; Centralized remains 0/100 at PL10–90. Their different packet topologies mean *one-shot* is a decision-budget grouping, **not equal packet counts or equivalent end-to-end reliability**.
 
-| PL | Previous P2-B Task-ID Voting: Cost/Hungarian | **P2-C Global Greedy: Cost/Hungarian** | Relative cost reduction | P2-B modeled stop | **P2-C modeled stop** |
-|---:|---:|---:|---:|---:|---:|
-| 0% | 1.3512 | **1.2353** | 8.6% | 2.027 s | **2.014 s** |
-| 30% | 1.8249 | **1.2333** | 32.4% | 3.120 s | **2.686 s** |
-| 60% | 2.3994 | **1.2479** | 48.0% | 4.745 s | **3.285 s** |
-| 90% | 3.8404 | **1.2966** | **66.2%** | 11.742 s | **4.494 s** |
+### Figure 2 — Iterative coordination with Centralized reference
 
-**At PL90, current Global Greedy Voting versus unchanged native CBAA:** both native-complete **100/100 Seeds**; mean modeled native stop **4.494s vs71.383s**, mean attempted sender payload **105.671 kB vs14,135.600 kB** (**99.25% less**), and same-Seed mean Cost/Hungarian **1.2966 vs1.2353** (Voting **4.96% higher**). CBAA's mean first externally complete feasible snapshot is **12.770s**; method-native Stop/observer and reliable global terminal knowledge differ. **Do not claim identical completion guarantees or real Wi-Fi speedup.**
+![Figure 2: Proposed Multi-Round, CBAA, CBBA and one-shot Centralized reference across packet loss](docs/figures/p2de/formal/figure2_iterative_curve.svg)
 
-**Communication evidence and loss semantics:** Voting broadcasts the complete TASK set **once logically** (3 physically framed application SENDs at 100 tasks), every robot broadcasts its own 100-task Cost row **once** (100 physical Cost SENDs for the entire run), then broadcasts batch Vote with receiver-specific loss, reliably disseminates actual candidate-received Score vectors and pays a reliable executor Commit. Remaining task/robot pairs can retry without resending original TASK or Cost. At PL90 the Global Greedy variant takes **7.34 average batch epochs** (old Task-ID 20.78), with native modeled TASK 0.076s, Cost 0.609s, Vote+Score 2.859s, Commit 0.950s, totaling 4.494s. Original Rady application delays and assumed **144Mbps shared medium** are simulated; this is **not** measured physical wireless RF throughput.
+Proposed Multi-Round makes new allocation/voting decisions (up to 300 native epochs), **not retransmissions of the original lost Cost frames**; CBAA and CBBA retain their native consensus and stopping rules (guard 160). Centralized is repeated in this plot only as a **one-shot reference**, not as an iterative consensus method. All curves connect **measured loss-grid points**, without smoothing or altered values.
 
-**Figure semantics:** panel A distinguishes overlapping exact completion values via concentric markers and dash patterns, without numerical offsets. B/C use logarithmic scales, showing smaller time/traffic values rather than visually hiding them. **D is mean Euclidean assignment cost/Hungarian among each method's own natively successful Seeds**: Voting and CBAA have n=100 for every PL; CBBA and Auction have *no native-success quality* at 80/90 and are therefore omitted, not assigned zero. The original run's **four-way common-success** quality cohort becomes empty at 80/90; that is a **different** conditioning rule, so the original source graph and this publication view must not be conflated. Price Auction successes at low PL form their own smaller, selected cohorts.
+| 90% packet loss · 100 seeds | Proposed Single-Round | **Proposed Multi-Round** | CBAA | CBBA | Centralized One-Shot |
+|---|---:|---:|---:|---:|---:|
+| **Native full assignment success** | 0/100 | **100/100** | 100/100 | 0/100 | 0/100 |
+| **Attempted sender payload (decimal kB)** | 99.42 | **105.67** | 14,135.60 | 56,343.95 | 84.43 |
+| **Modeled native stop (s), all seeds** | 2.05 | **4.49** | 71.38 | 112.53 | 0.88 |
+| **Cost increase (%) vs full-info Global Greedy** | — | **+5.04%** | 0.00% | — | — |
 
-[Independently audited P2-C formal result, uncertainty and actual native phase breakdown](docs/P2C_FORMAL_100SEED.md) · [40-group derived plotting source](docs/figures/p2c/formal/verified_40point_summary.csv) · [original ZIP SHA256 and figure provenance](docs/figures/p2c/formal/source_manifest.json) · [P2-C canonical and testing contract](docs/P2C_GLOBAL_GREEDY_PROTOCOL.md).
+In this **specific model and native guard budget**, CBAA maintains 100/100 native success at 90% loss, whereas CBBA has 0/100 at 80% and 90%; this is an empirical result, **not a theoretical packet-loss threshold**. Proposed Multi-Round and CBAA both fully finish at PL90, but Proposed uses **about 134× less** attempted sender application payload and has **about 15.9× shorter modeled native stop**; its native assignment cost is about **5.04% above** same-seed full-information Global Greedy. A shorter stop after failure (especially Centralized) **must not be read as faster successful completion**.
 
-**Older protocols remain available and unchanged:** [P2-B Task-ID Greedy benchmark](docs/P2B_FORMAL_100SEED.md) and its [source figure](docs/figures/p2b/formal/p2b_packet_loss_four_panel.svg); [original serialized P2 benchmark](docs/P2_FORMAL_100SEED.md). Earlier E9 and manuscript A/C/D figures sometimes use other robot/task scales or historical serialized Voting and are **not** new P2-C Global Greedy evidence. Updating those independent comparisons would require *only matched Voting* reruns, not rewriting or rerunning the corresponding native external baselines.
+**Figure definitions and fair cost baseline.** The panels show **(a) native full completion (%)**, **(b) attempted sender application payload (kB = 1,000 B, including lost SENDs)**, **(c) modeled native stop time (s, all seeds including failures)**, and **(d) native-success-only allocation cost increase (%)**. Cost is computed **per successful seed** as `100 × (actual Euclidean allocation cost / same-seed offline full-information Global Greedy cost − 1)`, then averaged over that method's successful seeds. The **black dashed 0% line** is the **same Full-Info Global Greedy reference for every method**, *not* each algorithm's own PL0 normalizer and *not* Hungarian optimum. Values below 0% are possible because Greedy is not a guaranteed global optimum. When no complete assignment exists, cost is **undefined and not plotted as zero**; Proposed Single-Round's PL10 quality has **n=1**.
 
+**Scientific limitations.** The underlying Rady application-delay sample plus a **hypothetical shared 144 Mbps medium** measures modeled communication timing, **not field Wi-Fi/MAC/PHY**. Independent receiver loss applies to Cost/Vote while TASK/Score/Commit are modeled reliable; the CBAA/CBBA native observer/terminal guarantees and Proposed paid Commit are not interchangeable. The two figures show different allowed decision budgets, not a claim of equal number of packets, perfect protocol fairness, or universal centralized failure.
+
+**Reproducible publication data:** [50-row plotted summary and sample denominators](docs/figures/p2de/formal/verified_50point_summary.csv) · [source SHA256s, calculation and caveats](docs/figures/p2de/formal/README.md) · [P2D canonical experiment](docs/EXPERIMENT_PROTOCOL.md#54-p2d--one-shot-centralized-method-and-full-info-greedy-comparison-2026-10-14) · [P2E canonical experiment](docs/EXPERIMENT_PROTOCOL.md#55-p2e--proposed-redecision-ab-one-vs-300-epochs-2026-10-15). The previous [P2-C four-method Price Auction figure](docs/figures/p2c/formal/p2c_packet_loss_four_panel.svg) and [full historical P2-C audit](docs/P2C_FORMAL_100SEED.md) remain archived, not removed or passed off as the new test.
 
 ## C. Communication-time and deadline sensitivity — E9G / E9I
 
