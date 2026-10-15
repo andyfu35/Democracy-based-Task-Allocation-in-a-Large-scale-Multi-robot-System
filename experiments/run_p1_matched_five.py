@@ -183,6 +183,9 @@ def run_original_voting(scene, profile, loss: float, voting_guard: int,
                       "score_sender_frames": native["vote_score_send_count"],
                       "commit_sender_frames": native["commit_send_count"],
                       "phase_timing": native["phase_timing"],
+                      "sender_by_phase": native["sender_by_phase"],
+                      "first_epoch_sha256": native["first_epoch_sha256"],
+                      "rounds_executed": native["rounds_executed"],
                   }} if voting_strategy == "greedy_batch" else {})},
         "contract":(
             "capacity-one Global Greedy: one TASK + one Cost, batched Vote/Score, paid Commit"
