@@ -52,9 +52,12 @@ def validate_ablation_config(args: argparse.Namespace) -> tuple[int, ...]:
     """Freeze paired 0..90% loss, same seeds and exactly 1/300 decision epochs."""
     try:
         raw = tuple(float(x.strip()) for x in args.losses.split(","))
-    except (ValueError, AttributeError):
+    except (ValueError, AttributeError, TypeError):
         fail("validate_ablation_config", "data", "P2E_INVALID_LOSS_GRID",
              "ascending subset of {0,0.1,..,0.9}", getattr(args,"losses",None))
+    if not raw or any(not math.isfinite(x) for x in raw):
+        fail("validate_ablation_config", "data", "P2E_INVALID_LOSS_GRID",
+             "finite ascending subset of {0,0.1,..,0.9}", raw)
     losses = tuple(round(x*100) for x in raw)
     if (not losses or losses != tuple(sorted(set(losses)))
             or any(p not in LOSSES or not math.isfinite(x)
