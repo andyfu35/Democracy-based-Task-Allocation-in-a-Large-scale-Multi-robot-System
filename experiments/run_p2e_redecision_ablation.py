@@ -138,6 +138,102 @@ def prepare_ablation_evidence(args, source_sha, losses):
     return records,config
 
 
+def extract_validated_native_batch(scene, native, max_rounds):
+    """Check original native Cost and epoch contract without replacing it."""
+    if native["native_diagnostic"]:
+        # P1 archives the *first* native owner Diagnostic when a native run
+        # fails. Propagate that owner/function/category/code unchanged.
+        try:
+            original=json.loads(native["native_diagnostic"])
+            diagnostic=Diagnostic(**original)
+        except (ValueError,TypeError,KeyError) as error:
+            fail("extract_validated_native_batch","data",
+                 "P2E_MALFORMED_NATIVE_DIAGNOSTIC",
+                 "original Diagnostic JSON",str(error))
+        raise ProtocolError(diagnostic)
+    try:
+        batch=json.loads(native["original_traffic_ledger_json"])["batch"]
+        rounds=int(batch["rounds_executed"])
+        timed_rounds=int(batch["phase_timing"]["epochs"])
+        task_frames=int(batch["task_announcement_sender_frames"])
+        cost_frames=int(batch["cost_sender_frames"])
+    except (KeyError,TypeError,ValueError,json.JSONDecodeError) as error:
+        fail("extract_validated_native_batch","data",
+             "P2E_MISSING_NATIVE_BATCH_EVIDENCE",
+             "verified original native Vote/Score/Commit trace",str(error))
+    if (not 1<=rounds<=max_rounds or rounds!=timed_rounds
+            or not batch.get("first_epoch_sha256")):
+        fail("extract_validated_native_batch","contract",
+             "P2E_INVALID_ORIGINAL_EPOCH",
+             (1,max_rounds,"matching native timing and fingerprint"),
+             (rounds,timed_rounds,batch.get("first_epoch_sha256")))
+    expected_task_frames=len(encode_task_announcement(scene.task_positions))
+    if (task_frames!=expected_task_frames
+            or cost_frames!=scene.num_robots):
+        fail("extract_validated_native_batch","contract",
+             "P2E_COST_ONCE_CONTRACT",
+             (expected_task_frames,scene.num_robots),
+             (task_frames,cost_frames))
+    return batch,rounds
+
+
+def count_observed_commits(native):
+    """Safety-audit native Commit-backed observer pairs, including partial."""
+    try:
+        physical_pairs=tuple((int(r),int(t))
+                             for r,t in json.loads(native["native_assignment_json"]))
+    except (KeyError,TypeError,ValueError,json.JSONDecodeError) as error:
+        fail("count_observed_commits","data","P2E_INVALID_NATIVE_PAIRS",
+             "serialized physical robot/task pairs",str(error))
+    if (len(physical_pairs)!=len({r for r,_ in physical_pairs})
+            or len(physical_pairs)!=len({t for _,t in physical_pairs})):
+        fail("count_observed_commits","safety","P2E_DUPLICATE_NATIVE_COMMIT",
+             "one robot and one task per physical pair",physical_pairs)
+    return physical_pairs
+
+
+def audit_native_sender_phases(native, phase_sender):
+    """Independently reconcile every physical SEND, not receiver delivery."""
+    details={}
+    for phase in PHASES:
+        sending=phase_sender.get(phase)
+        if sending is None:
+            fail("audit_native_sender_phases","contract",
+                 "P2E_MISSING_NATIVE_SENDER_PHASE",PHASES,tuple(phase_sender))
+        for unit in ("sends","bytes"):
+            name=f"{phase}_sender_{unit}"
+            details[name]=int(sending[f"sender_{unit}"])
+            if details[name]<0:
+                fail("audit_native_sender_phases","data",
+                     "P2E_NEGATIVE_SENDER_TRAFFIC",">=0",
+                     {"phase":phase,"unit":unit,"value":details[name]})
+    actual=(sum(details[f"{p}_sender_sends"] for p in PHASES),
+            sum(details[f"{p}_sender_bytes"] for p in PHASES))
+    expected=(int(native["native_sender_sends"]),
+              int(native["native_sender_bytes"]))
+    if actual!=expected:
+        fail("audit_native_sender_phases","contract",
+             "P2E_SENDER_LEDGER_MISMATCH",expected,actual)
+    return details
+
+
+def measure_ablation_offline_quality(scene, native, p_loss):
+    """Read-only full-information Greedy cost; never fed into native Voting."""
+    full_greedy=solve_visible_batched_greedy_assignment(
+        scene.cost_matrix, frozenset(range(scene.num_robots)),
+    )
+    if p_loss==0.0:
+        validate_batched_voting_evidence(
+            scene, {"method":"voting","loss_percent":0,**native},
+        )
+    quality=(
+        float(native["final_total_distance_m"])/full_greedy.total_cost
+        if int(native["native_success"]) and int(native["final_feasible"])
+        else ""
+    )
+    return full_greedy.total_cost,quality
+
+
 def run_one_ablation_case(scene, profile, p_loss: float, max_rounds: int) -> dict:
     """Use original E9H/P1 Voting owner; only the epoch cap differs."""
     if max_rounds not in (1,300):
@@ -149,70 +245,19 @@ def run_one_ablation_case(scene, profile, p_loss: float, max_rounds: int) -> dic
         scene, profile, "voting", p_loss, 160, max_rounds,
         voting_strategy="greedy_batch",
     )
-    if native["native_diagnostic"]:
-        fail("run_one_ablation_case","runtime","P2E_NATIVE_EPOCH_ERROR",
-             "complete physical SEND ledger with no native diagnostic",
-             native["native_diagnostic"],
-             details=f"seed={scene.seed} p_loss={p_loss} mode={mode}")
-    original=json.loads(native["original_traffic_ledger_json"])
-    batch=original["batch"]
-    phase_sender=batch["sender_by_phase"]
-    rounds=int(batch["rounds_executed"])
-    timing_rounds=int(batch["phase_timing"]["epochs"])
-    if (not 1<=rounds<=max_rounds or rounds!=timing_rounds
-            or not batch.get("first_epoch_sha256")):
-        fail("run_one_ablation_case","contract","P2E_INVALID_ORIGINAL_EPOCH",
-             (1,max_rounds,"matching native timing and fingerprint"),
-             (rounds,timing_rounds,batch.get("first_epoch_sha256")))
-    task_sends=len(encode_task_announcement(scene.task_positions))
-    if (batch["task_announcement_sender_frames"]!=task_sends
-            or batch["cost_sender_frames"]!=scene.num_robots):
-        fail("run_one_ablation_case","contract","P2E_COST_ONCE_CONTRACT",
-             (task_sends,scene.num_robots),
-             (batch["task_announcement_sender_frames"],batch["cost_sender_frames"]))
-    pairs=json.loads(native["native_assignment_json"])
-    physical_pairs=tuple((int(r),int(t)) for r,t in pairs)
-    if (len(physical_pairs)!=len({r for r,_ in physical_pairs})
-            or len(physical_pairs)!=len({t for _,t in physical_pairs})):
-        fail("run_one_ablation_case","safety","P2E_DUPLICATE_NATIVE_COMMIT",
-             "one robot and one task per physical pair",physical_pairs)
-    full_greedy=solve_visible_batched_greedy_assignment(
-        scene.cost_matrix,frozenset(range(scene.num_robots)),
-    )
-    if p_loss==0.0:
-        validate_batched_voting_evidence(
-            scene, {"method":"voting","loss_percent":0,**native},
-        )
-    quality=(
-        float(native["final_total_distance_m"])/full_greedy.total_cost
-        if int(native["native_success"]) and int(native["final_feasible"])
-        else ""
-    )
-    details={}
-    for phase in PHASES:
-        sending=phase_sender.get(phase)
-        if sending is None:
-            fail("run_one_ablation_case","contract","P2E_MISSING_NATIVE_SENDER_PHASE",
-                 PHASES,tuple(phase_sender))
-        for unit in ("sends","bytes"):
-            details[f"{phase}_sender_{unit}"]=int(sending[f"sender_{unit}"])
-    if (sum(details[f"{p}_sender_sends"] for p in PHASES)
-            != int(native["native_sender_sends"])
-            or sum(details[f"{p}_sender_bytes"] for p in PHASES)
-            != int(native["native_sender_bytes"])):
-        fail("run_one_ablation_case","contract","P2E_SENDER_LEDGER_MISMATCH",
-             (native["native_sender_sends"],native["native_sender_bytes"]),
-             tuple(sum(details[f"{p}_sender_{kind}"] for p in PHASES)
-                   for kind in ("sends","bytes")))
+    batch,rounds=extract_validated_native_batch(scene,native,max_rounds)
+    pairs=count_observed_commits(native)
+    details=audit_native_sender_phases(native,batch["sender_by_phase"])
+    greedy_cost,quality=measure_ablation_offline_quality(scene,native,p_loss)
     return {
         "loss_percent":int(round(p_loss*100)),
         "mode":mode,"max_rounds":max_rounds,
         **native,
-        "committed_task_count":len(physical_pairs),
-        "task_coverage":len(physical_pairs)/scene.num_tasks,
+        "committed_task_count":len(pairs),
+        "task_coverage":len(pairs)/scene.num_tasks,
         "rounds_executed":rounds,
         "first_epoch_sha256":batch["first_epoch_sha256"],
-        "full_info_greedy_cost_m":full_greedy.total_cost,
+        "full_info_greedy_cost_m":greedy_cost,
         "quality_vs_full_info_greedy":quality,
         **details,
     }
