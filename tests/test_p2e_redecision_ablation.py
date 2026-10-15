@@ -38,7 +38,7 @@ def mock_record(loss, seed, mode, *, native=1, coverage=1.0, checksum="same"):
         "native_success": native, "final_feasible": native,
         "native_stop_ms": 1000.0 if mode == "single_round" else 2500.0,
         "native_sender_sends": 403 if native else 230,
-        "native_sender_bytes": 171648 if native else 110000,
+        "native_sender_bytes": 171648 if native else 109996,
         "rounds_executed": 1 if mode == "single_round" else 7,
         "task_coverage": coverage, "committed_task_count": round(coverage * 100),
         "quality_vs_full_info_greedy": 1.0 if native else "",
