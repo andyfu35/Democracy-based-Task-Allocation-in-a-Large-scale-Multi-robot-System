@@ -224,6 +224,77 @@ def summarize_e9h_phase_timing(*, task_ms: float, result) -> dict:
     }
 
 
+def summarize_e9h_sender_phase_breakdown(
+    *, task_network: dict, coordination_network: dict,
+    expected_sends: int, expected_bytes: int,
+) -> dict[str, dict[str, int]]:
+    """Sum true physically emitted SEND frames/bytes, never receiver reports."""
+    phase_names = {
+        "task_announcement": "task",
+        "cost": "cost",
+        "vote": "vote",
+        "vote_score_announcement": "score",
+        "commit": "commit",
+    }
+    stages = {
+        label: {"sender_sends": 0, "sender_bytes": 0}
+        for label in phase_names.values()
+    }
+    for network in (task_network, coordination_network):
+        for physical_phase, counts in network["sender_by_phase"].items():
+            label = phase_names.get(physical_phase)
+            if label is None:
+                raise ProtocolError(Diagnostic(
+                    owner=OWNER, function="summarize_e9h_sender_phase_breakdown",
+                    category="contract", code="P2E_UNEXPECTED_SENDER_PHASE",
+                    expected=tuple(phase_names), actual=physical_phase,
+                ))
+            stages[label]["sender_sends"] += int(counts["sender_sends"])
+            stages[label]["sender_bytes"] += int(counts["sender_bytes"])
+    actual = (sum(s["sender_sends"] for s in stages.values()),
+              sum(s["sender_bytes"] for s in stages.values()))
+    expected = (expected_sends, expected_bytes)
+    if actual != expected:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="summarize_e9h_sender_phase_breakdown",
+            category="contract", code="P2E_SENDER_PHASE_TOTAL_MISMATCH",
+            expected=expected, actual=actual,
+        ))
+    return stages
+
+
+def fingerprint_e9h_first_epoch(*, task_events, result) -> str:
+    """Fingerprint actual first native Cost/Vote/Score/Commit and receptions.
+
+    Exclude all later epochs so paired 1-vs-300 runs must hash identically.
+    """
+    if not result.rounds:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="fingerprint_e9h_first_epoch",
+            category="state", code="P2E_FIRST_EPOCH_MISSING",
+            expected="one executed native voting epoch", actual=0,
+        ))
+    first = result.rounds[0]
+    sha = hashlib.sha256()
+    for event in (*task_events, *first.coordination.events):
+        sha.update(repr((
+            "SEND", event.phase, event.sender_id, event.receiver_id,
+            event.task_id, event.round_id, event.transmission_index,
+            event.payload_bytes, event.send_time_ms, event.arrival_time_ms,
+        )).encode("utf-8"))
+        sha.update(b"\\n")
+    for observation in first.coordination.deliveries:
+        sha.update(repr((
+            "RECEIVE", observation.phase, observation.sender_id,
+            observation.receiver_id, observation.task_id,
+            observation.round_id, observation.transmission_index,
+            observation.delivered, observation.arrival_time_ms,
+        )).encode("utf-8"))
+        sha.update(b"\\n")
+    sha.update(repr(("COMMITTED", first.newly_committed_pairs)).encode("utf-8"))
+    return sha.hexdigest()
+
+
 def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
                                 rate, max_rounds, fixed_timeout_ms,
                                 arm, schedules, oracle_total_cost,
@@ -305,6 +376,10 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
                 expected=expected,actual=actual,
                 details=f"n={n} seed={seed} arm={name} loss={p_loss} rate={rate}",
             ))
+        sender_by_phase=summarize_e9h_sender_phase_breakdown(
+            task_network=a, coordination_network=b,
+            expected_sends=expected[0], expected_bytes=expected[1],
+        )
         radio={
             "radio_hop_count":a["radio_hop_count"]+b["radio_hop_count"],
             "total_airtime_ms":a["total_airtime_ms"]+b["total_airtime_ms"],
@@ -312,6 +387,7 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
             "total_queue_ms":a["total_queue_ms"]+b["total_queue_ms"],
         }
     else:
+        sender_by_phase=None
         radio={k:"" for k in (
             "radio_hop_count","total_airtime_ms",
             "total_backoff_ms","total_queue_ms",
@@ -415,6 +491,10 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
         ),
         "total_sender_application_bytes":task_trace.sender_bytes+result.payload_bytes,
         "total_original_send_count":len(task_trace.events)+result.logical_message_count,
+        "sender_by_phase":sender_by_phase,
+        "first_epoch_sha256":fingerprint_e9h_first_epoch(
+            task_events=task_trace.events, result=result,
+        ),
         "voting_strategy":voting_strategy,
         "task_announcement_sender_frames":len(task_trace.events),
         "cost_sender_frames":sum(e.phase=="cost" for epoch in result.rounds for e in epoch.coordination.events),
