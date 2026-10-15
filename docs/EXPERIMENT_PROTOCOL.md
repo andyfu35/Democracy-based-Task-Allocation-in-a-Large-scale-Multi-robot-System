@@ -1909,3 +1909,59 @@ Per-row source owner `experiments.run_p2_packet_loss.validate_batched_voting_evi
 ### 54.5 Verification and next step
 - Tests: `python3 -m unittest discover -s tests -p 'test_p2d*.py' -v`; full suite `python3 -m unittest discover -s tests -v`. **Not locally executed by assistant in current restricted container**; original user Mac must provide PASS/failure log. Do NOT claim formal results or replace existing README P2-C figures before the new ZIP is audited.
 - See plan Task 5 / reproduction guide `docs/P2D_ONE_SHOT_CENTRALIZED.md` for 0%-loss 100-Seed gate and new-root 1,000-case P2D execution.
+
+
+## 55. P2E — Proposed redecision A/B, one vs 300 epochs (2026-10-15)
+
+**Status: code committed, awaiting Mac source/QA run.** This is an independently archived Proposed-only *ablation*; not a fifth method on the P2D four-way main plot and not a retroactive change to P2-C, CBAA, CBBA or Centralized Method. Original older per-seed records remain immutable.
+
+### 55.1 Research question and frozen arms
+- Is the Proposed Method's packet-loss resilience due partly to permission to **repeat a decision epoch** after an incomplete first global-greedy batch, rather than to the single-batch voting rule alone?
+- Arms and display labels: `single_round` → **Proposed (Single-Round)**, exact native `max_rounds=1`; `multi_round` → **Proposed (Multi-Round)**, exact native `max_rounds=300`. Same owner function `coordination.simulate_democracy_hungarian_retirement`, original E9H deadline schedule, `greedy_batch` planner, plurality Score, and one-per-run full Cost snapshot. Distinguish multi-round repeated **new Vote decisions** from packet retransmission of a previous Cost/Vote; neither arm retransmits the same source packet.
+- Scenarios: N=T=100, one robot per task, original seed 0..99, 100m × 100m geometry. Independent per-receiver Bernoulli Cost/Vote loss `p=0%,10%,...,90%`. Both arms use the same robot/seed/PL pair and their native initial Cost/first Vote events must be **bitwise-semantically paired by SHA256**.
+- Exactly 100 Seeds × 10 losses × 2 configurations = **2,000 *new native executions***; no copying or renaming prior Proposed source ZIP and no pretending CBAA/CBBA/Centralized were rerun in this study. Existing P2D four-method plot is unchanged and may be refreshed in a separate complete fresh-run study.
+
+### 55.2 Actual SEND Byte boundary
+- Real original Cost/Vote/Score/Commit owners remain unchanged. Real physical SENDs enter `network.WifiCausalTimingSampler.sample_packet_ms` **before** Cost/Vote delivery loss decisions. Every physically emitted SEND contributes its full application `payload_bytes`, whether 0, 1, or many peers receive the frame. A broadcast frame is charged **once per sender SEND**, not once per receiver; dropped/unreceived packets remain paid. Never multiply Bytes by loss probability or count only delivered packets.
+- `network.WifiCausalTimingSampler.summarize_network` additionally exposes `sender_by_phase` with exact `{sender_sends,sender_bytes}` from the same immutable packet trace, alongside the unchanged aggregate `packet_count` and `application_sender_bytes`. Its counters are **application payload Bytes**, not additional Wi-Fi MAC/PHY equivalent Bytes.
+- Native reporting owner `experiments.run_e9h_adaptive_deadline.summarize_e9h_sender_phase_breakdown` maps genuine phases `task_announcement,cost,vote,vote_score_announcement,commit` to `task,cost,vote,score,commit`, preserving the real sum of physical SEND Bytes and counts. Unknown event phases fail, and phase sums must equal the actual existing aggregate packet/byte ledger.
+- `experiments.run_e9h_adaptive_deadline.fingerprint_e9h_first_epoch` hashes original first-epoch emitted TASK/Cost/Vote/Score/Commit events, receiver delivery observations, and first-epoch Commit pairs. Later epochs deliberately excluded. The new runner requires identical SHA for each seed/PL pair across arms; mismatch is **contract/P2E_FIRST_EPOCH_NOT_PAIRED**, and no study summary/figure is published.
+- `experiments.run_p1_matched_five.run_original_voting` forwards the new diagnostic `sender_by_phase,first_epoch_sha256,rounds_executed` only in the existing original `batch` evidence ledger. This adds *read-only reporting* to subsequent runs, does not change prior P1/P2-C frozen original user archives, native Vote/Score/Commit, Cost timing, or emitted SEND count.
+- Original TASK announcement, final Score and executor Commit remain modeled as reliable control; this **does not** claim all-lossy real RF without a reliability layer. Native timings remain Rady-app-delay + hypothetical shared 144Mbps shared-medium service, not actual RF measurements.
+
+### 55.3 Experiment functions and output
+- Dedicated `experiments.run_p2e_redecision_ablation` owns `validate_ablation_config` (data and frozen grid), `case_keys` (deterministic pair order), `prepare_ablation_evidence` (fresh append-only output and same-commit resume), `extract_validated_native_batch` (original first-error source + Cost/epoch native contract), `count_observed_commits` (independent one-to-one safety), `audit_native_sender_phases` (sum of *attempted* SEND frames/Bytes), `measure_ablation_offline_quality` (read-only complete-information Greedy denominator), `run_one_ablation_case` (same native run, only 1/300 epoch bound), `validate_ablation_grid`, `validate_paired_initial_epochs`, `summarize_ablation`, `write_ablation_results`, `run_ablation`, `parse_args/main`.
+- Strict per-case raw columns include `loss_percent,seed,mode,max_rounds,native_success,native_stop_ms,native_guard_censored,native_sender_sends,native_sender_bytes,task_coverage,committed_task_count,rounds_executed,first_epoch_sha256`, original native JSON ledger and assignment, full-info Greedy cost and completed-only quality, plus `task/cost/vote/score/commit_sender_sends` and `task/cost/vote/score/commit_sender_bytes`. Every first-round Cost sender must physically SEND exactly 100 once regardless of loss; reliable original TASK framing remains 3 packets for 100 Tasks.
+- `summary_p2e.csv` has exactly 20 method/loss groups. Each reports native full completion %, mean Task Coverage (all seeds), modeled **native stop** seconds (all seeds, including incomplete), attempted application sender kB (all seeds, including losses), mean decision epochs, completed-only assignment-cost ratio to *offline full-info Greedy* and explicit quality cohort n, plus phase-specific mean SEND counts and Bytes. Unavailable/incomplete metrics are **blank**, never imputed as zero.
+- `experiments.p2e_redecision_plot.validate_p2e_figure_source/_ablation_panel/render_p2e_figure` owns an independent SVG with six panels: completion, coverage, all-seed sender Bytes, all-seed native stop, native round count, success-only cost ratio. Black dashed offline full-info only on completion (100%) and cost ratio (1.0); no zero-time/zero-byte reference. Missing success quality points show `n=0` gap, not zero.
+- Raw append-only `per_seed_p2e.csv`, `run_config_p2e.json`, derived `summary_p2e.csv`, `p2e_redecision_ablation.svg`, SHA256 `manifest_p2e.json`. Output root never overwritten, and `--resume` only for unchanged exact source/config/prefix.
+
+### 55.4 Diagnostic/acceptance contract
+- **Data:** `experiments.run_p2e_redecision_ablation.validate_ablation_config/data/P2E_INVALID_LOSS_GRID,P2E_INVALID_SEED_RANGE`; nonfinite and off-grid PL must fail before simulation. Runtime guard `run_one_ablation_case/data/P2E_INVALID_ROUND_LIMIT` accepts only 1 or 300.
+- **State/contract:** `prepare_ablation_evidence/state/P2E_OUTPUT_EXISTS,P2E_INVALID_RESUME_ROOT`; `contract/P2E_RESUME_CONFIG_CHANGED,P2E_RESUME_COLUMNS_CHANGED,P2E_RESUME_PREFIX_CHANGED,P2E_RESUME_CASE_CHANGED`; `extract_validated_native_batch/contract/P2E_INVALID_ORIGINAL_EPOCH,P2E_COST_ONCE_CONTRACT`; `validate_ablation_grid/contract/P2E_INCOMPLETE_GRID,P2E_SENDER_LEDGER_MISMATCH,P2E_ROUND_LIMIT_MISMATCH,P2E_INVALID_TASK_COVERAGE`; `validate_paired_initial_epochs/contract/P2E_FIRST_EPOCH_NOT_PAIRED`. Native first failing Diagnostic is preserved verbatim rather than replaced by a generic wrapper.
+- **Network/traffic:** `experiments.run_e9h_adaptive_deadline.summarize_e9h_sender_phase_breakdown/contract/P2E_UNEXPECTED_SENDER_PHASE,P2E_SENDER_PHASE_TOTAL_MISMATCH`; `experiments.run_p2e_redecision_ablation.audit_native_sender_phases/contract/P2E_MISSING_NATIVE_SENDER_PHASE,P2E_SENDER_LEDGER_MISMATCH`.
+- **Safety:** `count_observed_commits/safety/P2E_DUPLICATE_NATIVE_COMMIT`; original `protocol.validate_one_to_one_commits` safety remains authoritative for native Commits.
+- **First-round pairing:** both arms must have same scene SHA and SHA256 of physical first-epoch messages, delivery outcomes, first-epoch awarded pairs; all 100 PL0 seeds must reproduce P2-C Global Greedy exactly with one native epoch, and identical one-/300-arm first results.
+- **Fresh-run gate:** new exact 2000 method cases/20 group summary, Cost=100 sends per case, TASK=3 frame send per case, no extra Cost round, count sum/Bytes sum exact and all dropped SENDs charged; both native stops accurately labeled, no generated outcome before actual Mac execution.
+
+### 55.5 Mac execution
+On branch `experiment/p2e-redecision-ablation` with the user's **already active** Python environment:
+
+```bash
+python3 -m compileall -q democracy_mrta experiments tests
+python3 -m unittest discover -s tests -p 'test_p2e*.py' -v
+python3 -m unittest discover -s tests -v
+
+python3 -m experiments.run_p2e_redecision_ablation \
+  --losses 0.00,0.90 --seeds 2 \
+  --output-root "results/p2e_smoke_$(date +%Y%m%d_%H%M%S)"
+
+python3 -m experiments.run_p2e_redecision_ablation \
+  --losses 0.00 --seeds 100 \
+  --output-root "results/p2e_zero_$(date +%Y%m%d_%H%M%S)"
+
+python3 -m experiments.run_p2e_redecision_ablation \
+  --formal --seeds 100 \
+  --output-root "results/p2e_formal_$(date +%Y%m%d_%H%M%S)"
+```
+Tests and formal data **have not yet been executed by the assistant in this GitHub-only editing environment**; Mac output must be independently audited and result figures only then promoted to README. See `docs/P2E_REDECISION_ABLATION.md` for full reproduction/handoff.
