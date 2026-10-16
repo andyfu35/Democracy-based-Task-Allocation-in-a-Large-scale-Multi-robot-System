@@ -1,4 +1,6 @@
 # P2F — Repeatable Batch vs Sequential Global Greedy Voting
+> **Status 2026-10-16: Formal terminal log completed; Sequential is rejected from the main comparison.** The user's Mac log reports 359/359 full tests and 2,000/2,000 formal cases with 100/100 assignments. All 1,000 paired seed/loss comparisons show Sequential emitted more sender Bytes and required more modeled stop time than repeatable Batch Voting, with no task-coverage benefit. Original `per_seed_p2f.csv` / manifest ZIP is not yet uploaded and success-only assignment quality is not audited. **Do not rerun or promote this study to the bilingual README as a main method; retain the original local ZIP/raw evidence and the experimental branch for reproducibility.** The commands below are archival reproduction instructions only, not pending work required for a new formal run. Canonical §56 contains the grouped terminal-log measurements.
+
 
 Experimental branch: `experiment/p2f-sequential-global-greedy-voting`.
 
