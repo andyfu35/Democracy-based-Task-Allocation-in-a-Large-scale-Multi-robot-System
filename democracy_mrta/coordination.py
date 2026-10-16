@@ -1201,6 +1201,36 @@ def build_epoch_local_proposals(
     )
 
 
+def validate_batch_vote_scope(*, voting_strategy: str, batch_vote_scope: str) -> None:
+    """Only Global Greedy batch proposals may opt into single-task voting."""
+    if (batch_vote_scope not in ("all", "one_task")
+            or (batch_vote_scope == "one_task" and voting_strategy != "greedy_batch")):
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="validate_batch_vote_scope",
+            category="planning", code="P2F_INVALID_BATCH_VOTE_SCOPE",
+            expected="all for any strategy; one_task only for greedy_batch",
+            actual={"strategy": voting_strategy, "scope": batch_vote_scope},
+        ))
+
+
+def validate_batch_vote_task_ids(
+    *, voting_strategy: str, physical_tasks: tuple[int, ...],
+    voted_task_ids: tuple[int, ...] | None,
+) -> None:
+    """Only one physically pending task can be chosen for serial batch voting."""
+    if voted_task_ids is None:
+        return
+    if (voting_strategy != "greedy_batch" or type(voted_task_ids) is not tuple
+            or len(voted_task_ids) != 1 or voted_task_ids[0] not in physical_tasks):
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="validate_batch_vote_task_ids",
+            category="contract", code="P2F_INVALID_VOTED_TASK_ID",
+            expected="one pending physical task for greedy_batch",
+            actual={"strategy": voting_strategy, "pending": physical_tasks,
+                    "voted": voted_task_ids},
+        ))
+
+
 def validate_epoch_identity_mapping(
     *,
     num_robots: int,
@@ -1513,6 +1543,7 @@ def collect_greedy_batch_votes(
     physical_robots: tuple[int, ...],
     ready_times: tuple[float, ...], round_id: int,
     cutoff_ms: float, sampler, loss_sampler, p_vote_loss: float,
+    voted_task_ids: tuple[int, ...] | None = None,
 ) -> tuple[list[CommunicationEvent], list[DeliveryObservation], dict[tuple[int, int], int]]:
     """One broadcast ballot per voter; only timely delivered votes enter recipient tallies."""
     events: list[CommunicationEvent] = []
@@ -1528,7 +1559,12 @@ def collect_greedy_batch_votes(
         send_time_ms = ready_times[voter_local_id]
         if not proposal.assigned_pairs:
             continue
-        records = tuple((task_id, candidate_id) for candidate_id, task_id in proposal.assigned_pairs)
+        records = tuple(
+            (task_id, candidate_id) for candidate_id, task_id in proposal.assigned_pairs
+            if voted_task_ids is None or task_id in voted_task_ids
+        )
+        if not records:
+            continue
         packet = encode_greedy_batch_packet(
             kind=b"BVOT", round_id=round_id, sender_id=sender_id, records=records,
         )
@@ -1660,14 +1696,17 @@ def simulate_greedy_batch_vote_epoch(
     phase_timeout_ms: float, round_id: int,
     sampler, loss_sampler, p_vote_loss: float,
     capture_vote_audit: bool,
+    voted_task_ids: tuple[int, ...] | None = None,
 ) -> LossyCoordinationResult:
-    """One Cost snapshot -> batched Vote -> reliable Score vectors -> capacity-one Commit."""
+    """One Cost snapshot -> scoped Vote -> reliable Score -> capacity-one Commit."""
+    eligible_vote_tasks = physical_tasks if voted_task_ids is None else voted_task_ids
     cost_finished_ms = max(ready_times, default=0.0)
     vote_cutoff_ms = cost_finished_ms + phase_timeout_ms
     votes, observed_votes, counts = collect_greedy_batch_votes(
         proposals=proposals, physical_robots=physical_robots, ready_times=ready_times,
         round_id=round_id, cutoff_ms=vote_cutoff_ms, sampler=sampler,
         loss_sampler=loss_sampler, p_vote_loss=p_vote_loss,
+        voted_task_ids=voted_task_ids,
     )
     score_release_ms = max(
         vote_cutoff_ms,
@@ -1678,7 +1717,7 @@ def simulate_greedy_batch_vote_epoch(
         round_id=round_id, release_ms=score_release_ms, sampler=sampler,
     )
     winners, tied = resolve_capacity_one_batch_winners(
-        scores=certified, physical_tasks=physical_tasks, physical_robots=physical_robots,
+        scores=certified, physical_tasks=eligible_vote_tasks, physical_robots=physical_robots,
     )
     scores_done_ms = max(
         score_release_ms, max((event.arrival_time_ms for event in scores), default=score_release_ms),
@@ -1698,7 +1737,7 @@ def simulate_greedy_batch_vote_epoch(
         cost_phase_completion_ms=cost_finished_ms,
         decision_completion_ms=scores_done_ms,
         global_agreement_ms=elapsed,
-        task_timeout_count=len(physical_tasks) - len(winners),
+        task_timeout_count=len(eligible_vote_tasks) - len(winners),
         visible_counts=[len(ids) for ids in visible],
         events=events, deliveries=deliveries,
         robot_ids=physical_robots, task_ids=physical_tasks,
@@ -1733,6 +1772,7 @@ def simulate_democracy_hungarian_lossy(
     vote_repetitions: int = 1,
     send_budget: SenderPayloadBudget | None = None,
     enforce_vote_deadline: bool = False,
+    batch_vote_task_ids: tuple[int, ...] | None = None,
 ) -> LossyCoordinationResult:
     num_robots, num_tasks = validate_cost_matrix(cost_matrix)
     physical_robots, physical_tasks = validate_epoch_identity_mapping(
@@ -1740,6 +1780,10 @@ def simulate_democracy_hungarian_lossy(
         num_tasks=num_tasks,
         robot_ids=robot_ids,
         task_ids=task_ids,
+    )
+    validate_batch_vote_task_ids(
+        voting_strategy=voting_strategy, physical_tasks=physical_tasks,
+        voted_task_ids=batch_vote_task_ids,
     )
     validate_epoch_voting_strategy(strategy=voting_strategy, num_tasks=num_tasks)
     validate_vote_decision_rule(
@@ -1813,6 +1857,7 @@ def simulate_democracy_hungarian_lossy(
             physical_tasks=physical_tasks, phase_timeout_ms=phase_timeout_ms,
             round_id=round_id, sampler=sampler, loss_sampler=loss_sampler,
             p_vote_loss=vote_loss_probability, capture_vote_audit=capture_vote_audit,
+            voted_task_ids=batch_vote_task_ids,
         )
 
     ledgers_by_task: dict[int, dict[int, set[int]]] = {
@@ -2190,6 +2235,7 @@ def simulate_democracy_hungarian_retirement(
     cost_repetitions: int = 1,
     per_active_round_deadline_ms: tuple[float, ...] | None = None,
     enforce_vote_deadline: bool = False,
+    batch_vote_scope: str = "all",
 ) -> MultiRoundRetirementResult:
     """Multi-round membership owner; reuses the same E2 single-round vote engine.
 
@@ -2246,6 +2292,9 @@ def simulate_democracy_hungarian_retirement(
         rule=vote_decision_rule,
         voting_strategy=voting_strategy,
         num_tasks=(1 if voting_strategy == "greedy_task" else num_tasks),
+    )
+    validate_batch_vote_scope(
+        voting_strategy=voting_strategy, batch_vote_scope=batch_vote_scope,
     )
     if preknown_cost_snapshot is not None:
         validate_preknown_retirement_cost_snapshot(
@@ -2312,6 +2361,7 @@ def simulate_democracy_hungarian_retirement(
             vote_repetitions=vote_repetitions,
             send_budget=send_budget,
             enforce_vote_deadline=enforce_vote_deadline,
+            batch_vote_task_ids=(pending_tasks[:1] if batch_vote_scope == "one_task" else None),
         )
         require_retirement_commit_announcements(
             round_result=round_result,
@@ -2323,7 +2373,8 @@ def simulate_democracy_hungarian_retirement(
                 round_id=round_id,
                 active_robot_ids=active_robots,
                 pending_task_ids=membership.pending_task_ids,
-                voted_task_id=(pending_tasks[0] if voting_strategy == "greedy_task" else None),
+                voted_task_id=(pending_tasks[0] if voting_strategy == "greedy_task"
+                               or batch_vote_scope == "one_task" else None),
                 quorum=(quorum_size(len(active_robots)) if vote_decision_rule == "strict_majority" else 0),
                 announcement_threshold=round_result.announcement_threshold,
                 newly_committed_pairs=round_result.assigned_pairs,
@@ -2339,7 +2390,8 @@ def simulate_democracy_hungarian_retirement(
         membership = apply_announced_retirement_commits(
             membership=membership,
             announced_pairs=round_result.assigned_pairs,
-            attempted_task_id=(pending_tasks[0] if voting_strategy == "greedy_task" else None),
+            attempted_task_id=(pending_tasks[0] if voting_strategy == "greedy_task"
+                               or batch_vote_scope == "one_task" else None),
         )
         elapsed_ms = next_elapsed
 
@@ -2350,7 +2402,9 @@ def simulate_democracy_hungarian_retirement(
     )
     return MultiRoundRetirementResult(
         method=(
-            "democracy_batched_greedy_received_plurality_retirement"
+            ("democracy_serial_global_greedy_received_plurality_retirement"
+             if batch_vote_scope == "one_task"
+             else "democracy_batched_greedy_received_plurality_retirement")
             if voting_strategy == "greedy_batch"
             else "democracy_greedy_received_plurality_retirement"
             if vote_decision_rule == "received_plurality"
