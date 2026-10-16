@@ -296,7 +296,8 @@ def run_original_multitask(scene, profile, loss: float, guard: int,
 
 def run_matched_case(scene, profile, method: str, loss: float,
                      guard: int, voting_guard: int,
-                     voting_strategy: str = "greedy_task") -> dict:
+                     voting_strategy: str = "greedy_task",
+                     batch_vote_scope: str = "all") -> dict:
     """Orchestrate native run, then independently certify its emitted snapshots.
 
     Native protocol failures are preserved per seed. Independent data/time/
@@ -314,7 +315,8 @@ def run_matched_case(scene, profile, method: str, loss: float,
     try:
         if method=="voting":
             native=run_original_voting(scene,profile,loss,voting_guard,observer,
-                                       voting_strategy=voting_strategy)
+                                       voting_strategy=voting_strategy,
+                                       batch_vote_scope=batch_vote_scope)
         elif method=="cbaa":
             native=run_original_cbaa(scene,profile,loss,guard,observer)
         elif method=="price_auction":
