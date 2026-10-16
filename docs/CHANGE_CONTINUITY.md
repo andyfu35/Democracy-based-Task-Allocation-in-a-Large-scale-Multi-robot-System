@@ -3369,3 +3369,37 @@ Preserved: attempted sender application payload charges all physical SENDs inclu
 - `experiment/p2e-redecision-ablation` data, figures and bilingual README: `378983409bc3f01984f15c512506110e3f152765`.
 - GitHub default `main` data, figures and bilingual README: `0e6a69568b811b548e7cbb3b7c719b3df5e4cd3b`.
 - This continuity text is committed immediately after the publication on each branch; its own SHA appears in Git history.
+
+
+## 2026-10-16 — P2F repeatable one-task voting vs repeatable batch voting (pre-local verification)
+
+### Purpose
+Test user's hypothesis that one large irreversible batched Vote may cascade capacity-one choices, whereas confirming one task and replanning Global Greedy after each Commit may be more accurate, potentially at higher real sender traffic and modeled stop time. Both modes can retry/rotate, not a one-shot-vs-multi-round comparison. The experimental branch is `experiment/p2f-sequential-global-greedy-voting`; original P2E/P2D/P2C run archives and published figures stay immutable.
+
+### Files / exact owner functions / responsibility movement
+- `democracy_mrta/coordination.py`: `validate_batch_vote_scope` (planning input) and `validate_batch_vote_task_ids` (vote/task contract); `collect_greedy_batch_votes` (runtime Vote record payload only for the chosen pending task), `simulate_greedy_batch_vote_epoch` (epoch eligible-task boundary), `simulate_democracy_hungarian_lossy` (scope forwarding) and `simulate_democracy_hungarian_retirement` (true original existing round/membership owner, opt-in one-task scope and on-failure rotation). No new wrapper/second retirement state machine; retained Cost and Global Greedy local owner unchanged.
+- `experiments/run_e9h_adaptive_deadline.py`: `build_e9h_deadline_schedule` selects original single-task Vote deadline mode for new 24B vote payload; `run_e9h_original_voting_case` forwards opt-in to true native owner while retaining physical traffic and stage accounting.
+- `experiments/run_p1_matched_five.py`: `run_original_voting` and `run_matched_case` only forward an optional scope, with previous default preserving prior experiments.
+- `experiments/run_p2f_sequential_voting.py`: separate experiment **evidence/reporting** owner with `validate_comparison_config`, `prepare_comparison_evidence`, `extract_validated_native_batch`, `count_observed_commits`, `audit_native_sender_phases`, `measure_comparison_offline_quality`, `run_one_comparison_case`, `validate_comparison_grid`, `validate_paired_scenes_and_cost`, `summarize_comparison`, `write_comparison_results`, `run_comparison`; strict P2F artifact source/config/manifest and fresh prefix preservation, no method-level assignment outside coordination.
+- `tests/test_p2f_sequential_voting.py`: no-loss/full-loss one-time Cost and valid Commit, 24B sequential Vote, legacy default-parity regression.
+- `docs/EXPERIMENT_PROTOCOL.md` §56: canonical new research variant, no change to archived P2E §§54/55.
+No responsibility moved between original owners; only a new explicit optional vote scope and study output.
+
+### Preserved vs deliberate changes
+Preserved: one-task-capacity safety; physically received Cost rows only; Global minimum-pair Greedy per local snapshot; one initial Cost SEND per robot, never resend Cost later; lossy Vote with per-receiver deliveries; reliable TASK/Score/Commit assumption; physical sender Bytes charge dropped SENDs; 100R100T/C1/100 Seeds/PL0–90 original scenes; original default `batch_vote_scope="all"`, old direct `greedy_task`, original baselines and raw zip manifests unchanged.
+Changed only opt-in `one_task`: Global Greedy still plans full pending-task context but packet contains only the current pending task's voted candidate; Score/Commit only that task, then membership retires winner or rotates unresolved task, and next epoch globally replans remaining robots/tasks. Both modes cap 300 native epochs. Separate fresh P2F runner and source-authenticated raw results. No assertion yet of performance improvements.
+
+### Diagnostic contract
+Each important failure identifies owner/function/category/code plus expected/actual/details where relevant; allowed categories data,time/state/dependency/planning/safety/runtime/contract (exactly eight). `coordination.validate_batch_vote_scope/planning/P2F_INVALID_BATCH_VOTE_SCOPE`, `validate_batch_vote_task_ids/contract/P2F_INVALID_VOTED_TASK_ID`. P2F native rows preserve original first error; new evidence `P2F_INVALID_LOSS_GRID,P2F_INVALID_SEED_RANGE,P2F_INVALID_VOTE_SCOPE,P2F_INVALID_ROUND_LIMIT,P2F_COST_ONCE_CONTRACT,P2F_SENDER_LEDGER_MISMATCH,P2F_UNPAIRED_SCENE,P2F_INCOMPLETE_GRID` and original safety validation. An incomplete native run is not assigned fictitious full-quality cost.
+
+### Verification, limitations, next step
+GitHub source and tests committed, **NOT run or certified** on user's Mac; Git clone from this assistant container failed due to external DNS. Required: exact branch checkout; compileall; focused `test_p2f_sequential_voting.py` and full test discovery; first 0% and 90% seed0–1 smoke, then 0% 100 Seed gate, only then formal 10 PL x100 Seed x2 arms. Existing sequential Greedy historical evidence must NOT be substituted because it changes the planner. Deliberate P2F first epoch Vote hashes differ, so we only assert same scene and Cost SEND count; deeper Cost receiver parity is unproven until trace-level independent audit. The 32B single-task deadline is conservative for physically 24B packet; the experimental setup retains original original network owner. Formal outputs and claims are pending. If scientific or native gates cannot pass without breaking current contracts, retire isolated P2F branch/study and preserve failure diagnostics; do not delete or rewrite historical datasets. Pending chart publication only after raw ZIP audited.
+
+### Concrete Git commit SHAs
+- Coordination original owner: `136cbbe58ede515d92e41993fed81a0daa8357f3`.
+- E9H timing adapter: `ad8e6494220d45e03cf8d6bfb7d4f2d54a0a7d7a`.
+- P1 adapter: `1a3394c757d26a5287adb66c922e5967950ed9f8`, `0331043b1a9245f0ad2ab1244fda35cbddeb502f`.
+- P2F new runner: `c4810da30bf2f5b92bb4b26193bbc2512aabdcae`.
+- P2F tests: `993e96a75737c0768f6a92f4ef13cce549570e51`.
+- Canonical: `d87abfb9ca09831f0ed04241a26ffcb7e9d230b8`.
+- This continuity update's own commit SHA is recorded in the subsequent Git history.
