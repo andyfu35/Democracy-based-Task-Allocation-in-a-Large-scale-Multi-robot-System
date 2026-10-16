@@ -3403,3 +3403,5 @@ GitHub source and tests committed, **NOT run or certified** on user's Mac; Git c
 - P2F tests: `993e96a75737c0768f6a92f4ef13cce549570e51`.
 - Canonical: `d87abfb9ca09831f0ed04241a26ffcb7e9d230b8`.
 - This continuity update's own commit SHA is recorded in the subsequent Git history.
+
+P2F Mac runbook / verification and ZIP packager: `docs/P2F_SEQUENTIAL_VOTING.md` commit `019f3a8c07416d452341c791b2eb0f91a0cb1cab`. Mandatory continuity source record commit `a65ea3523f9f1c38093ee678175e646c490cb0cd`. Formal source SHA and complete test result remain pending user's Mac verification.
