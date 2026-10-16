@@ -141,8 +141,9 @@ def verify_historical_e9g_zip(path: Path | None) -> dict[str,object]:
 
 def build_e9h_deadline_schedule(*, profile, robots: int,
                                design_rate_mbps: float, margin_factor: float,
-                               voting_strategy: str = "greedy_task"):
-    """Call true network numerical-time owner once for Cost + each active Vote size."""
+                               voting_strategy: str = "greedy_task",
+                               batch_vote_scope: str = "all"):
+    """Use actual per-epoch vote size for the selected serial or batched strategy."""
     cost=estimate_e9h_adaptive_deadline(
         profile=profile,active_robots=robots,total_tasks=robots,
         reference_phy_mbps=design_rate_mbps,margin_factor=margin_factor,
@@ -152,7 +153,8 @@ def build_e9h_deadline_schedule(*, profile, robots: int,
         estimate_e9h_adaptive_deadline(
             profile=profile,active_robots=n,total_tasks=robots,
             reference_phy_mbps=design_rate_mbps,margin_factor=margin_factor,
-            phase=("vote_batch" if voting_strategy == "greedy_batch" else "vote"),
+            phase=("vote_batch" if voting_strategy == "greedy_batch"
+                   and batch_vote_scope == "all" else "vote"),
         ) for n in range(1,robots+1)
     )
     if votes[-1].deadline_ms > cost.deadline_ms + 1e-9:
@@ -299,7 +301,8 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
                                 rate, max_rounds, fixed_timeout_ms,
                                 arm, schedules, oracle_total_cost,
                                 guarded_cost_ms=None, p_vote_loss=None,
-                                external_observer=None, voting_strategy="greedy_task"):
+                                external_observer=None, voting_strategy="greedy_task",
+                                batch_vote_scope="all"):
     """Original TASK, local cost, physical ballots, Score and Commit only.
 
     Opt-in p_vote_loss separates Vote drop from Cost p_loss; the original
@@ -353,6 +356,7 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
         vote_decision_rule=decision_rule,vote_repetitions=1,cost_repetitions=1,
         per_active_round_deadline_ms=active_schedule,
         enforce_vote_deadline=True,
+        batch_vote_scope=batch_vote_scope,
     )
     if external_observer is not None:
         # Read-only replay of *original* committed-round immutable traces.
