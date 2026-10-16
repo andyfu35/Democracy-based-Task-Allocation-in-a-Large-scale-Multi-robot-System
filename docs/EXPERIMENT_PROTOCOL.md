@@ -1987,3 +1987,23 @@ Compare decision granularity, **not one-shot versus retry**. Two Proposed arms b
 - `experiments.run_p2f_sequential_voting.validate_comparison_config`, `prepare_comparison_evidence`, `run_one_comparison_case`, `validate_comparison_grid`, `validate_paired_scenes_and_cost`, `summarize_comparison`, `write_comparison_results`, `run_comparison` each own named study responsibilities, append-only raw CSV and source/config/seed SHA manifest. Other functions retain the specific original audit contract.
 - First failure categories remain data/time/state/dependency/planning/safety/runtime/contract, with owner/function/code/expected/actual/details. Example P2F codes: contract/`P2F_COST_ONCE_CONTRACT,P2F_UNPAIRED_SCENE,P2F_INCOMPLETE_GRID,P2F_SENDER_LEDGER_MISMATCH`, data/`P2F_INVALID_VOTE_SCOPE,P2F_INVALID_ROUND_LIMIT`, safety/`P2F_DUPLICATE_NATIVE_COMMIT`.
 - Evidence owner `experiments.run_p2f_sequential_voting`: `per_seed_p2f.csv`, `summary_p2f.csv`, `p2f_comparison_summary.json`, `run_config_p2f.json`, `manifest_p2f.json`. The JSON is a numerical summary, **not** an SVG chart. Do not update README main experimental figures before the user Mac run and independent source audit.
+
+### 56. P2F terminal-only formal outcome (2026-10-16; not source-ZIP audited)
+A user-submitted Mac terminal transcript (4,747 lines, `p2f_formal_100seed_20261016_130658`) reports compileall, 4/4 new targeted tests, 359/359 full regression tests, paired PL0/PL90 2-seed smoke (8 cases), two separate PL0 100-seed acceptance runs (200 cases each), and complete P2F formal 2,000 rows/20 method-loss groups. All 2,000 formal printed rows report `committed=100`. Independent parsing of the user-visible formal log identified exactly 1,000 unique (loss,seed) matched pairs and no missing/duplicate keys. The following numbers are **recomputed from the printed terminal rows**, not yet from `per_seed_p2f.csv` or its `manifest_p2f.json`:
+
+| PL | Batch mean sender B | Sequential mean sender B | Batch mean stop s | Sequential mean stop s | Batch / sequential mean rounds |
+|---|---:|---:|---:|---:|---:|
+| 0% | 171648.00 | 211248.00 | 2.014 | 40.907 | 1.00 / 100.00 |
+| 10% | 165660.56 | 205728.00 | 2.382 | 41.666 | 2.02 / 100.93 |
+| 20% | 158307.44 | 199491.84 | 2.551 | 41.318 | 2.47 / 102.93 |
+| 30% | 150764.72 | 191412.72 | 2.686 | 40.490 | 2.94 / 105.16 |
+| 40% | 143107.76 | 183129.12 | 2.859 | 39.382 | 3.51 / 108.38 |
+| 50% | 135622.24 | 172724.40 | 3.094 | 37.720 | 3.91 / 111.41 |
+| 60% | 128164.32 | 161914.56 | 3.285 | 36.325 | 4.63 / 116.16 |
+| 70% | 120827.28 | 149918.88 | 3.607 | 34.885 | 5.43 / 122.95 |
+| 80% | 113440.96 | 136313.04 | 4.075 | 32.884 | 6.36 / 132.04 |
+| 90% | 105670.64 | 120211.68 | 4.494 | 30.454 | 7.34 / 144.34 |
+
+Every one of the **1,000 matched seed/loss pairs** has greater sender application Bytes **and** greater modeled stop time in Sequential than Batch, while both have identical 100/100 final task Commit count. Under the user's communication/time-first elimination criterion, **P2F Sequential Voting is NOT promoted to the main experimental comparison**. The entire study remains isolated on the experimental branch; do not silently delete raw data, rewrite old results or merge the optional `one_task` algorithm into the original default/main. At 0% the measured payload difference is exactly 39,600B (=121,200B vs 81,600B Vote broadcasts), despite each serial Vote being smaller. Higher PL can reduce **attempted** sender payload in this algorithm because active membership and emitted Vote/Score workloads change; this is not receiver-delivered-byte accounting and does not imply packet loss makes RF faster.
+
+**Pending independent audit:** no original P2F `per_seed_p2f.csv`, phase-by-phase sender ledger, manifest SHA, complete-cost `quality_vs_full_info_greedy`, or Cost receiver trace was uploaded in this turn. These claims are provisional terminal-observation findings only, not accepted paper-source evidence. Obtain the exact original ZIP for independent cost/per-phase checks only if needed for appendix/archival verification. Both methods use the original modeled 144Mbps and Rady timing proxy, not measured physical Wi-Fi. No executable owner function, diagnostic code, frozen protocol or previously published README was changed by documenting this outcome.
