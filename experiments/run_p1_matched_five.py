@@ -146,12 +146,13 @@ def verify_one_scene(scene) -> str:
 
 def run_original_voting(scene, profile, loss: float, voting_guard: int,
                         observer: FirstFeasibleObserver,
-                        voting_strategy: str = "greedy_task") -> dict:
+                        voting_strategy: str = "greedy_task",
+                        batch_vote_scope: str = "all") -> dict:
     n=scene.num_robots
     arm=next(a for a in selected_e9i_arms() if a[0]=="adaptive_guarded_k1_received")
     schedule=build_e9h_deadline_schedule(profile=profile,robots=n,
                                         design_rate_mbps=144.0,margin_factor=1.0,
-                                        voting_strategy=voting_strategy)
+                                        voting_strategy=voting_strategy, batch_vote_scope=batch_vote_scope)
     guarded=estimate_e9h_guarded_initial_cost_ms(
         profile=profile,total_robots=n,total_tasks=n,reference_phy_mbps=144.0)
     oracle=solve_hungarian_assignment(scene.cost_matrix).total_cost
@@ -161,7 +162,7 @@ def run_original_voting(scene, profile, loss: float, voting_guard: int,
         fixed_timeout_ms=DEFAULT_OLD_FIXED_MS,arm=arm,
         schedules={1.0:schedule},guarded_cost_ms=guarded,
         oracle_total_cost=oracle,external_observer=observer.observe,
-        voting_strategy=voting_strategy)
+        voting_strategy=voting_strategy,batch_vote_scope=batch_vote_scope)
     return {
         "success":bool(native["full_commit"]),
         "reason":"reliable_full_commit" if native["full_commit"] else "native_guard_or_incomplete",
