@@ -36,6 +36,7 @@ class CentralizedCostReceipt:
     cost_start_ms: float
     cost_cutoff_ms: float
     cost_phase_end_ms: float
+    cost_rounds_executed: int = 1
 
     @property
     def received_robot_ids(self) -> tuple[int, ...]:
@@ -62,6 +63,19 @@ class CentralizedResult:
     cost_airtime_ms: float
     event_ledger: dict
     phase_times: dict[str, float]
+    cost_rounds_executed: int = 1
+
+
+def validate_centralized_retry_limit(*, max_cost_rounds: int) -> int:
+    """Bound opt-in coordinator Cost retry epochs, keeping the default one-shot."""
+    if type(max_cost_rounds) is not int or not 1 <= max_cost_rounds <= 300:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="validate_centralized_retry_limit",
+            category="data", code="P2G_INVALID_CENTRAL_COST_ROUNDS",
+            expected="integer in [1,300] (one-shot default=1)",
+            actual=max_cost_rounds,
+        ))
+    return max_cost_rounds
 
 
 def validate_centralized_configuration(
@@ -90,47 +104,79 @@ def collect_one_shot_cost_rows(
     *, cost_matrix: tuple[tuple[float, ...], ...],
     coordinator_id: int, cost_start_ms: float, cutoff_ms: float,
     sampler: WifiCausalTimingSampler, loss_sampler: BernoulliLossSampler,
-    p_loss: float,
+    p_loss: float, max_cost_rounds: int = 1,
 ) -> CentralizedCostReceipt:
-    """Charge each sender once before evaluating receiver loss; no resends."""
+    """Receive only physical Costs; opt-in repeats ONLY missing senders.
+
+    Each attempt is sender-paid before checking delivery. One-shot
+    max_cost_rounds=1 retains original event keys, SENDs and cutoff exactly.
+    """
+    limit = validate_centralized_retry_limit(max_cost_rounds=max_cost_rounds)
     robots = len(cost_matrix)
+    if (not math.isfinite(cost_start_ms) or not math.isfinite(cutoff_ms)
+            or cutoff_ms <= cost_start_ms):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="collect_one_shot_cost_rows",
+            category="time", code="P2G_INVALID_COST_WINDOW",
+            expected="finite cutoff_ms > cost_start_ms",
+            actual=(cost_start_ms, cutoff_ms),
+        ))
     known = {coordinator_id: tuple(cost_matrix[coordinator_id])}
     events: list[CommunicationEvent] = []
     deliveries: list[DeliveryObservation] = []
-    for sender in range(robots):
-        if sender == coordinator_id:
-            continue
-        event = _unicast_event(
-            phase="centralized_cost", sender_id=sender,
-            receiver_id=coordinator_id, round_id=0,
-            send_time_ms=cost_start_ms,
-            payload_bytes=cost_row_payload_bytes(len(cost_matrix[sender])),
-            sampler=sampler,
-        )
-        events.append(event)
-        observation = _lossy_unicast_delivery(
-            event=event, loss_sampler=loss_sampler,
-            p_loss=p_loss, round_id=0,
-        )
-        deliveries.append(observation)
-        if (observation.delivered and observation.arrival_time_ms is not None
-                and observation.arrival_time_ms <= cutoff_ms):
-            known[sender] = tuple(cost_matrix[sender])
-    if len(events) != robots - 1:
+    round_window_ms = cutoff_ms - cost_start_ms
+    start_ms = cost_start_ms
+    last_cutoff_ms = cutoff_ms
+    rounds = 0
+    for round_id in range(limit):
+        if len(known) == robots:
+            break
+        rounds += 1
+        deadline_ms = start_ms + round_window_ms
+        new_events: list[CommunicationEvent] = []
+        for sender in range(robots):
+            if sender in known:
+                continue
+            event = _unicast_event(
+                phase="centralized_cost", sender_id=sender,
+                receiver_id=coordinator_id, round_id=round_id,
+                send_time_ms=start_ms,
+                payload_bytes=cost_row_payload_bytes(len(cost_matrix[sender])),
+                sampler=sampler,
+            )
+            events.append(event)
+            new_events.append(event)
+            observation = _lossy_unicast_delivery(
+                event=event, loss_sampler=loss_sampler,
+                p_loss=p_loss, round_id=round_id,
+            )
+            deliveries.append(observation)
+            if (observation.delivered and observation.arrival_time_ms is not None
+                    and observation.arrival_time_ms <= deadline_ms):
+                known[sender] = tuple(cost_matrix[sender])
+        last_cutoff_ms = deadline_ms
+        start_ms = max(deadline_ms, max(
+            (event.arrival_time_ms for event in new_events), default=start_ms
+        ))
+    if rounds < 1 or len(events) < robots - 1:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="collect_one_shot_cost_rows",
+            category="contract", code="P2G_INITIAL_COST_SEND_COUNT_MISMATCH",
+            expected=f">={robots-1} physical Cost SENDs",
+            actual=len(events),
+        ))
+    if limit == 1 and len(events) != robots - 1:
         raise ProtocolError(Diagnostic(
             owner=OWNER, function="collect_one_shot_cost_rows",
             category="contract", code="P2D_ONE_SHOT_SEND_COUNT_MISMATCH",
             expected=robots - 1, actual=len(events),
         ))
-    phase_end_ms = max(cutoff_ms, max((e.arrival_time_ms for e in events),
-                                     default=cost_start_ms))
     return CentralizedCostReceipt(
         visible_rows=tuple(sorted(known.items())),
         cost_events=tuple(events), cost_deliveries=tuple(deliveries),
-        cost_start_ms=cost_start_ms, cost_cutoff_ms=cutoff_ms,
-        cost_phase_end_ms=phase_end_ms,
+        cost_start_ms=cost_start_ms, cost_cutoff_ms=last_cutoff_ms,
+        cost_phase_end_ms=start_ms, cost_rounds_executed=rounds,
     )
-
 
 def plan_from_received_cost_rows(
     *, receipt: CentralizedCostReceipt,
@@ -200,8 +246,10 @@ def simulate_one_shot_centralized(
     task_positions: tuple[tuple[float, float], ...],
     profile: EmpiricalLatencyProfile, seed: int, p_loss: float,
     coordinator_id: int = 0,
+    max_cost_rounds: int = 1,
 ) -> CentralizedResult:
-    """Single TASK -> lossy one-way Cost -> Greedy -> publish -> Commit run."""
+    """TASK once -> optional repeat missing Cost -> one Greedy -> Commit run."""
+    validate_centralized_retry_limit(max_cost_rounds=max_cost_rounds)
     robots = validate_centralized_configuration(
         cost_matrix=cost_matrix, task_positions=task_positions,
         coordinator_id=coordinator_id, p_loss=p_loss,
@@ -226,6 +274,7 @@ def simulate_one_shot_centralized(
         cost_matrix=cost_matrix, coordinator_id=coordinator_id,
         cost_start_ms=task_ms, cutoff_ms=task_ms + cost_budget_ms,
         sampler=sampler, loss_sampler=losses, p_loss=p_loss,
+        max_cost_rounds=max_cost_rounds,
     )
     after_cost = sampler.summarize_network()
     pairs = plan_from_received_cost_rows(receipt=receipt)
@@ -252,14 +301,18 @@ def simulate_one_shot_centralized(
         ))
     cost_drops = sum(not o.delivered for o in receipt.cost_deliveries)
     # Physical application SENDs, including dropped Cost, are all charged.
-    total_attempts = len(task.events) * robots + (robots - 1) + (
+    total_attempts = len(task.events) * robots + len(receipt.cost_events) + (
         1 + len(commits)) * (robots - 1)
     complete = len(pairs) == robots
     return CentralizedResult(
         assignment=pairs, received_robot_ids=receipt.received_robot_ids,
         native_success=complete, task_coverage=len(pairs) / robots,
         native_stop_ms=stop_ms,
-        stop_reason=("one_shot_full_commit" if complete else "one_shot_incomplete"),
+        stop_reason=(
+            ("one_shot_full_commit" if complete else "one_shot_incomplete")
+            if max_cost_rounds == 1
+            else ("retry_full_commit" if complete else "retry_limit_incomplete")
+        ),
         sender_sends=expected_sends, sender_bytes=expected_bytes,
         receiver_attempts=total_attempts, receiver_drops=cost_drops,
         cost_sender_sends=len(receipt.cost_events),
@@ -276,13 +329,17 @@ def simulate_one_shot_centralized(
             "received_cost_rows":receipt.received_robot_ids,
             "cost_receiver_attempts":len(receipt.cost_deliveries),
             "cost_receiver_drops":cost_drops,
+            **({"cost_rounds_executed":receipt.cost_rounds_executed}
+               if max_cost_rounds != 1 else {}),
             "network":physical,
         },
         phase_times={
             "task_ms":task_ms,
-            "cost_once_ms":receipt.cost_phase_end_ms-task_ms,
+            ("cost_once_ms" if max_cost_rounds == 1 else "cost_retry_ms"):
+                receipt.cost_phase_end_ms-task_ms,
             "assignment_ms":decision.arrival_time_ms-receipt.cost_phase_end_ms,
             "commit_ms":stop_ms-decision.arrival_time_ms,
             "total_ms":stop_ms,
         },
+        cost_rounds_executed=receipt.cost_rounds_executed,
     )
