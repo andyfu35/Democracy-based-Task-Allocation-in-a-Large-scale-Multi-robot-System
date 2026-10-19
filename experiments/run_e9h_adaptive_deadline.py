@@ -446,7 +446,7 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
             expected=expected_cost_receivers,actual=cost_receiver_observations,
             details=f"n={n} seed={seed} cost_loss={p_loss} vote_loss={vote_loss}",
         ))
-    if voting_strategy == "greedy_batch":
+    if voting_strategy in ("greedy_batch", "greedy_batch_task_order"):
         phase_timing = summarize_e9h_phase_timing(task_ms=task_ms, result=result)
     else:
         phase_timing = None
