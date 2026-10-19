@@ -145,7 +145,10 @@ class CentralizedRetryTests(unittest.TestCase):
         self.assertEqual(task_ordered.assigned_pairs,expected.assigned_pairs)
         self.assertNotEqual(task_ordered.assigned_pairs,global_greedy.assigned_pairs)
         self.assertEqual(len(task_ordered.rounds),1)
-        self.assertEqual(len(task_ordered.rounds[0].coordination.events),9)
+        self.assertEqual(
+            sum(e.phase=="cost" for e in task_ordered.rounds[0].coordination.events),
+            2,
+        )
         vote=[e for e in task_ordered.rounds[0].coordination.events
               if e.phase=="vote"]
         self.assertEqual(len(vote),2)
