@@ -78,6 +78,18 @@ def validate_centralized_retry_limit(*, max_cost_rounds: int) -> int:
     return max_cost_rounds
 
 
+def validate_centralized_cost_window(*, cost_start_ms: float, cutoff_ms: float) -> None:
+    """First invalid Cost timing boundary before emitting any physical SEND."""
+    if (not math.isfinite(cost_start_ms) or not math.isfinite(cutoff_ms)
+            or cutoff_ms <= cost_start_ms):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="validate_centralized_cost_window",
+            category="time", code="P2G_INVALID_COST_WINDOW",
+            expected="finite cutoff_ms > cost_start_ms",
+            actual=(cost_start_ms, cutoff_ms),
+        ))
+
+
 def validate_centralized_configuration(
     *, cost_matrix: tuple[tuple[float, ...], ...],
     task_positions: tuple[tuple[float, float], ...],
@@ -113,14 +125,9 @@ def collect_one_shot_cost_rows(
     """
     limit = validate_centralized_retry_limit(max_cost_rounds=max_cost_rounds)
     robots = len(cost_matrix)
-    if (not math.isfinite(cost_start_ms) or not math.isfinite(cutoff_ms)
-            or cutoff_ms <= cost_start_ms):
-        raise ProtocolError(Diagnostic(
-            owner=OWNER, function="collect_one_shot_cost_rows",
-            category="time", code="P2G_INVALID_COST_WINDOW",
-            expected="finite cutoff_ms > cost_start_ms",
-            actual=(cost_start_ms, cutoff_ms),
-        ))
+    validate_centralized_cost_window(
+        cost_start_ms=cost_start_ms, cutoff_ms=cutoff_ms,
+    )
     known = {coordinator_id: tuple(cost_matrix[coordinator_id])}
     events: list[CommunicationEvent] = []
     deliveries: list[DeliveryObservation] = []
