@@ -40,7 +40,7 @@ NEW_MODES = (
     "task_ordered_vote_once", "centralized_task_ordered_once",
     "centralized_retry",
 )
-LEGACY_MODES = ("centralized", "multi_round", "cbaa", "cbba")
+LEGACY_MODES = ("multi_round", "cbaa", "cbba")
 ROUNDS = {
     "task_ordered_vote_once":1, "centralized_task_ordered_once":1,
     "centralized_retry":300,
@@ -291,10 +291,11 @@ def validate_p2g_native_outcome(scene, native, pairs, audit, mode):
     rounds=audit["rounds"]
     cost_sends=audit["cost_sends"]
     if (mode=="task_ordered_vote_once" and
-            (cost_sends!=scene.num_robots or rounds!=1)):
+            (cost_sends!=scene.num_robots or rounds!=1
+             or audit["vote_sends"]!=scene.num_robots)):
         fail("validate_p2g_native_outcome","contract","P2G_ONE_BATCH_SCOPE_VIOLATED",
-             {"Cost":scene.num_robots,"vote_epochs":1},
-             {"Cost":cost_sends,"rounds":rounds})
+             {"Cost":scene.num_robots,"Vote":scene.num_robots,"vote_epochs":1},
+             {"Cost":cost_sends,"Vote":audit["vote_sends"],"rounds":rounds})
     if (mode=="centralized_task_ordered_once" and
             (cost_sends!=scene.num_robots-1 or rounds!=1 or
              audit["vote_sends"]!=0 or audit["score_sends"]!=0)):
@@ -482,7 +483,7 @@ def write_p2g_results(args,rows,losses,config,source_sha,legacy,provenance):
     if args.formal:
         figure_rows=build_figure_source(new,legacy,losses)
         for family,filename in (
-            ("one_attempt","figure1_single_attempt.svg"),
+            ("one_attempt","figure1_task_ordered_one_shot.svg"),
             ("repeatable","figure2_repeatable.svg"),
         ):
             dest=root/filename
@@ -490,7 +491,7 @@ def write_p2g_results(args,rows,losses,config,source_sha,legacy,provenance):
                             encoding="utf-8")
             outputs.append(dest)
     manifest={
-        "study":"P2G_TWO_LARGE_FOUR_PANEL_FIGURES",
+        "study":"P2G_TWO_FOUR_PANEL_FIGURES_TASK_ORDER_ONCE_AND_GLOBAL_REPEAT",
         "created_utc":datetime.now(timezone.utc).isoformat(),
         "new_native_source_sha":source_sha,"config":config,
         "new_native_cases":len(rows),"new_summary_groups":len(new),
