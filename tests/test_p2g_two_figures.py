@@ -123,6 +123,11 @@ class P2GStudyTests(unittest.TestCase):
                 "task-ordered Greedy" if family=="one_attempt"
                 else "Global Greedy", svg,
             )
+            self.assertIn("Centralized Greedy Baseline", svg)
+            self.assertIn(
+                "one Vote batch" if family=="one_attempt"
+                else "not all centralized methods", svg,
+            )
             root=ET.fromstring(svg)
             self.assertTrue(root.tag.endswith("svg"))
             self.assertEqual(len(methods),2 if family=="one_attempt" else 4)
