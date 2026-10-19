@@ -5,10 +5,14 @@ import unittest
 
 from democracy_mrta.centralized_method import (
     simulate_one_shot_centralized, validate_centralized_retry_limit,
+    validate_centralized_planning_rule,
 )
 from democracy_mrta.diagnostics import ProtocolError
 from democracy_mrta.network import EmpiricalLatencyProfile
-from democracy_mrta.optimizer import solve_visible_batched_greedy_assignment
+from democracy_mrta.optimizer import (
+    solve_visible_batched_greedy_assignment,
+    solve_visible_task_ordered_greedy_assignment,
+)
 from democracy_mrta.coordination import simulate_democracy_hungarian_retirement
 
 
@@ -95,6 +99,67 @@ class CentralizedRetryTests(unittest.TestCase):
             self.assertEqual(sum(e.phase=="cost" for r in result.rounds
                                  for e in r.coordination.events),3)
             self.assertEqual(result.committed_tasks+len(result.remaining_task_ids),3)
+
+    def test_task_ordered_one_shot_central_plan_uses_same_rule_and_single_cost(self):
+        matrix=((2.,1.),(3.,100.))
+        positions=((0.,0.),(1.,0.))
+        result=simulate_one_shot_centralized(
+            cost_matrix=matrix,task_positions=positions,
+            profile=profile(),seed=12,p_loss=0.0,
+            max_cost_rounds=1,planning_rule="task_ordered",
+        )
+        expected=solve_visible_task_ordered_greedy_assignment(matrix,{0,1})
+        global_plan=solve_visible_batched_greedy_assignment(matrix,{0,1})
+        self.assertNotEqual(expected.assigned_pairs,global_plan.assigned_pairs)
+        self.assertEqual(result.assignment,expected.assigned_pairs)
+        self.assertEqual(result.cost_sender_sends,1)
+        self.assertEqual(result.cost_rounds_executed,1)
+        self.assertTrue(result.native_success)
+
+    def test_task_ordered_central_loss_does_not_restore_missing_cost(self):
+        matrix=((2.,1.),(3.,100.))
+        result=simulate_one_shot_centralized(
+            cost_matrix=matrix,task_positions=((0.,0.),(1.,0.)),
+            profile=profile(),seed=12,p_loss=1.0,
+            max_cost_rounds=1,planning_rule="task_ordered",
+        )
+        self.assertEqual(result.received_robot_ids,(0,))
+        self.assertEqual(result.assignment,((0,0),))
+        self.assertFalse(result.native_success)
+        self.assertEqual(result.cost_sender_sends,1)
+
+    def test_task_ordered_voting_is_one_full_batch_not_serial_epochs(self):
+        matrix=((2.,1.),(3.,100.))
+        def run(strategy,loss):
+            return simulate_democracy_hungarian_retirement(
+                cost_matrix=matrix,sampler=FixedSampler(),
+                loss_sampler=ExtremeLoss(),p_loss=loss,p_vote_loss=loss,
+                phase_timeout_ms=20.,max_rounds=1,
+                voting_strategy=strategy,vote_decision_rule="received_plurality",
+                cost_repetitions=1,vote_repetitions=1,
+                enforce_vote_deadline=True,batch_vote_scope="all",
+            )
+        task_ordered=run("greedy_batch_task_order",0.)
+        global_greedy=run("greedy_batch",0.)
+        expected=solve_visible_task_ordered_greedy_assignment(matrix,{0,1})
+        self.assertEqual(task_ordered.assigned_pairs,expected.assigned_pairs)
+        self.assertNotEqual(task_ordered.assigned_pairs,global_greedy.assigned_pairs)
+        self.assertEqual(len(task_ordered.rounds),1)
+        self.assertEqual(len(task_ordered.rounds[0].coordination.events),9)
+        vote=[e for e in task_ordered.rounds[0].coordination.events
+              if e.phase=="vote"]
+        self.assertEqual(len(vote),2)
+        self.assertEqual([e.payload_bytes for e in vote],[32,32])
+        lost=run("greedy_batch_task_order",1.)
+        self.assertLess(len(lost.assigned_pairs),2)
+        self.assertEqual(len(lost.rounds),1)
+
+    def test_invalid_task_order_central_planner_is_explicitly_rejected(self):
+        with self.assertRaises(ProtocolError) as caught:
+            validate_centralized_planning_rule(planning_rule="global_maybe")
+        self.assertEqual(caught.exception.diagnostic.code,
+                         "P2G_INVALID_CENTRAL_GREEDY_RULE")
+        self.assertEqual(caught.exception.diagnostic.category,"planning")
 
 
 if __name__=="__main__":
