@@ -8,20 +8,20 @@ from democracy_mrta.diagnostics import Diagnostic, ProtocolError
 
 OWNER = "experiments.p2g_plot"
 FAMILIES = {
-    "one_attempt": ("sequential_once", "centralized_one_shot"),
+    "one_attempt": ("task_ordered_vote_once", "centralized_task_ordered_once"),
     "repeatable": ("proposed_multi", "cbaa", "cbba", "centralized_retry"),
 }
 NAMES = {
-    "sequential_once": "Proposed: Sequential (one attempt/task)",
-    "centralized_one_shot": "Centralized: One Shot",
+    "task_ordered_vote_once": "Proposed: Task-ordered Greedy (one Vote batch)",
+    "centralized_task_ordered_once": "Centralized: Task-ordered Greedy (one Cost)",
     "proposed_multi": "Proposed: Batch Global Greedy (multi-round)",
     "cbaa": "Native CBAA",
     "cbba": "Native CBBA",
     "centralized_retry": "Centralized: retry missing Cost + Global Greedy",
 }
 COLORS = {
-    "sequential_once": "#187BB8",
-    "centralized_one_shot": "#D27B2B",
+    "task_ordered_vote_once": "#187BB8",
+    "centralized_task_ordered_once": "#D27B2B",
     "proposed_multi": "#187BB8",
     "cbaa": "#CE771D",
     "cbba": "#1B9564",
@@ -153,10 +153,10 @@ def render_p2g_figure(rows, losses, family) -> str:
     """Produce one 1800x1240 large four-panel research figure."""
     validate_p2g_plot_source(rows,losses,family)
     methods=FAMILIES[family]
-    title=("P2G Figure 1 · Single attempt per task: sequential Voting vs Centralized"
+    title=("P2G Figure 1 · One-shot task-ordered Greedy: Voting vs Centralized"
            if family=="one_attempt" else
            "P2G Figure 2 · Repeatable native communication under packet loss")
-    subtitle=("Sequential Global Greedy: at most one Vote round per task; Centralized: one Cost attempt per robot"
+    subtitle=("Plan T0,T1,... greedily once; Voting broadcasts one full ballot, Centralized collects Cost once"
               if family=="one_attempt" else
               "Proposed re-votes pending tasks; Centralized retries missing Costs; CBAA/CBBA keep native iterative rules")
     xml=[
@@ -175,13 +175,20 @@ def render_p2g_figure(rows, losses, family) -> str:
     for i,(field,heading,caption,positive,reference) in enumerate(PANEL_SPECS):
         xx=34+(i%2)*884
         yy=offset+(i//2)*488
+        if field=="cost_increase_percent" and family=="one_attempt":
+            heading="B. Cost increase vs. task-ordered Greedy"
+            caption="Successful complete trials only · same full-info T0,T1,... baseline"
         xml.extend(_p2g_panel(
             rows,losses,methods,field,heading,caption,positive,reference,xx,yy
         ))
     xml.extend([
         '<text x="46" y="1146" font-size="16" fill="#314A64">Cost line points exist only for fully successful, one-to-one feasible seeds; a missing point means n=0, never zero cost.</text>',
         '<text x="46" y="1176" font-size="16" fill="#314A64">Bytes include attempted sender application SENDs even if lost; all-seed stop times include incomplete or guard-stopped runs.</text>',
-        '<text x="46" y="1206" font-size="16" fill="#314A64">Simulated Rady + assumed 144Mbps; native CBAA/CBBA convergence differs from paid centralized/Proposed Commit.</text>',
+        '<text x="46" y="1206" font-size="16" fill="#314A64">'
+        + ('Task-order full-info baseline; one Vote batch vs one Cost phase. '
+           if family=="one_attempt" else
+           'Global Greedy full-info baseline; CBAA/CBBA keep their native algorithms. ')
+        + 'Rady + assumed 144Mbps model.</text>',
         '</svg>',
     ])
     return "\n".join(xml)+"\n"
