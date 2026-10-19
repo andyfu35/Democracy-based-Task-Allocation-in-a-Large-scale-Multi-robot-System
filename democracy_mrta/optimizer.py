@@ -354,6 +354,59 @@ def solve_visible_batched_greedy_assignment(
 
 
 
+def solve_visible_task_ordered_greedy_assignment(
+    cost_matrix: tuple[tuple[float, ...], ...],
+    visible_robot_ids: frozenset[int] | set[int] | tuple[int, ...],
+) -> AssignmentSolution:
+    """One local planning pass over ascending task IDs, then batch all choices.
+
+    For task T0,T1,... choose the cheapest still-free *visible* robot, remove
+    it locally, and continue. Unlike Global minimum-edge Greedy, tasks take
+    priority over costs across different tasks. This does not transmit a Vote
+    yet, and it never reconstructs unseen robot Cost rows.
+    """
+    num_robots, num_tasks = validate_cost_matrix(
+        cost_matrix, allow_tasks_exceed_robots=True,
+    )
+    visible = tuple(sorted(set(visible_robot_ids)))
+    if not visible:
+        raise ProtocolError(Diagnostic(
+            owner="optimizer", function="solve_visible_task_ordered_greedy_assignment",
+            category="state", code="TASK_ORDER_GREEDY_NO_VISIBLE_ROWS",
+            expected="at least the voter's own physically known Cost row",
+            actual=visible,
+        ))
+    if any(type(r) is not int or r < 0 or r >= num_robots for r in visible):
+        raise ProtocolError(Diagnostic(
+            owner="optimizer", function="solve_visible_task_ordered_greedy_assignment",
+            category="data", code="TASK_ORDER_GREEDY_INVALID_VISIBLE_ROW",
+            expected=f"robot IDs in [0,{num_robots})",
+            actual=visible,
+        ))
+    remaining = set(visible)
+    chosen: list[tuple[int, int]] = []
+    for task_id in range(num_tasks):
+        if not remaining:
+            break
+        robot_id, _value = select_cheapest_visible_greedy_row(
+            cost_column=tuple(row[task_id] for row in cost_matrix),
+            visible_robot_ids=remaining,
+        )
+        chosen.append((robot_id, task_id))
+        remaining.remove(robot_id)
+    expected_count = min(len(visible), num_tasks)
+    if len(chosen) != expected_count:
+        raise ProtocolError(Diagnostic(
+            owner="optimizer", function="solve_visible_task_ordered_greedy_assignment",
+            category="planning", code="TASK_ORDER_GREEDY_CARDINALITY_MISMATCH",
+            expected=expected_count, actual=len(chosen),
+        ))
+    return AssignmentSolution(
+        assigned_pairs=tuple(chosen),
+        total_cost=float(sum(cost_matrix[r][t] for r, t in chosen)),
+    )
+
+
 def solve_sequential_greedy_reference(
     cost_matrix: tuple[tuple[float, ...], ...],
 ) -> AssignmentSolution:
