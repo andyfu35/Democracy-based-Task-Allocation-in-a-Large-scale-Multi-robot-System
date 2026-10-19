@@ -17,6 +17,7 @@ from democracy_mrta.diagnostics import Diagnostic, ProtocolError
 from democracy_mrta.network import ensure_rady_dataset, load_rady_latency_profile
 from democracy_mrta.optimizer import (
     solve_hungarian_assignment, solve_visible_batched_greedy_assignment,
+    solve_visible_task_ordered_greedy_assignment,
 )
 from democracy_mrta.scenario import generate_e0_scenario
 from experiments.run_p1_matched_five import (
@@ -123,15 +124,19 @@ def prepare_evidence(args, source_sha: str, percentages: tuple[int, ...]):
 
 def run_one_centralized_case(
     scene, profile, p_loss: float, max_cost_rounds: int = 1,
+    planning_rule: str = "global",
 ) -> dict:
     """Read-only measurements for true original Centralized owner (opt-in retry)."""
     verify_one_scene(scene)
     native=simulate_one_shot_centralized(
         cost_matrix=scene.cost_matrix,task_positions=scene.task_positions,
         profile=profile,seed=scene.seed,p_loss=p_loss,
-        max_cost_rounds=max_cost_rounds,
+        max_cost_rounds=max_cost_rounds, planning_rule=planning_rule,
     )
-    full_greedy=solve_visible_batched_greedy_assignment(
+    reference_planner=(solve_visible_task_ordered_greedy_assignment
+                       if planning_rule=="task_ordered"
+                       else solve_visible_batched_greedy_assignment)
+    full_greedy=reference_planner(
         scene.cost_matrix,frozenset(range(scene.num_robots)),
     )
     if p_loss == 0.0 and (
@@ -175,16 +180,18 @@ def run_one_centralized_case(
         "native_assignment_json":json.dumps(native.assignment,separators=(",",":")),
         "native_diagnostic":"",
         "method_contract":(
+            "one-shot task-ID-order Greedy coordinator: one Cost attempt per sender"
+            if planning_rule=="task_ordered" else
             "one-shot coordinator paid reliable assignment + executor Commit, no retry"
             if max_cost_rounds == 1 else
-            "repeat missing physically lost Cost to coordinator; one Greedy + reliable Commit"
+            "repeat missing physically lost Cost to coordinator; one Global Greedy + reliable Commit"
         ),
         "committed_task_count":len(native.assignment),
         "task_coverage":native.task_coverage,
         "full_info_greedy_cost_m":full_greedy.total_cost,
         "cost_airtime_ms":native.cost_airtime_ms,
     }
-    if max_cost_rounds != 1:
+    if max_cost_rounds != 1 or planning_rule != "global":
         row["cost_rounds_executed"] = native.cost_rounds_executed
         row["cost_sender_sends"] = native.cost_sender_sends
         row["cost_sender_bytes"] = native.cost_sender_bytes
