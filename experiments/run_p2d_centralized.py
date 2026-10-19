@@ -121,12 +121,15 @@ def prepare_evidence(args, source_sha: str, percentages: tuple[int, ...]):
     return rows,identity
 
 
-def run_one_centralized_case(scene, profile, p_loss: float) -> dict:
-    """One native run, then independent offline measurement only."""
+def run_one_centralized_case(
+    scene, profile, p_loss: float, max_cost_rounds: int = 1,
+) -> dict:
+    """Read-only measurements for true original Centralized owner (opt-in retry)."""
     verify_one_scene(scene)
     native=simulate_one_shot_centralized(
         cost_matrix=scene.cost_matrix,task_positions=scene.task_positions,
         profile=profile,seed=scene.seed,p_loss=p_loss,
+        max_cost_rounds=max_cost_rounds,
     )
     full_greedy=solve_visible_batched_greedy_assignment(
         scene.cost_matrix,frozenset(range(scene.num_robots)),
@@ -171,12 +174,21 @@ def run_one_centralized_case(scene, profile, p_loss: float) -> dict:
         "original_traffic_ledger_json":json.dumps(native.event_ledger,sort_keys=True),
         "native_assignment_json":json.dumps(native.assignment,separators=(",",":")),
         "native_diagnostic":"",
-        "method_contract":"one-shot coordinator paid reliable assignment + executor Commit, no retry",
+        "method_contract":(
+            "one-shot coordinator paid reliable assignment + executor Commit, no retry"
+            if max_cost_rounds == 1 else
+            "repeat missing physically lost Cost to coordinator; one Greedy + reliable Commit"
+        ),
         "committed_task_count":len(native.assignment),
         "task_coverage":native.task_coverage,
         "full_info_greedy_cost_m":full_greedy.total_cost,
         "cost_airtime_ms":native.cost_airtime_ms,
     }
+    if max_cost_rounds != 1:
+        row["cost_rounds_executed"] = native.cost_rounds_executed
+        row["cost_sender_sends"] = native.cost_sender_sends
+        row["cost_sender_bytes"] = native.cost_sender_bytes
+        row["cost_receiver_drops"] = native.cost_receiver_drops
     return {**other,**row}
 
 
