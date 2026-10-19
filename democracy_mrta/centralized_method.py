@@ -21,7 +21,11 @@ from .network import (
     WifiTimingConfig, estimate_e9h_guarded_initial_cost_ms,
     validate_packet_loss_probability,
 )
-from .optimizer import solve_visible_batched_greedy_assignment, validate_cost_matrix
+from .optimizer import (
+    solve_visible_batched_greedy_assignment,
+    solve_visible_task_ordered_greedy_assignment,
+    validate_cost_matrix,
+)
 from .protocol import validate_one_to_one_commits
 from .task_information import broadcast_task_information
 
@@ -185,8 +189,18 @@ def collect_one_shot_cost_rows(
         cost_phase_end_ms=start_ms, cost_rounds_executed=rounds,
     )
 
+def validate_centralized_planning_rule(*, planning_rule: str) -> None:
+    """Keep Global Greedy default; task-ID priority is an explicit P2G opt-in."""
+    if planning_rule not in ("global", "task_ordered"):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="validate_centralized_planning_rule",
+            category="planning", code="P2G_INVALID_CENTRAL_GREEDY_RULE",
+            expected=("global", "task_ordered"), actual=planning_rule,
+        ))
+
+
 def plan_from_received_cost_rows(
-    *, receipt: CentralizedCostReceipt,
+    *, receipt: CentralizedCostReceipt, planning_rule: str = "global",
 ) -> tuple[tuple[int, int], ...]:
     """Reuse original greedy planner on actually visible, physical-ID-sorted rows."""
     real_ids = receipt.received_robot_ids
@@ -196,8 +210,12 @@ def plan_from_received_cost_rows(
             category="state", code="P2D_NO_CENTRALIZED_COST_ROWS",
             expected="coordinator's own row", actual=real_ids,
         ))
+    validate_centralized_planning_rule(planning_rule=planning_rule)
     cost_rows = tuple(row for _robot, row in receipt.visible_rows)
-    local_pairs = solve_visible_batched_greedy_assignment(
+    planner = (solve_visible_task_ordered_greedy_assignment
+               if planning_rule == "task_ordered"
+               else solve_visible_batched_greedy_assignment)
+    local_pairs = planner(
         cost_rows, frozenset(range(len(real_ids))),
     ).assigned_pairs
     physical_pairs = tuple(
@@ -254,9 +272,11 @@ def simulate_one_shot_centralized(
     profile: EmpiricalLatencyProfile, seed: int, p_loss: float,
     coordinator_id: int = 0,
     max_cost_rounds: int = 1,
+    planning_rule: str = "global",
 ) -> CentralizedResult:
-    """TASK once -> optional repeat missing Cost -> one Greedy -> Commit run."""
+    """TASK once -> opt-in Cost repeat -> selected Greedy -> one Commit run."""
     validate_centralized_retry_limit(max_cost_rounds=max_cost_rounds)
+    validate_centralized_planning_rule(planning_rule=planning_rule)
     robots = validate_centralized_configuration(
         cost_matrix=cost_matrix, task_positions=task_positions,
         coordinator_id=coordinator_id, p_loss=p_loss,
@@ -284,7 +304,9 @@ def simulate_one_shot_centralized(
         max_cost_rounds=max_cost_rounds,
     )
     after_cost = sampler.summarize_network()
-    pairs = plan_from_received_cost_rows(receipt=receipt)
+    pairs = plan_from_received_cost_rows(
+        receipt=receipt, planning_rule=planning_rule,
+    )
     decision = publish_centralized_assignment(
         pairs=pairs, coordinator_id=coordinator_id,
         release_ms=receipt.cost_phase_end_ms, sampler=sampler,
@@ -336,8 +358,9 @@ def simulate_one_shot_centralized(
             "received_cost_rows":receipt.received_robot_ids,
             "cost_receiver_attempts":len(receipt.cost_deliveries),
             "cost_receiver_drops":cost_drops,
-            **({"cost_rounds_executed":receipt.cost_rounds_executed}
-               if max_cost_rounds != 1 else {}),
+            **({"cost_rounds_executed":receipt.cost_rounds_executed,
+                "planning_rule":planning_rule}
+               if max_cost_rounds != 1 or planning_rule != "global" else {}),
             "network":physical,
         },
         phase_times={
