@@ -153,7 +153,7 @@ def build_e9h_deadline_schedule(*, profile, robots: int,
         estimate_e9h_adaptive_deadline(
             profile=profile,active_robots=n,total_tasks=robots,
             reference_phy_mbps=design_rate_mbps,margin_factor=margin_factor,
-            phase=("vote_batch" if voting_strategy == "greedy_batch"
+            phase=("vote_batch" if voting_strategy in ("greedy_batch", "greedy_batch_task_order")
                    and batch_vote_scope == "all" else "vote"),
         ) for n in range(1,robots+1)
     )
@@ -309,11 +309,11 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
     E9H behavior defaults p_vote_loss to p_loss without runtime changes.
     """
     name,decision_rule,margin_factor,is_adaptive=arm
-    if voting_strategy not in ("greedy_task", "greedy_batch"):
+    if voting_strategy not in ("greedy_task", "greedy_batch", "greedy_batch_task_order"):
         raise ProtocolError(Diagnostic(
             owner=OWNER, function="run_e9h_original_voting_case",
             category="data", code="P2_UNKNOWN_VOTING_SCHEDULE",
-            expected=("greedy_task", "greedy_batch"), actual=voting_strategy,
+            expected=("greedy_task", "greedy_batch", "greedy_batch_task_order"), actual=voting_strategy,
         ))
     vote_loss = p_loss if p_vote_loss is None else p_vote_loss
     task_sampler=create_e9g_sampler(profile=profile,seed=seed,phy_rate_mbps=rate)
