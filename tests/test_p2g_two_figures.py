@@ -10,7 +10,8 @@ from experiments.p2g_plot import FAMILIES, render_p2g_figure
 from experiments.run_p2g_two_figures import (
     LOSSES, NEW_MODES, validate_p2g_config,
     read_verified_legacy_summary, build_figure_source, case_keys,
-    summarize_new_p2g, validate_p2g_grid, measure_p2g_complete_quality,
+    summarize_new_p2g, validate_p2g_grid, validate_p2g_zero_loss,
+    measure_p2g_complete_quality,
 )
 from democracy_mrta.optimizer import (
     solve_visible_batched_greedy_assignment,
@@ -85,6 +86,16 @@ class P2GStudyTests(unittest.TestCase):
         bad[1]["full_info_reference_cost_m"]=202.
         with self.assertRaises(ProtocolError):
             validate_p2g_grid(bad,(0,),0,1)
+
+    def test_no_loss_requires_matching_family_greedy_cost(self):
+        rows=[record(0,mode) for mode in NEW_MODES]
+        for row in rows:
+            row["cost_increase_percent"]=0.
+        validate_p2g_zero_loss(rows)
+        rows[0]["cost_increase_percent"]=1.0
+        with self.assertRaises(ProtocolError) as caught:
+            validate_p2g_zero_loss(rows)
+        self.assertEqual(caught.exception.diagnostic.code,"P2G_ZERO_LOSS_FAILED")
 
     def test_missing_cost_is_not_zero_in_new_summary(self):
         summary=summarize_new_p2g(
