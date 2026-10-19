@@ -20,6 +20,7 @@ from .optimizer import (
     solve_visible_hungarian_assignment,
     solve_all_visible_greedy_task_votes,
     solve_visible_batched_greedy_assignment,
+    solve_visible_task_ordered_greedy_assignment,
     validate_cost_matrix,
 )
 from .protocol import (
@@ -1144,14 +1145,14 @@ def validate_epoch_voting_strategy(
     strategy: str,
     num_tasks: int,
 ) -> None:
-    if strategy not in ("hungarian", "greedy_task", "greedy_batch"):
+    if strategy not in ("hungarian", "greedy_task", "greedy_batch", "greedy_batch_task_order"):
         raise ProtocolError(
             Diagnostic(
                 owner="coordination",
                 function="validate_epoch_voting_strategy",
                 category="data",
                 code="UNKNOWN_VOTING_STRATEGY",
-                expected=("hungarian", "greedy_task", "greedy_batch"),
+                expected=("hungarian", "greedy_task", "greedy_batch", "greedy_batch_task_order"),
                 actual=strategy,
             )
         )
@@ -1179,6 +1180,11 @@ def build_epoch_local_proposals(
     if strategy == "greedy_batch":
         local_solutions = tuple(
             solve_visible_batched_greedy_assignment(cost_matrix, rows)
+            for rows in visible
+        )
+    elif strategy == "greedy_batch_task_order":
+        local_solutions = tuple(
+            solve_visible_task_ordered_greedy_assignment(cost_matrix, rows)
             for rows in visible
         )
     elif strategy == "greedy_task":
@@ -1309,7 +1315,7 @@ def validate_vote_decision_rule(
                 actual=rule,
             )
         )
-    if voting_strategy == "greedy_batch" and rule != "received_plurality":
+    if voting_strategy in ("greedy_batch", "greedy_batch_task_order") and rule != "received_plurality":
         raise ProtocolError(Diagnostic(
             owner="coordination", function="validate_vote_decision_rule",
             category="planning", code="BATCH_GREEDY_REQUIRES_RECEIVED_PLURALITY",
@@ -1317,8 +1323,9 @@ def validate_vote_decision_rule(
         ))
     if rule in ("quarter_plurality", "received_plurality") and (
         (voting_strategy == "greedy_task" and num_tasks != 1)
-        or (voting_strategy == "greedy_batch" and rule != "received_plurality")
-        or voting_strategy not in ("greedy_task", "greedy_batch")
+        or (voting_strategy in ("greedy_batch", "greedy_batch_task_order")
+            and rule != "received_plurality")
+        or voting_strategy not in ("greedy_task", "greedy_batch", "greedy_batch_task_order")
     ):
         raise ProtocolError(
             Diagnostic(
@@ -1326,7 +1333,7 @@ def validate_vote_decision_rule(
                 function="validate_vote_decision_rule",
                 category="planning",
                 code="PLURALITY_REQUIRES_ONE_TASK_GREEDY",
-                expected="one-task Greedy, or multi-task greedy_batch using received_plurality",
+                expected="one-task Greedy, or multi-task Greedy batch using received_plurality",
                 actual=(voting_strategy, num_tasks),
             )
         )
@@ -1670,6 +1677,37 @@ def resolve_capacity_one_batch_winners(
 
 
 
+def resolve_capacity_one_task_ordered_winners(
+    *, scores: dict[tuple[int, int], int],
+    physical_tasks: tuple[int, ...],
+    physical_robots: tuple[int, ...],
+) -> tuple[tuple[tuple[int, int], ...], int]:
+    """One-shot task-ID-order voting resolution from positive delivered Score only.
+
+    Walk T0,T1,... once, assign the free candidate with highest received Vote
+    count for that task. Tie: smallest robot ID. A missing eligible score
+    leaves a task unassigned; never invent unseen votes or substitute costs.
+    """
+    eligible = set(physical_robots)
+    winners: list[tuple[int, int]] = []
+    ties = 0
+    for task_id in sorted(physical_tasks):
+        choices = sorted(
+            ((count, robot_id) for (task, robot_id), count in scores.items()
+             if task == task_id and robot_id in eligible and count > 0),
+            key=lambda entry: (-entry[0], entry[1]),
+        )
+        if not choices:
+            continue
+        count, robot_id = choices[0]
+        if sum(item[0] == count for item in choices) > 1:
+            ties += 1
+        winners.append((robot_id, task_id))
+        eligible.remove(robot_id)
+    validate_one_to_one_commits(winners)
+    return tuple(winners), ties
+
+
 def emit_greedy_batch_commits(
     *, winners: tuple[tuple[int, int], ...], round_id: int,
     release_ms: float, sampler,
@@ -1697,6 +1735,7 @@ def simulate_greedy_batch_vote_epoch(
     sampler, loss_sampler, p_vote_loss: float,
     capture_vote_audit: bool,
     voted_task_ids: tuple[int, ...] | None = None,
+    task_ordered: bool = False,
 ) -> LossyCoordinationResult:
     """One Cost snapshot -> scoped Vote -> reliable Score -> capacity-one Commit."""
     eligible_vote_tasks = physical_tasks if voted_task_ids is None else voted_task_ids
@@ -1716,7 +1755,11 @@ def simulate_greedy_batch_vote_epoch(
         counted_votes=counts, physical_robots=physical_robots,
         round_id=round_id, release_ms=score_release_ms, sampler=sampler,
     )
-    winners, tied = resolve_capacity_one_batch_winners(
+    winner_selector = (
+        resolve_capacity_one_task_ordered_winners if task_ordered
+        else resolve_capacity_one_batch_winners
+    )
+    winners, tied = winner_selector(
         scores=certified, physical_tasks=eligible_vote_tasks, physical_robots=physical_robots,
     )
     scores_done_ms = max(
@@ -1732,7 +1775,8 @@ def simulate_greedy_batch_vote_epoch(
         scores_done_ms, max((event.arrival_time_ms for event in commits), default=scores_done_ms),
     )
     return _summarize_lossy_result(
-        method="democracy_batched_greedy_received_plurality",
+        method=("democracy_task_ordered_batch_received_plurality" if task_ordered
+                else "democracy_batched_greedy_received_plurality"),
         cost_matrix=cost_matrix, assigned_pairs=winners,
         cost_phase_completion_ms=cost_finished_ms,
         decision_completion_ms=scores_done_ms,
@@ -1849,7 +1893,7 @@ def simulate_democracy_hungarian_lossy(
         physical_tasks=physical_tasks,
         strategy=voting_strategy,
     )
-    if voting_strategy == "greedy_batch":
+    if voting_strategy in ("greedy_batch", "greedy_batch_task_order"):
         return simulate_greedy_batch_vote_epoch(
             cost_matrix=cost_matrix, cost_events=events,
             cost_deliveries=deliveries, visible=visible, ready_times=ready_times,
@@ -1858,6 +1902,7 @@ def simulate_democracy_hungarian_lossy(
             round_id=round_id, sampler=sampler, loss_sampler=loss_sampler,
             p_vote_loss=vote_loss_probability, capture_vote_audit=capture_vote_audit,
             voted_task_ids=batch_vote_task_ids,
+            task_ordered=(voting_strategy == "greedy_batch_task_order"),
         )
 
     ledgers_by_task: dict[int, dict[int, set[int]]] = {
@@ -2266,7 +2311,7 @@ def simulate_democracy_hungarian_retirement(
     )
     if isinstance(sampler, WifiCausalTimingSampler) and (
         cost_repetitions != 1 or vote_repetitions != 1 or
-        voting_strategy not in ("greedy_task", "greedy_batch")
+        voting_strategy not in ("greedy_task", "greedy_batch", "greedy_batch_task_order")
     ):
         raise ProtocolError(Diagnostic(
             owner="coordination", function="simulate_democracy_hungarian_retirement",
@@ -2314,7 +2359,7 @@ def simulate_democracy_hungarian_retirement(
                 cost_repetitions=cost_repetitions,
                 enforce_cost_deadline=enforce_vote_deadline,
             )
-            if voting_strategy in ("greedy_task", "greedy_batch") else None
+            if voting_strategy in ("greedy_task", "greedy_batch", "greedy_batch_task_order") else None
         )
     membership = initialize_retirement_membership(
         num_robots=num_robots,
@@ -2402,6 +2447,8 @@ def simulate_democracy_hungarian_retirement(
     )
     return MultiRoundRetirementResult(
         method=(
+            "democracy_task_ordered_batch_received_plurality_retirement"
+            if voting_strategy == "greedy_batch_task_order" else
             ("democracy_serial_global_greedy_received_plurality_retirement"
              if batch_vote_scope == "one_task"
              else "democracy_batched_greedy_received_plurality_retirement")
