@@ -199,14 +199,47 @@ def read_verified_legacy_summary(losses):
                     "verified_rows":50,"historical_native_git_sha":LEGACY_SHA}
 
 
-def run_one_p2g_case(scene, profile, p_loss, mode, source_sha):
-    """One true original native owner per case, with read-only quality/audit."""
-    if mode not in NEW_MODES:
-        fail("run_one_p2g_case","data","P2G_UNKNOWN_NATIVE_MODE",NEW_MODES,mode)
-    verify_one_scene(scene)
-    full=solve_visible_batched_greedy_assignment(
-        scene.cost_matrix,frozenset(range(scene.num_robots)),
-    )
+def audit_centralized_retry_sender_phases(native):
+    """Independently check actual physical central Cost retry traffic."""
+    try:
+        ledger=json.loads(native["original_traffic_ledger_json"])
+        phases=ledger["network"]["sender_by_phase"]
+        total_sends=sum(int(x["sender_sends"]) for x in phases.values())
+        total_bytes=sum(int(x["sender_bytes"]) for x in phases.values())
+        cost=phases["centralized_cost"]
+        cost_sends=int(cost["sender_sends"])
+        cost_bytes=int(cost["sender_bytes"])
+        task=phases.get("task_announcement",{"sender_sends":0})
+        commit=phases.get("commit",{"sender_sends":0})
+        assignment=phases.get("centralized_assignment",{"sender_sends":0})
+    except (KeyError,TypeError,ValueError,json.JSONDecodeError) as exc:
+        fail("audit_centralized_retry_sender_phases","data",
+             "P2G_MALFORMED_CENTRAL_SENDER_LEDGER",
+             "physical network sender_by_phase",str(exc))
+    expected=(int(native["native_sender_sends"]),int(native["native_sender_bytes"]))
+    if (total_sends,total_bytes)!=expected:
+        fail("audit_centralized_retry_sender_phases","contract",
+             "P2G_CENTRAL_SENDER_SUM_MISMATCH",expected,(total_sends,total_bytes))
+    if (cost_sends!=int(native["cost_sender_sends"])
+            or cost_bytes!=int(native["cost_sender_bytes"])
+            or int(assignment["sender_sends"])!=1
+            or int(commit["sender_sends"])!=int(native["committed_task_count"])
+            or int(task["sender_sends"])!=3):
+        fail("audit_centralized_retry_sender_phases","contract",
+             "P2G_CENTRAL_PHASE_MISMATCH",
+             "one TASK=3, one assignment, one Commit per pair, Cost physical",
+             {"task":task,"cost":cost,"decision":assignment,"commit":commit})
+    return {
+        "rounds":int(native["cost_rounds_executed"]),
+        "cost_sends":cost_sends,"cost_bytes":cost_bytes,
+        "vote_sends":0,"score_sends":0,
+        "commit_sends":int(commit["sender_sends"]),
+        "drops":int(native["cost_receiver_drops"]),
+    }
+
+
+def execute_p2g_native(scene, profile, p_loss, mode):
+    """Call the real original method owner, never plan or assign in study code."""
     if mode=="sequential_once":
         native=run_matched_case(
             scene,profile,"voting",p_loss,160,ROUNDS[mode],
@@ -216,59 +249,89 @@ def run_one_p2g_case(scene, profile, p_loss, mode, source_sha):
         pairs=count_observed_commits(native)
         physical=audit_native_sender_phases(native,batch["sender_by_phase"])
         ledger=json.loads(native["original_traffic_ledger_json"])
-        cost_sends=physical["cost_sender_sends"]
-        cost_bytes=physical["cost_sender_bytes"]
-        vote_sends=physical["vote_sender_sends"]
-        score_sends=physical["score_sender_sends"]
-        commit_sends=physical["commit_sender_sends"]
-        drops=int(ledger["native"]["cost_receiver_drops"])+int(ledger["native"]["vote_receiver_drops"])
-        if cost_sends!=scene.num_robots or rounds>scene.num_tasks:
-            fail("run_one_p2g_case","contract","P2G_SERIAL_SCOPE_VIOLATED",
-                 {"Cost":scene.num_robots,"task_epochs_max":scene.num_tasks},
-                 {"Cost":cost_sends,"rounds":rounds})
-    else:
+        audit={
+            "rounds":rounds,
+            "cost_sends":physical["cost_sender_sends"],
+            "cost_bytes":physical["cost_sender_bytes"],
+            "vote_sends":physical["vote_sender_sends"],
+            "score_sends":physical["score_sender_sends"],
+            "commit_sends":physical["commit_sender_sends"],
+            "drops":int(ledger["native"]["cost_receiver_drops"])+
+                    int(ledger["native"]["vote_receiver_drops"]),
+        }
+    elif mode=="centralized_retry":
         native=run_one_centralized_case(
             scene,profile,p_loss,max_cost_rounds=ROUNDS[mode],
         )
         pairs=tuple((int(r),int(t)) for r,t in json.loads(native["native_assignment_json"]))
-        rounds=int(native["cost_rounds_executed"])
-        cost_sends=int(native["cost_sender_sends"])
-        cost_bytes=int(native["cost_sender_bytes"])
-        vote_sends=0
-        score_sends=0
-        commit_sends=int(json.loads(native["original_traffic_ledger_json"])["commit_sender_frames"])
-        drops=int(native["cost_receiver_drops"])
-        if (cost_sends<scene.num_robots-1 or
-                cost_sends>(scene.num_robots-1)*ROUNDS[mode] or
-                rounds>ROUNDS[mode]):
-            fail("run_one_p2g_case","contract","P2G_CENTRAL_RETRY_BOUND_VIOLATED",
-                 "99<=Cost SENDs<=29700 and rounds<=300",
-                 (cost_sends,rounds))
+        audit=audit_centralized_retry_sender_phases(native)
+    else:
+        fail("execute_p2g_native","data","P2G_UNKNOWN_NATIVE_MODE",
+             NEW_MODES,mode)
+    return native,pairs,audit
+
+
+def validate_p2g_native_outcome(scene, native, pairs, audit, mode):
+    """Safety/contract audit without mutating the owner or observer."""
+    rounds=audit["rounds"]
+    cost_sends=audit["cost_sends"]
+    if (mode=="sequential_once" and
+            (cost_sends!=scene.num_robots or rounds>scene.num_tasks)):
+        fail("validate_p2g_native_outcome","contract","P2G_SERIAL_SCOPE_VIOLATED",
+             {"Cost":scene.num_robots,"task_epochs_max":scene.num_tasks},
+             {"Cost":cost_sends,"rounds":rounds})
+    if (mode=="centralized_retry" and
+            (cost_sends<scene.num_robots-1 or
+             cost_sends>(scene.num_robots-1)*ROUNDS[mode] or
+             rounds>ROUNDS[mode])):
+        fail("validate_p2g_native_outcome","contract","P2G_CENTRAL_RETRY_BOUND_VIOLATED",
+             "99<=Cost SENDs<=29700 and rounds<=300",
+             (cost_sends,rounds))
     if len(pairs)!=len({r for r,t in pairs}) or len(pairs)!=len({t for r,t in pairs}):
-        fail("run_one_p2g_case","safety","P2G_DUPLICATE_PAIR",
+        fail("validate_p2g_native_outcome","safety","P2G_DUPLICATE_PAIR",
              "capacity=1",pairs)
-    count=len(pairs)
-    native_success=int(native["native_success"])
-    feasible=int(native["final_feasible"])
-    if (native_success and not feasible) or (native_success and count!=100):
-        fail("run_one_p2g_case","contract","P2G_SUCCESS_WITHOUT_100_VALID_PAIRS",
-             100,(native_success,feasible,count))
-    cost=(float(native["final_total_distance_m"]) if native_success and feasible else "")
-    inc=(100*(cost/full.total_cost-1) if cost!="" else "")
+    if (int(native["native_success"]) and
+            (not int(native["final_feasible"]) or len(pairs)!=scene.num_tasks)):
+        fail("validate_p2g_native_outcome","contract",
+             "P2G_SUCCESS_WITHOUT_100_VALID_PAIRS",
+             scene.num_tasks,(native["native_success"],native["final_feasible"],len(pairs)))
+
+
+def measure_p2g_complete_quality(scene, native):
+    """Offline Global Greedy is NEVER exposed to the native method planner."""
+    full=solve_visible_batched_greedy_assignment(
+        scene.cost_matrix,frozenset(range(scene.num_robots)),
+    )
+    success=int(native["native_success"]) and int(native["final_feasible"])
+    cost=float(native["final_total_distance_m"]) if success else ""
+    increase=100*(cost/full.total_cost-1) if success else ""
+    return full.total_cost,cost,increase
+
+
+def run_one_p2g_case(scene, profile, p_loss, mode, source_sha):
+    """Orchestrate one native run, separate audits, and source-labeled evidence."""
+    verify_one_scene(scene)
+    native,pairs,audit=execute_p2g_native(scene,profile,p_loss,mode)
+    validate_p2g_native_outcome(scene,native,pairs,audit,mode)
+    reference,cost,inc=measure_p2g_complete_quality(scene,native)
     return {
         "loss_percent":int(round(p_loss*100)),"seed":scene.seed,"mode":mode,
         "source_sha":source_sha,"scene_sha256":scene_sha256(scene),
         "robots":scene.num_robots,"tasks":scene.num_tasks,"capacity":1,
-        "native_success":native_success,"final_feasible":feasible,
-        "committed_task_count":count,"task_coverage":count/scene.num_tasks,
-        "rounds_executed":rounds,
+        "native_success":int(native["native_success"]),
+        "final_feasible":int(native["final_feasible"]),
+        "committed_task_count":len(pairs),"task_coverage":len(pairs)/scene.num_tasks,
+        "rounds_executed":audit["rounds"],
         "native_stop_ms":native["native_stop_ms"],
         "native_sender_sends":native["native_sender_sends"],
         "native_sender_bytes":native["native_sender_bytes"],
-        "cost_sender_sends":cost_sends,"cost_sender_bytes":cost_bytes,
-        "vote_sender_sends":vote_sends,"score_sender_sends":score_sends,
-        "commit_sender_sends":commit_sends,"native_receiver_drops":drops,
-        "full_info_greedy_cost_m":full.total_cost,
+        "cost_sender_sends":audit["cost_sends"],
+        "cost_sender_bytes":audit["cost_bytes"],
+        "vote_sender_sends":audit["vote_sends"],
+        "score_sender_sends":audit["score_sends"],
+        "commit_sender_sends":audit["commit_sends"],
+        "native_receiver_drops":audit["drops"],
+        "full_info_greedy_cost_m":reference,
         "final_total_distance_m":cost,
         "cost_increase_percent":inc,
         "quality_sample_eligible":int(cost!=""),
