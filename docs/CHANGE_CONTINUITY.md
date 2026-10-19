@@ -3461,3 +3461,5 @@ Still unverified: **No Mac compileall, 2 targeted test files or full regression 
 - P2G reporter source tests: `c6638c572ae81eed7bdc39274e8c0ce861c6d3cf`.
 - Mac runbook: `482cd2c9f75940b3a02c4ef367977e809d4a6a9e`.
 - This continuity commit is in immediately following branch Git history. Do not merge experimental one-task implementation or mutate old published results without direct user approval. Next step: user local run on `experiment/p2g-two-family-voting-comparison`, report first failing traceback if any. Source audit ZIP then promote exactly two large four-panel figures.
+
+P2G canonical diagnostic owner follow-up: `docs/EXPERIMENT_PROTOCOL.md` §57 now explicitly assigns first time validation to `centralized_method.validate_centralized_cost_window` rather than the physical sender loop; commit `db6ac02ac44ef6a9133f270a2c39120282e5b554`. The mandatory P2G continuity record was committed at `7c1387294c754a481e0f2ef61753fbdc34805cfe`. Verification remains pending on user Mac; no additional native execution or semantics change.
