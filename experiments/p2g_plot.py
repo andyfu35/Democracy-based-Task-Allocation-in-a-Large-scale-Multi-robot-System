@@ -14,10 +14,10 @@ FAMILIES = {
 NAMES = {
     "task_ordered_vote_once": "Proposed: Task-ordered Greedy (one Vote batch)",
     "centralized_task_ordered_once": "Centralized Greedy Baseline (one-shot task order)",
-    "proposed_multi": "Proposed: Batch Global Greedy (multi-round)",
-    "cbaa": "Native CBAA",
-    "cbba": "Native CBBA",
-    "centralized_retry": "Centralized Greedy Baseline (missing-Cost retry)",
+    "proposed_multi": "Proposed",
+    "cbaa": "CBAA",
+    "cbba": "CBBA",
+    "centralized_retry": "Baseline Centralized",
 }
 COLORS = {
     "task_ordered_vote_once": "#187BB8",
@@ -155,10 +155,10 @@ def render_p2g_figure(rows, losses, family) -> str:
     methods=FAMILIES[family]
     title=("P2G Figure 1 · One-batch task-ordered Voting vs Greedy baseline"
            if family=="one_attempt" else
-           "P2G Figure 2 · Repeatable methods vs centralized Greedy baseline")
+           "Figure 2 · Repeatable Task Allocation")
     subtitle=("Task order T0..T99 is planned before one Vote batch; central Greedy baseline receives Cost once"
               if family=="one_attempt" else
-              "Proposed re-votes pending tasks; baseline retries missing Cost; CBAA/CBBA use native iterations")
+              "Comparison under packet loss · 100 robots × 100 tasks · 100 seeds")
     xml=[
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1240" role="img" aria-label="'+escape(title)+'">',
         '<rect width="1800" height="1240" fill="white"/>',
