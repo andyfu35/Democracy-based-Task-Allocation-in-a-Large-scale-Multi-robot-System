@@ -18,7 +18,10 @@ from pathlib import Path
 
 from democracy_mrta.diagnostics import Diagnostic, ProtocolError
 from democracy_mrta.network import ensure_rady_dataset, load_rady_latency_profile
-from democracy_mrta.optimizer import solve_visible_batched_greedy_assignment
+from democracy_mrta.optimizer import (
+    solve_visible_batched_greedy_assignment,
+    solve_visible_task_ordered_greedy_assignment,
+)
 from democracy_mrta.scenario import generate_e0_scenario
 from experiments.p2g_plot import FAMILIES, render_p2g_figure
 from experiments.run_p1_matched_five import (
@@ -33,9 +36,15 @@ from experiments.run_p2f_sequential_voting import (
 
 OWNER = "experiments.run_p2g_two_figures"
 LOSSES = tuple(range(0, 91, 10))
-NEW_MODES = ("sequential_once", "centralized_retry")
+NEW_MODES = (
+    "task_ordered_vote_once", "centralized_task_ordered_once",
+    "centralized_retry",
+)
 LEGACY_MODES = ("centralized", "multi_round", "cbaa", "cbba")
-ROUNDS = {"sequential_once":100, "centralized_retry":300}
+ROUNDS = {
+    "task_ordered_vote_once":1, "centralized_task_ordered_once":1,
+    "centralized_retry":300,
+}
 LEGACY_CSV = Path("docs/figures/p2de/formal/verified_50point_summary.csv")
 LEGACY_BLOB = "5326876027a9b42ac0fb95033b14cea79e46672e"
 LEGACY_SHA = {
@@ -51,7 +60,7 @@ RAW_FIELDS = (
     "native_stop_ms","native_sender_sends","native_sender_bytes",
     "cost_sender_sends","cost_sender_bytes","vote_sender_sends",
     "score_sender_sends","commit_sender_sends","native_receiver_drops",
-    "full_info_greedy_cost_m","final_total_distance_m",
+    "full_info_reference_cost_m","final_total_distance_m",
     "cost_increase_percent","quality_sample_eligible",
     "native_stop_reason","native_diagnostic",
     "native_assignment_json","original_traffic_ledger_json",
@@ -108,9 +117,13 @@ def prepare_p2g_evidence(args, source_sha, losses):
     """New root by default; resume only exact same Git source/config and prefix."""
     root=Path(args.output_root)
     config={
-        "study":"P2G_TWO_FAMILY_GREEDY_SINGLE_ATTEMPT_VS_REPEATABLE",
+        "study":"P2G_TASK_ORDERED_ONE_BATCH_VS_GLOBAL_GREEDY_REPEATED",
         "source_sha":source_sha,"new_modes":NEW_MODES,"new_mode_limits":ROUNDS,
         "historical_p2de_git_blob":LEGACY_BLOB,
+        "figure1_planner":"Task-ID-ordered Greedy; one batched Vote epoch and one centralized Cost epoch",
+        "figure2_planner":"Original Global min-edge Greedy (Proposed and Centralized), native unchanged CBAA/CBBA",
+        "figure1_reference":"full-information task-ID-ordered Greedy",
+        "figure2_reference":"full-information global minimum-pair Greedy",
         "loss_percent":losses,"first_seed":args.first_seed,
         "seeds":args.seeds,"formal":bool(args.formal),
         "robots":100,"tasks":100,"capacity":1,
@@ -240,10 +253,10 @@ def audit_centralized_retry_sender_phases(native):
 
 def execute_p2g_native(scene, profile, p_loss, mode):
     """Call the real original method owner, never plan or assign in study code."""
-    if mode=="sequential_once":
+    if mode=="task_ordered_vote_once":
         native=run_matched_case(
             scene,profile,"voting",p_loss,160,ROUNDS[mode],
-            voting_strategy="greedy_batch",batch_vote_scope="one_task",
+            voting_strategy="greedy_batch_task_order",batch_vote_scope="all",
         )
         batch,rounds=extract_validated_native_batch(scene,native,ROUNDS[mode])
         pairs=count_observed_commits(native)
@@ -259,9 +272,11 @@ def execute_p2g_native(scene, profile, p_loss, mode):
             "drops":int(ledger["native"]["cost_receiver_drops"])+
                     int(ledger["native"]["vote_receiver_drops"]),
         }
-    elif mode=="centralized_retry":
+    elif mode in ("centralized_task_ordered_once","centralized_retry"):
         native=run_one_centralized_case(
             scene,profile,p_loss,max_cost_rounds=ROUNDS[mode],
+            planning_rule=("task_ordered" if mode=="centralized_task_ordered_once"
+                           else "global"),
         )
         pairs=tuple((int(r),int(t)) for r,t in json.loads(native["native_assignment_json"]))
         audit=audit_centralized_retry_sender_phases(native)
@@ -275,11 +290,17 @@ def validate_p2g_native_outcome(scene, native, pairs, audit, mode):
     """Safety/contract audit without mutating the owner or observer."""
     rounds=audit["rounds"]
     cost_sends=audit["cost_sends"]
-    if (mode=="sequential_once" and
-            (cost_sends!=scene.num_robots or rounds>scene.num_tasks)):
-        fail("validate_p2g_native_outcome","contract","P2G_SERIAL_SCOPE_VIOLATED",
-             {"Cost":scene.num_robots,"task_epochs_max":scene.num_tasks},
+    if (mode=="task_ordered_vote_once" and
+            (cost_sends!=scene.num_robots or rounds!=1)):
+        fail("validate_p2g_native_outcome","contract","P2G_ONE_BATCH_SCOPE_VIOLATED",
+             {"Cost":scene.num_robots,"vote_epochs":1},
              {"Cost":cost_sends,"rounds":rounds})
+    if (mode=="centralized_task_ordered_once" and
+            (cost_sends!=scene.num_robots-1 or rounds!=1 or
+             audit["vote_sends"]!=0 or audit["score_sends"]!=0)):
+        fail("validate_p2g_native_outcome","contract","P2G_ONE_COST_SCOPE_VIOLATED",
+             {"Cost":scene.num_robots-1,"rounds":1,"vote_frames":0},
+             {"Cost":cost_sends,"rounds":rounds,"vote":audit["vote_sends"]})
     if (mode=="centralized_retry" and
             (cost_sends<scene.num_robots-1 or
              cost_sends>(scene.num_robots-1)*ROUNDS[mode] or
@@ -297,9 +318,12 @@ def validate_p2g_native_outcome(scene, native, pairs, audit, mode):
              scene.num_tasks,(native["native_success"],native["final_feasible"],len(pairs)))
 
 
-def measure_p2g_complete_quality(scene, native):
-    """Offline Global Greedy is NEVER exposed to the native method planner."""
-    full=solve_visible_batched_greedy_assignment(
+def measure_p2g_complete_quality(scene, native, mode):
+    """Use matched Figure 1 task-order vs Figure 2 global Greedy reference."""
+    planner = (solve_visible_task_ordered_greedy_assignment
+               if mode in ("task_ordered_vote_once","centralized_task_ordered_once")
+               else solve_visible_batched_greedy_assignment)
+    full=planner(
         scene.cost_matrix,frozenset(range(scene.num_robots)),
     )
     success=int(native["native_success"]) and int(native["final_feasible"])
@@ -313,7 +337,7 @@ def run_one_p2g_case(scene, profile, p_loss, mode, source_sha):
     verify_one_scene(scene)
     native,pairs,audit=execute_p2g_native(scene,profile,p_loss,mode)
     validate_p2g_native_outcome(scene,native,pairs,audit,mode)
-    reference,cost,inc=measure_p2g_complete_quality(scene,native)
+    reference,cost,inc=measure_p2g_complete_quality(scene,native,mode)
     return {
         "loss_percent":int(round(p_loss*100)),"seed":scene.seed,"mode":mode,
         "source_sha":source_sha,"scene_sha256":scene_sha256(scene),
@@ -331,7 +355,7 @@ def run_one_p2g_case(scene, profile, p_loss, mode, source_sha):
         "score_sender_sends":audit["score_sends"],
         "commit_sender_sends":audit["commit_sends"],
         "native_receiver_drops":audit["drops"],
-        "full_info_greedy_cost_m":reference,
+        "full_info_reference_cost_m":reference,
         "final_total_distance_m":cost,
         "cost_increase_percent":inc,
         "quality_sample_eligible":int(cost!=""),
@@ -355,7 +379,10 @@ def validate_p2g_grid(rows,losses,first_seed,seeds):
             a=by_key[(loss,seed,"sequential_once")]
             b=by_key[(loss,seed,"centralized_retry")]
             if (a["scene_sha256"]!=b["scene_sha256"] or
-                    float(a["full_info_greedy_cost_m"])!=float(b["full_info_greedy_cost_m"])):
+                    float(a["full_info_reference_cost_m"])!=
+                    float(b["full_info_reference_cost_m"])
+                    if a["mode"]=="centralized_retry" else
+                    a["scene_sha256"]!=b["scene_sha256"]):
                 fail("validate_p2g_grid","contract","P2G_SCENE_NOT_PAIRED",
                      (loss,seed,"same coordinates and cost reference"),(a,b))
     for r in rows:
