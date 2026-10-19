@@ -1,12 +1,14 @@
 # P2G — Two large figures: one batched task-ordered Greedy versus repeatable Global Greedy
 
-Branch: `experiment/p2g-two-family-voting-comparison`. **This revised native experiment has NOT run on the user's Mac yet.** Do not present results as measured or overwrite original P2/P2D/P2E/P2F evidence.
+Original native experiment branch: `experiment/p2g-two-family-voting-comparison`; presentation-only baseline terminology branch: `documentation/p2g-centralized-baseline-labels`.
+
+**Status (2026-10-19):** the user provided the original `封存.zip` containing 3,000 fresh formal native P2G cases, 30 summary groups, and the two original SVGs. An independent read-only audit of the supplied ZIP verified method/seed/loss grid, raw sender-phase ledgers, native assignment uniqueness, original manifest SHA256, and unchanged original source Git SHA `7cab1b5f7979b2f45104c529de7e25015b4ff7e8`. This documentation/legend branch **does not rerun or relabel numerical evidence**. The run commands below are archival reproduction only; never overwrite original P2/P2D/P2E/P2F or P2G raw data.
 
 ### Figure 1 — One Shot, T0 → T99 task-ordered Greedy
 
 Two new original native method arms:
 - `task_ordered_vote_once` = Proposed: each voter greedily plans **once** in ascending task order, taking only the physically received Cost rows; removes each locally selected candidate from its own plan, then sends **one Vote broadcast containing the full batch of task/candidate pairs**. Positive physically received votes generate paid reliable Score; the resolution owner visits T0,T1,... and selects highest received score among still-free robots, with robot-ID tie-break; emits paid Commit. `max_rounds=1`, `vote_repetitions=1`, `cost_repetitions=1`. No new communication round after unresolved tasks. **Not** the old 100 sequential physical vote epochs.
-- `centralized_task_ordered_once` = original centralized `planning_rule=task_ordered,max_cost_rounds=1`: each remote Cost is sent once to the coordinator, which runs the **same T0,T1,... task-order** greedy over only received rows and sends one paid assignment plus executor Commits. **Do not reuse old Centralized One Shot Global Greedy data**, which has a different planner.
+- `centralized_task_ordered_once` = **Centralized Task-Ordered Greedy Baseline (One Shot)**, the original centralized `planning_rule=task_ordered,max_cost_rounds=1`: each remote Cost is sent once to the coordinator, which runs the **same T0,T1,... task-order** greedy over only received rows and sends one paid assignment plus executor Commits. **Do not reuse old Centralized One Shot Global Greedy data**, which has a different planner.
 
 Figure 1 cost increase is referenced to the **same-seed full-information task-ordered Greedy**. Its 0% packet-loss cost reference must agree across methods.
 
@@ -15,9 +17,13 @@ Figure 1 cost increase is referenced to the **same-seed full-information task-or
 Four curves:
 - `proposed_multi`: original SHA-verified P2E Proposed Batch Global Greedy with fresh Vote/Score/Commit on still-pending tasks in up to 300 decision epochs; original Cost sent once, **no retransmission of lost Cost**.
 - `cbaa` / `cbba`: originally verified native iterative methods and their **own** planning/communication, not replaced by Greedy. Their assignment costs are **evaluated against** full-info Global Greedy; they do NOT internally use it.
-- `centralized_retry`: original Centralized with `planning_rule=global,max_cost_rounds=300`: only still-unreceived Cost senders retransmit their original Cost packets to the coordinator, paid per SEND including drops; after complete receipt or guard, coordinator runs **one** Global Greedy on actually visible rows and announces assignment and executor Commits.
+- `centralized_retry`: **Centralized Global Greedy Baseline (Missing-Cost Retry)** using the original centralized `planning_rule=global,max_cost_rounds=300`: only still-unreceived Cost senders retransmit their original Cost packets to the coordinator, paid per SEND including drops; after complete receipt or guard, coordinator runs **one** Global Greedy on actually visible rows and announces assignment and executor Commits.
 
 Figure 2 cost increase is referenced to **same-seed full-information Global minimum-pair Greedy**, a different denominator from Figure 1. Do not compare the y values between figures as if a single optimizer reference were shared.
+
+**Centralized is a named reference baseline, not the whole centralized MRTA field.** Our centralized baseline uses **one specific coordinator**, a selected Greedy optimizer, modeled reliable control messages, and a particular resend policy. Results must be phrased as *Proposed compared with this Centralized Greedy Baseline*, NOT *Proposed outperforms all centralized algorithms*. The two baselines also make different packet-loss assumptions (Figure 1 Cost once; Figure 2 missing-Cost retry), so they must not be silently conflated.
+
+**Figure 1 is task-ordered local computation followed by a single Vote BATCH**, not interactive one-task-at-a-time send/confirm/replan. The latter would require a separate new experiment and potentially much greater communication/time. Partial completion in the existing single-batch figure under loss is compatible with the actual implemented protocol; do not claim its curve measures interactive serial voting.
 
 Each figure is a separate 1800×1240 2×2 SVG, showing (a) true full 100/100 native success rate, (b) cost difference (%) only for fully successful one-to-one cases with sample `n`, (c) modeled all-seed stop/communication time (s), (d) all physically attempted application sender payload kB including Cost/Vote dropped at all receivers. No failed cost imputation. Models use Rady latency with assumed 144Mbps shared wireless medium, not measured RF; original reliable TASK/Score/Commit assumptions remain. Different native CBAA/CBBA convergence/Commit certification must be disclosed.
 
