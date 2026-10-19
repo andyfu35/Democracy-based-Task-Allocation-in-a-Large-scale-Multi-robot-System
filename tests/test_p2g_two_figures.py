@@ -1,4 +1,4 @@
-"""P2G two large family figure source, missing-cost and frozen evidence tests."""
+"""P2G two figure source gates: task-order one-shot versus Global Greedy repeat."""
 from __future__ import annotations
 
 from argparse import Namespace
@@ -10,7 +10,11 @@ from experiments.p2g_plot import FAMILIES, render_p2g_figure
 from experiments.run_p2g_two_figures import (
     LOSSES, NEW_MODES, validate_p2g_config,
     read_verified_legacy_summary, build_figure_source, case_keys,
-    summarize_new_p2g, validate_p2g_grid,
+    summarize_new_p2g, validate_p2g_grid, measure_p2g_complete_quality,
+)
+from democracy_mrta.optimizer import (
+    solve_visible_batched_greedy_assignment,
+    solve_visible_task_ordered_greedy_assignment,
 )
 
 
@@ -26,8 +30,8 @@ def sample_args(**change):
 def record(loss,mode,seed=0,success=True):
     return {
         "loss_percent":loss,"seed":seed,"mode":mode,
-        "scene_sha256":"matched_scene","full_info_greedy_cost_m":200.,
-        "rounds_executed":100 if mode=="sequential_once" else 4,
+        "scene_sha256":"matched_scene","full_info_reference_cost_m":200.,
+        "rounds_executed":300 if mode=="centralized_retry" else 1,
         "task_coverage":1. if success else .7,
         "committed_task_count":100 if success else 70,
         "native_sender_bytes":200000,"cost_sender_bytes":81000,
@@ -67,9 +71,8 @@ class P2GStudyTests(unittest.TestCase):
         self.assertEqual(len(provenance["p2de_verified_sha256"]),64)
         self.assertEqual(sum(r["method"]=="cbaa" for r in legacy),10)
 
-    def test_exact_two_new_modes_and_paired_geometry(self):
-        expected=((0,0,"sequential_once"),(0,0,"centralized_retry"),
-                  (0,1,"sequential_once"),(0,1,"centralized_retry"))
+    def test_three_new_modes_have_exact_paired_geometry_and_reference(self):
+        expected=tuple((0,seed,mode) for seed in range(2) for mode in NEW_MODES)
         self.assertEqual(case_keys((0,),0,2),expected)
         good=[record(0,mode) for mode in NEW_MODES]
         validate_p2g_grid(good,(0,),0,1)
@@ -78,13 +81,16 @@ class P2GStudyTests(unittest.TestCase):
         with self.assertRaises(ProtocolError) as caught:
             validate_p2g_grid(bad,(0,),0,1)
         self.assertEqual(caught.exception.diagnostic.code,"P2G_SCENE_NOT_PAIRED")
+        bad=[dict(r) for r in good]
+        bad[1]["full_info_reference_cost_m"]=202.
+        with self.assertRaises(ProtocolError):
+            validate_p2g_grid(bad,(0,),0,1)
 
     def test_missing_cost_is_not_zero_in_new_summary(self):
         summary=summarize_new_p2g(
-            [record(90,"sequential_once",success=False),
-             record(90,"centralized_retry",success=False)],(90,)
+            [record(90,mode,success=False) for mode in NEW_MODES],(90,)
         )
-        self.assertEqual(len(summary),2)
+        self.assertEqual(len(summary),3)
         for r in summary:
             self.assertEqual(r["native_complete"],0)
             self.assertEqual(r["quality_sample_count"],0)
@@ -92,7 +98,7 @@ class P2GStudyTests(unittest.TestCase):
             self.assertGreater(r["mean_sender_kb"],0)
             self.assertGreater(r["mean_stop_s"],0)
 
-    def test_big_figures_are_four_panel_svg_with_own_methods(self):
+    def test_big_figures_are_four_panel_svg_with_correct_reference(self):
         for family,methods in FAMILIES.items():
             rows=[synthetic_plot_row(loss,m,success=(loss==0))
                   for loss in (0,90) for m in methods]
@@ -102,6 +108,10 @@ class P2GStudyTests(unittest.TestCase):
             self.assertIn("B. Cost increase",svg)
             self.assertIn("C. Communication stop time",svg)
             self.assertIn("D. Attempted communication payload",svg)
+            self.assertIn(
+                "task-ordered Greedy" if family=="one_attempt"
+                else "Global Greedy", svg,
+            )
             root=ET.fromstring(svg)
             self.assertTrue(root.tag.endswith("svg"))
             self.assertEqual(len(methods),2 if family=="one_attempt" else 4)
@@ -115,7 +125,7 @@ class P2GStudyTests(unittest.TestCase):
         self.assertEqual(caught.exception.diagnostic.code,
                          "P2G_FAKE_OR_MISSING_QUALITY")
 
-    def test_historical_new_source_exact_mapping(self):
+    def test_historical_new_source_mapping_does_not_reuse_old_central_one_shot(self):
         legacy,_=read_verified_legacy_summary(LOSSES)
         new=[]
         for p in LOSSES:
@@ -131,9 +141,34 @@ class P2GStudyTests(unittest.TestCase):
         self.assertEqual(len(figures["one_attempt"]),20)
         self.assertEqual(len(figures["repeatable"]),40)
         self.assertEqual(
+            {r["method"] for r in figures["one_attempt"]},
+            set(FAMILIES["one_attempt"]),
+        )
+        self.assertEqual(
             {r["method"] for r in figures["repeatable"]},
             set(FAMILIES["repeatable"]),
         )
+        self.assertNotIn(
+            "centralized_one_shot",
+            {r["method"] for rows in figures.values() for r in rows},
+        )
+
+    def test_mode_specific_reference_planner_is_not_a_single_hidden_oracle(self):
+        matrix=((2.,1.),(3.,100.))
+        global_plan=solve_visible_batched_greedy_assignment(matrix,{0,1})
+        order_plan=solve_visible_task_ordered_greedy_assignment(matrix,{0,1})
+        self.assertEqual(global_plan.assigned_pairs,((1,0),(0,1)))
+        self.assertEqual(order_plan.assigned_pairs,((0,0),(1,1)))
+        scene=Namespace(cost_matrix=matrix,num_robots=2)
+        native=dict(native_success=1,final_feasible=1,
+                    final_total_distance_m=order_plan.total_cost)
+        for mode in ("task_ordered_vote_once","centralized_task_ordered_once"):
+            denom,total,gap=measure_p2g_complete_quality(scene,native,mode)
+            self.assertEqual(denom,order_plan.total_cost)
+            self.assertEqual(gap,0.)
+        denom,total,gap=measure_p2g_complete_quality(scene,native,"centralized_retry")
+        self.assertEqual(denom,global_plan.total_cost)
+        self.assertGreater(gap,0.)
 
 
 if __name__=="__main__":
