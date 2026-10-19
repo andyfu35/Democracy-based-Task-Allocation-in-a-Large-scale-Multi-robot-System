@@ -105,7 +105,7 @@ def validate_p2g_config(args):
 
 
 def case_keys(losses, first_seed, seeds):
-    """Deterministic append-only source order for exactly two NEW native arms."""
+    """Deterministic append-only source order for exactly three NEW native arms."""
     return tuple(
         (loss,seed,mode) for loss in losses
         for seed in range(first_seed,first_seed+seeds)
@@ -367,7 +367,7 @@ def run_one_p2g_case(scene, profile, p_loss, mode, source_sha):
 
 
 def validate_p2g_grid(rows,losses,first_seed,seeds):
-    """Exactly two arms per scene and native SEND and failed-cost invariants."""
+    """Three new paired arms, each with its declared offline Greedy baseline."""
     expected=case_keys(losses,first_seed,seeds)
     observed=tuple((int(r["loss_percent"]),int(r["seed"]),r["mode"]) for r in rows)
     if expected!=observed:
@@ -376,15 +376,14 @@ def validate_p2g_grid(rows,losses,first_seed,seeds):
     by_key={(int(r["loss_percent"]),int(r["seed"]),r["mode"]):r for r in rows}
     for loss in losses:
         for seed in range(first_seed,first_seed+seeds):
-            a=by_key[(loss,seed,"sequential_once")]
-            b=by_key[(loss,seed,"centralized_retry")]
-            if (a["scene_sha256"]!=b["scene_sha256"] or
-                    float(a["full_info_reference_cost_m"])!=
-                    float(b["full_info_reference_cost_m"])
-                    if a["mode"]=="centralized_retry" else
-                    a["scene_sha256"]!=b["scene_sha256"]):
+            values=[by_key[(loss,seed,mode)] for mode in NEW_MODES]
+            f1a,f1b,repeat=values
+            if (len({r["scene_sha256"] for r in values})!=1
+                    or float(f1a["full_info_reference_cost_m"])!=
+                       float(f1b["full_info_reference_cost_m"])):
                 fail("validate_p2g_grid","contract","P2G_SCENE_NOT_PAIRED",
-                     (loss,seed,"same coordinates and cost reference"),(a,b))
+                     (loss,seed,"same geometry; two one-shot task-order references equal"),
+                     values)
     for r in rows:
         if (int(r["rounds_executed"])>ROUNDS[r["mode"]]
                 or not 0<=float(r["task_coverage"])<=1
@@ -399,7 +398,7 @@ def validate_p2g_grid(rows,losses,first_seed,seeds):
 
 
 def validate_p2g_zero_loss(rows):
-    """No-loss task-completeness gate for BOTH proposed one-pass and central retry."""
+    """No-loss full capacity-one gate for all three new native methods."""
     for r in rows:
         if int(r["loss_percent"]) != 0:
             continue
@@ -448,7 +447,7 @@ def summarize_new_p2g(rows,losses):
 def build_figure_source(new_summary,legacy,losses):
     """Join two native-source cohorts without renaming their actual algorithms."""
     verified={}
-    rename={"centralized":"centralized_one_shot","multi_round":"proposed_multi",
+    rename={"multi_round":"proposed_multi",
             "cbaa":"cbaa","cbba":"cbba"}
     for r in legacy:
         p=int(r["loss_percent"])
@@ -496,13 +495,13 @@ def write_p2g_results(args,rows,losses,config,source_sha,legacy,provenance):
         "new_native_source_sha":source_sha,"config":config,
         "new_native_cases":len(rows),"new_summary_groups":len(new),
         "new_modes":NEW_MODES,
-        "historical_method_cases_in_figures":(4*10*100 if args.formal else 0),
+        "historical_method_cases_in_figures":(3*10*100 if args.formal else 0),
         "historical_aggregate_provenance":provenance,
-        "historical_source_notice":"P2D One Shot Centralized, P2E Proposed multi, original P2 CBAA/CBBA are SHA-pinned aggregates, NOT new method executions",
+        "historical_source_notice":"Figure 2 P2E Proposed Multi-Round and original P2 CBAA/CBBA are SHA-pinned aggregates, NOT new method executions; Figure 1 central task-ordered is fresh",
         "timing_notice":"Rady latency and assumed 144Mbps, not measured field network",
-        "native_protocol_notice":"Proposed re-votes, Centralized retries missing Cost; CBAA/CBBA stay unmodified native consensus",
+        "native_protocol_notice":"Figure1 task-ID-order one-batch Vote versus task-ID-order one-shot central; Figure2 Proposed re-votes, central retries missing Cost, CBAA/CBBA native",
         "sender_bytes_definition":"actual attempted application SEND, including Cost/Vote packets lost to receivers",
-        "cost_definition":"signed percent over same-scene offline full-info minimum-pair Global Greedy, only native-complete cases",
+        "cost_definition":"Figure 1: same-scene full-info task-ID-order Greedy; Figure 2: full-info minimum-pair Global Greedy. Both success-only signed percent",
         "sha256":{p.name:sha256_file(p) for p in outputs},
     }
     (root/"manifest_p2g.json").write_text(
