@@ -3512,3 +3512,5 @@ Remaining risks: existing Figure 1 full-100-task success goes to 0 for PL>=10% b
 
 ### Commit SHA
 Presentation-only code `041f95dce48dd4edc67b65c78677454802ff921f`; canonical `4784cd841d766d92a6dfdcb988231d18cfc8136e`; runbook `174d08ff198c254afae13b3e2e27cbb07ad3855b`; regression `260c7b610d47f3b4d35af3703f2523ed36c724db`. This continuity update commit SHA is recorded in the immediately following branch Git history. All four changes are isolated on `documentation/p2g-centralized-baseline-labels`, based on original experimental source branch `experiment/p2g-two-family-voting-comparison`.
+
+P2G naming continuity close-out: initial mandatory terminology continuity commit `c873c03dc4d4e2fac99c816defccdd957aeb554a`; the final label branch and source record is GitHub `documentation/p2g-centralized-baseline-labels`. All previous audited numerical P2G raw/manifest bytes remain unchanged; local updated SVGs are derivative presentation files and not original experiment evidence.
