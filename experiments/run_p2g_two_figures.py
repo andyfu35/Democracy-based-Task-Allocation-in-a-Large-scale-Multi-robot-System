@@ -371,6 +371,22 @@ def validate_p2g_grid(rows,losses,first_seed,seeds):
                  "cost only for native complete cases",r)
 
 
+def validate_p2g_zero_loss(rows):
+    """No-loss task-completeness gate for BOTH proposed one-pass and central retry."""
+    for r in rows:
+        if int(r["loss_percent"]) != 0:
+            continue
+        if (not int(r["native_success"]) or not int(r["final_feasible"])
+                or int(r["committed_task_count"]) != 100
+                or r["cost_increase_percent"] in ("",None)):
+            fail("validate_p2g_zero_loss","contract",
+                 "P2G_ZERO_LOSS_FAILED",
+                 "100/100 one-to-one native tasks and measured cost",
+                 {"mode":r["mode"],"seed":r["seed"],
+                  "complete":r["native_success"],
+                  "committed":r["committed_task_count"]})
+
+
 def summarize_new_p2g(rows,losses):
     """All-seed sender exposure and stop, success-only quality with sample n."""
     output=[]
@@ -492,6 +508,7 @@ def run_p2g(args):
                   f"stop_ms={float(r['native_stop_ms']):.3f} "
                   f"cost_increase={r['cost_increase_percent']}",flush=True)
     validate_p2g_grid(rows,losses,args.first_seed,args.seeds)
+    validate_p2g_zero_loss(rows)
     summary=write_p2g_results(
         args,rows,losses,config,source_sha,original,provenance
     )
