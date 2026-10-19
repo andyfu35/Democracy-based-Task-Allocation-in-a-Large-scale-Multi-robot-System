@@ -119,15 +119,23 @@ class P2GStudyTests(unittest.TestCase):
             self.assertIn("B. Cost increase",svg)
             self.assertIn("C. Communication stop time",svg)
             self.assertIn("D. Attempted communication payload",svg)
-            self.assertIn(
-                "task-ordered Greedy" if family=="one_attempt"
-                else "Global Greedy", svg,
-            )
-            self.assertIn("Centralized Greedy Baseline", svg)
-            self.assertIn(
-                "one Vote batch" if family=="one_attempt"
-                else "not all centralized methods", svg,
-            )
+            if family=="one_attempt":
+                self.assertIn("task-ordered Greedy", svg)
+                self.assertIn("Centralized Greedy Baseline", svg)
+                self.assertIn("one Vote batch", svg)
+            else:
+                self.assertIn("B. Cost increase vs. global Greedy", svg)
+                for short_name in (
+                    "Proposed", "CBAA", "CBBA", "Baseline Centralized",
+                ):
+                    self.assertIn(f">{short_name}</text>", svg)
+                for obsolete_name in (
+                    "Proposed: Batch Global Greedy (multi-round)",
+                    "Native CBAA", "Native CBBA",
+                    "Centralized Greedy Baseline (missing-Cost retry)",
+                ):
+                    self.assertNotIn(obsolete_name, svg)
+                self.assertIn("not all centralized methods", svg)
             root=ET.fromstring(svg)
             self.assertTrue(root.tag.endswith("svg"))
             self.assertEqual(len(methods),2 if family=="one_attempt" else 4)
