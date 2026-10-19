@@ -405,10 +405,11 @@ def validate_p2g_zero_loss(rows):
             continue
         if (not int(r["native_success"]) or not int(r["final_feasible"])
                 or int(r["committed_task_count"]) != 100
-                or r["cost_increase_percent"] in ("",None)):
+                or r["cost_increase_percent"] in ("",None)
+                or abs(float(r["cost_increase_percent"])) > 1e-8):
             fail("validate_p2g_zero_loss","contract",
                  "P2G_ZERO_LOSS_FAILED",
-                 "100/100 one-to-one native tasks and measured cost",
+                 "100/100 one-to-one native tasks, cost equal to family's full-info Greedy",
                  {"mode":r["mode"],"seed":r["seed"],
                   "complete":r["native_success"],
                   "committed":r["committed_task_count"]})
