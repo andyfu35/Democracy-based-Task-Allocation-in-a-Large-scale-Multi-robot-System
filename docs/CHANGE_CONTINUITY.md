@@ -3559,3 +3559,24 @@ Preserved original P2G 3000-row formal source and four-method P2E/P2D baseline h
 GitHub MCP source edits and independent Figure2 SVG XML validation / PNG render succeeded. This assistant runtime cannot execute the user's Mac repo Python tests (external github DNS is unavailable), so NO P2H compileall/full unittest, 8-case Smoke, 200-case PL0 gate, 2000 new formal native results nor Figure1 native SVG is claimed completed. The user must run those sequentially; stop and share FIRST traceback if any. Only after all native cases pass and the raw per_seed_p2h.csv / summary_p2h.csv / run_config_p2h.json / manifest_p2h.json / figure1_interactive_sequential.svg / formal.log ZIP are provided should the new Figure1 be promoted. Existing Figure2 is not rerun, only its cosmetic text is removed. This continuity update commit SHA appears in the immediate branch history; next task is local testing, not a silent program fallback.
 
 P2H continuity close-out SHA: The preceding mandatory P2H full continuity commit is 6d490de712362f986fc2648999ad7ca7054118dc. The subsequent branch source SHA is authoritative for local runs; the user should save git rev-parse HEAD in all new P2H manifest/source rows. This metadata-only follow-up does not alter real Voting, Centralized per-task messages, sender accounting, test data, or published P2G figures.
+
+## 2026-10-20 — Promote audited P2H sequential voting as main publication direction
+
+### Purpose
+User approved superseding the old main README B figures with audited TRUE sequential P2H Figure 1 and original repeatable P2G Figure 2. New Figure 1 panel A is mean committed task coverage, not binary full completion; figure 2 is published with concise four-name legend and no bottom explanatory footer. Historical evidence is not deleted; older figures cease to be the primary illustrations.
+
+### Files and responsibility
+README.md; README.zh-TW.md; docs/figures/p2h/formal/figure1_sequential_task_completion.svg; docs/figures/p2h/formal/verified_20point_summary.csv; docs/figures/p2g/formal/figure2_repeatable_no_footer.svg; docs/P2H_FORMAL_100SEED_AUDIT.md; docs/CHANGE_CONTINUITY.md.
+No executable source changed and no owner responsibility moved. Existing owners: experiments.run_p2h_sequential_figure1.summarize_p2h_native and audit_one_pass_voting_epochs; experiments.p2g_plot.render_p2g_figure; democracy_mrta.coordination.simulate_democracy_hungarian_retirement; democracy_mrta.centralized_method.run_task_ordered_centralized_sequence.
+
+### Source evidence
+P2H original 2000 native rows, 20 summary groups, SHA-attested original experiment source a54a13d454bb07cdfa9a20aa53753f9b6f61039d, 266856 independent checks and zero failures; see new independent audit. Figure 1 specifically shows coverage; original one-shot-batch P2D/P2E charts are no longer promoted. Figure 2 preserves original P2G source-derived curves and the four short method labels.
+
+### Preserved and intentionally changed
+Preserve executable algorithms, per-seed source evidence, cost visibility, reliable Score/Commit assumption, sender SEND bytes including receiver drops, Rady trace and hypothetical 144 Mbps timing, model-native terminal differences, and archived historic data. Change only primary README narrative/assets and documentation classification. Figure 1 relative cost uses full-info task-ID Greedy; Figure 2 uses full-info global minimum-pair Greedy; do not cross-compare these as identical quality baselines.
+
+### Diagnostic contract, risks and next step
+No new runtime diagnostic. First-error owner/function/category/code/expected/actual/details and categories data/time/state/dependency/planning/safety/runtime/contract unchanged. Formal P2H audit passed but independent complete local unittest log was not included; do not misrepresent that as CI validation. High-loss P2H 100% completion depends on self-vote plus one-vote plurality plus reliable Score/Commit; not a general RF guarantee. Merge by explicit GitHub force-with-lease to main only after user authorization, with previous main saved as archive/main-before-p2h-20261020.
+
+### Commit SHA
+Publication asset commits 2ebe8304249e11c4c84da7e12545598bd7063129, 442e3356388cb6b64bb06e86fc8a7f3a62ce9f15, ac01a173a1190593d1ddae9828fd9e26d25add2d, edcfc51295b929e668ba4a50884c9b08af1899f2. README commits d9f95197c741bcc8fcf5fff612a7d50fab05b7cb and edcdd785e7c59f2f04a4fd419fc7efc092f160e5. This continuity commit's own SHA is recorded in Git history.
