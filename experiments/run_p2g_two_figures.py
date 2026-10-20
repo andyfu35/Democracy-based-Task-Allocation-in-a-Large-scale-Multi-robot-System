@@ -468,7 +468,8 @@ def build_figure_source(new_summary,legacy,losses):
         }
     fresh={(int(r["loss_percent"]),r["method"]):r for r in new_summary}
     figures={}
-    for family,methods in FAMILIES.items():
+    for family in ("one_attempt","repeatable"):
+        methods=FAMILIES[family]
         pool={**verified,**fresh}
         figures[family]=[pool[(p,method)] for p in losses for method in methods]
     return figures
