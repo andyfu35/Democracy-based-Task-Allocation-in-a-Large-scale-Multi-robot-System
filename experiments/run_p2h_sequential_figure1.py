@@ -39,7 +39,7 @@ from experiments.run_p2d_centralized import run_one_centralized_case
 OWNER="experiments.run_p2h_sequential_figure1"
 LOSSES=tuple(range(0,91,10))
 MODES=("task_ordered_vote_sequential_once","centralized_task_ordered_sequential_once")
-PHASES=("task_announcement","cost","vote","vote_score_announcement","commit")
+PHASES=("task","cost","vote","score","commit")
 RAW_FIELDS=(
     "loss_percent","seed","mode","source_sha","scene_sha256",
     "robots","tasks","capacity","native_success","final_feasible",
@@ -231,10 +231,10 @@ def audit_native_sender_phases(native,pairs,scene):
         fail("audit_native_sender_phases","contract","P2H_SENDER_BYTES_MISMATCH",
              expected,actual)
     if (gets("cost","sends")!=scene.num_robots
-            or gets("task_announcement","sends")!=3
+            or gets("task","sends")!=3
             or gets("commit","sends")!=len(pairs)
             or gets("vote","sends")!=int(native["vote_sender_frames"])
-            or gets("vote_score_announcement","sends")!=
+            or gets("score","sends")!=
                int(native["vote_score_send_count"])):
         fail("audit_native_sender_phases","contract","P2H_NOT_ONE_COST_AND_VOTE_PER_TASK",
              "one Cost send/robot, one task broadcast; per-task Vote/Score/Commit",
