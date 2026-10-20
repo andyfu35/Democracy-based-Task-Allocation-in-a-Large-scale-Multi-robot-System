@@ -9,10 +9,13 @@ from democracy_mrta.diagnostics import Diagnostic, ProtocolError
 OWNER = "experiments.p2g_plot"
 FAMILIES = {
     "one_attempt": ("task_ordered_vote_once", "centralized_task_ordered_once"),
+    "interactive": ("task_ordered_vote_sequential_once", "centralized_task_ordered_sequential_once"),
     "repeatable": ("proposed_multi", "cbaa", "cbba", "centralized_retry"),
 }
 NAMES = {
     "task_ordered_vote_once": "Proposed: Task-ordered Greedy (one Vote batch)",
+    "task_ordered_vote_sequential_once": "Proposed",
+    "centralized_task_ordered_sequential_once": "Baseline Centralized",
     "centralized_task_ordered_once": "Centralized Greedy Baseline (one-shot task order)",
     "proposed_multi": "Proposed",
     "cbaa": "CBAA",
@@ -21,6 +24,8 @@ NAMES = {
 }
 COLORS = {
     "task_ordered_vote_once": "#187BB8",
+    "task_ordered_vote_sequential_once": "#187BB8",
+    "centralized_task_ordered_sequential_once": "#D27B2B",
     "centralized_task_ordered_once": "#D27B2B",
     "proposed_multi": "#187BB8",
     "cbaa": "#CE771D",
@@ -150,17 +155,21 @@ def _p2g_panel(rows, losses, methods, field, heading, caption, positive, referen
 
 
 def render_p2g_figure(rows, losses, family) -> str:
-    """Produce one 1800x1240 large four-panel research figure."""
+    """Produce a 1800x1120 four-panel chart without bottom footnotes."""
     validate_p2g_plot_source(rows,losses,family)
     methods=FAMILIES[family]
-    title=("P2G Figure 1 · One-batch task-ordered Voting vs Greedy baseline"
+    title=("Figure 1 · Sequential Task Allocation"
+           if family=="interactive" else
+           "P2G Figure 1 · One-batch task-ordered Voting vs Greedy baseline"
            if family=="one_attempt" else
            "Figure 2 · Repeatable Task Allocation")
-    subtitle=("Task order T0..T99 is planned before one Vote batch; central Greedy baseline receives Cost once"
+    subtitle=("Vote / Commit / retire, one task at a time; central baseline confirms assignments sequentially"
+              if family=="interactive" else
+              "Task order T0..T99 is planned before one Vote batch; central Greedy baseline receives Cost once"
               if family=="one_attempt" else
               "Comparison under packet loss · 100 robots × 100 tasks · 100 seeds")
     xml=[
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1240" role="img" aria-label="'+escape(title)+'">',
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1120" role="img" aria-label="'+escape(title)+'">',
         '<rect width="1800" height="1240" fill="white"/>',
         f'<text x="38" y="46" font-size="30" font-weight="bold" fill="#132B42">{escape(title)}</text>',
         f'<text x="38" y="78" font-size="17" fill="#526174">{escape(subtitle)}</text>',
@@ -175,20 +184,11 @@ def render_p2g_figure(rows, losses, family) -> str:
     for i,(field,heading,caption,positive,reference) in enumerate(PANEL_SPECS):
         xx=34+(i%2)*884
         yy=offset+(i//2)*488
-        if field=="cost_increase_percent" and family=="one_attempt":
+        if field=="cost_increase_percent" and family in ("one_attempt","interactive"):
             heading="B. Cost increase vs. task-ordered Greedy"
             caption="Successful complete trials only · same full-info T0,T1,... baseline"
         xml.extend(_p2g_panel(
             rows,losses,methods,field,heading,caption,positive,reference,xx,yy
         ))
-    xml.extend([
-        '<text x="46" y="1146" font-size="16" fill="#314A64">Cost line points exist only for fully successful, one-to-one feasible seeds; a missing point means n=0, never zero cost.</text>',
-        '<text x="46" y="1176" font-size="16" fill="#314A64">Bytes include attempted sender application SENDs even if lost; all-seed stop times include incomplete or guard-stopped runs.</text>',
-        '<text x="46" y="1206" font-size="16" fill="#314A64">'
-        + ('Task-order full-info baseline; one Vote batch vs one Cost phase. '
-           if family=="one_attempt" else
-           'Centralized = specified Cost-retry Greedy baseline, not all centralized methods; CBAA/CBBA native. ')
-        + 'Rady + assumed 144Mbps model.</text>',
-        '</svg>',
-    ])
+    xml.append("</svg>")
     return "\n".join(xml)+"\n"
