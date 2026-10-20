@@ -13,7 +13,7 @@
 | 類別 | 主要研究問題 | 已接受的實驗證據 |
 |---|---|---|
 | **[A. 正確性](#a-任務分配正確性與分散式共識)** | 去中心化協調能否維持受控的最佳化結果？共識需要多少通訊？ | 完整資訊的 Hungarian 驗證、軌跡抽樣的共識成本 |
-| **[B. 掉包率](#b-封包遺失韌性與通訊流量)** | 單輪／多輪方法如何隨掉包率改變完成率、通訊量、模擬時間與成本？ | P2D／P2E 兩張四面板曲線，0%～90%，100 Seeds |
+| **[B. 掉包率](#b-封包遺失韌性與通訊流量)** | 單輪／多輪方法如何隨掉包率改變完成率、通訊量、模擬時間與成本？ | **P2H 已完成逐任務圖一＋P2G 已完成多輪圖二**；0%～90%，100 Seeds |
 | **[C. 時間](#c-協調時間與-deadline-設計)** | 等待、截止時間與共享無線模型各占多少延遲？ | 30% 掉包下的 Deadline 測試及獨立零掉包控制 |
 | **[D. 演算法](#d-演算法比較與多任務容量)** | 在相同容量與幾何條件下，原生演算法如何取捨？ | 單任務五方法歷史實驗、獨立容量四的多任務比較 |
 
@@ -44,43 +44,56 @@
 
 先前一次性掉包 Hungarian Voting 探索未達完整逐票接受條件，已歸檔，**不是**上述兩項已完成主張的待補驗證。詳見[歷史索引](docs/EXPERIMENT_LEGACY_INDEX.md)。
 
-## B. 封包遺失韌性與通訊流量
+## B. 封包遺失韌性與通訊流量：兩次正式實驗均已完成（2026-10-19～20）
 
-**最新正式主要比較（2026-10-15）：P2D／P2E，100 Seeds。** 固定 **100 Robots、100 Tasks、每台容量 1**，掉包率為 0%～90%（每 10% 一點），各方法使用相同的 **100 個配對 Seeds**。研究分成兩張四面板曲線圖：「單輪決策」比較 **Proposed (Single-Round)** 與 **Centralized (One-Shot)**；「多輪協調」比較 **Proposed (Multi-Round)**、**CBAA**、**CBBA**，並以 Centralized 作單輪參考。合計 **5,000 個獨立方法 × 掉包率 × Seed 案例**：P2E 新執行的 Proposed 2,000 筆、P2D 新執行 Centralized 1,000 筆，以及沿用原始驗證的 CBAA／CBBA 2,000 筆。P2D 另含 1,000 筆歷史 Proposed，與 P2E Multi-Round 配對原生結果一致，**不重複計算**。P2D／P2E 獨立稽核為 **73,463 項檢查、0 錯誤**。
+本次正式主圖已由使用者完成並提供**原始 ZIP、逐 Seed CSV、統計資料、圖檔與 Manifest**，並經獨立查核。兩張圖都使用 **100 Robots／100 Tasks／單台容量 1／0%～90% 掉包率（每 10% 一點）／100 個配對 Seeds（0～99）**，但**通訊決策規則與成本基準不同**，不能把兩張圖的成本上升百分比當作相同分母。更早的 P2D／P2E 單輪圖與 P2G「整批一次 Vote」舊版圖一仍在 [Canonical 與歷史資料](docs/EXPERIMENT_PROTOCOL.md) 封存，**不是本次最終圖一**。
 
-### 圖一：單輪決策比較
+### 圖一：真正逐任務 Voting vs Baseline Centralized（P2H）
 
-![圖一：Proposed Single-Round 與 Centralized One-Shot 的無衝突任務覆蓋率、通訊量、時間與成本上升率](docs/figures/p2de/formal/figure1_one_shot_curve.svg)
+![圖一：真正逐任務投票與集中式任務順序 Greedy 基準；A 為平均任務完成率](docs/figures/p2hi/formal/figure1_task_completion.svg)
 
-**Proposed (Single-Round)** 最多只有一個原生決策 Epoch；**Centralized (One-Shot)** 則由遠端機器人各自單次 Unicast Cost 給協調者，接著單次分配，**不重傳 Cost**。在 0% 掉包，兩方法都 **100/100** 完整成功；在 10% 掉包，雖然嚴格的完整成功次數僅 **1/100** 與 **0/100**，實際**平均最終無衝突任務覆蓋率**仍有 **96.36%** 與 **90.29%**。到 90% 掉包時，Proposed 單輪仍達 **62.11%**，Centralized 為 **10.54%**。未全部完成的 Seed 會計入部分分配進展，不會被誤認為完全成功。這裡的單輪指「決策次數限制」，**不是兩種協定具有相同封包數或相同終止保證**。
+**真實執行流程：** Proposed 按 **T0 投票 → Score → Commit → 移除已分配機器人 → T1 重新投票** 的順序持續到 T99。Cost 最初僅實際發送一次；每個任務最多投一次，**不是先做完 100 個任務的整批 Vote**。**Baseline Centralized** 則是指定的「集中式 Task-Ordered Greedy 基準」：先接收各機器人單次傳送的 Cost，再依任務順序**逐項發送付費 Assignment、收到執行者 Commit 後才決定下一項**；它**不代表所有集中式演算法**。
 
-### 圖二：多輪協調比較（含集中式參考線）
+**A 圖是「平均任務完成率」，不是「100 個任務全部完成的 Seed 比例」。** 定義為 `100 × mean_task_coverage = 100 ×（全部 Seeds 成功 Commit 任務總數）／（100 任務 × 100 Seeds）`。某個 Seed 即使只完成 50 項任務，也應貢獻 50%，而不是 0%。B 是**只針對完整成功 Seeds** 計算、相對同 Seed「完整資訊 Task-Ordered Greedy」的成本差異；若沒有完整成功案例則**留空不填 0**。C 為包含失敗案例的所有 Seeds **模擬原生停止時間**，D 是**所有實際嘗試發送**的應用層 Bytes（包含接收端掉包），以十進位 kB 統計。
 
-![圖二：Proposed Multi-Round、CBAA、CBBA 與 Centralized 單輪參考線](docs/figures/p2de/formal/figure2_iterative_curve.svg)
-
-Proposed Multi-Round 最多可進行 300 個原生分配決策 Epoch，**不是重傳原始 Cost 或 Vote 封包**。CBAA／CBBA 保持原生共識與停止機制（Guard 160）；Centralized 只作**單輪參考線**，不是多輪共識方法。所有曲線只連接真實的 10 個掉包率測試點，**沒有平滑補值或偏移結果**。CBBA 在 PL80／PL90 仍分別有 **95.16%／71.90%** 的最終無衝突觀測配對，雖然其原生完整完成率為 0/100；這些只是觀測到的提案，**並非已支付 Commit 或完成共識的證明**。
-
-| 90% 掉包率 · 100 Seeds | Proposed 單輪 | **Proposed 多輪** | CBAA | CBBA | Centralized 單輪 |
+| 掉包率 | Proposed 平均任務完成率 | Baseline Centralized 平均任務完成率 | Proposed 成本上升¹ | Proposed／Centralized 模擬停止 (s) | Proposed／Centralized 發送量 (kB) |
 |---|---:|---:|---:|---:|---:|
-| **最終無衝突任務覆蓋率** | 62.11% | **100.00%** | 100.00% | 71.90%¹ | 10.54% |
-| **原生完整成功（嚴格條件）** | 0/100 | **100/100** | 100/100 | 0/100 | 0/100 |
-| **嘗試發送量（十進位 kB）** | 99.42 | **105.67** | 14,135.60 | 56,343.95 | 84.43 |
-| **模擬原生停止時間（s），含失敗** | 2.05 | **4.49** | 71.38 | 112.53 | 0.88 |
-| **相對完整資訊 Global Greedy 成本上升率** | — | **+5.04%** | 0.00% | — | — |
+| 0% | **100.00%** | 100.00% | 0.00% | 16.47／**7.48** | 249.25／**89.23** |
+| 30% | **100.00%** | 70.33% | +0.85% | 20.13／5.38 | 255.50／87.69 |
+| 50% | **100.00%** | 50.06% | +4.77% | 21.47／4.01 | 257.64／86.64 |
+| 90% | **100.00%** | 10.54% | +79.26% | 27.50／1.37 | 254.23／84.58 |
 
-¹ CBBA 這個比例來自最終外部觀測的**無衝突提案**，不是已完成 Commit 的任務數。對互相衝突的任務，不臆測或指定勝者，全部排除。
+¹ 成本僅採計 **100 任務完整分配**的 Seeds。Baseline Centralized 在 10%～90% 掉包下 **沒有完整成功的 Seeds**，因此成本上升**沒有定義**，絕不可誤填 0%。嚴格的「每 Seed 是否 100/100 全部完成」仍保留在 CSV 的 `completion_rate_percent`／`native_complete`，但**不再用於圖一 A**。
 
-在**本次模型與原生 Guard 設定**下，CBAA 在 90% 掉包仍有 **100/100** 完整成功；CBBA 在 80% 與 90% 均為 **0/100**。這是實驗觀察，**不是兩演算法普遍的掉包理論極限**。PL90 時 Proposed Multi-Round 與 CBAA 都完全成功，但 Proposed 的應用層發送負載約少 **134 倍**、模擬原生停止時間約短 **15.9 倍**；分配成本則較完整資訊 Global Greedy 約高 **5.04%**。Centralized 在掉包後更早停止，是因為**尚未完成分配就停止**，不能宣稱其成功完成速度更快。
+**研究解讀與限制：**在目前的通訊規則中，即使 90% Cost／Vote 掉包，Proposed 仍在 100 Seeds 中全部完成 100 項任務；這明顯依賴**本地自投票、至少一張票即可成立的相對多數決，以及模型假設可靠的 Score／Commit**，並非一般無線系統「90% 掉包仍能正常完成」的證明。0% 掉包時逐任務 Proposed **比這個集中式基準耗費更多時間與 Bytes**；90% 掉包時雖然全部完成，但分配成本比完整資訊 Task-Ordered Greedy **高 79.26%**。集中式掉包率高時較早停止，是因為僅分配少數任務就結束，**不能宣稱它成功分配全部任務更快**。
 
-**四個子圖的共同統計：**(a) 100 Seeds 平均最終無衝突任務覆蓋率、(b) **實際嘗試發送**的應用層負載（kB = 1,000 B，包含遭接收端丟棄的 SEND）、(c) 100 Seeds 平均**模擬原生停止時間**（包含失敗／Guard 案例）、(d) **成功 Seeds** 的分配成本上升率。成本針對每個成功 Seed 計算 `100 ×（該方法的總歐氏分配成本／同一 Seed 完整資訊 Global Greedy 總成本 − 1）`，再取成功 Seed 平均。黑色水平虛線固定在 **0%**，所有方法都使用**相同的完整資訊 Global Greedy**，**不是各方法自己的 0% 掉包成本，也不是 Hungarian 最佳解**。負值是可能的，因 Greedy 並非全域最優解。若該方法沒有完整成功案例，成本**留空，絕不補零**；Proposed 單輪在 10% 的成本只含 **n=1**。
+**正式證據：**[圖一 20 組完整來源統計](docs/figures/p2hi/formal/figure1_verified_summary.csv) · [P2H §58 Canonical](docs/EXPERIMENT_PROTOCOL.md) · [P2H 原生可重現指令](docs/P2H_INTERACTIVE_FIGURE1.md) · [兩次完成實驗及通訊模型技術紀錄](docs/COMMUNICATION_MODEL_AND_P2HI_RESULTS_20261020.md)。P2H **2,000 筆新原生案例／20 組統計**；原始執行程式 SHA `a54a13d454bb07cdfa9a20aa53753f9b6f61039d`；原始 ZIP SHA256 `171508bd596060352c7d8a7493c2724e293225b17c9a7af2390713770490373f`。本頁圖一是由已驗證原始摘要重新產生的**衍生圖**，並未覆蓋原始 CSV／Manifest。
 
-**覆蓋率與全部完成的區別：**每個 Seed 讀取原生最後的 Robot–Task 配對快照，只計算該 Robot 與 Task 都恰好出現一次的配對，除以 100 個任務，再對全部 100 Seeds 平均。若 CBBA 多台機器人競爭同一任務，**所有衝突提案都排除**，不擅自決定勝者；PL80／PL90 每 Seed 平均排除 **4.73／28.05** 個衝突配對。Proposed／Centralized 是有支付原生 Commit 的分配；CBAA／CBBA 是尚未等價支付 Commit 的最終外部觀測快照。因此**無衝突覆蓋率是部分分配進展，不是全域共識證明**；嚴格的全部完成率仍保留在表格。
+### 圖二：多輪決策與指定集中式 Greedy 基準（P2G）
 
-**研究限制：**模型時間結合 Rady 應用層延遲與假設的共享 144 Mbps 無線速率，**不是實際 Wi-Fi MAC／PHY 量測**。掉包假設作用於 Cost／Vote 接收端；TASK／Score／Commit 在模型中可靠。CBAA／CBBA 原生停止證明與 Proposed 已支付的 Commit 不同，因此曲線可描述特定實驗條件下的速度／通訊量／成功率取捨，不能主張完全相同的分散式終止保證。
+![圖二：Proposed、CBAA、CBBA、Baseline Centralized 四方法多輪比較](docs/figures/p2hi/formal/figure2_repeatable.svg)
 
-**繪圖原始彙總與來源：**[50 組曲線資料與成功樣本數](docs/figures/p2de/formal/verified_50point_summary.csv) · [原始 ZIP SHA256、成本公式及方法限制](docs/figures/p2de/formal/README.md) · [P2D／P2E Canonical](docs/EXPERIMENT_PROTOCOL.md)。舊 [P2-C 四方法 Price Auction 比較圖](docs/figures/p2c/formal/p2c_packet_loss_four_panel.svg) 與[來源驗證報告](docs/P2C_FORMAL_100SEED.md)保留作歷史查證，不再作為最新 README 主圖。
+方法只用四個簡短圖例：**Proposed、CBAA、CBBA、Baseline Centralized**。Proposed 是原生**多輪 Global minimum-pair Greedy**，對未完成任務重新產生 Vote／Score／Commit，**不是重傳最初掉包的 Cost**；CBAA／CBBA 都保留**各自的原生 Auction／Consensus 最佳化**，並沒有偷偷改成 Global Greedy。這裡的 **Baseline Centralized** 特指「**未收到 Cost 可以重傳（最多 300 個 Cost 回合）的集中式 Global Greedy 基準**」，完成 Cost 蒐集後執行一次 Greedy 並付費 Assignment／Commit；**不是所有集中式 MRTA 方法的代表**。
+
+**圖二 A 的定義與圖一不同：**圖二 A 是嚴格的「100 個任務全部成功的 Seed 比例」，不是平均部分完成率。B 是完整成功 Seeds 相對**完整資訊 Global minimum-pair Greedy** 的成本差異（也與圖一的 Task-Ordered Greedy 分母不同）；C／D 一樣是所有 Seeds 的模擬原生停止時間與實際嘗試發送量。
+
+| 90% 掉包率，100 Seeds | Proposed | CBAA | CBBA | Baseline Centralized |
+|---|---:|---:|---:|---:|
+| 完整任務分配成功次數 | **100/100** | 100/100 | 0/100 | 100/100 |
+| 成本上升（相對 Global Greedy，僅完整成功） | **+5.04%** | 0.00% | — | 0.00% |
+| 模擬原生停止時間，包含失敗 (s) | **4.49** | 71.38 | 112.53 | 32.40 |
+| 嘗試發送應用層負載 (kB) | **105.67** | 14,135.60 | 56,343.95 | 828.93 |
+
+90% 掉包下，Proposed 與這個「Cost 可重傳的集中式基準」皆有 100/100 原生完整成功，但 Proposed 的**模擬停止時間約短 7.21 倍、應用層發送量約少 7.84 倍**，代價是分配成本比完整資訊 Global Greedy 高 5.04%。CBBA 雖然完整成功次數為 0/100，但仍保有 **71.90% 的最終無衝突外部觀測提案覆蓋率**；這**不是**有支付可靠 Commit 的完成證明。CBAA／CBBA 原生停止條件與 Proposed／集中式的付費 Commit 保證**不能視為完全相同**，因此不能聲稱 Proposed 在所有網路與所有集中式演算法下都更好。
+
+**正式證據：**[圖二 40 組完整來源統計](docs/figures/p2hi/formal/figure2_verified_summary.csv) · [歷史 P2E／CBAA／CBBA 原始 SHA 驗證彙總](docs/figures/p2de/formal/verified_50point_summary.csv) · [P2G §57 Canonical](docs/EXPERIMENT_PROTOCOL.md) · [兩次完成實驗及通訊模型技術紀錄](docs/COMMUNICATION_MODEL_AND_P2HI_RESULTS_20261020.md)。P2G 原始正式 ZIP 共 **3,000 筆新原生案例**，**其中 1,000 筆 Centralized Cost Retry**進入本次圖二；另外三個方法使用先前驗證的 **3,000 筆歷史原生數據**。P2G 舊圖一的另外 2,000 筆整批 One Shot 資料已封存，**沒有冒充新 P2H 逐任務圖一**。P2G 原始模擬 SHA `7cab1b5f7979b2f45104c529de7e25015b4ff7e8`；使用者原始 ZIP SHA256 `2ba3615e54e91e96cbb606446bbe61cf531e9f23f9552e6a957a635d240fce2c`。
+
+**兩次實驗共同的通訊限制：**延遲採 Rady et al. (2024) 真實工業環境 **ROS 控制封包延遲樣本**，再搭配我們**自行假設 144 Mbps 的共享媒介、排隊／Backoff／ACK 模型**及額外獨立的 Bernoulli Cost／Vote 接收端掉包。TASK、Score、Commit 假設可靠但仍支付發送成本。原始 Rady 實驗**不是** 100 台機器人同時競爭通道；我們也**沒有執行 ns-3，沒有完整碰撞、OFDMA 排程、實際 ARQ 或空間無線衰退模擬**。[完整模型、數學公式、參數與文獻適用範圍](docs/COMMUNICATION_MODEL_AND_P2HI_RESULTS_20261020.md)。
 
 ## C. 協調時間與 Deadline 設計
+
+**目前 P2H／P2G 正式比較使用的通訊模型：**延遲依據 [Rady et al. (2024)](https://doi.org/10.1016/j.adhoc.2024.103418) 真實工業環境 ROS 封包量測，固定選取**中距離 LoS（約 60 m）、6 GHz／160 MHz、穩態 120～181 秒**共 **121 個樣本**（平均 **33.593687 ms**、P95 **64.149866 ms**、P99 **159.419021 ms**、最大 **531.535123 ms**）。`democracy_mrta/network.py` 按 Seed／封包鍵決定性抽樣，然後疊加**自行假設**的 144 Mbps、單一共享媒介／兩跳 AP、Airtime／Backoff／ACK 排隊服務與獨立人工掉包。約 **609.113 ms** 的初次 Cost Guard 與自適應 Vote Deadline 都是**這個代理模型裡自行推定**，不是 Rady 論文測到的 100 台機器人 Wi-Fi Deadline。這**不是 ns-3，也不是 100 台實體機器人的實測**。[逐函數、完整公式與六篇文獻的實際角色](docs/COMMUNICATION_MODEL_AND_P2HI_RESULTS_20261020.md) · [BibTeX](docs/references/e9g_wifi_timing.bib)。
+
 
 **歷史方法注意事項：**本節 E9G／E9I Deadline 圖使用早期序列式 Voting（或各控制組明示的舊協定），**不是**現在 P2-B／P2-C 的批次 Greedy Voting。因此其機器人數量／時間曲線，不能宣稱為當前批次協定的規模延遲。要更新此圖，需要以相同 E9I 規模和 Seeds **只重跑新的 Voting**，而不須重跑未改變的原生 Baseline。
 
