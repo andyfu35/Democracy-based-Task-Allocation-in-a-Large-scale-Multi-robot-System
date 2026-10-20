@@ -156,7 +156,7 @@ With 100 robots, zero application-layer loss, and a **fixed 609.113 ms task wait
 
 Total route length and longest route duration are **different** objectives; physical route makespan is not allocation time. This capacity-four cohort is deliberately **not** a point on the capacity-one plot. [Source-verified multi-task report](docs/E9M_CORRECTED_ORIGINAL_ZIP_AUDIT_100SEED.md).
 
-## Remaining acceptance work — P1 completed; next tests conditional
+## Remaining acceptance work — main A/B evidence accepted; next tests conditional
 
 The previously identified **first-priority five-original-method fairness-of-external-measurement study is now COMPLETE and source-verified**. We will not automatically rerun historical pilots or open new optimization baselines. [Bounded closure plan](docs/RESEARCH_CLOSURE_PLAN.md).
 
