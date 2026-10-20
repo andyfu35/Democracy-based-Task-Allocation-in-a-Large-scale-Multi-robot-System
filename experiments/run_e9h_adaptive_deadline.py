@@ -302,7 +302,7 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
                                 arm, schedules, oracle_total_cost,
                                 guarded_cost_ms=None, p_vote_loss=None,
                                 external_observer=None, voting_strategy="greedy_task",
-                                batch_vote_scope="all"):
+                                batch_vote_scope="all", capture_task_epoch_ids=False):
     """Original TASK, local cost, physical ballots, Score and Commit only.
 
     Opt-in p_vote_loss separates Vote drop from Cost p_loss; the original
@@ -500,6 +500,9 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
             task_events=task_trace.events, result=result,
         ),
         "voting_strategy":voting_strategy,
+        **({"voted_task_ids":tuple(epoch.voted_task_id for epoch in result.rounds),
+            "newly_committed_by_epoch":tuple(epoch.newly_committed_pairs for epoch in result.rounds)}
+           if capture_task_epoch_ids else {}),
         "task_announcement_sender_frames":len(task_trace.events),
         "cost_sender_frames":sum(e.phase=="cost" for epoch in result.rounds for e in epoch.coordination.events),
         "vote_sender_frames":sum(e.phase=="vote" for epoch in result.rounds for e in epoch.coordination.events),
