@@ -370,10 +370,15 @@ def simulate_one_shot_centralized(
     coordinator_id: int = 0,
     max_cost_rounds: int = 1,
     planning_rule: str = "global",
+    assignment_scope: str = "batch",
 ) -> CentralizedResult:
-    """TASK once -> opt-in Cost repeat -> selected Greedy -> one Commit run."""
+    """TASK once -> Cost once/retry -> batch or true per-task paid Commit."""
     validate_centralized_retry_limit(max_cost_rounds=max_cost_rounds)
     validate_centralized_planning_rule(planning_rule=planning_rule)
+    validate_centralized_assignment_scope(
+        assignment_scope=assignment_scope,planning_rule=planning_rule,
+        max_cost_rounds=max_cost_rounds,
+    )
     robots = validate_centralized_configuration(
         cost_matrix=cost_matrix, task_positions=task_positions,
         coordinator_id=coordinator_id, p_loss=p_loss,
@@ -401,19 +406,32 @@ def simulate_one_shot_centralized(
         max_cost_rounds=max_cost_rounds,
     )
     after_cost = sampler.summarize_network()
-    pairs = plan_from_received_cost_rows(
-        receipt=receipt, planning_rule=planning_rule,
-    )
-    decision = publish_centralized_assignment(
-        pairs=pairs, coordinator_id=coordinator_id,
-        release_ms=receipt.cost_phase_end_ms, sampler=sampler,
-    )
-    commits = emit_centralized_commits(
-        pairs=pairs, release_ms=decision.arrival_time_ms, sampler=sampler,
-    )
-    stop_ms = max(decision.arrival_time_ms,
-                  max((e.arrival_time_ms for e in commits), default=0.0))
-    all_events = (*task.events, *receipt.cost_events, decision, *commits)
+    if assignment_scope=="task_sequence":
+        pairs,decisions,commits=run_task_ordered_centralized_sequence(
+            receipt=receipt,coordinator_id=coordinator_id,
+            num_tasks=robots,sampler=sampler,
+        )
+        stop_ms=max(receipt.cost_phase_end_ms,
+                    max((e.arrival_time_ms for e in commits),default=0.0))
+        assignment_ms=sum(e.arrival_time_ms-e.send_time_ms for e in decisions)
+        commit_ms=sum(e.arrival_time_ms-e.send_time_ms for e in commits)
+    else:
+        pairs=plan_from_received_cost_rows(
+            receipt=receipt,planning_rule=planning_rule,
+        )
+        decision=publish_centralized_assignment(
+            pairs=pairs,coordinator_id=coordinator_id,
+            release_ms=receipt.cost_phase_end_ms,sampler=sampler,
+        )
+        decisions=(decision,)
+        commits=emit_centralized_commits(
+            pairs=pairs,release_ms=decision.arrival_time_ms,sampler=sampler,
+        )
+        stop_ms=max(decision.arrival_time_ms,
+                    max((e.arrival_time_ms for e in commits),default=0.0))
+        assignment_ms=decision.arrival_time_ms-receipt.cost_phase_end_ms
+        commit_ms=stop_ms-decision.arrival_time_ms
+    all_events=(*task.events,*receipt.cost_events,*decisions,*commits)
     physical = sampler.summarize_network()
     expected_sends = len(all_events)
     expected_bytes = sum(e.payload_bytes for e in all_events)
@@ -428,14 +446,16 @@ def simulate_one_shot_centralized(
     cost_drops = sum(not o.delivered for o in receipt.cost_deliveries)
     # Physical application SENDs, including dropped Cost, are all charged.
     total_attempts = len(task.events) * robots + len(receipt.cost_events) + (
-        1 + len(commits)) * (robots - 1)
+        len(decisions) + len(commits)) * (robots - 1)
     complete = len(pairs) == robots
     return CentralizedResult(
         assignment=pairs, received_robot_ids=receipt.received_robot_ids,
         native_success=complete, task_coverage=len(pairs) / robots,
         native_stop_ms=stop_ms,
         stop_reason=(
-            ("one_shot_full_commit" if complete else "one_shot_incomplete")
+            ("task_sequence_full_commit" if complete else "task_sequence_incomplete")
+            if assignment_scope=="task_sequence"
+            else ("one_shot_full_commit" if complete else "one_shot_incomplete")
             if max_cost_rounds == 1
             else ("retry_full_commit" if complete else "retry_limit_incomplete")
         ),
@@ -444,28 +464,30 @@ def simulate_one_shot_centralized(
         cost_sender_sends=len(receipt.cost_events),
         cost_sender_bytes=sum(e.payload_bytes for e in receipt.cost_events),
         cost_receiver_drops=cost_drops,
-        decision_sender_sends=1, commit_sender_sends=len(commits),
+        decision_sender_sends=len(decisions), commit_sender_sends=len(commits),
         cost_airtime_ms=(float(after_cost["total_airtime_ms"]) -
                          float(before_cost["total_airtime_ms"])),
         event_ledger={
             "task_sender_frames":len(task.events),
             "cost_sender_frames":len(receipt.cost_events),
-            "assignment_sender_frames":1,
+            "assignment_sender_frames":len(decisions),
             "commit_sender_frames":len(commits),
             "received_cost_rows":receipt.received_robot_ids,
             "cost_receiver_attempts":len(receipt.cost_deliveries),
             "cost_receiver_drops":cost_drops,
             **({"cost_rounds_executed":receipt.cost_rounds_executed,
-                "planning_rule":planning_rule}
-               if max_cost_rounds != 1 or planning_rule != "global" else {}),
+                "planning_rule":planning_rule,
+                "assignment_scope":assignment_scope}
+               if max_cost_rounds != 1 or planning_rule != "global" or
+               assignment_scope!="batch" else {}),
             "network":physical,
         },
         phase_times={
             "task_ms":task_ms,
             ("cost_once_ms" if max_cost_rounds == 1 else "cost_retry_ms"):
                 receipt.cost_phase_end_ms-task_ms,
-            "assignment_ms":decision.arrival_time_ms-receipt.cost_phase_end_ms,
-            "commit_ms":stop_ms-decision.arrival_time_ms,
+            "assignment_ms":assignment_ms,
+            "commit_ms":commit_ms,
             "total_ms":stop_ms,
         },
         cost_rounds_executed=receipt.cost_rounds_executed,
