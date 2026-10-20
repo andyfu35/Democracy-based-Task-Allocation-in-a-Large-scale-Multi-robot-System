@@ -125,6 +125,7 @@ def prepare_evidence(args, source_sha: str, percentages: tuple[int, ...]):
 def run_one_centralized_case(
     scene, profile, p_loss: float, max_cost_rounds: int = 1,
     planning_rule: str = "global",
+    assignment_scope: str = "batch",
 ) -> dict:
     """Read-only measurements for true original Centralized owner (opt-in retry)."""
     verify_one_scene(scene)
@@ -132,6 +133,7 @@ def run_one_centralized_case(
         cost_matrix=scene.cost_matrix,task_positions=scene.task_positions,
         profile=profile,seed=scene.seed,p_loss=p_loss,
         max_cost_rounds=max_cost_rounds, planning_rule=planning_rule,
+        assignment_scope=assignment_scope,
     )
     reference_planner=(solve_visible_task_ordered_greedy_assignment
                        if planning_rule=="task_ordered"
@@ -180,6 +182,8 @@ def run_one_centralized_case(
         "native_assignment_json":json.dumps(native.assignment,separators=(",",":")),
         "native_diagnostic":"",
         "method_contract":(
+            "task-ordered sequential centralized Greedy baseline: one Cost then individual paid Assignment/Commit per task"
+            if assignment_scope=="task_sequence" else
             "one-shot task-ID-order Greedy coordinator: one Cost attempt per sender"
             if planning_rule=="task_ordered" else
             "one-shot coordinator paid reliable assignment + executor Commit, no retry"
@@ -191,7 +195,7 @@ def run_one_centralized_case(
         "full_info_greedy_cost_m":full_greedy.total_cost,
         "cost_airtime_ms":native.cost_airtime_ms,
     }
-    if max_cost_rounds != 1 or planning_rule != "global":
+    if max_cost_rounds != 1 or planning_rule != "global" or assignment_scope!="batch":
         row["cost_rounds_executed"] = native.cost_rounds_executed
         row["cost_sender_sends"] = native.cost_sender_sends
         row["cost_sender_bytes"] = native.cost_sender_bytes
