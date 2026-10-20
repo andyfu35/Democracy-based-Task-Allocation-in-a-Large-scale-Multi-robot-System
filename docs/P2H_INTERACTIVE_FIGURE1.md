@@ -10,7 +10,7 @@ For Proposed, Cost is broadcast ONCE at the start. For task T0, each active vote
 
 For Baseline Centralized, Cost is unicasted ONCE by each of 99 remote robots to coordinator 0. Coordinator knows only timely physically received Cost and its own row; T0 chooses the cheapest remaining visible robot, broadcasts a paid per-task assignment, waits for that executor's paid Commit, retires it, then handles T1. One assignment broadcast is billed for EACH actually assigned task, unlike archived P2G one-batch Centralized. No hidden Cost and no retransmission. Its chosen Greedy baseline is not representative of every centralized MRTA.
 
-Each method uses the same 100R100T capacity-one E0 seed and paired loss rates. Figure 1 has four panels: 100/100 native full success, full-success-only cost increase relative to full-info task-order Greedy, all-seed modeled decision/stop seconds, and all-attempted sender application kB including packets dropped at receivers. The raw CSV also exposes mean task coverage so partial allocations aren't called full failures. Under zero loss, EACH method must complete 100/100 tasks with zero cost increase. Communication values are Rady-sampled + hypothetical 144Mbps shared-medium simulation, not actual WiFi RF measurements.
+Each method uses the same 100R100T capacity-one E0 seed and paired loss rates. Figure 1 has four panels: **(A) average task completion rate**, calculated as 100 × mean_task_coverage (all committed task counts divided by the 100 task opportunities per seed, averaged over all 100 Seeds); **(B)** full-success-only cost increase relative to full-info task-order Greedy; **(C)** all-seed modeled decision/stop seconds; **(D)** all-attempted sender application kB including packets dropped at receivers. The raw and summary CSV still retain the DIFFERENT strict full-100-task Seed success rate as completion_rate_percent/native_complete for separate tables; that strict metric is NOT panel A. Under zero loss, EACH method must complete 100/100 tasks with zero cost increase. Communication values are Rady-sampled + hypothetical 144Mbps shared-medium simulation, not actual WiFi RF measurements.
 
 ## Step 1 — update and run the focused + full tests
 
@@ -83,3 +83,29 @@ shasum -a 256 "$HOME/Downloads/p2h_interactive_figure1_100seed.zip"
 Upload the ZIP. An independent audit will verify task order and uniqueness, centralized per-task Commit timing, Cost/Vote sender-versus-receiver ledger, missing incomplete-case cost, paired scenes and manifest/source SHA before reporting the paper figure. Use the unchanged previously verified P2G Figure 2 (with text removed) alongside the NEW Figure 1. No data is synthesized for unrun trials.
 
 For interrupted formal runs only, resume with the same code SHA, same Rady file hash and same options plus --resume, using the SAME incomplete output directory. Never resume a completed directory that contains manifest_p2h.json; do not overwrite earlier source evidence.
+
+
+## Replot corrected Figure 1 A from EXISTING formal data — NO experiment rerun
+
+This correction is display-only. The original 2,000 P2H runs and their manifest are immutable. To reproduce the revised *task completion rate* A in a **separately named** SVG using the new plot owner, switch to branch `fix/p2h-figure1-task-completion-axis` and run this from repo root. Replace `RESULT_DIR` with the existing formal result directory that contains `summary_p2h.csv`; this does not execute any native experiment, overwrite the original `figure1_interactive_sequential.svg` or modify its manifest.
+
+```bash
+RESULT_DIR="results/p2h_interactive_figure1_100seed_YYYYMMDD_HHMMSS"
+python3 - "$RESULT_DIR" <<'PY'
+import csv
+from pathlib import Path
+import sys
+from experiments.p2g_plot import render_p2g_figure
+root=Path(sys.argv[1])
+with (root / "summary_p2h.csv").open(newline="",encoding="utf-8") as f:
+    rows=list(csv.DictReader(f))
+output=root / "figure1_task_completion_revised.svg"
+output.write_text(
+    render_p2g_figure(rows,tuple(range(0,91,10)),"interactive"),
+    encoding="utf-8",
+)
+print(output)
+PY
+```
+
+If only the uploaded ZIP is available, extract the verified `summary_p2h.csv` without touching the original ZIP. No new 100-Seed training/test/experiment is required. The corrected A must show Proposed 100% and Baseline Centralized 50.06% at PL50, and 10.54% for the baseline at PL90. Panels B/C/D and all method-specific raw measurements remain the same. Tests: run `python3 -m unittest discover -s tests -p 'test_p2h*.py' -v`, then `test_p2g*.py`.
