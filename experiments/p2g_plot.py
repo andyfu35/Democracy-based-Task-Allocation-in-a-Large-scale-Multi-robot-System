@@ -70,6 +70,25 @@ def validate_p2g_plot_source(rows, losses, family):
         if (quality_n==0) != (r["cost_increase_percent"] in ("",None)):
             fail("validate_p2g_plot_source","contract","P2G_FAKE_OR_MISSING_QUALITY",
                  "blank cost iff quality_n==0",r)
+        if family=="interactive":
+            # Figure 1 task completion counts partially completed tasks, not only
+            # full-100-task-success scenes. All source values remain unmodified.
+            try:
+                coverage=float(r["mean_task_coverage"])
+                full_success=float(r["completion_rate_percent"])
+            except (KeyError,TypeError,ValueError) as exc:
+                fail("validate_p2g_plot_source","data",
+                     "P2H_MISSING_TASK_COMPLETION_RATE",
+                     "finite mean_task_coverage in [0,1]",str(exc))
+            if not math.isfinite(coverage) or not 0.0<=coverage<=1.0:
+                fail("validate_p2g_plot_source","data",
+                     "P2H_INVALID_TASK_COMPLETION_RATE",
+                     "finite mean_task_coverage in [0,1]",coverage)
+            if not math.isfinite(full_success) or not 0.0<=full_success<=100.0 or full_success>coverage*100.0+1e-8:
+                fail("validate_p2g_plot_source","contract",
+                     "P2H_FULL_SUCCESS_EXCEEDS_TASK_COVERAGE",
+                     "0 <= strict full-scene success % <= mean task completion %",
+                     {"full_success_percent":full_success,"task_completion_percent":coverage*100.0})
         for field,_,_,positive,_ in PANEL_SPECS:
             value=r.get(field)
             if value in ("",None):
@@ -89,10 +108,13 @@ def _p2g_panel(rows, losses, methods, field, heading, caption, positive, referen
     """One diagnostic-safe SVG panel; break lines at missing successful-cost points."""
     w,h=840,463
     left=x+88; right=x+w-33; top=y+77; bottom=y+h-76
+    task_completion=(field=="mean_task_coverage")
     relevant=[float(r[field]) for r in rows if r[field] not in ("",None)]
     if reference:
-        relevant.append(100.0 if field=="completion_rate_percent" else 0.0)
-    if field=="completion_rate_percent":
+        relevant.append(1.0 if task_completion else 100.0 if field=="completion_rate_percent" else 0.0)
+    if task_completion:
+        lo,hi=0.0,1.0
+    elif field=="completion_rate_percent":
         lo,hi=0.0,105.0
     elif positive:
         lo=max(min(relevant)*0.6,0.001)
@@ -118,9 +140,10 @@ def _p2g_panel(rows, losses, methods, field, heading, caption, positive, referen
            if positive else lo+(hi-lo)*fraction)
         yy=bottom-fraction*(bottom-top)
         xml.append(f'<line x1="{left}" x2="{right}" y1="{yy:.1f}" y2="{yy:.1f}" stroke="#DFE6EF"/>')
-        xml.append(f'<text x="{left-12}" y="{yy+5:.1f}" text-anchor="end" font-size="13" fill="#536276">{v:.3g}</text>')
+        tick_label=f"{v*100:.0f}" if task_completion else f"{v:.3g}"
+        xml.append(f'<text x="{left-12}" y="{yy+5:.1f}" text-anchor="end" font-size="13" fill="#536276">{tick_label}</text>')
     if reference:
-        ref=100.0 if field=="completion_rate_percent" else 0.0
+        ref=1.0 if task_completion else 100.0 if field=="completion_rate_percent" else 0.0
         yy=py(ref)
         xml.append(f'<line x1="{left}" x2="{right}" y1="{yy:.1f}" y2="{yy:.1f}" stroke="#000" stroke-width="1.8" stroke-dasharray="8 6"/>')
     for loss in losses:
@@ -144,9 +167,11 @@ def _p2g_panel(rows, losses, methods, field, heading, caption, positive, referen
             xv=px(loss);yv=py(float(value))
             points.append(f"{xv:.2f},{yv:.2f}")
             n=int(r["quality_sample_count"])
+            point_label=(f"{float(value)*100:.2f}%" if task_completion
+                         else f"{float(value):.4f}")
             xml.append(
                 f'<circle cx="{xv:.2f}" cy="{yv:.2f}" r="4.5" fill="{color}" stroke="white" stroke-width="1">'
-                f'<title>{escape(NAMES[method])} PL{loss}: {float(value):.4f}'
+                f'<title>{escape(NAMES[method])} PL{loss}: {point_label}'
                 + (f' (cost successful n={n})' if field=="cost_increase_percent" else '') +
                 '</title></circle>'
             )
@@ -184,6 +209,10 @@ def render_p2g_figure(rows, losses, family) -> str:
     for i,(field,heading,caption,positive,reference) in enumerate(PANEL_SPECS):
         xx=34+(i%2)*884
         yy=offset+(i//2)*488
+        if family=="interactive" and field=="completion_rate_percent":
+            field="mean_task_coverage"
+            heading="A. Task completion rate"
+            caption="Average committed tasks / 100 tasks · % (all seeds)"
         if field=="cost_increase_percent" and family in ("one_attempt","interactive"):
             heading="B. Cost increase vs. task-ordered Greedy"
             caption="Successful complete trials only · same full-info T0,T1,... baseline"
