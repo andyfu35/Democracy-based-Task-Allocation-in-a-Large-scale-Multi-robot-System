@@ -1,0 +1,285 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1120" role="img" aria-label="Figure 2 · Repeatable Task Allocation">
+<rect width="1800" height="1120" fill="white"/>
+<text x="38" y="46" font-size="30" font-weight="bold" fill="#132B42">Figure 2 · Repeatable Task Allocation</text>
+<text x="38" y="78" font-size="17" fill="#526174">Comparison under packet loss · 100 robots × 100 tasks · 100 seeds</text>
+<line x1="45" y1="106" x2="75" y2="106" stroke="#187BB8" stroke-width="5"/>
+<text x="87" y="112" font-size="15">Proposed</text>
+<line x1="900" y1="106" x2="930" y2="106" stroke="#CE771D" stroke-width="5"/>
+<text x="942" y="112" font-size="15">CBAA</text>
+<line x1="45" y1="133" x2="75" y2="133" stroke="#1B9564" stroke-width="5"/>
+<text x="87" y="139" font-size="15">CBBA</text>
+<line x1="900" y1="133" x2="930" y2="133" stroke="#8C55A7" stroke-width="5"/>
+<text x="942" y="139" font-size="15">Baseline Centralized</text>
+<rect x="34" y="160" width="840" height="463" rx="14" fill="#FAFCFF" stroke="#CFDBE5"/>
+<text x="60" y="195" font-size="23" font-weight="bold" fill="#172B43">A. Full allocation success</text>
+<text x="60" y="222" font-size="15" fill="#526174">100 tasks committed / 100 tasks · %</text>
+<line x1="122" x2="841" y1="547.0" y2="547.0" stroke="#DFE6EF"/>
+<text x="110" y="552.0" text-anchor="end" font-size="13" fill="#536276">0</text>
+<line x1="122" x2="841" y1="469.5" y2="469.5" stroke="#DFE6EF"/>
+<text x="110" y="474.5" text-anchor="end" font-size="13" fill="#536276">26.3</text>
+<line x1="122" x2="841" y1="392.0" y2="392.0" stroke="#DFE6EF"/>
+<text x="110" y="397.0" text-anchor="end" font-size="13" fill="#536276">52.5</text>
+<line x1="122" x2="841" y1="314.5" y2="314.5" stroke="#DFE6EF"/>
+<text x="110" y="319.5" text-anchor="end" font-size="13" fill="#536276">78.8</text>
+<line x1="122" x2="841" y1="237.0" y2="237.0" stroke="#DFE6EF"/>
+<text x="110" y="242.0" text-anchor="end" font-size="13" fill="#536276">105</text>
+<line x1="122" x2="841" y1="251.8" y2="251.8" stroke="#000" stroke-width="1.8" stroke-dasharray="8 6"/>
+<text x="122.0" y="573" font-size="13" text-anchor="middle" fill="#526174">0%</text>
+<text x="201.9" y="573" font-size="13" text-anchor="middle" fill="#526174">10%</text>
+<text x="281.8" y="573" font-size="13" text-anchor="middle" fill="#526174">20%</text>
+<text x="361.7" y="573" font-size="13" text-anchor="middle" fill="#526174">30%</text>
+<text x="441.6" y="573" font-size="13" text-anchor="middle" fill="#526174">40%</text>
+<text x="521.4" y="573" font-size="13" text-anchor="middle" fill="#526174">50%</text>
+<text x="601.3" y="573" font-size="13" text-anchor="middle" fill="#526174">60%</text>
+<text x="681.2" y="573" font-size="13" text-anchor="middle" fill="#526174">70%</text>
+<text x="761.1" y="573" font-size="13" text-anchor="middle" fill="#526174">80%</text>
+<text x="841.0" y="573" font-size="13" text-anchor="middle" fill="#526174">90%</text>
+<text x="481.5" y="598" font-size="14" text-anchor="middle" fill="#43536A">Packet loss</text>
+<circle cx="122.00" cy="251.76" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL0: 100.0000</title></circle>
+<circle cx="201.89" cy="251.76" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL10: 100.0000</title></circle>
+<circle cx="281.78" cy="251.76" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL20: 100.0000</title></circle>
+<circle cx="361.67" cy="251.76" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL30: 100.0000</title></circle>
+<circle cx="441.56" cy="251.76" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL40: 100.0000</title></circle>
+<circle cx="521.44" cy="251.76" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL50: 100.0000</title></circle>
+<circle cx="601.33" cy="251.76" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL60: 100.0000</title></circle>
+<circle cx="681.22" cy="251.76" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL70: 100.0000</title></circle>
+<circle cx="761.11" cy="251.76" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL80: 100.0000</title></circle>
+<circle cx="841.00" cy="251.76" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL90: 100.0000</title></circle>
+<polyline points="122.00,251.76 201.89,251.76 281.78,251.76 361.67,251.76 441.56,251.76 521.44,251.76 601.33,251.76 681.22,251.76 761.11,251.76 841.00,251.76" stroke="#187BB8" stroke-width="3.4" fill="none"/>
+<circle cx="122.00" cy="251.76" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL0: 100.0000</title></circle>
+<circle cx="201.89" cy="251.76" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL10: 100.0000</title></circle>
+<circle cx="281.78" cy="251.76" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL20: 100.0000</title></circle>
+<circle cx="361.67" cy="251.76" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL30: 100.0000</title></circle>
+<circle cx="441.56" cy="251.76" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL40: 100.0000</title></circle>
+<circle cx="521.44" cy="251.76" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL50: 100.0000</title></circle>
+<circle cx="601.33" cy="251.76" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL60: 100.0000</title></circle>
+<circle cx="681.22" cy="251.76" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL70: 100.0000</title></circle>
+<circle cx="761.11" cy="251.76" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL80: 100.0000</title></circle>
+<circle cx="841.00" cy="251.76" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL90: 100.0000</title></circle>
+<polyline points="122.00,251.76 201.89,251.76 281.78,251.76 361.67,251.76 441.56,251.76 521.44,251.76 601.33,251.76 681.22,251.76 761.11,251.76 841.00,251.76" stroke="#CE771D" stroke-width="3.4" fill="none"/>
+<circle cx="122.00" cy="251.76" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL0: 100.0000</title></circle>
+<circle cx="201.89" cy="251.76" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL10: 100.0000</title></circle>
+<circle cx="281.78" cy="251.76" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL20: 100.0000</title></circle>
+<circle cx="361.67" cy="251.76" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL30: 100.0000</title></circle>
+<circle cx="441.56" cy="251.76" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL40: 100.0000</title></circle>
+<circle cx="521.44" cy="251.76" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL50: 100.0000</title></circle>
+<circle cx="601.33" cy="251.76" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL60: 100.0000</title></circle>
+<circle cx="681.22" cy="251.76" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL70: 100.0000</title></circle>
+<circle cx="761.11" cy="547.00" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL80: 0.0000</title></circle>
+<circle cx="841.00" cy="547.00" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL90: 0.0000</title></circle>
+<polyline points="122.00,251.76 201.89,251.76 281.78,251.76 361.67,251.76 441.56,251.76 521.44,251.76 601.33,251.76 681.22,251.76 761.11,547.00 841.00,547.00" stroke="#1B9564" stroke-width="3.4" fill="none"/>
+<circle cx="122.00" cy="251.76" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL0: 100.0000</title></circle>
+<circle cx="201.89" cy="251.76" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL10: 100.0000</title></circle>
+<circle cx="281.78" cy="251.76" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL20: 100.0000</title></circle>
+<circle cx="361.67" cy="251.76" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL30: 100.0000</title></circle>
+<circle cx="441.56" cy="251.76" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL40: 100.0000</title></circle>
+<circle cx="521.44" cy="251.76" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL50: 100.0000</title></circle>
+<circle cx="601.33" cy="251.76" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL60: 100.0000</title></circle>
+<circle cx="681.22" cy="251.76" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL70: 100.0000</title></circle>
+<circle cx="761.11" cy="251.76" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL80: 100.0000</title></circle>
+<circle cx="841.00" cy="251.76" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL90: 100.0000</title></circle>
+<polyline points="122.00,251.76 201.89,251.76 281.78,251.76 361.67,251.76 441.56,251.76 521.44,251.76 601.33,251.76 681.22,251.76 761.11,251.76 841.00,251.76" stroke="#8C55A7" stroke-width="3.4" fill="none"/>
+<rect x="918" y="160" width="840" height="463" rx="14" fill="#FAFCFF" stroke="#CFDBE5"/>
+<text x="944" y="195" font-size="23" font-weight="bold" fill="#172B43">B. Cost increase vs. global Greedy</text>
+<text x="944" y="222" font-size="15" fill="#526174">Successful complete trials only · signed %</text>
+<line x1="1006" x2="1725" y1="547.0" y2="547.0" stroke="#DFE6EF"/>
+<text x="994" y="552.0" text-anchor="end" font-size="13" fill="#536276">-0.983</text>
+<line x1="1006" x2="1725" y1="469.5" y2="469.5" stroke="#DFE6EF"/>
+<text x="994" y="474.5" text-anchor="end" font-size="13" fill="#536276">0.685</text>
+<line x1="1006" x2="1725" y1="392.0" y2="392.0" stroke="#DFE6EF"/>
+<text x="994" y="397.0" text-anchor="end" font-size="13" fill="#536276">2.35</text>
+<line x1="1006" x2="1725" y1="314.5" y2="314.5" stroke="#DFE6EF"/>
+<text x="994" y="319.5" text-anchor="end" font-size="13" fill="#536276">4.02</text>
+<line x1="1006" x2="1725" y1="237.0" y2="237.0" stroke="#DFE6EF"/>
+<text x="994" y="242.0" text-anchor="end" font-size="13" fill="#536276">5.69</text>
+<line x1="1006" x2="1725" y1="501.3" y2="501.3" stroke="#000" stroke-width="1.8" stroke-dasharray="8 6"/>
+<text x="1006.0" y="573" font-size="13" text-anchor="middle" fill="#526174">0%</text>
+<text x="1085.9" y="573" font-size="13" text-anchor="middle" fill="#526174">10%</text>
+<text x="1165.8" y="573" font-size="13" text-anchor="middle" fill="#526174">20%</text>
+<text x="1245.7" y="573" font-size="13" text-anchor="middle" fill="#526174">30%</text>
+<text x="1325.6" y="573" font-size="13" text-anchor="middle" fill="#526174">40%</text>
+<text x="1405.4" y="573" font-size="13" text-anchor="middle" fill="#526174">50%</text>
+<text x="1485.3" y="573" font-size="13" text-anchor="middle" fill="#526174">60%</text>
+<text x="1565.2" y="573" font-size="13" text-anchor="middle" fill="#526174">70%</text>
+<text x="1645.1" y="573" font-size="13" text-anchor="middle" fill="#526174">80%</text>
+<text x="1725.0" y="573" font-size="13" text-anchor="middle" fill="#526174">90%</text>
+<text x="1365.5" y="598" font-size="14" text-anchor="middle" fill="#43536A">Packet loss</text>
+<circle cx="1006.00" cy="501.32" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL0: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1085.89" cy="517.00" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL10: -0.3375 (cost successful n=100)</title></circle>
+<circle cx="1165.78" cy="511.18" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL20: -0.2123 (cost successful n=100)</title></circle>
+<circle cx="1245.67" cy="506.52" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL30: -0.1121 (cost successful n=100)</title></circle>
+<circle cx="1325.56" cy="509.02" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL40: -0.1657 (cost successful n=100)</title></circle>
+<circle cx="1405.44" cy="486.43" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL50: 0.3204 (cost successful n=100)</title></circle>
+<circle cx="1485.33" cy="450.76" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL60: 1.0880 (cost successful n=100)</title></circle>
+<circle cx="1565.22" cy="397.76" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL70: 2.2284 (cost successful n=100)</title></circle>
+<circle cx="1645.11" cy="324.84" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL80: 3.7976 (cost successful n=100)</title></circle>
+<circle cx="1725.00" cy="267.00" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL90: 5.0423 (cost successful n=100)</title></circle>
+<polyline points="1006.00,501.32 1085.89,517.00 1165.78,511.18 1245.67,506.52 1325.56,509.02 1405.44,486.43 1485.33,450.76 1565.22,397.76 1645.11,324.84 1725.00,267.00" stroke="#187BB8" stroke-width="3.4" fill="none"/>
+<circle cx="1006.00" cy="501.32" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL0: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1085.89" cy="501.32" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL10: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1165.78" cy="501.32" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL20: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1245.67" cy="501.32" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL30: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1325.56" cy="501.32" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL40: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1405.44" cy="501.32" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL50: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1485.33" cy="501.32" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL60: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1565.22" cy="501.32" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL70: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1645.11" cy="501.32" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL80: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1725.00" cy="501.32" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL90: 0.0000 (cost successful n=100)</title></circle>
+<polyline points="1006.00,501.32 1085.89,501.32 1165.78,501.32 1245.67,501.32 1325.56,501.32 1405.44,501.32 1485.33,501.32 1565.22,501.32 1645.11,501.32 1725.00,501.32" stroke="#CE771D" stroke-width="3.4" fill="none"/>
+<circle cx="1006.00" cy="501.32" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL0: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1085.89" cy="501.32" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL10: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1165.78" cy="501.32" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL20: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1245.67" cy="501.32" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL30: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1325.56" cy="501.32" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL40: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1405.44" cy="501.32" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL50: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1485.33" cy="501.32" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL60: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1565.22" cy="501.32" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL70: 0.0000 (cost successful n=100)</title></circle>
+<polyline points="1006.00,501.32 1085.89,501.32 1165.78,501.32 1245.67,501.32 1325.56,501.32 1405.44,501.32 1485.33,501.32 1565.22,501.32" stroke="#1B9564" stroke-width="3.4" fill="none"/>
+<circle cx="1006.00" cy="501.32" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL0: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1085.89" cy="501.32" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL10: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1165.78" cy="501.32" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL20: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1245.67" cy="501.32" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL30: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1325.56" cy="501.32" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL40: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1405.44" cy="501.32" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL50: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1485.33" cy="501.32" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL60: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1565.22" cy="501.32" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL70: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1645.11" cy="501.32" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL80: 0.0000 (cost successful n=100)</title></circle>
+<circle cx="1725.00" cy="501.32" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL90: 0.0000 (cost successful n=100)</title></circle>
+<polyline points="1006.00,501.32 1085.89,501.32 1165.78,501.32 1245.67,501.32 1325.56,501.32 1405.44,501.32 1485.33,501.32 1565.22,501.32 1645.11,501.32 1725.00,501.32" stroke="#8C55A7" stroke-width="3.4" fill="none"/>
+<rect x="34" y="648" width="840" height="463" rx="14" fill="#FAFCFF" stroke="#CFDBE5"/>
+<text x="60" y="683" font-size="23" font-weight="bold" fill="#172B43">C. Communication stop time</text>
+<text x="60" y="710" font-size="15" fill="#526174">All seeds · modeled seconds (Rady / 144Mbps)</text>
+<line x1="122" x2="841" y1="1035.0" y2="1035.0" stroke="#DFE6EF"/>
+<text x="110" y="1040.0" text-anchor="end" font-size="13" fill="#536276">0.712</text>
+<line x1="122" x2="841" y1="957.5" y2="957.5" stroke="#DFE6EF"/>
+<text x="110" y="962.5" text-anchor="end" font-size="13" fill="#536276">2.77</text>
+<line x1="122" x2="841" y1="880.0" y2="880.0" stroke="#DFE6EF"/>
+<text x="110" y="885.0" text-anchor="end" font-size="13" fill="#536276">10.8</text>
+<line x1="122" x2="841" y1="802.5" y2="802.5" stroke="#DFE6EF"/>
+<text x="110" y="807.5" text-anchor="end" font-size="13" fill="#536276">41.8</text>
+<line x1="122" x2="841" y1="725.0" y2="725.0" stroke="#DFE6EF"/>
+<text x="110" y="730.0" text-anchor="end" font-size="13" fill="#536276">162</text>
+<text x="122.0" y="1061" font-size="13" text-anchor="middle" fill="#526174">0%</text>
+<text x="201.9" y="1061" font-size="13" text-anchor="middle" fill="#526174">10%</text>
+<text x="281.8" y="1061" font-size="13" text-anchor="middle" fill="#526174">20%</text>
+<text x="361.7" y="1061" font-size="13" text-anchor="middle" fill="#526174">30%</text>
+<text x="441.6" y="1061" font-size="13" text-anchor="middle" fill="#526174">40%</text>
+<text x="521.4" y="1061" font-size="13" text-anchor="middle" fill="#526174">50%</text>
+<text x="601.3" y="1061" font-size="13" text-anchor="middle" fill="#526174">60%</text>
+<text x="681.2" y="1061" font-size="13" text-anchor="middle" fill="#526174">70%</text>
+<text x="761.1" y="1061" font-size="13" text-anchor="middle" fill="#526174">80%</text>
+<text x="841.0" y="1061" font-size="13" text-anchor="middle" fill="#526174">90%</text>
+<text x="481.5" y="1086" font-size="14" text-anchor="middle" fill="#43536A">Packet loss</text>
+<circle cx="122.00" cy="975.60" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL0: 2.0144</title></circle>
+<circle cx="201.89" cy="966.05" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL10: 2.3815</title></circle>
+<circle cx="281.78" cy="962.12" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL20: 2.5513</title></circle>
+<circle cx="361.67" cy="959.18" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL30: 2.6860</title></circle>
+<circle cx="441.56" cy="955.61" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL40: 2.8593</title></circle>
+<circle cx="521.44" cy="951.11" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL50: 3.0942</title></circle>
+<circle cx="601.33" cy="947.70" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL60: 3.2846</title></circle>
+<circle cx="681.22" cy="942.35" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL70: 3.6070</title></circle>
+<circle cx="761.11" cy="935.39" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL80: 4.0751</title></circle>
+<circle cx="841.00" cy="929.81" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL90: 4.4936</title></circle>
+<polyline points="122.00,975.60 201.89,966.05 281.78,962.12 361.67,959.18 441.56,955.61 521.44,951.11 601.33,947.70 681.22,942.35 761.11,935.39 841.00,929.81" stroke="#187BB8" stroke-width="3.4" fill="none"/>
+<circle cx="122.00" cy="906.62" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL0: 6.7449</title></circle>
+<circle cx="201.89" cy="884.41" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL10: 9.9538</title></circle>
+<circle cx="281.78" cy="875.53" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL20: 11.6288</title></circle>
+<circle cx="361.67" cy="866.39" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL30: 13.6474</title></circle>
+<circle cx="441.56" cy="857.77" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL40: 15.8746</title></circle>
+<circle cx="521.44" cy="849.27" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL50: 18.4209</title></circle>
+<circle cx="601.33" cy="838.32" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL60: 22.3170</title></circle>
+<circle cx="681.22" cy="825.93" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL70: 27.7286</title></circle>
+<circle cx="761.11" cy="806.48" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL80: 38.9873</title></circle>
+<circle cx="841.00" cy="771.95" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL90: 71.3832</title></circle>
+<polyline points="122.00,906.62 201.89,884.41 281.78,875.53 361.67,866.39 441.56,857.77 521.44,849.27 601.33,838.32 681.22,825.93 761.11,806.48 841.00,771.95" stroke="#CE771D" stroke-width="3.4" fill="none"/>
+<circle cx="122.00" cy="904.75" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL0: 6.9698</title></circle>
+<circle cx="201.89" cy="884.56" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL10: 9.9282</title></circle>
+<circle cx="281.78" cy="877.29" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL20: 11.2759</title></circle>
+<circle cx="361.67" cy="872.02" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL30: 12.3676</title></circle>
+<circle cx="441.56" cy="863.80" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL40: 14.2818</title></circle>
+<circle cx="521.44" cy="849.80" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL50: 18.2528</title></circle>
+<circle cx="601.33" cy="826.21" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL60: 27.5937</title></circle>
+<circle cx="681.22" cy="783.16" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL70: 58.6593</title></circle>
+<circle cx="761.11" cy="744.21" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL80: 116.0650</title></circle>
+<circle cx="841.00" cy="745.97" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL90: 112.5304</title></circle>
+<polyline points="122.00,904.75 201.89,884.56 281.78,877.29 361.67,872.02 441.56,863.80 521.44,849.80 601.33,826.21 681.22,783.16 761.11,744.21 841.00,745.97" stroke="#1B9564" stroke-width="3.4" fill="none"/>
+<circle cx="122.00" cy="1005.84" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL0: 1.1860</title></circle>
+<circle cx="201.89" cy="970.49" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL10: 2.2032</title></circle>
+<circle cx="281.78" cy="957.18" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL20: 2.7819</title></circle>
+<circle cx="361.67" cy="943.96" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL30: 3.5067</title></circle>
+<circle cx="441.56" cy="929.58" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL40: 4.5118</title></circle>
+<circle cx="521.44" cy="918.41" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL50: 5.4864</title></circle>
+<circle cx="601.33" cy="904.68" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL60: 6.9787</title></circle>
+<circle cx="681.22" cy="884.85" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL70: 9.8781</title></circle>
+<circle cx="761.11" cy="860.70" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL80: 15.0799</title></circle>
+<circle cx="841.00" cy="817.05" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL90: 32.3970</title></circle>
+<polyline points="122.00,1005.84 201.89,970.49 281.78,957.18 361.67,943.96 441.56,929.58 521.44,918.41 601.33,904.68 681.22,884.85 761.11,860.70 841.00,817.05" stroke="#8C55A7" stroke-width="3.4" fill="none"/>
+<rect x="918" y="648" width="840" height="463" rx="14" fill="#FAFCFF" stroke="#CFDBE5"/>
+<text x="944" y="683" font-size="23" font-weight="bold" fill="#172B43">D. Attempted communication payload</text>
+<text x="944" y="710" font-size="15" fill="#526174">All seeds · kB; sender SEND includes lost frames</text>
+<line x1="1006" x2="1725" y1="1035.0" y2="1035.0" stroke="#DFE6EF"/>
+<text x="994" y="1040.0" text-anchor="end" font-size="13" fill="#536276">52.6</text>
+<line x1="1006" x2="1725" y1="957.5" y2="957.5" stroke="#DFE6EF"/>
+<text x="994" y="962.5" text-anchor="end" font-size="13" fill="#536276">335</text>
+<line x1="1006" x2="1725" y1="880.0" y2="880.0" stroke="#DFE6EF"/>
+<text x="994" y="885.0" text-anchor="end" font-size="13" fill="#536276">2130</text>
+<line x1="1006" x2="1725" y1="802.5" y2="802.5" stroke="#DFE6EF"/>
+<text x="994" y="807.5" text-anchor="end" font-size="13" fill="#536276">13600</text>
+<line x1="1006" x2="1725" y1="725.0" y2="725.0" stroke="#DFE6EF"/>
+<text x="994" y="730.0" text-anchor="end" font-size="13" fill="#536276">86600</text>
+<text x="1006.0" y="1061" font-size="13" text-anchor="middle" fill="#526174">0%</text>
+<text x="1085.9" y="1061" font-size="13" text-anchor="middle" fill="#526174">10%</text>
+<text x="1165.8" y="1061" font-size="13" text-anchor="middle" fill="#526174">20%</text>
+<text x="1245.7" y="1061" font-size="13" text-anchor="middle" fill="#526174">30%</text>
+<text x="1325.6" y="1061" font-size="13" text-anchor="middle" fill="#526174">40%</text>
+<text x="1405.4" y="1061" font-size="13" text-anchor="middle" fill="#526174">50%</text>
+<text x="1485.3" y="1061" font-size="13" text-anchor="middle" fill="#526174">60%</text>
+<text x="1565.2" y="1061" font-size="13" text-anchor="middle" fill="#526174">70%</text>
+<text x="1645.1" y="1061" font-size="13" text-anchor="middle" fill="#526174">80%</text>
+<text x="1725.0" y="1061" font-size="13" text-anchor="middle" fill="#526174">90%</text>
+<text x="1365.5" y="1086" font-size="14" text-anchor="middle" fill="#43536A">Packet loss</text>
+<circle cx="1006.00" cy="985.49" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL0: 171.6480</title></circle>
+<circle cx="1085.89" cy="986.98" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL10: 165.6606</title></circle>
+<circle cx="1165.78" cy="988.88" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL20: 158.3074</title></circle>
+<circle cx="1245.67" cy="990.92" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL30: 150.7647</title></circle>
+<circle cx="1325.56" cy="993.10" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL40: 143.1078</title></circle>
+<circle cx="1405.44" cy="995.35" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL50: 135.6222</title></circle>
+<circle cx="1485.33" cy="997.72" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL60: 128.1643</title></circle>
+<circle cx="1565.22" cy="1000.18" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL70: 120.8273</title></circle>
+<circle cx="1645.11" cy="1002.82" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL80: 113.4410</title></circle>
+<circle cx="1725.00" cy="1005.79" r="4.5" fill="#187BB8" stroke="white" stroke-width="1"><title>Proposed PL90: 105.6706</title></circle>
+<polyline points="1006.00,985.49 1085.89,986.98 1165.78,988.88 1245.67,990.92 1325.56,993.10 1405.44,995.35 1485.33,997.72 1565.22,1000.18 1645.11,1002.82 1725.00,1005.79" stroke="#187BB8" stroke-width="3.4" fill="none"/>
+<circle cx="1006.00" cy="899.95" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL0: 1325.0400</title></circle>
+<circle cx="1085.89" cy="883.55" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL10: 1961.0080</title></circle>
+<circle cx="1165.78" cy="877.00" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL20: 2292.9760</title></circle>
+<circle cx="1245.67" cy="870.27" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL30: 2693.0400</title></circle>
+<circle cx="1325.56" cy="863.92" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL40: 3134.4480</title></circle>
+<circle cx="1405.44" cy="857.67" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL50: 3639.0880</title></circle>
+<circle cx="1485.33" cy="849.62" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL60: 4411.2480</title></circle>
+<circle cx="1565.22" cy="840.51" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL70: 5483.7600</title></circle>
+<circle cx="1645.11" cy="826.22" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL80: 7715.1200</title></circle>
+<circle cx="1725.00" cy="800.88" r="4.5" fill="#CE771D" stroke="white" stroke-width="1"><title>CBAA PL90: 14135.6000</title></circle>
+<polyline points="1006.00,899.95 1085.89,883.55 1165.78,877.00 1245.67,870.27 1325.56,863.92 1405.44,857.67 1485.33,849.62 1565.22,840.51 1645.11,826.22 1725.00,800.88" stroke="#CE771D" stroke-width="3.4" fill="none"/>
+<circle cx="1006.00" cy="857.98" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL0: 3612.2320</title></circle>
+<circle cx="1085.89" cy="842.66" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL10: 5208.4872</title></circle>
+<circle cx="1165.78" cy="837.35" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL20: 5913.9797</title></circle>
+<circle cx="1245.67" cy="833.47" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL30: 6488.0616</title></circle>
+<circle cx="1325.56" cy="827.27" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL40: 7523.8144</title></circle>
+<circle cx="1405.44" cy="816.64" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL50: 9699.8494</title></circle>
+<circle cx="1485.33" cy="798.84" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL60: 14842.9027</title></circle>
+<circle cx="1565.22" cy="766.92" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL70: 31819.7719</title></circle>
+<circle cx="1645.11" cy="739.08" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL80: 61881.4082</title></circle>
+<circle cx="1725.00" cy="743.01" r="4.5" fill="#1B9564" stroke="white" stroke-width="1"><title>CBBA PL90: 56343.9483</title></circle>
+<polyline points="1006.00,857.98 1085.89,842.66 1165.78,837.35 1245.67,833.47 1325.56,827.27 1405.44,816.64 1485.33,798.84 1565.22,766.92 1645.11,739.08 1725.00,743.01" stroke="#1B9564" stroke-width="3.4" fill="none"/>
+<circle cx="1006.00" cy="1013.62" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL0: 87.6480</title></circle>
+<circle cx="1085.89" cy="1009.67" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL10: 96.3221</title></circle>
+<circle cx="1165.78" cy="1005.09" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL20: 107.4605</title></circle>
+<circle cx="1245.67" cy="999.60" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL30: 122.5402</title></circle>
+<circle cx="1325.56" cy="993.46" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL40: 141.8712</title></circle>
+<circle cx="1405.44" cy="986.10" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL50: 169.1746</title></circle>
+<circle cx="1485.33" cy="977.27" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL60: 208.9056</title></circle>
+<circle cx="1565.22" cy="965.40" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL70: 277.3925</title></circle>
+<circle cx="1645.11" cy="948.94" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL80: 411.1022</title></circle>
+<circle cx="1725.00" cy="919.59" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1"><title>Baseline Centralized PL90: 828.9269</title></circle>
+<polyline points="1006.00,1013.62 1085.89,1009.67 1165.78,1005.09 1245.67,999.60 1325.56,993.46 1405.44,986.10 1485.33,977.27 1565.22,965.40 1645.11,948.94 1725.00,919.59" stroke="#8C55A7" stroke-width="3.4" fill="none"/>
+</svg>
