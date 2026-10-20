@@ -47,6 +47,7 @@ def synthetic_plot_row(loss,method,success):
         "loss_percent":loss,"method":method,"trials":2,
         "native_complete":2 if success else 0,
         "completion_rate_percent":100. if success else 0.,
+        "mean_task_coverage":1.0 if success else .5,
         "quality_sample_count":2 if success else 0,
         "cost_increase_percent":2.25 if success else "",
         "mean_stop_s":3.0,"mean_sender_kb":115.0,
@@ -115,7 +116,10 @@ class P2GStudyTests(unittest.TestCase):
                   for loss in (0,90) for m in methods]
             svg=render_p2g_figure(rows,(0,90),family)
             self.assertIn('viewBox="0 0 1800 1120"',svg)
-            self.assertIn("A. Full allocation success",svg)
+            self.assertIn(
+                "A. Task completion rate" if family=="interactive"
+                else "A. Full allocation success",svg,
+            )
             self.assertIn("B. Cost increase",svg)
             self.assertIn("C. Communication stop time",svg)
             self.assertIn("D. Attempted communication payload",svg)
@@ -124,6 +128,7 @@ class P2GStudyTests(unittest.TestCase):
                 self.assertIn("Centralized Greedy Baseline", svg)
                 self.assertIn("one Vote batch", svg)
             elif family=="interactive":
+                self.assertNotIn("A. Full allocation success",svg)
                 self.assertIn("Figure 1 · Sequential Task Allocation", svg)
                 self.assertIn(">Proposed</text>", svg)
                 self.assertIn(">Baseline Centralized</text>", svg)
