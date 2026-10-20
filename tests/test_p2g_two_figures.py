@@ -114,7 +114,7 @@ class P2GStudyTests(unittest.TestCase):
             rows=[synthetic_plot_row(loss,m,success=(loss==0))
                   for loss in (0,90) for m in methods]
             svg=render_p2g_figure(rows,(0,90),family)
-            self.assertIn('viewBox="0 0 1800 1240"',svg)
+            self.assertIn('viewBox="0 0 1800 1120"',svg)
             self.assertIn("A. Full allocation success",svg)
             self.assertIn("B. Cost increase",svg)
             self.assertIn("C. Communication stop time",svg)
@@ -123,6 +123,10 @@ class P2GStudyTests(unittest.TestCase):
                 self.assertIn("task-ordered Greedy", svg)
                 self.assertIn("Centralized Greedy Baseline", svg)
                 self.assertIn("one Vote batch", svg)
+            elif family=="interactive":
+                self.assertIn("Figure 1 · Sequential Task Allocation", svg)
+                self.assertIn(">Proposed</text>", svg)
+                self.assertIn(">Baseline Centralized</text>", svg)
             else:
                 self.assertIn("B. Cost increase vs. global Greedy", svg)
                 for short_name in (
@@ -135,10 +139,10 @@ class P2GStudyTests(unittest.TestCase):
                     "Centralized Greedy Baseline (missing-Cost retry)",
                 ):
                     self.assertNotIn(obsolete_name, svg)
-                self.assertIn("not all centralized methods", svg)
+            self.assertNotIn("Cost line points exist only", svg)
             root=ET.fromstring(svg)
             self.assertTrue(root.tag.endswith("svg"))
-            self.assertEqual(len(methods),2 if family=="one_attempt" else 4)
+            self.assertEqual(len(methods),2 if family in ("one_attempt","interactive") else 4)
 
     def test_missing_success_cost_cannot_be_imputed(self):
         rows=[synthetic_plot_row(90,m,False)
