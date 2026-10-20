@@ -24,6 +24,7 @@ from .network import (
 from .optimizer import (
     solve_visible_batched_greedy_assignment,
     solve_visible_task_ordered_greedy_assignment,
+    select_cheapest_visible_greedy_row,
     validate_cost_matrix,
 )
 from .protocol import validate_one_to_one_commits
@@ -230,6 +231,102 @@ def plan_from_received_cost_rows(
             expected=real_ids, actual=physical_pairs,
         ))
     return physical_pairs
+
+
+def validate_centralized_assignment_scope(
+    *, assignment_scope: str, planning_rule: str, max_cost_rounds: int,
+) -> None:
+    """Explicit per-task paid assignment/Commit; default batch does not change."""
+    if assignment_scope not in ("batch", "task_sequence"):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="validate_centralized_assignment_scope",
+            category="data", code="P2H_UNKNOWN_CENTRAL_ASSIGNMENT_SCOPE",
+            expected=("batch", "task_sequence"), actual=assignment_scope,
+        ))
+    if (assignment_scope == "task_sequence"
+            and (planning_rule != "task_ordered" or max_cost_rounds != 1)):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="validate_centralized_assignment_scope",
+            category="planning", code="P2H_SEQUENTIAL_CENTRAL_REQUIRES_ONESHOT_GREEDY",
+            expected={"planning_rule":"task_ordered","max_cost_rounds":1},
+            actual={"planning_rule":planning_rule,"max_cost_rounds":max_cost_rounds},
+        ))
+
+
+def select_next_task_ordered_centralized_pair(
+    *, receipt: CentralizedCostReceipt,
+    task_id: int, remaining_robot_ids: frozenset[int],
+) -> tuple[int, int] | None:
+    """Planner: choose cheapest unretired physical Cost receipt for this task."""
+    rows=receipt.visible_rows
+    if type(task_id) is not int or task_id < 0 or (
+        rows and task_id >= len(rows[0][1])
+    ):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="select_next_task_ordered_centralized_pair",
+            category="data", code="P2H_CENTRAL_TASK_INDEX_INVALID",
+            expected=f"task in [0,{len(rows[0][1]) if rows else 0})",
+            actual=task_id,
+        ))
+    eligible=frozenset(
+        local_id for local_id,(robot_id,_cost_row) in enumerate(rows)
+        if robot_id in remaining_robot_ids
+    )
+    if not eligible:
+        return None
+    local_id,_cost=select_cheapest_visible_greedy_row(
+        cost_column=tuple(cost_row[task_id] for _robot,cost_row in rows),
+        visible_robot_ids=eligible,
+    )
+    return rows[local_id][0],task_id
+
+
+def run_task_ordered_centralized_sequence(
+    *, receipt: CentralizedCostReceipt, coordinator_id: int,
+    num_tasks: int, sampler: WifiCausalTimingSampler,
+) -> tuple[tuple[tuple[int,int],...],tuple[CommunicationEvent,...],tuple[CommunicationEvent,...]]:
+    """T0 assignment -> executor Commit -> T1; no retry or hidden Cost."""
+    remaining=frozenset(receipt.received_robot_ids)
+    announced: list[tuple[int,int]]=[]
+    decisions: list[CommunicationEvent]=[]
+    commits: list[CommunicationEvent]=[]
+    ready_ms=receipt.cost_phase_end_ms
+    for task_id in range(num_tasks):
+        pair=select_next_task_ordered_centralized_pair(
+            receipt=receipt,task_id=task_id,remaining_robot_ids=remaining,
+        )
+        if pair is None:
+            continue
+        decision=publish_centralized_assignment(
+            pairs=(pair,),coordinator_id=coordinator_id,
+            release_ms=ready_ms,sampler=sampler,
+        )
+        commit=emit_centralized_commits(
+            pairs=(pair,),release_ms=decision.arrival_time_ms,sampler=sampler,
+        )[0]
+        if (decision.send_time_ms+1e-9 < ready_ms
+                or commit.send_time_ms+1e-9 < decision.arrival_time_ms):
+            raise ProtocolError(Diagnostic(
+                owner=OWNER,function="run_task_ordered_centralized_sequence",
+                category="time",code="P2H_CENTRAL_COMMIT_BEFORE_DECISION",
+                expected={"task":task_id,"decision_after_ms":ready_ms,
+                          "commit_after_ms":decision.arrival_time_ms},
+                actual={"decision_ms":decision.send_time_ms,
+                        "commit_ms":commit.send_time_ms},
+            ))
+        announced.append(pair)
+        decisions.append(decision)
+        commits.append(commit)
+        ready_ms=commit.arrival_time_ms
+        remaining=remaining.difference((pair[0],))
+    validate_one_to_one_commits(announced)
+    if any(pair[0] not in receipt.received_robot_ids for pair in announced):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="run_task_ordered_centralized_sequence",
+            category="contract",code="P2H_CENTRAL_HIDDEN_COST_USED",
+            expected=receipt.received_robot_ids,actual=announced,
+        ))
+    return tuple(announced),tuple(decisions),tuple(commits)
 
 
 def publish_centralized_assignment(
