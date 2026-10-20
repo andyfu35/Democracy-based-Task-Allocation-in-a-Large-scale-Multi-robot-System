@@ -186,11 +186,63 @@ class P2HStudyTests(unittest.TestCase):
             self.assertEqual(row["quality_sample_count"],0)
             self.assertEqual(row["cost_increase_percent"],"")
 
+    def test_figure1_A_uses_mean_task_coverage_not_full_scene_success(self):
+        rows=[]
+        for loss in (0,90):
+            for mode in FAMILIES["interactive"]:
+                proposed=mode=="task_ordered_vote_sequential_once"
+                coverage=1.0 if proposed or loss==0 else 0.1054
+                fully_complete=1 if coverage==1.0 else 0
+                rows.append({
+                    "loss_percent":loss,"method":mode,"trials":100,
+                    "native_complete":100 if fully_complete else 0,
+                    "completion_rate_percent":100.0 if fully_complete else 0.0,
+                    "mean_task_coverage":coverage,
+                    "quality_sample_count":100 if fully_complete else 0,
+                    "cost_increase_percent":0.0 if fully_complete else "",
+                    "mean_stop_s":5.,"mean_sender_kb":210.,
+                })
+        svg=render_p2g_figure(rows,(0,90),"interactive")
+        self.assertIn("A. Task completion rate",svg)
+        self.assertIn("Average committed tasks / 100 tasks",svg)
+        self.assertNotIn("A. Full allocation success",svg)
+        self.assertIn("Baseline Centralized PL90: 10.54%",svg)
+        self.assertIn("Proposed PL90: 100.00%",svg)
+        self.assertIn("B. Cost increase vs. task-ordered Greedy",svg)
+
+    def test_figure1_rejects_missing_and_inconsistent_task_coverage(self):
+        from experiments.p2g_plot import validate_p2g_plot_source
+        rows=[{
+            "loss_percent":0,"method":mode,"trials":100,
+            "native_complete":100,"completion_rate_percent":100.0,
+            "quality_sample_count":100,"cost_increase_percent":0.,
+            "mean_stop_s":5.,"mean_sender_kb":210.,
+            "mean_task_coverage":1.0,
+        } for mode in FAMILIES["interactive"]]
+        validate_p2g_plot_source(rows,(0,),"interactive")
+        for wrong,code in (
+            (None,"P2H_MISSING_TASK_COMPLETION_RATE"),
+            (1.1,"P2H_INVALID_TASK_COMPLETION_RATE"),
+            (0.5,"P2H_FULL_SUCCESS_EXCEEDS_TASK_COVERAGE"),
+        ):
+            with self.subTest(wrong=wrong):
+                bad=[dict(row) for row in rows]
+                if wrong is None:
+                    bad[0].pop("mean_task_coverage")
+                else:
+                    bad[0]["mean_task_coverage"]=wrong
+                with self.assertRaises(ProtocolError) as caught:
+                    validate_p2g_plot_source(bad,(0,),"interactive")
+                self.assertEqual(caught.exception.diagnostic.code,code)
+                self.assertEqual(caught.exception.diagnostic.owner,
+                                 "experiments.p2g_plot")
+
     def test_both_figure_families_have_no_bottom_explanatory_text(self):
         rows=[{
             "loss_percent":p,"method":mode,"trials":2,
             "native_complete":2,"completion_rate_percent":100.,
             "quality_sample_count":2,"cost_increase_percent":0.,
+            "mean_task_coverage":1.0,
             "mean_stop_s":5.,"mean_sender_kb":210.,
         } for p in (0,90) for mode in FAMILIES["interactive"]]
         svg=render_p2g_figure(rows,(0,90),"interactive")
