@@ -473,6 +473,16 @@ def simulate_one_shot_centralized(
             "assignment_sender_frames":len(decisions),
             "commit_sender_frames":len(commits),
             "received_cost_rows":receipt.received_robot_ids,
+            **({"sequential_decision_commit_trace":tuple(
+                {
+                    "task_id":pair[1],
+                    "assignment_send_ms":d.send_time_ms,
+                    "assignment_arrival_ms":d.arrival_time_ms,
+                    "commit_send_ms":c.send_time_ms,
+                    "commit_arrival_ms":c.arrival_time_ms,
+                }
+                for pair,d,c in zip(pairs,decisions,commits)
+            )} if assignment_scope=="task_sequence" else {}),
             "cost_receiver_attempts":len(receipt.cost_deliveries),
             "cost_receiver_drops":cost_drops,
             **({"cost_rounds_executed":receipt.cost_rounds_executed,
