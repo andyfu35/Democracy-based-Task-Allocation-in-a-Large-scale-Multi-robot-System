@@ -44,6 +44,14 @@
 
 先前一次性掉包 Hungarian Voting 探索未達完整逐票接受條件，已歸檔，**不是**上述兩項已完成主張的待補驗證。詳見[歷史索引](docs/EXPERIMENT_LEGACY_INDEX.md)。
 
+### 舊版一次批次投票比較（非逐任務投票）
+
+![舊版 P2G 一次批次投票與單次 Cost 集中式基準的平均任務完成率、成本、模擬停止時間及發送量](docs/figures/p2g/formal/figureA_one_batch_task_coverage.svg)
+
+**協定區別：**這是已經驗證的 **P2G 一次批次投票**，**不是**新版 P2H 逐任務投票。每台機器人依自己收到的 Cost 先規劃 T0～T99 任務順序，再把完整候選指派透過 **一次批次 Vote** 廣播出去，由原生 Score／Commit 處理；**不會每個任務重新投票、Commit、退休機器人後再規劃**。對照組為一次接收 Cost、批次決策的特定 Centralized Task-Ordered Greedy Baseline。設定為 100 台機器人、100 個任務、容量 1、每個掉包率 100 個配對 Seeds；成本分母和新版 P2H 圖一同樣採完整資訊 **Task-Ordered Greedy**，但通訊過程及 Commit 時序不同。
+
+此圖 A 面板使用所有 Seeds 的**平均已指派任務比例**，由原始審核通過的 P2G 彙總資料重新繪製，不再把「只有 99/100 個任務」視為 0% 完成。**90% 掉包**時，一次批次 Proposed 完成 **16.12%** 的任務，集中式基準完成 **10.54%**，兩者皆無完整完成 100 個任務的 Seeds。新版 B 節 P2H 逐任務 Proposed 則達 **100%** 平均完成比例，但傳輸次數與時序不同，因此這是**不同協定的描述性對照**，不能把差距全部歸因於逐任務機制本身。未完整成功的成本留空、不補零；提早失敗停止不等於成功完成更快；發送量包括接收端掉包的 SEND。[P2G 原始方法與審核](docs/P2G_TWO_FIGURES.md) · [20 組來源彙總](docs/figures/p2g/formal/verified_figureA_20point_summary.csv)。
+
 ## B. 封包遺失韌性與通訊流量
 
 **2026-10-20 確認的正式研究方向：** 圖一為真正「逐任務一次投票、Score／Commit 後才繼續下一個任務」的 Proposed，對照特定的逐任務集中式 Greedy 基準；圖二維持已驗證的多輪 Proposed／CBAA／CBBA／Baseline Centralized。各圖為 100 Robots、100 Tasks、每台容量 1、0%～90% 掉包、每個掉包率 100 個配對 Seeds。**圖一與圖二的 Greedy 成本基準不同，不能直接比較兩圖的成本上升百分比。**
