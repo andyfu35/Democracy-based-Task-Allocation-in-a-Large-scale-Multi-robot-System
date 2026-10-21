@@ -29,6 +29,220 @@
 
 **架構：**任務公告 → 各機器人自行計算 Cost／路線效用 → 各方法原生的投票、出價、拍賣或 Bundle Consensus → 獨立觀察者驗證分配與訊息紀錄。觀察者**不會**注入全域最佳解，也不代表已支付的分散式終止協定。
 
+## 通訊模型（計算公式、符號與參數）
+
+目前的通訊模型包含四個獨立部分：**(1) 由真實 ROS 控制訊息量測資料抽樣的延遲、(2) 可選用的單一共享 Wi-Fi 媒介 PHY／MAC 簡化模型、(3) 每個接收端的封包遺失與 Deadline 判定、(4) 發送端實際嘗試傳送的應用層 Bytes**。以下是**本研究程式實作的數學模型**，並非某篇論文直接提出的完整原式。實際責任模組為 [network.py](democracy_mrta/network.py) 的 **load_rady_latency_profile**、**EmpiricalLatencySampler.sample_ms**、**BernoulliLossSampler.is_delivered**、**WifiCausalTimingSampler.sample_packet_ms**、**summarize_network**，以及 [coordination.py](democracy_mrta/coordination.py) 內原生協定的訊息發送函數。部分早期實驗只抽樣 Rady 延遲，**沒有啟用**共享媒介計算；以下完整封包公式描述的是較新實驗使用的**可選共享媒介模型**。
+
+### 1. 實測延遲資料與輸入條件
+
+[Rady 等人（2024）的工業機器人 Wi-Fi 量測資料](https://github.com/minarady1/wifi_for_industrial_robotics/tree/1996e5bb69b9ba4d25060cbc14838ddedf65cff2)提供的是**ROS 應用層控制封包延遲**，並不是 100 台模擬機器人的封包層紀錄。本研究預設選取 **Location 2（約 60 m、視線可見 LoS）**、**ax_160mhz_6ghz（Wi-Fi 6E／6 GHz／160 MHz）**，及原始控制紀錄的 **120～181 秒**時間區間；篩選後共有 **121 筆有效延遲樣本**。篩選時只接受有限、非負且時間戳落在上述含端點區間內的延遲值。依實驗 Seed 和封包 Key，以 SHA-256 決定性地選取其中一筆樣本，記為 $D_i^{\mathrm{Rady}}$（毫秒）。此方式為**逐封包重新抽樣**，不代表保留原量測紀錄的時間相關性或空間相關性。
+
+舊版 Rady-only 模型直接使用該筆抽樣延遲；啟用共享媒介後，則只加入經下式扣除假設參考服務時間後的**剩餘延遲**。模型**不會**根據模擬場景中每對機器人的實際距離重新校準 Wi-Fi 連線。
+
+### 2. 封包無線傳輸與因果延遲公式
+
+對第 $i$ 次實際嘗試發送的應用層封包，令 $L_i$ 為封包長度（**Bytes**）、$R$ 為假設的 PHY 傳輸速率（**Mbps**）、$H$ 為每一無線跳（hop）的額外 MAC 資料量，則**單跳傳輸時間（airtime）**為：
+
+$$
+T_{\mathrm{air},i}
+=\frac{t_{\mathrm{pre}}}{1000}
++\frac{8(L_i+H)}{1000R}
+\qquad[\mathrm{ms}].
+$$
+
+模型讓每一跳都支付 AIFS 等待及依 Seed 決定的退避時槽（Backoff）。整個封包的**退避時間**與**無線媒介服務時間**分別為：
+
+$$
+T_{\mathrm{bo},i}
+=\sum_{\ell=0}^{h_i-1}
+\frac{t_{\mathrm{AIFS}}+k_{i\ell}t_{\mathrm{slot}}}{1000},
+\qquad
+k_{i\ell}\in\{0,\ldots,CW_{\min}\},
+$$
+
+$$
+S_i=h_iT_{\mathrm{air},i}
++T_{\mathrm{bo},i}
++a_i\frac{t_{\mathrm{ACK}}}{1000}.
+$$
+
+其中 $h_i$ 表示模擬的無線跳數，$a_i$ 表示計入 MAC ACK 的跳數，$k_{i\ell}$ 是以 Seed、封包 Key 及跳數產生的**可重現偽隨機整數**，並非真實碰撞後的指數退避重傳。模型假設機器人透過一個 AP 通訊，且**所有封包共用一個需依序使用的無線媒介**：
+
+| 封包類型 | $h_i$ | $a_i$ | 假設傳輸路徑 |
+|---|---:|---:|---|
+| TASK 任務公告 | 1 | 0 | AP 向機器人廣播一跳 |
+| 機器人間 Broadcast（例如以廣播發送的 Cost／Vote／Score／Commit） | 2 | 1 | Robot → AP 上行（計 ACK）→ AP 廣播下行（不按接收者分別 ACK） |
+| 機器人間 Unicast（例如傳送 Cost 到集中式協調者） | 2 | 2 | Robot → AP → 指定接收者，兩跳都計 ACK |
+
+設 $e_i$ 為目前決策 Epoch 的起始時間、$s_i$ 為該 Epoch 內本封包準備發送的時間；則封包的**絕對釋放時間**為 $r_i=e_i+s_i$。如果 $f_{i-1}$ 是前一封包結束共享媒介佔用的時間（初始 $f_0=0$），則：
+
+$$
+Q_i=\max(0,f_{i-1}-r_i),
+\qquad
+f_i=\max(r_i,f_{i-1})+S_i.
+$$
+
+這裡 $Q_i$ 就是因為其他封包先佔用共享媒介所增加的**排隊等待時間**，而 $f_i$ 是目前封包完成無線服務的時刻。
+
+Rady 的真實 ROS 延遲本來就包含部分無線傳輸服務時間；若把原始延遲直接再加上整套新計算的 PHY／MAC 時間，可能**重複計算**。因此本模型先假設一個 **16 Bytes、單跳且有 ACK 的參考 ROS 封包**，估算其平均服務時間：
+
+$$
+T_{\mathrm{ref}}
+=\frac{t_{\mathrm{pre}}}{1000}
++\frac{8(L_{\mathrm{ref}}+H)}{1000R}
++\frac{t_{\mathrm{AIFS}}+\tfrac12 CW_{\min}t_{\mathrm{slot}}+t_{\mathrm{ACK}}}{1000}.
+$$
+
+Rady 實測資料可加入的剩餘量為 $\varepsilon_i=\max(0,D_i^{\mathrm{Rady}}-T_{\mathrm{ref}})$。故封包的**模擬到達時間**與**通訊延遲**為：
+
+$$
+t_i^{\mathrm{arrival}}=f_i+\varepsilon_i,
+\qquad
+T_i^{\mathrm{comm}}=t_i^{\mathrm{arrival}}-r_i
+=Q_i+S_i+\varepsilon_i.
+$$
+
+將所有項目展開，可得到目前程式使用的**完整可選共享媒介通訊公式**：
+
+$$
+\boxed{
+T_i^{\mathrm{comm}}=
+Q_i+
+h_i\left(\frac{t_{\mathrm{pre}}}{1000}
++\frac{8(L_i+H)}{1000R}\right)
++\sum_{\ell=0}^{h_i-1}
+\frac{t_{\mathrm{AIFS}}+k_{i\ell}t_{\mathrm{slot}}}{1000}
++a_i\frac{t_{\mathrm{ACK}}}{1000}
++\max(0,D_i^{\mathrm{Rady}}-T_{\mathrm{ref}})
+}
+$$
+
+**此公式所有時間項目的單位都是毫秒（ms）。**特別注意：共享媒介在 $f_i$ 就釋放，**不會**再被同一封包後續的 Rady 剩餘延遲持續佔住；因此後續封包傳輸可以與先前封包的剩餘延遲重疊。各演算法的**總任務分配／停止時間**必須根據原生事件、Commit、Deadline 或 Guard 的時間順序求出，**不能直接加總所有封包的 $T_i^{\mathrm{comm}}$**。
+
+### 3. 數學符號對照表
+
+| 代號 | 代表意義 | 單位／說明 |
+|---|---|---|
+| $i$ | 第 $i$ 次實際應用層 SEND，依封包釋放時間排序 | 封包事件編號 |
+| $j$ | 第 $i$ 次 SEND 的潛在接收者 | 接收者編號 |
+| $\ell$ | 第 $i$ 封包中的無線跳次序 | $0,\ldots,h_i-1$ |
+| $L_i$ | 第 $i$ 封包真正送出的應用層負載大小，不含假設 MAC 開銷 | Bytes，依演算法與封包內容改變 |
+| $R$ | 假設的實體層 PHY 速率，不是實測吞吐量 | Mbps |
+| $H$ | 每一無線跳附加的 MAC 封包開銷 | Bytes |
+| $h_i$ | 封包模擬傳送時經過的無線跳數 | TASK 為 1；機器人間訊息為 2 |
+| $a_i$ | 需要計入 MAC ACK 的跳數 | 0、1 或 2，見上方傳輸路徑表 |
+| $k_{i\ell}$ | 第 $i$ 封包在第 $\ell$ 跳使用的退避時槽數 | 整數，介於 0 與 $CW_{\min}$ |
+| $t_{\mathrm{pre}}$ | PHY Preamble（實體層前導訊號）時間 | 微秒 $\mu$s |
+| $t_{\mathrm{AIFS}}$ | AIFS（仲裁訊框間隔）等待時間 | 微秒 $\mu$s |
+| $t_{\mathrm{slot}}$ | Backoff Slot（退避時槽）時間 | 微秒 $\mu$s |
+| $t_{\mathrm{ACK}}$ | 單次假設 MAC ACK 服務時間 | 微秒 $\mu$s |
+| $CW_{\min}$ | 起始競爭窗口所允許的最大退避時槽索引 | 無單位整數 |
+| $e_i,s_i,r_i$ | Epoch 起始時間、該 Epoch 內 SEND 時刻及絕對釋放時間，$r_i=e_i+s_i$ | ms |
+| $f_{i-1},f_i$ | 前一封包／目前封包釋放共享媒介的時刻 | 絕對模擬時間 ms |
+| $Q_i$ | 本封包等候共享媒介可用的排隊時間 | ms |
+| $T_{\mathrm{air},i}$ | 本封包的單跳無線傳輸時間 | ms |
+| $T_{\mathrm{bo},i}$ | 本封包所有跳數的 AIFS 加退避時間 | ms |
+| $S_i$ | 本封包全部無線跳的 airtime、Backoff 與 ACK 服務總時間 | ms |
+| $D_i^{\mathrm{Rady}}$ | 依 Seed／Key 從 Rady 實測資料抽樣的 ROS 延遲 | ms |
+| $L_{\mathrm{ref}}$ | 假設的參考 ROS 控制訊息大小 | Bytes |
+| $T_{\mathrm{ref}}$ | 假設的參考單跳封包平均服務時間 | ms |
+| $\varepsilon_i$ | 扣除參考服務時間後未重複計算的實測剩餘延遲 | ms |
+| $t_i^{\mathrm{arrival}}$ | 本封包的模擬接收端到達時刻 | 絕對模擬時間 ms |
+| $T_i^{\mathrm{comm}}$ | 本封包從釋放到到達的通訊延遲 | ms |
+
+| $p_{\mathrm{loss}}$ | 設定某封包類型在指定接收端的遺失機率 | 機率 $[0,1]$；依 Cost／Vote 等階段指定 |
+| $u_{ij}$ | 第 $i$ 封包對第 $j$ 接收者，以 Seed／Key 決定的偽隨機數 | $[0,1)$ 範圍內的偽均勻數 |
+| $X_{ij}$ | 接收成功指標：收到為 1、掉包為 0 | 二元值，取決於 $u_{ij}$ 與 $p_{\mathrm{loss}}$ |
+| $d_{ij}$ | 第 $j$ 接收者在該訊息階段適用的決策 Deadline（若有啟用） | 絕對模擬時間 ms |
+| $Y_{ij}$ | 同時符合接收成功與截止時間的可使用訊息指標 | 二元值；無 Deadline 時 $Y_{ij}=X_{ij}$ |
+| $\mathcal{S}_{\mathrm{emitted}}$ | 真正產生的 SEND 事件集合，不包含發送前被 Budget 拒絕的訊息 | 所有已嘗試傳送的實體 SEND 集合 |
+| $B_{\mathrm{app}}^{\mathrm{sender}}$ | 發送端實際嘗試的應用層總流量，包含所有掉包嘗試 | Bytes；圖表 kB = Bytes／1,000 |
+| $B_{\mathrm{hop,proxy}}$ | 依無線跳數估算的等效傳輸量，並非實際空中擷取流量 | 模擬位元組等效值 |
+
+### 4. 目前使用的參數設定表
+
+| 參數 | 目前共享媒介主要設定 | 來源與性質 |
+|---|---:|---|
+| Rady 實測位置與模式 | Location 2；約 60 m LoS；Wi-Fi 6E 6 GHz / 160 MHz | Rady 原始實測資料選擇 |
+| Rady 取樣區間／有效筆數 | 120～181 s／121 筆 | 原始 ROS 控制封包延遲篩選 |
+| $R$ | **144 Mbps** | **假設值**，並非 Rady 的實際連線速率；600、1,200 Mbps 另作 E9G 敏感度測試 |
+| $H$ | 每跳 **64 Bytes** | 假設 MAC 額外負載 |
+| $t_{\mathrm{pre}}$ | **120 $\mu$s** | 假設 PHY 前導時間 |
+| $t_{\mathrm{AIFS}}$ | **34 $\mu$s** | 假設通道存取等待 |
+| $t_{\mathrm{slot}}$ | **9 $\mu$s** | 假設退避時槽 |
+| $CW_{\min}$ | **15**，因此 $k_{i\ell}=0,\ldots,15$ | 假設退避窗口 |
+| $t_{\mathrm{ACK}}$ | 每個需 ACK 的跳數 **45 $\mu$s** | 假設 MAC ACK 成本 |
+| $L_{\mathrm{ref}}$ | **16 Bytes** | 假設參考 ROS 控制封包 |
+| $L_i$ | 每個原生封包真正編碼後的大小 | 依演算法實際 SEND，**並非固定 16 Bytes** |
+| $p_{\mathrm{loss}}$ | 依實驗指定，例如 0%～90%、每 10% 一點 | **外加的 Bernoulli 掉包假設**，不是由 Rady 掉包資料直接擬合 |
+
+### 5. 封包遺失、Deadline 與通訊量公式
+
+對第 $i$ 次 SEND 與接收端 $j$，先用實驗 Seed／封包 Key 產生可重現的偽隨機均勻數 $u_{ij}\in[0,1)$，由**接收端 Bernoulli 掉包模型**決定封包是否收到：
+
+$$
+X_{ij}=\mathbf{1}\{u_{ij}\ge p_{\mathrm{loss}}\},
+\qquad
+\Pr(X_{ij}=1)=1-p_{\mathrm{loss}}.
+$$
+
+對存在決策截止時間 $d_{ij}$ 的 Cost／Vote 等封包，真正能被決策使用還必須**及時到達**：
+
+$$
+Y_{ij}=X_{ij}\,
+\mathbf{1}\{t_i^{\mathrm{arrival}}\le d_{ij}\}.
+$$
+
+其中 $X_{ij}=1$ 表示接收成功，而 $Y_{ij}=1$ 才表示**成功且在 Deadline 前可使用**。若該階段沒有截止時間限制，就使用 $Y_{ij}=X_{ij}$。即使封包物理上送達，太晚的 Cost／Vote 仍可能不被原生投票階段採納。此掉包率依接收端判斷，**並非** Burst Loss、碰撞或距離衰減的真實無線模型；新模型也**沒有**暗中幫丟失封包進行 Wi-Fi 重傳。現有 Voting 主實驗設定 Cost／Vote 為可掉包類別，TASK／Score／Commit 依該實驗的可靠控制訊息假設處理。
+
+通訊量採**發送端實際嘗試傳送的應用層 Bytes**，即使接收端全部掉包也照算：
+
+$$
+B_{\mathrm{app}}^{\mathrm{sender}}
+=\sum_{i\in\mathcal{S}_{\mathrm{emitted}}}L_i,
+\qquad
+B_{\mathrm{app}}^{\mathrm{sender}}[\mathrm{kB}]
+=\frac{B_{\mathrm{app}}^{\mathrm{sender}}[\mathrm{B}]}{1000}.
+$$
+
+其中 $\mathcal{S}_{\mathrm{emitted}}$ 是**實際已發送事件集合**。**一次 Broadcast 只計一次 SEND**，不乘上接收者人數；若因發送 Budget 不足而在 SEND 產生前被拒絕，則不計入。程式另可產生**模擬無線跳等效 Bytes** 作為診斷：
+
+$$
+B_{\mathrm{hop,proxy}}=\sum_{i\in\mathcal{S}_{\mathrm{emitted}}}h_i(L_i+H).
+$$
+
+但這個 $B_{\mathrm{hop,proxy}}$ **不是 README 圖中使用的應用層 Sender Bytes**，也不是真正包含重傳的空中擷取流量。原生停止時間、單封包延遲與 Python 計算執行時間是三個不同指標。
+
+### 6. 數值計算範例（僅示意，非真實量測樣本）
+
+假設傳送一次 **100 Bytes 的機器人間 Broadcast**，選擇 $R=144$ Mbps、$h_i=2$、$a_i=1$，兩跳 Backoff 時槽分別是 $k_{i0}=4$、$k_{i1}=10$，共享媒介暫時沒有排隊（$Q_i=0$），並假設 Rady 抽到的示例延遲為 $D_i^{\mathrm{Rady}}=20$ ms。代入後：
+
+$$
+T_{\mathrm{air},i}=0.129111\ \mathrm{ms/hop},\quad
+T_{\mathrm{bo},i}=0.194000\ \mathrm{ms},\quad
+S_i=0.497222\ \mathrm{ms},
+$$
+
+$$
+T_{\mathrm{ref}}=0.270944\ \mathrm{ms},\quad
+\varepsilon_i=19.729056\ \mathrm{ms},\quad
+\boxed{T_i^{\mathrm{comm}}\approx20.226278\ \mathrm{ms}}.
+$$
+
+這次 Broadcast 的圖表用**應用層 Sender Bytes 為 100 B**，而額外的無線跳等效診斷是 $2(100+64)=328$ B。即使有接收端掉包，這次 SEND 已支付的兩項發送負載都不會消失。
+
+### 7. 論文來源、使用範圍與限制
+
+| 研究文獻 | 本專案採用的部分、與未採用的部分 |
+|---|---|
+| [Rady 等人（2024），*How does Wi-Fi 6 fare? An industrial outdoor robotic scenario*](https://doi.org/10.1016/j.adhoc.2024.103418) | 使用真實的工業 ROS 控制封包延遲與[固定版本資料](https://github.com/minarady1/wifi_for_industrial_robotics/tree/1996e5bb69b9ba4d25060cbc14838ddedf65cff2)；**不是** 100 台機器人網路實測 |
+| [Bianchi（2000），IEEE 802.11 DCF 分析](https://doi.org/10.1109/49.840210) | 參考 CSMA／CA 媒介競爭及 Backoff 概念；**沒有**實作該論文的碰撞／重傳固定點方程 |
+| [Montgomery 與 Candell（2024），NIST IR 8506](https://doi.org/10.6028/NIST.IR.8506) | 參考商用 AP 啟動 OFDMA 的實際限制；目前模型**沒有實作 OFDMA** |
+| [Liu 與 Choi（2023），Wi-Fi 6 量測](https://doi.org/10.1145/3579451) | 作為多裝置 Wi-Fi 6 量測參考；**沒有**使用該文資料擬合目前延遲 |
+| [ns-3 Wi-Fi 模型文件](https://www.nsnam.org/docs/models/html/wifi-design.html) | 未來可用於封包層校準；**目前並未執行 ns-3** |
+
+目前模型**沒有真正模擬** AP 封包碰撞、CW 自適應增長、每台 STA 的 EDCA 佇列、OFDMA／RU 排程、MAC 重傳或有相關性的空間干擾。144 Mbps 是**假設的服務速率**，不是從 Rady 的 60 m LoS 實驗直接量得的有效傳輸速率；實測延遲的剩餘量拆分也是模型近似，而非可獨立量測的分量。因此本研究可宣稱的是**模擬應用層通訊時間與實際嘗試發送的應用層負載**，不是 100 台真實機器人在 Wi-Fi PHY／MAC 上量測的通訊效能。完整實驗條件見 [Canonical Experiment Protocol](docs/EXPERIMENT_PROTOCOL.md) 第 35～38 節及[通訊模型文獻清單](docs/references/e9g_wifi_timing.bib)。
+
 ## A. 任務分配正確性與分散式共識
 
 **研究問題：**當 **Hungarian 最佳化器固定相同**時，去中心化協調是否仍能達成正確的任務分配？
