@@ -16,7 +16,7 @@ import os
 from pathlib import Path
 
 from democracy_mrta.diagnostics import Diagnostic, ProtocolError
-from democracy_mrta.network import ensure_rady_dataset, load_rady_latency_profile
+from democracy_mrta.network import ensure_rady_dataset, load_rady_latency_profile, estimate_e9h_guarded_initial_cost_ms
 from democracy_mrta.optimizer import solve_hungarian_assignment, solve_visible_batched_greedy_assignment
 from democracy_mrta.scenario import generate_e0_scenario
 from experiments.run_e9h_adaptive_deadline import (
@@ -91,7 +91,10 @@ def run_native(scene, profile, loss, mode, retry_limit, source_sha):
         fixed_timeout_ms=DEFAULT_OLD_FIXED_MS,
         arm=arm,schedules={1.0:schedule},
         oracle_total_cost=solve_hungarian_assignment(scene.cost_matrix).total_cost,
-        guarded_cost_ms=schedule[0].deadline_ms if False else None,
+        guarded_cost_ms=estimate_e9h_guarded_initial_cost_ms(
+            profile=profile,total_robots=n,total_tasks=n,
+            reference_phy_mbps=144.0,
+        ),
         voting_strategy="greedy_batch",batch_vote_scope="all",
         reliable_cost=True,reliable_vote=(mode=="full_retry"),
         retry_limit=retry_limit,
