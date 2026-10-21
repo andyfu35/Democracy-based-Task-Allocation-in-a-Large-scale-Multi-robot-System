@@ -265,6 +265,15 @@ s actual application payload, before MAC overhead | Bytes; depends on native met
 | $\varepsilon_i$ | Nonoverlapping measured-delay residual after reference subtraction | ms |
 | $t_i^{\mathrm{arrival}},T_i^{\mathrm{comm}}$ | Modeled receiver arrival time and release-to-arrival latency | Absolute ms / duration ms |
 
+| $p_{\mathrm{loss}}$ | Configured probability that an eligible receiver misses a Cost/Vote message | Probability in $[0,1]$; phase dependent |
+| $u_{ij}$ | Seed/key-determined pseudo-random value for SEND $i$ to receiver $j$ | Uniform pseudo-random value in $[0,1)$ |
+| $X_{ij}$ | Receiver-delivery indicator: 1 = received, 0 = lost | Binary, depends on $u_{ij}$ and $p_{\mathrm{loss}}$ |
+| $d_{ij}$ | Decision deadline applying to a receiving robot's message (when enforced) | Absolute modeled ms |
+| $Y_{ij}$ | Usable on-time received-message indicator (loss and deadline both pass) | Binary; without deadline $Y_{ij}=X_{ij}$ |
+| $\mathcal{S}_{\mathrm{emitted}}$ | All actual emitted SEND events, excluding budget-denied events | Set of attempted physical sender packets |
+| $B_{\mathrm{app}}^{\mathrm{sender}}$ | Total sender attempted application payload, regardless of receiver success | Bytes; plotted kB = Bytes/1,000 |
+| $B_{\mathrm{hop,proxy}}$ | Hop-count-weighted radio payload diagnostic (not measured on-air traffic) | Modeled byte-equivalent |
+
 ### 4. Current parameter values and provenance
 
 | Parameter | Value used in the primary shared-radio proxy | Where it comes from |
