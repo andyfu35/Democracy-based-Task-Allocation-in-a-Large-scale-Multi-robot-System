@@ -92,6 +92,35 @@ class P2IReliableTransportTests(unittest.TestCase):
         self.assertEqual(len(snapshot.events),2)
         self.assertFalse(any(e.phase.endswith("_ack") for e in snapshot.events))
 
+
+    def test_native_global_greedy_both_arms_complete_without_cost_gap_at_zero_loss(self):
+        costs=((1.0,8.0,7.0),(7.0,1.0,8.0),(8.0,7.0,1.0))
+        for reliable_vote in (False,True):
+            with self.subTest(reliable_vote=reliable_vote):
+                sampler=WifiCausalTimingSampler(
+                    profile(),9,WifiTimingConfig(phy_rate_mbps=144.0))
+                result=simulate_democracy_hungarian_retirement(
+                    cost_matrix=costs,sampler=sampler,
+                    loss_sampler=BernoulliLossSampler(9),
+                    p_loss=0.0,p_vote_loss=0.0,
+                    phase_timeout_ms=1000.0,max_rounds=1,
+                    voting_strategy="greedy_batch",
+                    vote_decision_rule="received_plurality",
+                    vote_repetitions=1,cost_repetitions=1,
+                    per_active_round_deadline_ms=(1000.0,1000.0,1000.0),
+                    enforce_vote_deadline=True,
+                    reliable_cost=True,reliable_vote=reliable_vote,retry_limit=10,
+                )
+                self.assertTrue(result.full_assignment_success)
+                self.assertAlmostEqual(result.total_cost,3.0)
+                phases=sampler.summarize_network()["sender_by_phase"]
+                self.assertGreaterEqual(phases["cost_ack"]["sender_sends"],3)
+                if reliable_vote:
+                    self.assertGreaterEqual(phases["vote_ack"]["sender_sends"],3)
+                else:
+                    self.assertNotIn("vote_ack",phases)
+                    self.assertEqual(phases["vote"]["sender_sends"],3)
+
     def test_frozen_formal_grid(self):
         args=SimpleNamespace(losses="0.00,0.90",seeds=2,
                              first_seed=0,retry_limit=300,formal=False)
