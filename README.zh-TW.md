@@ -209,7 +209,7 @@ $$
 假設傳送一次 **100 Bytes 的機器人間 Broadcast**，選擇 $R=144$ Mbps、$h_i=2$、$a_i=1$，兩跳 Backoff 時槽分別是 $k_{i0}=4$、$k_{i1}=10$，共享媒介暫時沒有排隊（$Q_i=0$），並假設 Rady 抽到的示例延遲為 $D_i^{\mathrm{Rady}}=20$ ms。代入後：
 
 $$
-T_{\mathrm{air},i}=0.129111\ \mathrm{ms/跳},\quad
+T_{\mathrm{air},i}=0.129111\ \mathrm{ms/hop},\quad
 T_{\mathrm{bo},i}=0.194000\ \mathrm{ms},\quad
 S_i=0.497222\ \mathrm{ms},
 $$
