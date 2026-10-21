@@ -20,8 +20,10 @@ from types import SimpleNamespace
 
 def profile():
     return EmpiricalLatencyProfile(
-        source="p2i-synthetic", samples_ms=(3.0,4.0,5.0,6.0),
-        source_sha256="0"*64,
+        source_repository="test", source_commit="test", source_blob_sha="0"*40,
+        location="2", location_label="synthetic", config="ax_160mhz_6ghz",
+        config_label="synthetic", steady_start_s=0.0, steady_end_s=4.0,
+        samples_ms=(3.0,4.0,5.0,6.0),
     )
 
 
