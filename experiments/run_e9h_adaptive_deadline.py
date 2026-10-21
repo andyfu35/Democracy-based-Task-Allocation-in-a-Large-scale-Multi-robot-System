@@ -234,7 +234,9 @@ def summarize_e9h_sender_phase_breakdown(
     phase_names = {
         "task_announcement": "task",
         "cost": "cost",
+        "cost_ack": "cost_ack",
         "vote": "vote",
+        "vote_ack": "vote_ack",
         "vote_score_announcement": "score",
         "commit": "commit",
     }
@@ -302,7 +304,9 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
                                 arm, schedules, oracle_total_cost,
                                 guarded_cost_ms=None, p_vote_loss=None,
                                 external_observer=None, voting_strategy="greedy_task",
-                                batch_vote_scope="all", capture_task_epoch_ids=False):
+                                batch_vote_scope="all", capture_task_epoch_ids=False,
+                                reliable_cost=False, reliable_vote=False,
+                                retry_limit=300):
     """Original TASK, local cost, physical ballots, Score and Commit only.
 
     Opt-in p_vote_loss separates Vote drop from Cost p_loss; the original
@@ -357,6 +361,8 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
         per_active_round_deadline_ms=active_schedule,
         enforce_vote_deadline=True,
         batch_vote_scope=batch_vote_scope,
+        reliable_cost=reliable_cost, reliable_vote=reliable_vote,
+        retry_limit=retry_limit,
     )
     if external_observer is not None:
         # Read-only replay of *original* committed-round immutable traces.
@@ -439,7 +445,7 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
                 active,
             ))
     expected_cost_receivers = n*(n-1)
-    if cost_receiver_observations != expected_cost_receivers:
+    if not reliable_cost and cost_receiver_observations != expected_cost_receivers:
         raise ProtocolError(Diagnostic(
             owner=OWNER,function="run_e9h_original_voting_case",
             category="contract",code="E9I_COST_RECEIVER_LEDGER_MISMATCH",
@@ -471,6 +477,8 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
         "cost_remote_receiver_observation_count":cost_receiver_observations,
         "cost_remote_packet_drop_count":physically_lost_cost,
         "vote_remote_packet_drop_count":physically_lost_vote,
+        "reliable_cost":reliable_cost, "reliable_vote":reliable_vote,
+        "retry_limit":retry_limit,
         "cost_effective_peer_view_fraction":(
             (cost_receiver_observations-physically_lost_cost-missing_cost)
             /cost_receiver_observations if cost_receiver_observations else 1.0
