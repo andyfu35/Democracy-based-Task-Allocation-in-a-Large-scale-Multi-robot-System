@@ -1,0 +1,41 @@
+loss_percent,method,display_name,trials,native_complete,completion_rate_percent,mean_attempted_sender_kB,mean_all_seed_native_stop_s,cost_increase_percent,cost_success_n,source_study,source_native_git_sha,source_precision
+0,full_retry,Full Retransmission,100,100,100,177.448,3.007360669564462,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+0,cost_retry_vote_once,Cost Retransmission Only,100,100,100,174.548,2.5104815384144556,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+0,cbaa,CBAA,100,100,100,1325.04,6.744911,0,100,P2 source verified_50point_summary.csv,f514cfa3613e7b0bad5c739d136b09fea8c3f92c,archived 6-digit stop time summary
+0,centralized_retry,Baseline Centralized,100,100,100,87.6480,1.1860,0,100,P2G archived Figure2 verified SVG,7cab1b5f7979b2f45104c529de7e25015b4ff7e8,archived SVG tooltips rounded to 4dp
+10,full_retry,Full Retransmission,100,100,100,482.0718,8.674367929126763,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+10,cost_retry_vote_once,Cost Retransmission Only,100,100,100,327.34535999999997,5.386005881587819,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+10,cbaa,CBAA,100,100,100,1961.008,9.953815,0,100,P2 source verified_50point_summary.csv,f514cfa3613e7b0bad5c739d136b09fea8c3f92c,archived 6-digit stop time summary
+10,centralized_retry,Baseline Centralized,100,100,100,96.3221,2.2032,0,100,P2G archived Figure2 verified SVG,7cab1b5f7979b2f45104c529de7e25015b4ff7e8,archived SVG tooltips rounded to 4dp
+20,full_retry,Full Retransmission,100,100,100,652.48384,11.603625412833344,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+20,cost_retry_vote_once,Cost Retransmission Only,100,100,100,412.25956,6.802293514988962,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+20,cbaa,CBAA,100,100,100,2292.976,11.628827,0,100,P2 source verified_50point_summary.csv,f514cfa3613e7b0bad5c739d136b09fea8c3f92c,archived 6-digit stop time summary
+20,centralized_retry,Baseline Centralized,100,100,100,107.4605,2.7819,0,100,P2G archived Figure2 verified SVG,7cab1b5f7979b2f45104c529de7e25015b4ff7e8,archived SVG tooltips rounded to 4dp
+30,full_retry,Full Retransmission,100,100,100,838.4786,14.773079525765553,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+30,cost_retry_vote_once,Cost Retransmission Only,100,100,100,504.658,8.386155297582327,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+30,cbaa,CBAA,100,100,100,2693.04,13.647431,0,100,P2 source verified_50point_summary.csv,f514cfa3613e7b0bad5c739d136b09fea8c3f92c,archived 6-digit stop time summary
+30,centralized_retry,Baseline Centralized,100,100,100,122.5402,3.5067,0,100,P2G archived Figure2 verified SVG,7cab1b5f7979b2f45104c529de7e25015b4ff7e8,archived SVG tooltips rounded to 4dp
+40,full_retry,Full Retransmission,100,100,100,1073.79648,18.655164718739762,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+40,cost_retry_vote_once,Cost Retransmission Only,100,100,100,620.55048,10.270674473523412,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+40,cbaa,CBAA,100,100,100,3134.448,15.874644,0,100,P2 source verified_50point_summary.csv,f514cfa3613e7b0bad5c739d136b09fea8c3f92c,archived 6-digit stop time summary
+40,centralized_retry,Baseline Centralized,100,100,100,141.8712,4.5118,0,100,P2G archived Figure2 verified SVG,7cab1b5f7979b2f45104c529de7e25015b4ff7e8,archived SVG tooltips rounded to 4dp
+50,full_retry,Full Retransmission,100,100,100,1390.0271599999999,24.006920310818003,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+50,cost_retry_vote_once,Cost Retransmission Only,100,100,100,779.10904,13.046499500839989,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+50,cbaa,CBAA,100,100,100,3639.088,18.420907,0,100,P2 source verified_50point_summary.csv,f514cfa3613e7b0bad5c739d136b09fea8c3f92c,archived 6-digit stop time summary
+50,centralized_retry,Baseline Centralized,100,100,100,169.1746,5.4864,0,100,P2G archived Figure2 verified SVG,7cab1b5f7979b2f45104c529de7e25015b4ff7e8,archived SVG tooltips rounded to 4dp
+60,full_retry,Full Retransmission,100,100,100,1855.84556,32.25258443202687,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+60,cost_retry_vote_once,Cost Retransmission Only,100,100,100,1010.4824,17.106434030333137,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+60,cbaa,CBAA,100,100,100,4411.248,22.316996,0,100,P2 source verified_50point_summary.csv,f514cfa3613e7b0bad5c739d136b09fea8c3f92c,archived 6-digit stop time summary
+60,centralized_retry,Baseline Centralized,100,100,100,208.9056,6.9787,0,100,P2G archived Figure2 verified SVG,7cab1b5f7979b2f45104c529de7e25015b4ff7e8,archived SVG tooltips rounded to 4dp
+70,full_retry,Full Retransmission,100,100,100,2627.80452,45.036213608137324,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+70,cost_retry_vote_once,Cost Retransmission Only,100,100,100,1399.2539199999999,23.565801435280246,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+70,cbaa,CBAA,100,100,100,5483.76,27.728572,0,100,P2 source verified_50point_summary.csv,f514cfa3613e7b0bad5c739d136b09fea8c3f92c,archived 6-digit stop time summary
+70,centralized_retry,Baseline Centralized,100,100,100,277.3925,9.8781,0,100,P2G archived Figure2 verified SVG,7cab1b5f7979b2f45104c529de7e25015b4ff7e8,archived SVG tooltips rounded to 4dp
+80,full_retry,Full Retransmission,100,100,100,4136.5726,71.11538080774376,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+80,cost_retry_vote_once,Cost Retransmission Only,100,100,100,2156.9752000000003,36.46122247520009,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+80,cbaa,CBAA,100,100,100,7715.12,38.987349,0,100,P2 source verified_50point_summary.csv,f514cfa3613e7b0bad5c739d136b09fea8c3f92c,archived 6-digit stop time summary
+80,centralized_retry,Baseline Centralized,100,100,100,411.1022,15.0799,0,100,P2G archived Figure2 verified SVG,7cab1b5f7979b2f45104c529de7e25015b4ff7e8,archived SVG tooltips rounded to 4dp
+90,full_retry,Full Retransmission,100,100,100,8661.79516,148.52521771695888,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+90,cost_retry_vote_once,Cost Retransmission Only,100,100,100,4405.01264,75.07859312887844,0,100,P2I formal uploaded ZIP,d28a8d0e6aa7fa9b52cc2f7730543a24f1a7ee3d,native full-precision summary
+90,cbaa,CBAA,100,100,100,14135.6,71.383177,0,100,P2 source verified_50point_summary.csv,f514cfa3613e7b0bad5c739d136b09fea8c3f92c,archived 6-digit stop time summary
+90,centralized_retry,Baseline Centralized,100,100,100,828.9269,32.3970,0,100,P2G archived Figure2 verified SVG,7cab1b5f7979b2f45104c529de7e25015b4ff7e8,archived SVG tooltips rounded to 4dp

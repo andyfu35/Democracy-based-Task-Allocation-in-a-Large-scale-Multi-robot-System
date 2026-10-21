@@ -268,7 +268,7 @@ $$
 
 ## B. 封包遺失韌性與通訊流量
 
-**2026-10-20 確認的正式研究方向：** 圖一為真正「逐任務一次投票、Score／Commit 後才繼續下一個任務」的 Proposed，對照特定的逐任務集中式 Greedy 基準；圖二維持已驗證的多輪 Proposed／CBAA／CBBA／Baseline Centralized。各圖為 100 Robots、100 Tasks、每台容量 1、0%～90% 掉包、每個掉包率 100 個配對 Seeds。**圖一與圖二的 Greedy 成本基準不同，不能直接比較兩圖的成本上升百分比。**
+**2026-10-21 更新之主要比較：**圖一仍為真正逐任務投票與 Cost 僅交換一次的 Task-Ordered Centralized Greedy 基準；圖二改為 **Full Retransmission、Cost Retransmission Only、CBAA、Baseline Centralized** 四條曲線，舊版 Proposed 多輪決策及 CBBA 不再出現在*主要圖二*，但歷史 P2G 原始證據保留。兩圖皆為 100 Robots、100 Tasks、capacity=1、0%～90% 掉包率（間距 10%），每組 100 Seeds。**圖一成本分母是完整資訊 Task-ID-Ordered Greedy；圖二分母是完整資訊 Global Minimum-Pair Greedy，兩者不可混為一談。**
 
 ### 圖一：逐任務任務分配
 
@@ -282,15 +282,17 @@ Proposed 對 T0 至 T99 逐一投票，每個任務只嘗試一次，收到票�
 
 [正式 P2H 獨立審核](docs/P2H_FORMAL_100SEED_AUDIT.md) · [20 組已驗證統計](docs/figures/p2h/formal/verified_20point_summary.csv) · [P2H 規格](docs/P2H_INTERACTIVE_FIGURE1.md)。
 
-### 圖二：可重複決策之任務分配
+### 圖二：可靠 Cost／Vote 重傳比較
 
-![圖二：Proposed、CBAA、CBBA、Baseline Centralized；原始數據曲線保留，移除底部文字](docs/figures/p2g/formal/figure2_repeatable_no_footer.svg)
+![圖二：完整重傳、僅 Cost 重傳、CBAA 與集中式基準；完整任務分配率、Global Greedy 成本、模擬時間與實際嘗試發送的應用層 Bytes](docs/figures/p2i/formal/figure2_reliable_four_method.svg)
 
-圖二維持 P2G 原始驗證曲線，圖例只用 **Proposed、CBAA、CBBA、Baseline Centralized**。這張圖的集中式基準**會重新取得遺失的 Cost**，與圖一的集中式單次 Cost 假設不同，亦不代表所有集中式演算法。
+**保留四種方法：** **Full Retransmission**（P2I：Cost 與 Vote 原封包均使用 ACK 確認並對缺失資料重傳）、**Cost Retransmission Only**（P2I：Cost 可靠補傳後，每台機器人僅發送一次可能掉包的 Batch Vote）、**CBAA**（原生共識拍賣方法）及 **Baseline Centralized**（單一協調者對缺失 Cost 補傳，再執行一次 Global Greedy 的特定集中式基準）。P2I 的兩個模式皆為**一次決策回合**，並非舊版最多 300 輪重新決策。舊 Proposed 與 CBBA 僅從主要圖二移除，原始 P2G 歷史圖與來源未刪除；單一集中式基準不代表所有集中式演算法。
 
-90% 掉包時，Proposed 完整成功 100/100、對**完整資訊 Global Minimum-Pair Greedy** 的成本差異 +5.04%、4.49 s、105.67 kB；集中式重取 Cost 基準為 100/100、0% 成本差異、32.40 s、828.93 kB。CBAA 100/100、71.38 s、14,135.60 kB；CBBA 原生完整成功 0/100，外部觀測無衝突覆蓋率 71.90%。CBAA／CBBA 的原生觀測終止，不等於 Proposed 已支付 Commit 的分散式結束保證。
+**90% 掉包率、各方法 100 Seeds：**四種方法皆為 100/100 完整完成，對**完整資訊 Global Minimum-Pair Greedy** 的平均成本差異皆為 **0%**。Full Retransmission 為 **148.53 s／8,661.80 kB**；Cost Retransmission Only 為 **75.08 s／4,405.01 kB**；CBAA 為 **71.38 s／14,135.60 kB**；Baseline Centralized 為 **32.40 s／828.93 kB**。只補傳 Cost 相對完整重傳，時間降低 **49.45%**、發送量降低 **49.14%**，但本次的特定集中式基準仍在時間與 Bytes 上優於兩個 P2I 模式。兩個 P2I 模式都能完整指派，與原生**本地自投票、一票相對多數及可靠 Score／Commit** 有關，不能宣稱實體網路也完全可靠。
 
-**模型限制：** Bytes 計入每次嘗試發送（包括接收端丟包），屬於應用層負載；時間是 Rady ROS 實測延遲抽樣與**假設** 144 Mbps 共享媒介的模擬時間，非實體 100 台 Wi-Fi 網路實測。只有全部完成的案例才計算成本，失敗時留空而非補零。舊 P2D／P2E／P2G 圖保留為歷史原始證據，不作新的主要論文圖。
+**計量與資料限制：** Bytes 計入每次實際嘗試的 DATA SEND、重傳及有計費的應用層 Cost／Vote bitmap ACK；封包即使掉包仍計入發送量。P2I 之 ACK、TASK、Score、Commit 採可靠控制訊息假設；未模擬 ACK 掉包、RF 碰撞、MAC 重傳、OFDMA 或實體 100 台機器人量測。CBAA 原生結束條件與 Proposed 的付費 Commit 並不完全相同。P2I 是 **2,000 筆新執行案例**；CBAA 與 Centralized 為歷史來源資料而非本次重跑。集中式曲線的時間與 kB 使用**舊版已驗證 P2G SVG tooltip 四位小數**，未冒稱有更高精度。全部 40 組繪圖資料獨立保存並標明來源，未完成案例不可把成本差異補零。
+
+[圖二 40 組來源資料](docs/figures/p2i/formal/verified_40point_summary.csv) · [P2I 正式資料稽核](docs/P2I_FORMAL_100SEED_AUDIT.md) · [P2I 原生實驗規格](https://github.com/andyfu35/Democracy-based-Task-Allocation-in-a-Large-scale-Multi-robot-System/blob/experiment/p2i-cost-vote-ackretry-20261021/docs/P2I_RELIABLE_TRANSPORT.md)。
 
 ## C. 協調時間與 Deadline 設計
 
