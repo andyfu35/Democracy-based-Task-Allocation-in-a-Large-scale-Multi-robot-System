@@ -43,28 +43,28 @@ The Rady-only legacy backend uses the sampled delay directly, whereas the opt-in
 
 For an attempted application-layer SEND $i$, let $L_i$ be its payload in **bytes** and $R$ be an assumed PHY rate in **Mbps**. With a hypothetical additional per-hop MAC overhead $H$, the **one-hop airtime** is:
 
-$
+$$
 T_{\mathrm{air},i}
 =\frac{t_{\mathrm{pre}}}{1000}
 +\frac{8(L_i+H)}{1000R}
 \qquad[\mathrm{ms}].
-$
+$$
 
 Every modeled radio hop incurs an AIFS wait and a seeded contention backoff. The total backoff and **radio service time** of one SEND are:
 
-$
+$$
 T_{\mathrm{bo},i}
 =\sum_{\ell=0}^{h_i-1}
 \frac{t_{\mathrm{AIFS}}+k_{i\ell}t_{\mathrm{slot}}}{1000},
 \qquad
 k_{i\ell}\in\{0,\ldots,CW_{\min}\},
-$
+$$
 
-$
+$$
 S_i=h_iT_{\mathrm{air},i}
 +T_{\mathrm{bo},i}
 +a_i\frac{t_{\mathrm{ACK}}}{1000}.
-$
+$$
 
 Here $h_i$ is the number of modeled wireless hops, $a_i$ is the number of ACK-charged hops, and $k_{i\ell}$ is a deterministic seeded pseudo-random integer derived from the packet key and hop. It is **not** a collision-driven exponential retry simulation. An infrastructure AP and **one serialized shared radio resource** are assumed:
 
@@ -76,33 +76,33 @@ Here $h_i$ is the number of modeled wireless hops, $a_i$ is the number of ACK-ch
 
 Let $e_i$ be the beginning of the current decision epoch, $s_i$ the packet's within-epoch SEND time, and $r_i=e_i+s_i$ its **absolute release time**. If $f_{i-1}$ is when the previous SEND freed the one shared medium (initially $f_0=0$), then:
 
-$
+$$
 Q_i=\max(0,f_{i-1}-r_i),
 \qquad
 f_i=\max(r_i,f_{i-1})+S_i.
-$
+$$
 
 The measured ROS control delay already contains some physical communication service. To avoid simply **double-counting** it, the model subtracts an *assumed* mean service time of a reference 16-byte single-hop ACKed packet:
 
-$
+$$
 T_{\mathrm{ref}}
 =\frac{t_{\mathrm{pre}}}{1000}
 +\frac{8(L_{\mathrm{ref}}+H)}{1000R}
 +\frac{t_{\mathrm{AIFS}}+\tfrac12 CW_{\min}t_{\mathrm{slot}}+t_{\mathrm{ACK}}}{1000}.
-$
+$$
 
 The added empirical residual is $\varepsilon_i=\max(0,D_i^{\mathrm{Rady}}-T_{\mathrm{ref}})$, giving the packet's **modeled arrival time** and **communication latency**:
 
-$
+$$
 t_i^{\mathrm{arrival}}=f_i+\varepsilon_i,
 \qquad
 T_i^{\mathrm{comm}}=t_i^{\mathrm{arrival}}-r_i
 =Q_i+S_i+\varepsilon_i.
-$
+$$
 
 Combining the terms, the **full implemented opt-in communication equation** is:
 
-$
+$$
 \boxed{
 T_i^{\mathrm{comm}}=
 Q_i+
@@ -113,7 +113,7 @@ h_i\left(\frac{t_{\mathrm{pre}}}{1000}
 +a_i\frac{t_{\mathrm{ACK}}}{1000}
 +\max(0,D_i^{\mathrm{Rady}}-T_{\mathrm{ref}})
 }
-$
+$$
 
 All terms in this final equation are **milliseconds**. Importantly, the medium becomes free at $f_i$, *before* the Rady residual necessarily finishes. Subsequent radio transmissions can overlap earlier packets' residual delays. **Protocol stop / allocation time is determined by actual modeled event/Commit/deadline chronology; it is NOT the sum of every packet's $T_i^{\mathrm{comm}}$.**
 
@@ -286,36 +286,36 @@ s actual application payload, before MAC overhead | Bytes; depends on native met
 
 For a lossy transmission from sender event $i$ to eligible receiver $j$, the deterministic keyed pseudo-random uniform $u_{ij}\in[0,1)$ drives a receiver-side Bernoulli decision:
 
-$
+$$
 X_{ij}=\mathbf{1}\{u_{ij}\ge p_{\mathrm{loss}}\},
 \qquad
 \Pr(X_{ij}=1)=1-p_{\mathrm{loss}}.
-$
+$$
 
 For message types with a decision deadline $d_{ij}$, **usable on-time reception** is:
 
-$
+$$
 Y_{ij}=X_{ij}\,
 \mathbf{1}\{t_i^{\mathrm{arrival}}\le d_{ij}\}.
-$
+$$
 
 A successfully transmitted but **late** Cost/Vote frame may therefore be recorded as physically received but excluded from the decision. Message types without an applicable deadline use $Y_{ij}=X_{ij}$. For the stated Voting loss studies, Cost and Vote receiver delivery can be lossy; TASK, Score and Commit follow their specifically modeled reliable-control assumption. This is not a model of correlated burst loss, collisions or distance-dependent fading, and no Wi-Fi retransmissions are added by this network proxy.
 
 **Attempted sender application bytes**, charged once per actual SEND (even when every receiver drops the packet), are:
 
-$
+$$
 B_{\mathrm{app}}^{\mathrm{sender}}
 =\sum_{i\in\mathcal{S}_{\mathrm{emitted}}}L_i,
 \qquad
 B_{\mathrm{app}}^{\mathrm{sender}}[\mathrm{kB}]
 =\frac{B_{\mathrm{app}}^{\mathrm{sender}}[\mathrm{B}]}{1000}.
-$
+$$
 
 One broadcast is **one sender SEND**, not one SEND per recipient. A SEND denied *before emission* by a payload budget is not counted. The distinct modeled **radio hop-equivalent diagnostic** is:
 
-$
+$$
 B_{\mathrm{hop,proxy}}=\sum_{i\in\mathcal{S}_{\mathrm{emitted}}}h_i(L_i+H).
-$
+$$
 
 This latter diagnostic is **not** the plotted application sender Bytes and is **not** measured over-the-air traffic including retransmissions. The simulated time to a method's own successful completion/guard must likewise be distinguished from packet latency or Python runtime.
 
@@ -323,17 +323,17 @@ This latter diagnostic is **not** the plotted application sender Bytes and is **
 
 Consider **one 100-byte peer broadcast** at $R=144$ Mbps ($h_i=2$, $a_i=1$), with seeded backoff slots $k_{i0}=4$, $k_{i1}=10$, an idle shared medium ($Q_i=0$), and an *illustrative* Rady sample $D_i^{\mathrm{Rady}}=20$ ms. Then:
 
-$
+$$
 T_{\mathrm{air},i}=0.129111\ \mathrm{ms/hop},\quad
 T_{\mathrm{bo},i}=0.194000\ \mathrm{ms},\quad
 S_i=0.497222\ \mathrm{ms},
-$
+$$
 
-$
+$$
 T_{\mathrm{ref}}=0.270944\ \mathrm{ms},\quad
 \varepsilon_i=19.729056\ \mathrm{ms},\quad
 \boxed{T_i^{\mathrm{comm}}\approx20.226278\ \mathrm{ms}}.
-$
+$$
 
 The packet charges **100 B** to application sender traffic and **328 B** to the modeled two-hop radio-equivalent diagnostic; a dropped receiver copy changes neither emitted quantity.
 
