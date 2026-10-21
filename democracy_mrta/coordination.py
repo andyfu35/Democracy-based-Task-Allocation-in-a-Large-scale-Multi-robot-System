@@ -553,6 +553,170 @@ def _lossy_unicast_delivery(
 
 
 
+
+def validate_ack_retry_scope(
+    *, reliable_cost: bool, reliable_vote: bool, retry_limit: int,
+    voting_strategy: str, preknown_snapshot: RetirementCostSnapshot | None,
+    send_budget: SenderPayloadBudget | None,
+) -> None:
+    """Opt-in transport scope; unchanged default always uses original packets."""
+    if not reliable_cost and not reliable_vote:
+        return
+    if (type(reliable_cost) is not bool or type(reliable_vote) is not bool
+            or type(retry_limit) is not int or not 1 <= retry_limit <= 300):
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="validate_ack_retry_scope",
+            category="data", code="P2I_INVALID_RELIABLE_RETRY_CONFIG",
+            expected="boolean Cost/Vote flags and integer retry limit 1..300",
+            actual=(reliable_cost, reliable_vote, retry_limit),
+        ))
+    if (not reliable_cost or voting_strategy != "greedy_batch"
+            or preknown_snapshot is not None or send_budget is not None):
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="validate_ack_retry_scope",
+            category="contract", code="P2I_RELIABLE_SCOPE_MISMATCH",
+            expected="native Global Greedy, physical Cost source, no sender budget",
+            actual=(reliable_cost, voting_strategy,
+                    preknown_snapshot is not None, send_budget is not None),
+        ))
+
+
+def encode_reliable_receipt_bitmap(
+    *, sender_ids: tuple[int, ...], received: frozenset[int] | set[int],
+    receiver_id: int, round_id: int,
+) -> bytes:
+    """Actual per-receiver ACK bitmap bytes, not a free omniscient side channel."""
+    bits = bytearray((len(sender_ids) + 7) // 8)
+    for i, sender in enumerate(sender_ids):
+        if sender in received:
+            bits[i // 8] |= 1 << (i % 8)
+    return struct.pack("!4sIII", b"RACK", round_id, receiver_id, len(sender_ids)) + bytes(bits)
+
+
+def decode_reliable_receipt_bitmap(
+    packet: bytes, *, sender_ids: tuple[int, ...], receiver_id: int, round_id: int,
+) -> frozenset[int]:
+    """Only the decoded, physically paid reliable ACK updates retry state."""
+    expected_size = APP_HEADER_BYTES + (len(sender_ids) + 7) // 8
+    if not isinstance(packet, bytes) or len(packet) != expected_size:
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="decode_reliable_receipt_bitmap",
+            category="data", code="P2I_INVALID_ACK_BITMAP_SIZE",
+            expected=expected_size, actual=len(packet) if isinstance(packet, bytes) else None,
+        ))
+    magic, seen_round, seen_receiver, length = struct.unpack_from("!4sIII", packet)
+    if (magic != b"RACK" or seen_round != round_id
+            or seen_receiver != receiver_id or length != len(sender_ids)):
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="decode_reliable_receipt_bitmap",
+            category="contract", code="P2I_ACK_IDENTITY_MISMATCH",
+            expected=(b"RACK", round_id, receiver_id, len(sender_ids)),
+            actual=(magic, seen_round, seen_receiver, length),
+        ))
+    return frozenset(
+        sender_ids[i] for i in range(length)
+        if packet[APP_HEADER_BYTES + i // 8] & (1 << (i % 8))
+    )
+
+
+def transmit_acknowledged_broadcast_phase(
+    *, phase: str, sender_ids: tuple[int, ...],
+    receiver_ids: tuple[int, ...], payload_bytes_by_sender: dict[int, int],
+    round_id: int, start_ms: float, retry_limit: int, sampler, loss_sampler,
+    p_loss: float,
+) -> tuple[list[CommunicationEvent], list[DeliveryObservation],
+           dict[int, frozenset[int]], float]:
+    """One reliable Cost OR Vote transport concern: SEND -> actual receipt -> ACK.
+
+    The original Bernoulli per-receiver loss model applies to each paid DATA
+    broadcast. One bitmap ACK per receiver per wave is a physically paid
+    reliable control broadcast, matching original Score/Commit reliability.
+    No missing data is restored from the simulation's truth. One original
+    packet is retransmitted, NOT one newly computed decision.
+    """
+    if phase not in ("cost", "vote") or not 1 <= retry_limit <= 300:
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="transmit_acknowledged_broadcast_phase",
+            category="data", code="P2I_INVALID_RETRY_PHASE",
+            expected=("cost/vote", "retry_limit 1..300"),
+            actual=(phase, retry_limit),
+        ))
+    if len(set(sender_ids)) != len(sender_ids) or len(set(receiver_ids)) != len(receiver_ids):
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="transmit_acknowledged_broadcast_phase",
+            category="data", code="P2I_DUPLICATE_RETRY_ENDPOINT",
+            expected="unique physical sender/receiver IDs", actual=(sender_ids, receiver_ids),
+        ))
+    received: dict[int, set[int]] = {
+        receiver: ({receiver} if receiver in sender_ids else set())
+        for receiver in receiver_ids
+    }
+    pending: dict[int, set[int]] = {
+        sender: set(receiver_ids) - {sender} for sender in sender_ids
+    }
+    events: list[CommunicationEvent] = []
+    deliveries: list[DeliveryObservation] = []
+    wave_start_ms = float(start_ms)
+    for retry_index in range(retry_limit):
+        frame_events: list[CommunicationEvent] = []
+        for sender in sender_ids:
+            if not pending[sender]:
+                continue
+            event = _broadcast_event(
+                phase=phase, sender_id=sender,
+                send_time_ms=wave_start_ms,
+                payload_bytes=payload_bytes_by_sender[sender],
+                sampler=sampler, round_id=round_id,
+                transmission_index=retry_index,
+            )
+            events.append(event)
+            frame_events.append(event)
+            attempts = _lossy_broadcast_deliveries(
+                event=event, num_robots=len(receiver_ids),
+                receiver_ids=receiver_ids, loss_sampler=loss_sampler,
+                p_loss=p_loss, round_id=round_id,
+            )
+            deliveries.extend(attempts)
+            for receipt in attempts:
+                if receipt.delivered and receipt.arrival_time_ms is not None:
+                    received[receipt.receiver_id].add(sender)
+        if not frame_events:
+            break
+        ack_release_ms = max(event.arrival_time_ms for event in frame_events)
+        ack_events: list[CommunicationEvent] = []
+        for receiver in receiver_ids:
+            ack_packet = encode_reliable_receipt_bitmap(
+                sender_ids=sender_ids, received=received[receiver],
+                receiver_id=receiver, round_id=round_id,
+            )
+            ack_event = _broadcast_event(
+                phase=f"{phase}_ack", sender_id=receiver, round_id=round_id,
+                transmission_index=retry_index, send_time_ms=ack_release_ms,
+                payload_bytes=len(ack_packet), sampler=sampler,
+            )
+            events.append(ack_event)
+            ack_events.append(ack_event)
+            for sender in decode_reliable_receipt_bitmap(
+                    ack_packet, sender_ids=sender_ids, receiver_id=receiver,
+                    round_id=round_id):
+                pending[sender].discard(receiver)
+        wave_start_ms = max(event.arrival_time_ms for event in ack_events)
+        if all(not missing for missing in pending.values()):
+            return (events, deliveries,
+                    {receiver: frozenset(seen) for receiver, seen in received.items()},
+                    wave_start_ms)
+    missing = [(sender, receiver) for sender in sender_ids
+               for receiver in sorted(pending[sender])]
+    raise ProtocolError(Diagnostic(
+        owner="coordination", function="transmit_acknowledged_broadcast_phase",
+        category="time", code="P2I_ACK_RETRY_LIMIT_REACHED",
+        expected=f"all actual {phase} receipts and paid ACKs within {retry_limit} waves",
+        actual={"missing_count": len(missing), "first_missing": missing[:12],
+                "attempted_sends": len(events)},
+        details="No fallback to hidden Cost, no fabricated Vote receipt",
+    ))
+
+
 def transmit_repeated_remote_vote(
     *,
     voter_id: int,
@@ -1068,21 +1232,36 @@ def capture_retirement_cost_snapshot(
     send_budget: SenderPayloadBudget | None = None,
     cost_repetitions: int = 1,
     enforce_cost_deadline: bool = False,
+    reliable_cost: bool = False,
+    retry_limit: int = 300,
 ) -> RetirementCostSnapshot:
     """Build retained snapshot from only physically delivered original Costs."""
     num_robots, num_tasks = validate_cost_matrix(cost_matrix)
-    events, deliveries, visible, ready_times = _simulate_lossy_cost_broadcasts(
-        num_robots=num_robots,
-        num_tasks=num_tasks,
-        sampler=sampler,
-        loss_sampler=loss_sampler,
-        p_loss=p_loss,
-        phase_timeout_ms=phase_timeout_ms,
-        round_id=0,
-        send_budget=send_budget,
-        cost_repetitions=cost_repetitions,
-        enforce_cost_deadline=enforce_cost_deadline,
-    )
+    if reliable_cost:
+        events, deliveries, received, end_ms = transmit_acknowledged_broadcast_phase(
+            phase="cost", sender_ids=tuple(range(num_robots)),
+            receiver_ids=tuple(range(num_robots)),
+            payload_bytes_by_sender={
+                sender: cost_row_payload_bytes(num_tasks) for sender in range(num_robots)
+            },
+            round_id=0, start_ms=0.0, retry_limit=retry_limit,
+            sampler=sampler, loss_sampler=loss_sampler, p_loss=p_loss,
+        )
+        visible = tuple(received[receiver] for receiver in range(num_robots))
+        ready_times = tuple(end_ms for _ in range(num_robots))
+    else:
+        events, deliveries, visible, ready_times = _simulate_lossy_cost_broadcasts(
+            num_robots=num_robots,
+            num_tasks=num_tasks,
+            sampler=sampler,
+            loss_sampler=loss_sampler,
+            p_loss=p_loss,
+            phase_timeout_ms=phase_timeout_ms,
+            round_id=0,
+            send_budget=send_budget,
+            cost_repetitions=cost_repetitions,
+            enforce_cost_deadline=enforce_cost_deadline,
+        )
     return RetirementCostSnapshot(
         robot_ids=tuple(range(num_robots)),
         visible_by_voter=visible,
@@ -1551,11 +1730,43 @@ def collect_greedy_batch_votes(
     ready_times: tuple[float, ...], round_id: int,
     cutoff_ms: float, sampler, loss_sampler, p_vote_loss: float,
     voted_task_ids: tuple[int, ...] | None = None,
+    reliable_vote: bool = False,
+    retry_limit: int = 300,
 ) -> tuple[list[CommunicationEvent], list[DeliveryObservation], dict[tuple[int, int], int]]:
-    """One broadcast ballot per voter; only timely delivered votes enter recipient tallies."""
+    """Batch Vote sender: original once-only OR opt-in ACK-confirmed same-packet retries."""
     events: list[CommunicationEvent] = []
     deliveries: list[DeliveryObservation] = []
     counts: dict[tuple[int, int], int] = {}
+    if reliable_vote:
+        records_by_sender: dict[int, tuple[tuple[int, int], ...]] = {}
+        packets: dict[int, bytes] = {}
+        for voter_index, proposal in enumerate(proposals):
+            sender_id = physical_robots[voter_index]
+            records = tuple(
+                (task, candidate) for candidate, task in proposal.assigned_pairs
+                if voted_task_ids is None or task in voted_task_ids
+            )
+            if records:
+                records_by_sender[sender_id] = records
+                packets[sender_id] = encode_greedy_batch_packet(
+                    kind=b"BVOT", round_id=round_id, sender_id=sender_id,
+                    records=records,
+                )
+        events, deliveries, seen, _ack_done_ms = transmit_acknowledged_broadcast_phase(
+            phase="vote", sender_ids=tuple(records_by_sender),
+            receiver_ids=physical_robots,
+            payload_bytes_by_sender={sender: len(packet)
+                                     for sender, packet in packets.items()},
+            round_id=round_id, start_ms=max(ready_times, default=0.0),
+            retry_limit=retry_limit, sampler=sampler, loss_sampler=loss_sampler,
+            p_loss=p_vote_loss,
+        )
+        for sender, records in records_by_sender.items():
+            for task, candidate in records:
+                if candidate == sender or sender in seen[candidate]:
+                    key = (task, candidate)
+                    counts[key] = counts.get(key, 0) + 1
+        return events, deliveries, counts
     order = (
         sorted(range(len(physical_robots)), key=lambda i: (ready_times[i], physical_robots[i]))
         if isinstance(sampler, WifiCausalTimingSampler) else range(len(physical_robots))
@@ -1736,6 +1947,8 @@ def simulate_greedy_batch_vote_epoch(
     capture_vote_audit: bool,
     voted_task_ids: tuple[int, ...] | None = None,
     task_ordered: bool = False,
+    reliable_vote: bool = False,
+    retry_limit: int = 300,
 ) -> LossyCoordinationResult:
     """One Cost snapshot -> scoped Vote -> reliable Score -> capacity-one Commit."""
     eligible_vote_tasks = physical_tasks if voted_task_ids is None else voted_task_ids
@@ -1746,6 +1959,7 @@ def simulate_greedy_batch_vote_epoch(
         round_id=round_id, cutoff_ms=vote_cutoff_ms, sampler=sampler,
         loss_sampler=loss_sampler, p_vote_loss=p_vote_loss,
         voted_task_ids=voted_task_ids,
+        reliable_vote=reliable_vote, retry_limit=retry_limit,
     )
     score_release_ms = max(
         vote_cutoff_ms,
@@ -1817,6 +2031,8 @@ def simulate_democracy_hungarian_lossy(
     send_budget: SenderPayloadBudget | None = None,
     enforce_vote_deadline: bool = False,
     batch_vote_task_ids: tuple[int, ...] | None = None,
+    reliable_vote: bool = False,
+    retry_limit: int = 300,
 ) -> LossyCoordinationResult:
     num_robots, num_tasks = validate_cost_matrix(cost_matrix)
     physical_robots, physical_tasks = validate_epoch_identity_mapping(
@@ -1903,6 +2119,7 @@ def simulate_democracy_hungarian_lossy(
             p_vote_loss=vote_loss_probability, capture_vote_audit=capture_vote_audit,
             voted_task_ids=batch_vote_task_ids,
             task_ordered=(voting_strategy == "greedy_batch_task_order"),
+            reliable_vote=reliable_vote, retry_limit=retry_limit,
         )
 
     ledgers_by_task: dict[int, dict[int, set[int]]] = {
@@ -2281,6 +2498,9 @@ def simulate_democracy_hungarian_retirement(
     per_active_round_deadline_ms: tuple[float, ...] | None = None,
     enforce_vote_deadline: bool = False,
     batch_vote_scope: str = "all",
+    reliable_cost: bool = False,
+    reliable_vote: bool = False,
+    retry_limit: int = 300,
 ) -> MultiRoundRetirementResult:
     """Multi-round membership owner; reuses the same E2 single-round vote engine.
 
@@ -2341,6 +2561,11 @@ def simulate_democracy_hungarian_retirement(
     validate_batch_vote_scope(
         voting_strategy=voting_strategy, batch_vote_scope=batch_vote_scope,
     )
+    validate_ack_retry_scope(
+        reliable_cost=reliable_cost, reliable_vote=reliable_vote,
+        retry_limit=retry_limit, voting_strategy=voting_strategy,
+        preknown_snapshot=preknown_cost_snapshot, send_budget=send_budget,
+    )
     if preknown_cost_snapshot is not None:
         validate_preknown_retirement_cost_snapshot(
             snapshot=preknown_cost_snapshot, num_robots=num_robots,
@@ -2358,6 +2583,7 @@ def simulate_democracy_hungarian_retirement(
                 send_budget=send_budget,
                 cost_repetitions=cost_repetitions,
                 enforce_cost_deadline=enforce_vote_deadline,
+                reliable_cost=reliable_cost, retry_limit=retry_limit,
             )
             if voting_strategy in ("greedy_task", "greedy_batch", "greedy_batch_task_order") else None
         )
@@ -2407,6 +2633,7 @@ def simulate_democracy_hungarian_retirement(
             send_budget=send_budget,
             enforce_vote_deadline=enforce_vote_deadline,
             batch_vote_task_ids=(pending_tasks[:1] if batch_vote_scope == "one_task" else None),
+            reliable_vote=reliable_vote, retry_limit=retry_limit,
         )
         require_retirement_commit_announcements(
             round_result=round_result,
