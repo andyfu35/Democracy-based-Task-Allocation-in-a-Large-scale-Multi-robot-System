@@ -2219,7 +2219,11 @@ def simulate_greedy_batch_vote_epoch(
         announcement_threshold=1,
         qualified_announcement_count=len(scores),
         plurality_tie_break_count=tied,
-        plurality_winner_vote_count=max(certified.values(), default=0),
+        plurality_winner_vote_count=(
+            max((count for count,_own_cost in certified.values()), default=0)
+            if probabilistic_ballots is not None
+            else max(certified.values(), default=0)
+        ),
         audit_visible_rows_by_voter=(
             tuple(frozenset(physical_robots[r] for r in rows) for rows in visible)
             if capture_vote_audit else ()
