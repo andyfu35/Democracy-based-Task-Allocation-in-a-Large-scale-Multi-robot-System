@@ -289,6 +289,42 @@ class P2JProbabilityTests(unittest.TestCase):
         self.assertEqual(v2,())
         self.assertEqual(v3,((1,10),(2,20),(3,30)))
 
+    def test_v3_no_change_when_positive_score_has_perfect_matching(self):
+        scores={(0,0):(2,7.0),(1,1):(3,9.0)}
+        v2,_=resolve_dynamic_probability_margin_winners(
+            scores=scores,physical_tasks=(0,1),physical_robots=(0,1),
+        )
+        v3,_=resolve_dynamic_probability_margin_winners(
+            scores=scores,physical_tasks=(0,1),physical_robots=(0,1),
+            completion_policy="idle_robot_id",
+        )
+        self.assertEqual(v2,v3)
+
+    def test_v3_explicit_capacity_failure_diagnostic(self):
+        with self.assertRaises(ProtocolError) as exc:
+            complete_unassigned_score_matching(
+                supported_pairs=(),scores={},
+                physical_tasks=(0,1,2),physical_robots=(0,1),
+            )
+        self.assertEqual(
+            exc.exception.diagnostic.code,"P2J_V3_INSUFFICIENT_IDLE_CAPACITY",
+        )
+
+    def test_v3_fallback_rejected_for_non_probabilistic_method(self):
+        args=dict(voting_strategy="greedy_batch",max_rounds=1,
+                  cost_repetitions=1,vote_repetitions=1,batch_vote_scope="all",
+                  probabilistic_seed=None,votes_per_voter=100,
+                  temperature=5.0,margin_rule="absolute",
+                  enforce_vote_deadline=True,num_robots=3,num_tasks=3,
+                  send_budget=None,preknown_cost_snapshot=None,
+                  completion_policy="idle_robot_id")
+        with self.assertRaises(ProtocolError) as exc:
+            validate_probabilistic_batch_scope(**args)
+        self.assertEqual(
+            exc.exception.diagnostic.code,
+            "P2J_V3_FALLBACK_REQUIRES_PROBABILISTIC_VOTE",
+        )
+
     def test_one_cost_one_vote_no_retries_at_90_percent_loss(self):
         sampler=WifiCausalTimingSampler(
             synthetic_profile(),17,WifiTimingConfig(phy_rate_mbps=144.0),
