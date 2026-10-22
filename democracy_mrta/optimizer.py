@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+import hashlib
+import random
+import bisect
 
 from scipy.optimize import linear_sum_assignment
 
@@ -405,6 +408,97 @@ def solve_visible_task_ordered_greedy_assignment(
         assigned_pairs=tuple(chosen),
         total_cost=float(sum(cost_matrix[r][t] for r, t in chosen)),
     )
+
+
+
+def validate_probabilistic_vote_policy(
+    *, votes_per_voter: int, temperature: float, seed: int,
+    voter_id: int, num_robots: int,
+) -> None:
+    """Data boundary for the optional one-batch multi-ticket stochastic policy."""
+    if (type(votes_per_voter) is not int or not 1 <= votes_per_voter <= 255
+            or type(seed) is not int or seed < 0
+            or type(voter_id) is not int or not 0 <= voter_id < num_robots
+            or type(temperature) not in (int, float)
+            or not math.isfinite(temperature) or temperature <= 0):
+        raise ProtocolError(Diagnostic(
+            owner="optimizer", function="validate_probabilistic_vote_policy",
+            category="data", code="P2J_INVALID_PROBABILITY_POLICY",
+            expected={"votes_per_voter":"integer 1..255",
+                      "seed":"nonnegative integer","voter_id":f"0..{num_robots-1}",
+                      "temperature":"finite positive number"},
+            actual={"votes_per_voter":votes_per_voter,"seed":seed,
+                    "voter_id":voter_id,"temperature":temperature},
+        ))
+
+
+def sample_probabilistic_pair_votes(
+    *, cost_matrix: tuple[tuple[float, ...], ...],
+    visible_robot_ids: frozenset[int] | set[int] | tuple[int, ...],
+    voter_id: int, seed: int, votes_per_voter: int = 100,
+    temperature: float = 5.0, round_id: int = 0,
+) -> tuple[tuple[int, int, int], ...]:
+    """Choose exactly N tickets from one voter's *visible* Task x Robot pairs.
+
+    P(task, robot) = (1 / task_count) * softmax(-cost / temperature |
+    visible robots, task). Task-balanced sampling avoids suppressing difficult
+    tasks solely because their absolute costs exceed costs of other tasks.
+    Duplicate tickets are aggregated as (task_id, candidate_id, count).
+    No unavailable Cost row is read, assigned or sampled. All RNG state is
+    local and SHA256-keyed by seed/voter/epoch; neither Python global random
+    state nor the network loss sampler is used.
+    """
+    num_robots, num_tasks = validate_cost_matrix(
+        cost_matrix, allow_tasks_exceed_robots=True,
+    )
+    validate_probabilistic_vote_policy(
+        votes_per_voter=votes_per_voter, temperature=temperature,
+        seed=seed, voter_id=voter_id, num_robots=num_robots,
+    )
+    if type(round_id) is not int or round_id < 0:
+        raise ProtocolError(Diagnostic(
+            owner="optimizer", function="sample_probabilistic_pair_votes",
+            category="data", code="P2J_INVALID_BALLOT_ROUND",
+            expected="nonnegative integer", actual=round_id,
+        ))
+    visible=tuple(sorted(set(visible_robot_ids)))
+    if (not visible or voter_id not in visible or
+            any(type(r) is not int or r < 0 or r >= num_robots for r in visible)):
+        raise ProtocolError(Diagnostic(
+            owner="optimizer", function="sample_probabilistic_pair_votes",
+            category="state", code="P2J_INVALID_LOCAL_COST_VIEW",
+            expected="only valid physically visible robot IDs, including voter self",
+            actual={"voter_id":voter_id,"visible":visible},
+        ))
+    digest=hashlib.sha256(
+        f"P2J|{seed}|{voter_id}|{round_id}|{votes_per_voter}|{temperature:.17g}"
+        .encode("ascii")
+    ).digest()
+    rng=random.Random(int.from_bytes(digest, "big"))
+    counts: dict[tuple[int, int], int]={}
+    cumulative_by_task: dict[int, tuple[tuple[float, ...], float]]={}
+    for _ in range(votes_per_voter):
+        task_id=rng.randrange(num_tasks)
+        if task_id not in cumulative_by_task:
+            minimum=min(cost_matrix[robot][task_id] for robot in visible)
+            subtotal=0.0
+            cumulative=[]
+            for robot in visible:
+                subtotal+=math.exp(-(cost_matrix[robot][task_id]-minimum)/temperature)
+                cumulative.append(subtotal)
+            cumulative_by_task[task_id]=(tuple(cumulative),subtotal)
+        cumulative,total=cumulative_by_task[task_id]
+        selected=bisect.bisect_left(cumulative,rng.random()*total)
+        robot_id=visible[min(selected,len(visible)-1)]
+        key=(task_id,robot_id)
+        counts[key]=counts.get(key,0)+1
+    if sum(counts.values())!=votes_per_voter:
+        raise ProtocolError(Diagnostic(
+            owner="optimizer", function="sample_probabilistic_pair_votes",
+            category="contract", code="P2J_BALLOT_TICKET_SUM_MISMATCH",
+            expected=votes_per_voter, actual=sum(counts.values()),
+        ))
+    return tuple((task_id,robot_id,count) for (task_id,robot_id),count in sorted(counts.items()))
 
 
 def solve_sequential_greedy_reference(
