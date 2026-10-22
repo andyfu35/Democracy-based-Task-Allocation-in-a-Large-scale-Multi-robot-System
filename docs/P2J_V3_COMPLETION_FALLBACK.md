@@ -1,7 +1,7 @@
-# P2J-v3 — One-shot 100-ticket probabilistic voting with paid completion fallback
+# Hsien-Te Methods (P2J-v3) — One-shot probabilistic voting with paid completion fallback
 
 **Branch:** `experiment/p2j-v3-completion-fallback-20261022`  
-**Status:** source committed; Mac tests, native Smoke and 3,000 formal cases **NOT YET VERIFIED**. Historical P2J-v1/v2 and main README figures remain unchanged.
+**Official publication name: Hsien-Te Methods.** This name describes the original `probabilistic_complete_fallback` native algorithm; the original study `P2J_V3_DETERMINISTIC_FALLBACK_PAIRED`, original code SHA `33bd5f771b347365d768890ea71e87f0c1e7c6a3`, and raw data IDs are unchanged. Uploaded formal ZIP SHA256 `9839901650acc1d2feba0a14158a55c1211796a486bfc6c2d5fd9c8ac358e710` contains 3,000 native cases/30 groups, independently audited with its manifest. The Hsien-Te subset achieved native full 100-task allocation in all 1,000 cases under E0 generalist-robot and reliable Score/Commit assumptions; PL30 global Greedy cost gap −6.01% and PL90 +35.65%. Main Figure2 publication (five arms) commit `c7f8876c6c6e332423590d8a38b1244bb5e937b7`; provenance in main `docs/HSIEN_TE_FIGURE2_COMPARISON_AUDIT.md`. Historical P2J-v1/v2 and original four-arm SVG remain archived; no RF hardware guarantee is implied.
 
 ## Frozen protocol and assumptions
 
