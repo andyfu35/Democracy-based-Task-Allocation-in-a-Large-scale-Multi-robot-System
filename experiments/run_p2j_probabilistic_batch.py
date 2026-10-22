@@ -45,6 +45,7 @@ RAW_FIELDS = (
     "source_sha","seed","loss_percent","mode","scene_sha256",
     "robots","tasks","capacity","votes_per_voter","temperature","margin_rule",
     "native_complete","committed_tasks","coverage_percent",
+    "committed_cost_m","cost_per_committed_task_m",
     "full_info_global_greedy_cost","native_complete_cost",
     "cost_increase_percent","native_stop_ms","sender_sends","sender_bytes",
     "task_sends","task_bytes","cost_sends","cost_bytes",
@@ -55,7 +56,8 @@ RAW_FIELDS = (
 )
 SUMMARY_FIELDS = (
     "loss_percent","mode","seeds","full_completion_percent",
-    "mean_task_coverage_percent","cost_success_n","cost_increase_percent",
+    "mean_task_coverage_percent","mean_cost_per_committed_task_m",
+    "cost_success_n","cost_increase_percent",
     "mean_stop_s","mean_sender_kB","mean_cost_sender_kB",
     "mean_vote_sender_kB","mean_score_sender_kB",
     "mean_vote_receiver_drops",
@@ -217,6 +219,9 @@ def run_one_p2j_case(
         "native_complete":int(native["full_commit"]),
         "committed_tasks":int(native["tasks_committed"]),
         "coverage_percent":100*int(native["tasks_committed"])/scene.num_tasks,
+        "committed_cost_m":float(native["total_assignment_cost"]),
+        "cost_per_committed_task_m":(float(native["total_assignment_cost"])/int(native["tasks_committed"])
+                                      if int(native["tasks_committed"]) else ""),
         "full_info_global_greedy_cost":reference,
         "native_complete_cost":cost,
         "cost_increase_percent":increase,
@@ -252,6 +257,10 @@ def summarize_p2j_cases(rows: list[dict],losses: tuple[int,...]) -> list[dict]:
                 "loss_percent":loss,"mode":mode,"seeds":len(cohort),
                 "full_completion_percent":100*len(complete)/len(cohort),
                 "mean_task_coverage_percent":mean("coverage_percent"),
+                "mean_cost_per_committed_task_m":mean(
+                    "cost_per_committed_task_m",
+                    [r for r in cohort if r["committed_tasks"]>0],
+                ),
                 "cost_success_n":len(complete),
                 "cost_increase_percent":mean("cost_increase_percent",complete),
                 "mean_stop_s":mean("native_stop_ms")/1000,
@@ -331,7 +340,7 @@ def run_p2j(args):
         "votes_per_voter":args.votes_per_voter,
         "temperature":args.temperature,"margin_rule":args.margin_rule,
         "vote_policy":"Uniform task then per-task visible-Cost Boltzmann",
-        "assignment":"Dynamic recomputed top-two raw count margin, candidate self-Cost tie break",
+        "assignment":"Dynamic recomputed top-two "+args.margin_rule+" count margin, candidate self-Cost tie break",
         "transmission":"one original Cost broadcast and one serialized Vote per voter; no DATA retries; reliable paid Score/Commit",
         "radio":"Rady empirical latency samples plus hypothetical 144Mbps shared serialized medium",
         "cost_reference":"offline full-info global minimum-pair Greedy (complete-only)",
