@@ -145,6 +145,97 @@ class P2JProbabilityTests(unittest.TestCase):
         )
         self.assertEqual(winners,((1,0),(0,1),(2,2)))
 
+    def test_global_matching_repairs_stranded_tasks_using_one_vote_edges(self):
+        # The previous irreversible greedy method takes T1/R0 (large
+        # margin), then T0/R1, stranding T2. Globally T1/R1 can take
+        # one positive vote and T2/R0 can run: no additional Vote or Cost.
+        # All three commitments must precede original reliable Commit.
+        scores={
+            (0,0):(19,10.0),(0,1):(13,15.0),
+            (1,0):(30,5.0),(1,1):(1,11.0),
+            (2,0):(5,12.0),(2,2):(1,20.0),
+        }
+        winners,_=resolve_dynamic_probability_margin_winners(
+            scores=scores,physical_tasks=(0,1,2),
+            physical_robots=(0,1,2),margin_rule="absolute",
+        )
+        self.assertEqual(len(winners),3)
+        self.assertEqual({t for _r,t in winners},{0,1,2})
+        self.assertTrue(all((t,r) in scores for r,t in winners))
+
+    def test_global_matching_enforces_cardinality_before_vote_advantage(self):
+        # T0/R0 has overwhelming support; T1 has only R0, so T0/R1
+        # (one vote) must be chosen, allowing BOTH tasks to complete.
+        scores={
+            (0,0):(99,1.0),(0,1):(1,30.0),
+            (1,0):(49,3.0),
+        }
+        winners,_=resolve_dynamic_probability_margin_winners(
+            scores=scores,physical_tasks=(0,1),physical_robots=(0,1),
+        )
+        self.assertEqual(winners,((1,0),(0,1)))
+
+    def test_no_unannounced_edge_is_fabricated_when_score_graph_deficient(self):
+        scores={
+            (0,0):(50,5.0),(1,0):(40,6.0),(2,0):(30,7.0),
+        }
+        winners,_=resolve_dynamic_probability_margin_winners(
+            scores=scores,physical_tasks=(0,1,2),physical_robots=(0,1,2),
+        )
+        self.assertEqual(len(winners),1)
+        self.assertTrue(all((t,r) in scores for r,t in winners))
+
+    def test_global_matching_keeps_margin_preferences_without_task_id_order(self):
+        scores={
+            (0,0):(60,10.0),(0,1):(40,8.0),
+            (1,0):(90,5.0),(1,1):(10,12.0),
+        }
+        winners,_=resolve_dynamic_probability_margin_winners(
+            scores=scores,physical_tasks=(0,1),physical_robots=(0,1),
+            margin_rule="absolute",
+        )
+        self.assertEqual(winners,((1,0),(0,1)))
+        normalized,_=resolve_dynamic_probability_margin_winners(
+            scores=scores,physical_tasks=(0,1),physical_robots=(0,1),
+            margin_rule="normalized",
+        )
+        self.assertEqual(normalized,winners)
+
+    def test_reliable_score_reaches_matching_before_original_commit(self):
+        sampler=WifiCausalTimingSampler(
+            synthetic_profile(),22,WifiTimingConfig(phy_rate_mbps=144.0),
+        )
+        result=simulate_democracy_hungarian_retirement(
+            cost_matrix=self.costs,sampler=sampler,loss_sampler=BernoulliLossSampler(22),
+            p_loss=0.0,p_vote_loss=0.0,
+            phase_timeout_ms=1000.0,max_rounds=1,
+            voting_strategy="probabilistic_batch",
+            vote_decision_rule="received_plurality",
+            vote_repetitions=1,cost_repetitions=1,
+            per_active_round_deadline_ms=(1000.0,1000.0,1000.0),
+            enforce_vote_deadline=True,probabilistic_seed=22,
+            votes_per_voter=100,temperature=5.0,margin_rule="absolute",
+        )
+        self.assertEqual(len(result.rounds),1)
+        evs=result.rounds[0].coordination.events
+        score=[e for e in evs if e.phase=="vote_score_announcement"]
+        commits=[e for e in evs if e.phase=="commit"]
+        self.assertTrue(score)
+        self.assertTrue(commits)
+        self.assertEqual(len(commits),len(result.assigned_pairs))
+        self.assertTrue(all(
+            e.send_time_ms >= max(item.arrival_time_ms for item in score)-1e-9
+            for e in commits
+        ))
+        self.assertFalse(any(
+            d.phase=="vote_score_announcement"
+            for d in result.rounds[0].coordination.deliveries
+        ))
+        self.assertEqual(
+            sum(e.payload_bytes for e in evs),
+            sampler.summarize_network()["application_sender_bytes"],
+        )
+
     def test_one_cost_one_vote_no_retries_at_90_percent_loss(self):
         sampler=WifiCausalTimingSampler(
             synthetic_profile(),17,WifiTimingConfig(phy_rate_mbps=144.0),
