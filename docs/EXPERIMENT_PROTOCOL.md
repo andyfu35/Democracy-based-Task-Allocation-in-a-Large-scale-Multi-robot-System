@@ -2086,3 +2086,114 @@ Current Figure2 source data are 20 **new** P2I cells backed by 2,000 verified ZI
 **P2I formal result:** 100% 100-task native full completion and 0% mean Global Greedy cost increase on all 10 loss levels for **both** new variants. At PL90: full_retry 148.5252177 s / 8661.79516 kB; cost_retry_vote_once 75.0785931 s / 4405.01264 kB; historical CBAA 71.383177 s / 14135.6 kB; historical Centralized 32.3970 s / 828.9269 kB (limited to source tooltip precision). **Self-voting + one-vote received plurality + reliable Score/Commit** strongly condition the ability of single-batch Vote to achieve complete Global Greedy results under loss. Do not claim this is robust if all vote and ACK/control frames may fail. CBAA's native completion observational semantics differ from original proposed paid-Commit semantics; one named centralized implementation is not the field of centralized MRTA.
 
 **Owner boundary:** presentation is a fixed source-derived SVG and independent 40-row CSV, with no change to native coordination/optimizer/network, original historical `experiments.p2g_plot.render_p2g_figure`, or Figure 1. This section supersedes earlier §57/§58 statements about *which historical Figure 2 is currently the primary README illustration*; historical experiment semantics themselves are preserved. The original first-failure owner/function/category/code/expected/actual/details diagnostic system and category set data/time/state/dependency/planning/safety/runtime/contract are unchanged by this documentation-only publication.
+
+
+## 60. P2J — Single-Cost, Single-Vote probabilistic 100-ticket assignment (2026-10-22)
+
+This section freezes a **new opt-in experiment** and does NOT retroactively
+rename P2G one-shot, P2H task-by-task, or P2I reliable packet retransmission
+in either README or Figure 2. The user explicitly confirmed **each voter
+samples 100 TOTAL ticket draws across all Task × visible-Robot pairs**,
+combines duplicates into one physically transmitted compact Vote Batch, and
+does not request additional voting rounds or retransmission. The current
+implementation uses exactly ONE original native decision epoch, not a
+second replacement assignment state machine.
+
+**Stochastic policy, not trained MDP.** Voter `v` selects a task `t`
+uniformly from all 100 tasks; then selects candidate `r` from only its
+physically received Cost rows (including itself) using
+`P_v(r|t) ∝ exp(-(C[r,t]-min_k C[k,t])/tau)` with `tau=5.0` and per-voter
+100 total draws. `optimizer.sample_probabilistic_pair_votes` owns local
+reproducible SHA256-seeded random sampling (scene seed, voter, epoch,
+temperature and ticket budget). Each voter emits ONE physically paid
+`PVOT` broadcast. `PVOT` uses a 16-byte application header plus 4
+bytes per unique (uint8 task, uint8 robot, uint16 ticket count), at most
+416 bytes for 100 tickets. Original per-recipient Bernoulli Vote loss and
+original E9H deadlines apply; tickets sent to an unseen candidate
+are forbidden. The Score is not a free global tally: only a candidate's
+self-counted tickets or originally received/timely remote PVOT packets
+are counted by that candidate. One paid **reliable** `PSCR` broadcast
+per candidate with positive votes includes each task's candidate vote count
+and **the announcing candidate's own known Cost**, encoded in a compact
+<=1116-byte packet for 100 tasks. The original network owner is unchanged;
+no hidden Cost row is reconstructed at a remote voter and no
+packet MAC-layer retransmission is simulated.
+
+**Dynamic task urgency.** For each remaining task with positive candidate
+Score, compute the eligible highest and second-highest ticket counts,
+using second-highest=0 if one candidate. Default urgency is the raw count
+difference `Delta(t)=v1-v2`; at each local decision select task with
+largest Delta, then largest top count, then lowest candidate-*announced*
+cost, task ID, robot ID as exact deterministic tie breakers.
+The candidate for a task is the highest positive-count robot (tie:
+lowest its own announced Cost, then ID). Commit this pair using the
+existing reliable per-executor Commit, remove robot and task, then
+**recompute all surviving margins**. This is one local decision from
+the same certified Score snapshot, NOT re-voting or communicating after
+each task. Alternative opt-in normalized margin computes
+`(v1-v2)/sum(positive candidate votes)`; not formally promoted yet.
+Missing positive Score means task remains unassigned, not silently filled
+with oracle Cost. Full assignment and full-info Global Greedy cost parity
+are **NOT preconditions** for stochastic success even at PL0.
+
+**Native owners and diagnostic boundaries.**
+- `optimizer.validate_probabilistic_vote_policy` owns ticket/temperature/
+  seed validation (data/P2J_INVALID_PROBABILITY_POLICY);
+  `sample_probabilistic_pair_votes` owns actual per-voter local
+  sampling (state/P2J_INVALID_LOCAL_COST_VIEW, contract/P2J_BALLOT_TICKET_SUM_MISMATCH).
+- `coordination.validate_probabilistic_batch_scope` owns one Cost/one
+  Vote/one epoch invariants (contract/P2J_ONE_SHOT_SCOPE_VIOLATION);
+  `build_epoch_probabilistic_ballots` maps local/physical IDs and
+  checks exact voter view count.
+- `coordination.encode_probabilistic_vote_packet` and
+  `decode_probabilistic_vote_packet` own physically encoded 100-ticket
+  ballot/recipient integrity; `collect_probabilistic_batch_votes`
+  owns actual one original Vote SEND, receiver-loss/late deadline and
+  candidate self-counting. All remote dropped DATA sends are counted.
+- `coordination.encode_probabilistic_score_packet`,
+  `decode_probabilistic_score_packet`,
+  `publish_probabilistic_batch_scores` own positive-only candidate-paid
+  Score and the candidate's true self-known Cost; the original
+  Score/Commit reliability assumption is unchanged.
+- `coordination.resolve_dynamic_probability_margin_winners`
+  owns dynamic rank and capacity-one retirement from certified
+  candidate-local count/own-cost Score only (data/P2J_UNKNOWN_MARGIN_RULE,
+  contract/P2J_INVALID_CERTIFIED_SCORE); original
+  `simulate_greedy_batch_vote_epoch`, `simulate_democracy_hungarian_lossy`,
+  `simulate_democracy_hungarian_retirement` retain one original
+  Cost→Vote→Score→Commit timeline and membership without a second
+  state machine.
+- `experiments.run_e9h_adaptive_deadline.run_e9h_original_voting_case`
+  only forwards opt-in policy configuration and preserves the actual
+  physically paid per-phase sender ledger; `experiments.run_p2j_probabilistic_batch`
+  owns only experimental validation, exact pairing, native evidence,
+  full-success-only offline Global Greedy reference and diagnostics,
+  raw/summary/manifests. The first failing owner/function/category/code
+  plus expected/actual/details must be visible and valid categories
+  remain data/time/state/dependency/planning/safety/runtime/contract.
+
+**Formal experimental contract.** Original E0 100 robots ×100 tasks,
+capacity=1, exactly 100 paired seeds (0..99) × packet losses 0..90
+step10; focus on 30% loss. Two real native modes,
+`probabilistic_margin` and the original
+`one_batch_greedy` global-minimum-edge Greedy using identical physical
+Cost and Vote packet-loss sampling assumptions, one each per voter,
+no retries. P2J uses original Rady Wi-Fi delay samples with a
+hypothetical 144 Mbps shared medium, **not physical Wi-Fi metrics**.
+Run 12-case smoke (PL0/30/90, two seeds, two modes) after targeted and
+full tests; optional PL0 ×100Seeds ×2 modes gate controls original
+Greedy fidelity but deliberately does NOT force the stochastic mode
+to be complete; then formal 2,000 actual native method cases in 20
+summary groups. Original failed/incomplete allocations retain their
+physical sender cost, bytes and time, and report task coverage as
+the primary feasibility measure. **Only** fully completed native
+assignments receive Global Greedy cost gap; incomplete rows leave it
+blank, and separately report partial mean committed Cost per task
+without imputation. Every original SEND is charged even if receiver
+drops it. No changed README figures prior to independent formal audit.
+
+Full implementation, formal axes, diagnostic contracts, Mac commands
+and caveats: `docs/P2J_PROBABILISTIC_ONE_BATCH.md`. Tests:
+`tests/test_p2j_probabilistic_batch.py`. This GitHub-source implementation
+has not been independently compiled or tested on the user's Mac yet;
+therefore P2J formal outcomes remain **PENDING**.
