@@ -1,4 +1,4 @@
-"""P2J one-Cost, one-Vote-Batch stochastic 100-ticket Task x Robot MRTA.
+"""P2J-v2 one-Cost, one-Vote-Batch stochastic 100-ticket globally optimized MRTA.
 
 Original native Global Greedy single-batch is the paired control. A new
 probabilistic_batch voter draws exactly 100 tickets locally (one uniform
@@ -39,7 +39,7 @@ from experiments.run_p1_matched_five import (
 )
 
 OWNER = "experiments.run_p2j_probabilistic_batch"
-MODES = ("one_batch_greedy", "probabilistic_margin")
+MODES = ("one_batch_greedy", "probabilistic_global_margin")
 FORMAL_LOSSES = tuple(range(0,91,10))
 RAW_FIELDS = (
     "source_sha","seed","loss_percent","mode","scene_sha256",
@@ -51,6 +51,8 @@ RAW_FIELDS = (
     "task_sends","task_bytes","cost_sends","cost_bytes",
     "vote_sends","vote_bytes","score_sends","score_bytes",
     "commit_sends","commit_bytes","vote_tickets_attempted",
+    "certified_score_edge_count","certified_score_supported_tasks",
+    "certified_score_max_matching",
     "cost_receiver_drops","vote_receiver_drops","rounds_executed",
     "assignment_digest","native_assignment_json","first_epoch_digest","native_diagnostic",
 )
@@ -60,6 +62,8 @@ SUMMARY_FIELDS = (
     "cost_success_n","cost_increase_percent",
     "mean_stop_s","mean_sender_kB","mean_cost_sender_kB",
     "mean_vote_sender_kB","mean_score_sender_kB",
+    "mean_certified_score_edges","mean_certified_score_supported_tasks",
+    "mean_certified_score_max_matching",
     "mean_vote_receiver_drops",
 )
 
@@ -142,9 +146,9 @@ def audit_p2j_native_sender(
              actual={**result,"rounds":native["rounds_executed"]})
     # A ticket is a local logical draw, not a separate physical packet.
     result["vote_tickets_attempted"]=(
-        robots*votes_per_voter if mode=="probabilistic_margin" else 0
+        robots*votes_per_voter if mode=="probabilistic_global_margin" else 0
     )
-    if mode=="probabilistic_margin" and result["vote_bytes"]>robots*1200:
+    if mode=="probabilistic_global_margin" and result["vote_bytes"]>robots*1200:
         fail("audit_p2j_native_sender","contract","P2J_PROBABILITY_PACKET_NOT_BATCHED",
              expected=f"at most {robots} x 1200B Vote",actual=result["vote_bytes"])
     return result
@@ -159,7 +163,7 @@ def execute_p2j_native(
         fail("execute_p2j_native","data","P2J_UNKNOWN_MODE",
              expected=MODES,actual=mode)
     n=scene.num_robots
-    strategy=("probabilistic_batch" if mode=="probabilistic_margin" else "greedy_batch")
+    strategy=("probabilistic_batch" if mode=="probabilistic_global_margin" else "greedy_batch")
     arm=next(a for a in selected_e9i_arms() if a[0]=="adaptive_guarded_k1_received")
     schedule=build_e9h_deadline_schedule(
         profile=profile,robots=n,design_rate_mbps=144.0,
@@ -222,15 +226,32 @@ def run_one_p2j_case(
         fail("run_one_p2j_case","contract","P2J_NATIVE_PAIR_COST_MISMATCH",
              expected=independently_recomputed_cost,
              actual=native["total_assignment_cost"])
+    # Native reliable Score was broadcast to all recipients before global
+    # matching. Audit feasibility against that CERTIFIED graph, not the
+    # pre-deadline emitted-ticket graph or hidden full Cost oracle.
+    if mode=="probabilistic_global_margin":
+        counted_edges=int(native["certified_score_edge_count"])
+        covered_tasks=int(native["certified_score_supported_tasks"])
+        bound=int(native["certified_score_max_matching"])
+        actual_count=int(native["tasks_committed"])
+        if (bound!=actual_count or not 0<=bound<=covered_tasks<=scene.num_tasks
+                or bound>scene.num_robots or counted_edges<covered_tasks):
+            fail("run_one_p2j_case","contract",
+                 "P2J_CERTIFIED_SCORE_MATCHING_CONTRACT",
+                 expected="positive delivered Score graph max matching == committed; "
+                          "matching <= supported tasks <= total tasks; "
+                          "score edges >= supported tasks",
+                 actual={"score_edges":counted_edges,"supported_tasks":covered_tasks,
+                         "maximum_matching":bound,"committed":actual_count})
     reference,cost,increase=measure_p2j_complete_quality(scene=scene,native=native)
     return {
         "source_sha":source_sha,"seed":scene.seed,
         "loss_percent":int(round(p_loss*100)),"mode":mode,
         "scene_sha256":scene_sha256(scene),"robots":scene.num_robots,
         "tasks":scene.num_tasks,"capacity":1,
-        "votes_per_voter":votes_per_voter if mode=="probabilistic_margin" else "",
-        "temperature":temperature if mode=="probabilistic_margin" else "",
-        "margin_rule":margin_rule if mode=="probabilistic_margin" else "",
+        "votes_per_voter":votes_per_voter if mode=="probabilistic_global_margin" else "",
+        "temperature":temperature if mode=="probabilistic_global_margin" else "",
+        "margin_rule":margin_rule if mode=="probabilistic_global_margin" else "",
         "native_complete":int(native["full_commit"]),
         "committed_tasks":int(native["tasks_committed"]),
         "coverage_percent":100*int(native["tasks_committed"])/scene.num_tasks,
@@ -247,6 +268,9 @@ def run_one_p2j_case(
         "cost_receiver_drops":int(native["cost_remote_packet_drop_count"]),
         "vote_receiver_drops":int(native["vote_remote_packet_drop_count"]),
         "rounds_executed":int(native["rounds_executed"]),
+        "certified_score_edge_count":native["certified_score_edge_count"],
+        "certified_score_supported_tasks":native["certified_score_supported_tasks"],
+        "certified_score_max_matching":native["certified_score_max_matching"],
         "assignment_digest":native["assignment_digest_sha256"],
         "native_assignment_json":json.dumps(pairs,separators=(",",":")),
         "first_epoch_digest":native["first_epoch_sha256"],
@@ -284,6 +308,18 @@ def summarize_p2j_cases(rows: list[dict],losses: tuple[int,...]) -> list[dict]:
                 "mean_cost_sender_kB":mean("cost_bytes")/1000,
                 "mean_vote_sender_kB":mean("vote_bytes")/1000,
                 "mean_score_sender_kB":mean("score_bytes")/1000,
+                "mean_certified_score_edges":mean(
+                    "certified_score_edge_count",
+                    [r for r in cohort if r["mode"]=="probabilistic_global_margin"],
+                ),
+                "mean_certified_score_supported_tasks":mean(
+                    "certified_score_supported_tasks",
+                    [r for r in cohort if r["mode"]=="probabilistic_global_margin"],
+                ),
+                "mean_certified_score_max_matching":mean(
+                    "certified_score_max_matching",
+                    [r for r in cohort if r["mode"]=="probabilistic_global_margin"],
+                ),
                 "mean_vote_receiver_drops":mean("vote_receiver_drops"),
             })
     return output
@@ -323,7 +359,7 @@ def save_p2j_evidence(*, root: Path, rows: list[dict], args,
     raw_path=root/"per_seed_p2j.csv"
     config_path=root/"run_config_p2j.json"
     manifest={
-        "study":"P2J_PROBABILISTIC_100_TICKETS_ONE_COST_ONE_VOTE",
+        "study":"P2J_V2_RELIABLE_SCORE_GLOBAL_MATCHING",
         "source_sha":source_sha,"created_utc":datetime.now(timezone.utc).isoformat(),
         "python":sys.version,"platform":platform.platform(),
         "formal":bool(args.formal),"config":config,
@@ -331,7 +367,7 @@ def save_p2j_evidence(*, root: Path, rows: list[dict], args,
         "sha256":{p.name:sha256_file(p) for p in
                   (raw_path,config_path,summary_path)},
         "notice":"No-loss Greedy parity is required only for control. "
-                 "Stochastic margin results may remain incomplete even at 0% loss; "
+                 "Stochastic global-matching results may remain incomplete if the CERTIFIED Score graph is Hall-deficient; "
                  "neither successes nor cost quality may be fabricated.",
     }
     (root/"manifest_p2j.json").write_text(
@@ -349,14 +385,14 @@ def run_p2j(args):
              expected="fresh append-only evidence directory",actual=str(root))
     root.mkdir(parents=True)
     config={
-        "study":"P2J_PROBABILISTIC_100_TICKETS_ONE_COST_ONE_VOTE",
+        "study":"P2J_V2_RELIABLE_SCORE_GLOBAL_MATCHING",
         "source_sha":source_sha,"loss_percent":losses,
         "first_seed":args.first_seed,"seeds":args.seeds,
         "robots":100,"tasks":100,"capacity":1,"modes":MODES,
         "votes_per_voter":args.votes_per_voter,
         "temperature":args.temperature,"margin_rule":args.margin_rule,
         "vote_policy":"Uniform task then per-task visible-Cost Boltzmann",
-        "assignment":"Dynamic recomputed top-two "+args.margin_rule+" count margin, candidate self-Cost tie break",
+        "assignment":"Global max-cardinality certified Score matching, then "+args.margin_rule+" signed vote margin, received ticket count, announced own Cost",
         "transmission":"one original Cost broadcast and one serialized Vote per voter; no DATA retries; reliable paid Score/Commit",
         "radio":"Rady empirical latency samples plus hypothetical 144Mbps shared serialized medium",
         "cost_reference":"offline full-info global minimum-pair Greedy (complete-only)",
