@@ -4,7 +4,8 @@ Original native Global Greedy single-batch is the paired control. A new
 probabilistic_batch voter draws exactly 100 tickets locally (one uniform
 task choice, then temperature-weighted visible Cost choice per ticket).
 Vote DATA broadcasts once per voter, Score self-cost is paid/reliable,
-winner resolution is dynamic margin re-ranking after each retirement.
+winner resolution is one Score-global maximum-cardinality matching,
+then signed vote-gap/support/candidate-own-Cost preferences.
 This experiment does NOT retrain an MDP or assume a learned Markov policy.
 """
 from __future__ import annotations
