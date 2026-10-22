@@ -1,4 +1,4 @@
-"""P2J: stochastic 100-ticket locally visible ballots and dynamic margin selection."""
+"""P2J-v2: original one-shot 100-ticket Vote, reliable Score and global matching."""
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -132,9 +132,9 @@ class P2JProbabilityTests(unittest.TestCase):
         )
         self.assertEqual(winners,((1,0),))
 
-    def test_renormalize_after_robot_retirement(self):
-        # Task 1 has overwhelming margin and takes robot 0 first, so task 0
-        # must RECOMPUTE its own leading candidate using robots 1 and 2.
+    def test_global_reallocation_satisfies_all_three_tasks(self):
+        # Candidate R0 is critical to T1 while R2 is critical to T2;
+        # global matching chooses all three without task-ID order.
         scores={
             (0,0):(15,1.0),(0,1):(14,5.0),(0,2):(10,6.0),
             (1,0):(70,1.0),(1,1):(2,3.0),
