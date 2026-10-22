@@ -2223,7 +2223,9 @@ New scientific method ID: `probabilistic_global_margin` (`democracy_probabilisti
 **Runbook:** `docs/P2J_PROBABILISTIC_ONE_BATCH.md` now begins with P2J-v2 executable commands (focused + full unittest, 12-case 0/30/90 smoke, 100-seed PL0 targeted gate, fresh 2,000-case all-loss formal and SHA manifest ZIP) and archives all v1 design lower down. Code tests and formal execution are **not claimed completed until the user's actual Mac output arrives**. This is a bounded one-concern change to Score-based planning and telemetry, not a project-wide refactor or automatic main/README publication.
 
 
-## 62. P2J-v3 — Completion Fallback after reliable Score (2026-10-22)
+## 62. Hsien-Te Methods (P2J-v3) — Completion Fallback after reliable Score (2026-10-22)
+
+**Official publication display alias:** Hsien-Te Methods = native `probabilistic_complete_fallback` under original source Git SHA `33bd5f771b347365d768890ea71e87f0c1e7c6a3`. Formal source ZIP SHA256 `9839901650acc1d2feba0a14158a55c1211796a486bfc6c2d5fd9c8ac358e710` was supplied and independently audited (3,000 actual native cases, 30 groups, 1,000/1,000 Hsien-Te full allocations); PL30 signed full-information Global Greedy cost difference −6.0133%, PL90 +35.6531%. Current main Figure2 adds this source-verified method to the original four preserved series, published in commit `c7f8876c6e332423590d8a38b1244bb5e937b7`. No runtime method enum, original raw dataset, or packet behavior is renamed. Baseline cohorts remain historically separate and CPU optimization time is not modeled.
 
 This opt-in experiment changes only P2J's post-Score allocation planning. Original Cost and 100-ticket probabilistic Vote each broadcast ONCE per robot, with independent receiver loss and no retransmission. Model-reliable, sender-paid positive-candidate PSCR Score is fully delivered before the unique matching decision; original final reliable Commit is sender-paid once per actual assignment.
 
