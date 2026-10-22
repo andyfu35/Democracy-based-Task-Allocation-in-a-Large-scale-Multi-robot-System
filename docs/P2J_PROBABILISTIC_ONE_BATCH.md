@@ -1,4 +1,81 @@
-# P2J — One Cost, One Probabilistic Multi-Ticket Vote Batch, Dynamic Margin Matching
+# P2J-v2 — Reliable Score Announcements and Global Maximum-Task Matching
+
+**Status:** New source implemented on `experiment/p2j-probabilistic-100vote-once-20261022`. Mac compile, unit tests, smoke and formal P2J-v2 outcomes **not yet independently verified**. P2J-v1 original 2,000 rows (including 0%-loss mean 91.12 tasks) are preserved as historical evidence and must NOT be overwritten.
+
+## Approved one-communication-round contract
+
+Each of 100 robots emits exactly ONE Cost row (lossy, no retry), samples 100 tickets TOTAL across all tasks and physically visible candidate rows (unchanged task-uniform/Softmax `temperature=5.0`), then sends ONE aggregated `PVOT` batch (lossy, no retry). Each robot with any received positive candidate votes broadcasts one **paid, guaranteed-delivered `PSCR` Score** containing only its received Vote tallies and **own known** Cost. All robots obtain the same Score snapshot before computing task assignments; the existing reliable final Commit is then charged and emitted once per matched executor. Model-reliable Score does not imply real Wi-Fi has loss-free multicast; Score frames still consume causal network time and sender Bytes.
+
+## Global planning objective from the certified Score snapshot
+
+Let `E+ = {(task, robot): candidate robot actually published a positive Score for task}`. Never fill in an absent Cost or Vote using simulator truth. Choose binary `x[t,r]` only for `(t,r) in E+`, with `sum_r x[t,r] <= 1`, `sum_t x[t,r] <= 1`. Optimize **lexicographically**:
+
+1. Maximize `K=sum(x[t,r])`: *complete as many tasks as the certified Score graph permits*.
+2. Maximize total edge-relative **signed vote advantage** `A[t,r] = V[t,r] - max_{k!=r} V[t,k]`, where missing competitors contribute 0. Under optional normalized-margin mode this is scaled by `10000/sum_k V[t,k]` and rounded to an integer.
+3. Maximize total candidate-received positive ticket votes `sum(x[t,r]*V[t,r])`.
+4. Minimize `sum(x[t,r]*C_own_announced[t,r])` from reliable candidate Score, not full hidden Cost.
+
+These priorities are implemented with a bounded finite weighted assignment matrix, one SciPy `linear_sum_assignment` solve with dummy unassigned-task columns, and an **independent maximum bipartite matching** cardinality check on the *same certified Score edges*. Both computations are LOCAL, so do **not** send a second Cost, Vote, or Score. The public original owner `coordination.resolve_dynamic_probability_margin_winners` retains its named API but now performs a global joint allocation, rather than sequential irreversible margin greedy. Any `assigned < max_possible` triggers `coordination.resolve_dynamic_probability_margin_winners/planning/P2J_SCORE_GLOBAL_CARDINALITY_MISMATCH`; Hall-deficient Score graphs may legitimately leave tasks incomplete.
+
+Native evidence includes `certified_score_edge_count`, `certified_score_supported_tasks`, `certified_score_max_matching`, `native_assignment_json`, physical SEND/Bytes, and all-seed success/coverage/time; full-information Global Greedy is **offline reference only** and cost percentages are reported solely for fully completed native runs. All P2J-v2 records use unique method ID **`probabilistic_global_margin`** and study `P2J_V2_RELIABLE_SCORE_GLOBAL_MATCHING`; the historical P2J-v1 `probabilistic_margin` study remains immutable.
+
+## Mac test / experiment commands (P2J-v2 ONLY)
+
+```bash
+cd "$(git rev-parse --show-toplevel)"
+git fetch origin
+git switch experiment/p2j-probabilistic-100vote-once-20261022
+git pull --ff-only
+git rev-parse HEAD
+python3 -m compileall -q democracy_mrta experiments tests && \
+python3 -m unittest discover -s tests -p 'test_p2j*.py' -v && \
+python3 -m unittest discover -s tests -v
+```
+
+Run ONLY after tests succeed; 0%, 30%, 90%, 2 paired seeds, 2 modes (12 cases):
+
+```bash
+P2J_SMOKE="results/p2j_v2_smoke_$(date +%Y%m%d_%H%M%S)"
+python3 -m experiments.run_p2j_probabilistic_batch \
+  --losses 0.00,0.30,0.90 --seeds 2 \
+  --votes-per-voter 100 --temperature 5.0 --margin-rule absolute \
+  --output-root "$P2J_SMOKE"
+```
+
+Then specifically verify original 0%-loss failure mode with 100 seeds × 2 modes:
+
+```bash
+P2J_ZERO="results/p2j_v2_zero_$(date +%Y%m%d_%H%M%S)"
+python3 -m experiments.run_p2j_probabilistic_batch \
+  --losses 0.00 --seeds 100 --output-root "$P2J_ZERO"
+```
+
+Check `summary_p2j.csv` and each new native `certified_score_max_matching` value. Full Score graph matching at 0% is **a hypothesis to test**, not permission to fabricate a 100% result. Report actual full completion and legitimate Score graph deficiencies.
+
+After both gates, run exactly 10 losses ×100 seeds×2 modes=2,000 fresh source-SHA-pinned cases:
+
+```bash
+set -o pipefail
+P2J_FORMAL="results/p2j_v2_formal_$(date +%Y%m%d_%H%M%S)"
+python3 -m experiments.run_p2j_probabilistic_batch \
+  --formal --seeds 100 --votes-per-voter 100 \
+  --temperature 5.0 --margin-rule absolute \
+  --output-root "$P2J_FORMAL" 2>&1 | tee "$P2J_FORMAL.log"
+test -f "$P2J_FORMAL/manifest_p2j.json" && \
+zip -j "$HOME/Downloads/p2j_v2_score_global_100seed.zip" \
+  "$P2J_FORMAL/per_seed_p2j.csv" \
+  "$P2J_FORMAL/summary_p2j.csv" \
+  "$P2J_FORMAL/run_config_p2j.json" \
+  "$P2J_FORMAL/manifest_p2j.json" \
+  "$P2J_FORMAL.log"
+```
+
+Never blend v1/v2 results or modify Figure 1/2 before independently verifying actual formal output. Original P2J-v1 numbers are kept below for research history, not current execution instructions.
+
+---
+
+## Historical P2J-v1 design (superseded; NOT the algorithm run by this branch)
+
 
 **Experimental branch:** `experiment/p2j-probabilistic-100vote-once-20261022`.
 **Status:** implementation and test source committed to branch; independent Mac Python
