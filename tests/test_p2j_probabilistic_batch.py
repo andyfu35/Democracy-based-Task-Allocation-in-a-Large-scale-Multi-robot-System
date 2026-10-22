@@ -161,6 +161,9 @@ class P2JProbabilityTests(unittest.TestCase):
             votes_per_voter=100,temperature=5.0,margin_rule="absolute",
         )
         self.assertEqual(len(result.rounds),1)
+        self.assertIsInstance(
+            result.rounds[0].coordination.plurality_winner_vote_count,int,
+        )
         events=result.rounds[0].coordination.events
         self.assertEqual(sum(event.phase=="cost" for event in events),3)
         self.assertEqual(sum(event.phase=="vote" for event in events),3)
