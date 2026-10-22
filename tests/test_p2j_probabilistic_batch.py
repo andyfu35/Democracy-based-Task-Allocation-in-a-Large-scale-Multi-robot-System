@@ -325,6 +325,34 @@ class P2JProbabilityTests(unittest.TestCase):
             "P2J_V3_FALLBACK_REQUIRES_PROBABILISTIC_VOTE",
         )
 
+    def test_v3_native_90pct_loss_one_cost_one_vote_and_paid_final_commit(self):
+        sampler=WifiCausalTimingSampler(
+            synthetic_profile(),51,WifiTimingConfig(phy_rate_mbps=144.0),
+        )
+        native=simulate_democracy_hungarian_retirement(
+            cost_matrix=self.costs,sampler=sampler,
+            loss_sampler=BernoulliLossSampler(51),
+            p_loss=0.9,p_vote_loss=0.9,phase_timeout_ms=1000.0,max_rounds=1,
+            voting_strategy="probabilistic_batch",
+            vote_decision_rule="received_plurality",
+            cost_repetitions=1,vote_repetitions=1,
+            per_active_round_deadline_ms=(1000.0,1000.0,1000.0),
+            enforce_vote_deadline=True,probabilistic_seed=51,
+            votes_per_voter=100,temperature=5.0,
+            completion_policy="idle_robot_id",
+        )
+        trace=native.rounds[0].coordination
+        events=trace.events
+        self.assertEqual(len(native.assigned_pairs),3)
+        self.assertEqual(sum(e.phase=="cost" for e in events),3)
+        self.assertEqual(sum(e.phase=="vote" for e in events),3)
+        self.assertEqual(sum(e.phase=="commit" for e in events),3)
+        self.assertEqual(
+            trace.certified_score_max_matching+len(trace.completion_fallback_pairs),3
+        )
+        self.assertEqual(sum(e.payload_bytes for e in events),
+                         sampler.summarize_network()["application_sender_bytes"])
+
     def test_one_cost_one_vote_no_retries_at_90_percent_loss(self):
         sampler=WifiCausalTimingSampler(
             synthetic_profile(),17,WifiTimingConfig(phy_rate_mbps=144.0),
