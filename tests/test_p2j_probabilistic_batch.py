@@ -10,6 +10,7 @@ from democracy_mrta.coordination import (
     decode_probabilistic_vote_packet, encode_probabilistic_vote_packet,
     decode_probabilistic_score_packet, encode_probabilistic_score_packet,
     resolve_dynamic_probability_margin_winners,
+    complete_unassigned_score_matching,
     validate_probabilistic_batch_scope,
     simulate_democracy_hungarian_retirement,
 )
@@ -262,6 +263,31 @@ class P2JProbabilityTests(unittest.TestCase):
         )
         self.assertEqual(winners,())
         self.assertEqual(ties,0)
+
+    def test_v3_uses_idle_robot_for_low_support_tasks(self):
+        scores={(0,0):(70,2.0),(1,0):(60,4.0),(2,1):(1,9.0)}
+        v2,_=resolve_dynamic_probability_margin_winners(
+            scores=scores,physical_tasks=(0,1,2),physical_robots=(0,1,2),
+        )
+        v3,_=resolve_dynamic_probability_margin_winners(
+            scores=scores,physical_tasks=(0,1,2),physical_robots=(0,1,2),
+            completion_policy="idle_robot_id",
+        )
+        self.assertEqual(len(v2),2)
+        self.assertEqual(len(v3),3)
+        self.assertTrue(set(v2).issubset(set(v3)))
+        self.assertEqual(sum((task,robot) not in scores for robot,task in v3),1)
+
+    def test_v3_empty_score_assigns_sorted_idle_robots(self):
+        v2,_=resolve_dynamic_probability_margin_winners(
+            scores={},physical_tasks=(20,10,30),physical_robots=(3,1,2),
+        )
+        v3,_=resolve_dynamic_probability_margin_winners(
+            scores={},physical_tasks=(20,10,30),physical_robots=(3,1,2),
+            completion_policy="idle_robot_id",
+        )
+        self.assertEqual(v2,())
+        self.assertEqual(v3,((1,10),(2,20),(3,30)))
 
     def test_one_cost_one_vote_no_retries_at_90_percent_loss(self):
         sampler=WifiCausalTimingSampler(
