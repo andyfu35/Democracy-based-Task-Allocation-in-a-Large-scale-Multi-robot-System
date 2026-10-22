@@ -1555,6 +1555,331 @@ _BATCH_RECORD = struct.Struct("<II")
 _BATCH_MAX_PACKET_BYTES = 1200
 
 
+
+_PROB_HEADER = struct.Struct("<4sIII")
+_PROB_VOTE_RECORD = struct.Struct("<BBH")
+_PROB_SCORE_RECORD = struct.Struct("<BHd")
+
+
+def encode_probabilistic_vote_packet(
+    *, round_id: int, sender_id: int,
+    records: tuple[tuple[int, int, int], ...],
+    votes_per_voter: int,
+) -> bytes:
+    """One physical PVOT DATA frame; 100 tickets need at most 416 bytes."""
+    try:
+        valid=(
+            1 <= len(records) <= votes_per_voter <= 255
+            and sum(count for _task,_robot,count in records)==votes_per_voter
+            and len({(task,robot) for task,robot,_count in records})==len(records)
+            and all(type(task) is int and 0 <= task <= 255
+                    and type(robot) is int and 0 <= robot <= 255
+                    and type(count) is int and 1 <= count <= 65535
+                    for task,robot,count in records)
+        )
+    except (TypeError, ValueError):
+        valid=False
+    if not valid:
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="encode_probabilistic_vote_packet",
+            category="data", code="P2J_INVALID_VOTE_TICKETS",
+            expected=f"{votes_per_voter} positive aggregated tickets with unique uint8 pairs",
+            actual=records[:8] if isinstance(records,tuple) else type(records).__name__,
+        ))
+    try:
+        packet=_PROB_HEADER.pack(b"PVOT",round_id,sender_id,len(records))+b"".join(
+            _PROB_VOTE_RECORD.pack(task,robot,count) for task,robot,count in records
+        )
+    except (struct.error, TypeError, ValueError) as exc:
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="encode_probabilistic_vote_packet",
+            category="data", code="P2J_INVALID_VOTE_PACKET_FIELDS",
+            expected="uint32 epoch/sender and uint8 task/robot, uint16 vote count",
+            actual=str(exc),
+        )) from exc
+    if len(packet)>_BATCH_MAX_PACKET_BYTES:
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="encode_probabilistic_vote_packet",
+            category="contract", code="P2J_VOTE_PACKET_OVER_MTU",
+            expected=f"<= {_BATCH_MAX_PACKET_BYTES} B one SEND",
+            actual=len(packet),
+        ))
+    return packet
+
+
+def decode_probabilistic_vote_packet(
+    packet: bytes, *, round_id: int, sender_id: int,
+    physical_robots: tuple[int, ...], physical_tasks: tuple[int, ...],
+    votes_per_voter: int,
+) -> tuple[tuple[int, int, int], ...]:
+    """No receiver can count a Vote without a genuine decoded delivered frame."""
+    valid=isinstance(packet,bytes) and len(packet)>=_PROB_HEADER.size
+    if valid:
+        magic,observed_round,observed_sender,record_count=_PROB_HEADER.unpack_from(packet)
+        valid=(
+            magic==b"PVOT" and observed_round==round_id
+            and observed_sender==sender_id and 1 <= record_count <= votes_per_voter
+            and len(packet)==_PROB_HEADER.size+record_count*_PROB_VOTE_RECORD.size
+        )
+    if not valid:
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="decode_probabilistic_vote_packet",
+            category="contract", code="P2J_INVALID_RECEIVED_VOTE",
+            expected=(b"PVOT",round_id,sender_id,"valid count/size"),
+            actual={"size":len(packet) if isinstance(packet,bytes) else None},
+        ))
+    records=tuple(_PROB_VOTE_RECORD.unpack_from(
+        packet,_PROB_HEADER.size+i*_PROB_VOTE_RECORD.size
+    ) for i in range(record_count))
+    if (sum(v for _t,_r,v in records)!=votes_per_voter
+            or len({(t,r) for t,r,_v in records})!=len(records)
+            or any(t not in physical_tasks or r not in physical_robots or v==0
+                   for t,r,v in records)):
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="decode_probabilistic_vote_packet",
+            category="contract", code="P2J_RECEIVED_VOTE_CONTENT_INVALID",
+            expected=f"{votes_per_voter} tickets for pending physical IDs, unique pairs",
+            actual=records[:8],
+        ))
+    return records
+
+
+def encode_probabilistic_score_packet(
+    *, round_id: int, sender_id: int,
+    records: tuple[tuple[int, int, float], ...],
+) -> bytes:
+    """Candidate-signed positive Vote counts and its own local executor Cost.
+
+    At 100 tasks a physically paid PSCR packet is at most 1116 B:
+    16B header + 100*(1B task + 2B votes + 8B own Cost). No secret Cost
+    row from another candidate may be placed in the announcement.
+    """
+    if (not records or len(records)>255
+            or len({task for task,_,_ in records})!=len(records)
+            or any(type(task) is not int or not 0<=task<=255
+                   or type(count) is not int or not 1<=count<=65535
+                   or type(cost) not in (int,float) or not math.isfinite(cost)
+                   or cost<0 for task,count,cost in records)):
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="encode_probabilistic_score_packet",
+            category="data", code="P2J_INVALID_SCORE_RECORDS",
+            expected="one finite own cost and positive uint16 count per uint8 task",
+            actual=records[:8],
+        ))
+    try:
+        packet=_PROB_HEADER.pack(b"PSCR",round_id,sender_id,len(records))+b"".join(
+            _PROB_SCORE_RECORD.pack(task,count,cost) for task,count,cost in records
+        )
+    except (struct.error,TypeError,ValueError) as exc:
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="encode_probabilistic_score_packet",
+            category="data", code="P2J_SCORE_ENCODE_FAILED",
+            expected="uint32 epoch/sender, uint8 task, uint16 count, float64 self Cost",
+            actual=str(exc),
+        )) from exc
+    if len(packet)>_BATCH_MAX_PACKET_BYTES:
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="encode_probabilistic_score_packet",
+            category="contract", code="P2J_SCORE_PACKET_OVER_MTU",
+            expected=f"<= {_BATCH_MAX_PACKET_BYTES} B one SEND",
+            actual=len(packet),
+        ))
+    return packet
+
+
+def decode_probabilistic_score_packet(
+    packet: bytes, *, round_id: int, sender_id: int,
+    physical_tasks: tuple[int, ...],
+) -> tuple[tuple[int, int, float], ...]:
+    valid=isinstance(packet,bytes) and len(packet)>=_PROB_HEADER.size
+    if valid:
+        magic,observed_round,observed_sender,record_count=_PROB_HEADER.unpack_from(packet)
+        valid=(
+            magic==b"PSCR" and observed_round==round_id
+            and observed_sender==sender_id and 1<=record_count<=255
+            and len(packet)==_PROB_HEADER.size+record_count*_PROB_SCORE_RECORD.size
+        )
+    if not valid:
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="decode_probabilistic_score_packet",
+            category="contract", code="P2J_INVALID_RECEIVED_SCORE",
+            expected=(b"PSCR",round_id,sender_id,"valid count/size"),
+            actual={"size":len(packet) if isinstance(packet,bytes) else None},
+        ))
+    records=tuple(_PROB_SCORE_RECORD.unpack_from(
+        packet,_PROB_HEADER.size+i*_PROB_SCORE_RECORD.size
+    ) for i in range(record_count))
+    if (len({task for task,_,_ in records})!=len(records)
+            or any(task not in physical_tasks or votes==0
+                   or not math.isfinite(cost) or cost<0
+                   for task,votes,cost in records)):
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="decode_probabilistic_score_packet",
+            category="contract", code="P2J_RECEIVED_SCORE_CONTENT_INVALID",
+            expected="distinct pending tasks, positive votes and finite own Cost",
+            actual=records[:8],
+        ))
+    return records
+
+
+def collect_probabilistic_batch_votes(
+    *, ballots: tuple[tuple[tuple[int, int, int], ...], ...],
+    physical_robots: tuple[int, ...], physical_tasks: tuple[int, ...],
+    ready_times: tuple[float, ...], round_id: int, cutoff_ms: float,
+    sampler, loss_sampler, p_vote_loss: float, votes_per_voter: int,
+) -> tuple[list[CommunicationEvent], list[DeliveryObservation],
+           dict[tuple[int,int],int]]:
+    """One real Vote broadcast per voter, candidate receives counted tickets."""
+    if len(ballots)!=len(physical_robots) or len(ready_times)!=len(physical_robots):
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="collect_probabilistic_batch_votes",
+            category="contract", code="P2J_VOTER_BALLOT_COUNT_MISMATCH",
+            expected=len(physical_robots), actual=(len(ballots),len(ready_times)),
+        ))
+    events=[]
+    deliveries=[]
+    counts: dict[tuple[int,int],int]={}
+    order=(
+        sorted(range(len(physical_robots)),key=lambda i:(ready_times[i],physical_robots[i]))
+        if isinstance(sampler,WifiCausalTimingSampler) else range(len(physical_robots))
+    )
+    for i in order:
+        sender=physical_robots[i]
+        packet=encode_probabilistic_vote_packet(
+            round_id=round_id,sender_id=sender,
+            records=ballots[i],votes_per_voter=votes_per_voter,
+        )
+        event=_broadcast_event(
+            phase="vote",sender_id=sender,round_id=round_id,task_id=None,
+            send_time_ms=ready_times[i],payload_bytes=len(packet),sampler=sampler,
+        )
+        events.append(event)
+        observations=_lossy_broadcast_deliveries(
+            event=event,num_robots=len(physical_robots),
+            receiver_ids=physical_robots,loss_sampler=loss_sampler,
+            p_loss=p_vote_loss,round_id=round_id,
+        )
+        deliveries.extend(observations)
+        records=decode_probabilistic_vote_packet(
+            packet,round_id=round_id,sender_id=sender,
+            physical_robots=physical_robots,physical_tasks=physical_tasks,
+            votes_per_voter=votes_per_voter,
+        )
+        if ready_times[i]<=cutoff_ms:
+            for task,candidate,tickets in records:
+                if candidate==sender:
+                    key=(task,candidate)
+                    counts[key]=counts.get(key,0)+tickets
+        for receipt in observations:
+            if (not receipt.delivered or receipt.arrival_time_ms is None
+                    or receipt.arrival_time_ms>cutoff_ms):
+                continue
+            for task,candidate,tickets in records:
+                if candidate==receipt.receiver_id:
+                    key=(task,candidate)
+                    counts[key]=counts.get(key,0)+tickets
+    return events,deliveries,counts
+
+
+def publish_probabilistic_batch_scores(
+    *, counted_votes: dict[tuple[int,int],int],
+    cost_matrix: tuple[tuple[float,...],...],
+    physical_robots: tuple[int,...],physical_tasks: tuple[int,...],
+    round_id: int,release_ms: float,sampler,
+) -> tuple[list[CommunicationEvent],dict[tuple[int,int],tuple[int,float]]]:
+    """One reliable positive Score broadcast per candidate using OWN Cost only."""
+    robot_index={robot:i for i,robot in enumerate(physical_robots)}
+    task_index={task:i for i,task in enumerate(physical_tasks)}
+    events=[]
+    certified={}
+    for candidate in physical_robots:
+        records=tuple(sorted(
+            (task,count,float(cost_matrix[robot_index[candidate]][task_index[task]]))
+            for (task,robot),count in counted_votes.items()
+            if robot==candidate and task in task_index and count>0
+        ))
+        if not records:
+            continue
+        packet=encode_probabilistic_score_packet(
+            round_id=round_id,sender_id=candidate,records=records,
+        )
+        event=_broadcast_event(
+            phase="vote_score_announcement",sender_id=candidate,
+            task_id=None,round_id=round_id,send_time_ms=release_ms,
+            payload_bytes=len(packet),sampler=sampler,
+            announced_vote_count=sum(count for _task,count,_cost in records),
+        )
+        events.append(event)
+        for task,count,own_cost in decode_probabilistic_score_packet(
+            packet,round_id=round_id,sender_id=candidate,
+            physical_tasks=physical_tasks,
+        ):
+            certified[(task,candidate)]=(count,own_cost)
+    return events,certified
+
+
+def resolve_dynamic_probability_margin_winners(
+    *, scores: dict[tuple[int,int],tuple[int,float]],
+    physical_tasks: tuple[int,...],physical_robots: tuple[int,...],
+    margin_rule: str="absolute",
+) -> tuple[tuple[tuple[int,int],...],int]:
+    """No task-ID order: recompute EACH task's top-two margin after retirement.
+
+    Select highest task margin, then top-voted candidate on that task, with
+    announced own Cost breaking same-vote candidate ties. Remove robot and
+    task, recompute every remaining margin from eligible Score packets. Zero
+    positive votes = no candidate; never reconstruct missing Cost or Vote.
+    """
+    if margin_rule not in ("absolute","normalized"):
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="resolve_dynamic_probability_margin_winners",
+            category="data",code="P2J_UNKNOWN_MARGIN_RULE",
+            expected=("absolute","normalized"),actual=margin_rule,
+        ))
+    robots=set(physical_robots)
+    tasks=set(physical_tasks)
+    if any((task not in tasks or robot not in robots or
+            type(count) is not int or count<=0 or
+            type(cost) not in (int,float) or not math.isfinite(cost) or cost<0)
+           for (task,robot),(count,cost) in scores.items()):
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="resolve_dynamic_probability_margin_winners",
+            category="contract",code="P2J_INVALID_CERTIFIED_SCORE",
+            expected="positive physically certified votes and nonnegative own Cost",
+            actual=list(scores.items())[:8],
+        ))
+    winners=[]
+    ties=0
+    while tasks and robots:
+        priorities=[]
+        for task in tasks:
+            candidates=sorted(
+                ((count,cost,robot) for (scored_task,robot),(count,cost) in scores.items()
+                 if scored_task==task and robot in robots),
+                key=lambda x:(-x[0],x[1],x[2]),
+            )
+            if not candidates:
+                continue
+            top_count,top_cost,top_robot=candidates[0]
+            second_count=candidates[1][0] if len(candidates)>1 else 0
+            margin=top_count-second_count
+            if margin_rule=="normalized":
+                margin=margin/sum(item[0] for item in candidates)
+            priorities.append((
+                -margin,-top_count,top_cost,task,top_robot,
+                sum(item[0]==top_count for item in candidates)>1,
+            ))
+        if not priorities:
+            break
+        _margin,_votes,_cost,task,robot,was_tied=min(priorities)
+        ties+=int(was_tied)
+        winners.append((robot,task))
+        robots.remove(robot)
+        tasks.remove(task)
+    validate_one_to_one_commits(winners)
+    return tuple(sorted(winners,key=lambda pair:(pair[1],pair[0]))),ties
+
+
 def encode_greedy_batch_packet(
     *, kind: bytes, round_id: int, sender_id: int,
     records: tuple[tuple[int, int], ...],
