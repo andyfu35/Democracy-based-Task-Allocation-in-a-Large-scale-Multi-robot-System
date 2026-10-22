@@ -2302,7 +2302,7 @@ def simulate_greedy_batch_vote_epoch(
         scores_done_ms, max((event.arrival_time_ms for event in commits), default=scores_done_ms),
     )
     return _summarize_lossy_result(
-        method=("democracy_probabilistic_margin_one_batch"
+        method=("democracy_probabilistic_score_global_margin_v2_one_batch"
                 if probabilistic_ballots is not None else
                 "democracy_task_ordered_batch_received_plurality" if task_ordered
                 else "democracy_batched_greedy_received_plurality"),
@@ -3018,7 +3018,7 @@ def simulate_democracy_hungarian_retirement(
     )
     return MultiRoundRetirementResult(
         method=(
-            "democracy_probabilistic_margin_one_batch_retirement"
+            "democracy_probabilistic_score_global_margin_v2_one_batch_retirement"
             if voting_strategy == "probabilistic_batch" else
             "democracy_task_ordered_batch_received_plurality_retirement"
             if voting_strategy == "greedy_batch_task_order" else
