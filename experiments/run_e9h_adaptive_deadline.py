@@ -493,6 +493,18 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
         "tasks_committed":len(result.assigned_pairs),
         "guard_hit":int(not full and len(result.rounds)>=max_rounds),
         "rounds_executed":len(result.rounds),
+        "certified_score_edge_count":(
+            result.rounds[0].coordination.certified_score_edge_count
+            if voting_strategy=="probabilistic_batch" and result.rounds else ""
+        ),
+        "certified_score_supported_tasks":(
+            result.rounds[0].coordination.certified_score_supported_tasks
+            if voting_strategy=="probabilistic_batch" and result.rounds else ""
+        ),
+        "certified_score_max_matching":(
+            result.rounds[0].coordination.certified_score_max_matching
+            if voting_strategy=="probabilistic_batch" and result.rounds else ""
+        ),
         "task_announcement_ms":task_ms,
         "allocation_or_stop_ms":task_ms+result.global_agreement_ms,
         "successful_allocation_ms":(
