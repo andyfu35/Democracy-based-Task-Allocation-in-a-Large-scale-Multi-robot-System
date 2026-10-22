@@ -440,7 +440,7 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
         if epoch.coordination.plurality_winner_vote_count:
             winner_votes.append((
                 epoch.coordination.plurality_winner_vote_count,
-                active,
+                (active*votes_per_voter if voting_strategy=="probabilistic_batch" else active),
             ))
     expected_cost_receivers = n*(n-1)
     if cost_receiver_observations != expected_cost_receivers:
@@ -525,6 +525,7 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
             statistics.mean(v/active for v,active in winner_votes)
             if winner_votes else ""
         ),
+        "winner_vote_share_denominator":("total emitted vote tickets" if voting_strategy=="probabilistic_batch" else "active voters"),
         "minimum_winner_votes":(
             min(v for v,_active in winner_votes) if winner_votes else ""
         ),
