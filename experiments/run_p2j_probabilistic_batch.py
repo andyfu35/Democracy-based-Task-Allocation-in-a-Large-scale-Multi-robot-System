@@ -52,7 +52,7 @@ RAW_FIELDS = (
     "vote_sends","vote_bytes","score_sends","score_bytes",
     "commit_sends","commit_bytes","vote_tickets_attempted",
     "cost_receiver_drops","vote_receiver_drops","rounds_executed",
-    "assignment_digest","first_epoch_digest","native_diagnostic",
+    "assignment_digest","native_assignment_json","first_epoch_digest","native_diagnostic",
 )
 SUMMARY_FIELDS = (
     "loss_percent","mode","seeds","full_completion_percent",
@@ -175,6 +175,7 @@ def execute_p2j_native(
         schedules={1.0:schedule},guarded_cost_ms=guard,
         oracle_total_cost=solve_hungarian_assignment(scene.cost_matrix).total_cost,
         voting_strategy=strategy,batch_vote_scope="all",
+        capture_assignment_pairs=True,
         votes_per_voter=votes_per_voter,temperature=temperature,
         margin_rule=margin_rule,
     )
@@ -207,6 +208,20 @@ def run_one_p2j_case(
         native=native,mode=mode,robots=scene.num_robots,
         votes_per_voter=votes_per_voter,
     )
+    pairs=tuple((int(r),int(t)) for r,t in native["native_assignment_pairs"])
+    if (len(pairs)!=int(native["tasks_committed"])
+            or len({r for r,t in pairs})!=len(pairs)
+            or len({t for r,t in pairs})!=len(pairs)
+            or any(r<0 or r>=scene.num_robots or t<0 or t>=scene.num_tasks
+                   for r,t in pairs)):
+        fail("run_one_p2j_case","safety","P2J_ORIGINAL_PAIR_DUPLICATE_OR_INVALID",
+             expected="only unique in-range native committed robot/task pairs",
+             actual=pairs[:12])
+    independently_recomputed_cost=sum(scene.cost_matrix[r][t] for r,t in pairs)
+    if abs(independently_recomputed_cost-float(native["total_assignment_cost"]))>1e-8:
+        fail("run_one_p2j_case","contract","P2J_NATIVE_PAIR_COST_MISMATCH",
+             expected=independently_recomputed_cost,
+             actual=native["total_assignment_cost"])
     reference,cost,increase=measure_p2j_complete_quality(scene=scene,native=native)
     return {
         "source_sha":source_sha,"seed":scene.seed,
@@ -233,6 +248,7 @@ def run_one_p2j_case(
         "vote_receiver_drops":int(native["vote_remote_packet_drop_count"]),
         "rounds_executed":int(native["rounds_executed"]),
         "assignment_digest":native["assignment_digest_sha256"],
+        "native_assignment_json":json.dumps(pairs,separators=(",",":")),
         "first_epoch_digest":native["first_epoch_sha256"],
         "native_diagnostic":"",
     }
