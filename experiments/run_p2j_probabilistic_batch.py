@@ -235,32 +235,48 @@ def run_one_p2j_case(
         fail("run_one_p2j_case","contract","P2J_NATIVE_PAIR_COST_MISMATCH",
              expected=independently_recomputed_cost,
              actual=native["total_assignment_cost"])
-    # Native reliable Score was broadcast to all recipients before global
-    # matching. Audit feasibility against that CERTIFIED graph, not the
-    # pre-deadline emitted-ticket graph or hidden full Cost oracle.
-    if mode=="probabilistic_global_margin":
+    # AFTER native Commit, measure realized fallback Cost offline from
+    # original E0 truth. It is NEVER supplied to the assignment planner.
+    fallback=tuple((int(r),int(t)) for r,t in native["completion_fallback_pairs"])
+    if (len(fallback)!=int(native["completion_fallback_count"])
+            or len(set(fallback))!=len(fallback)
+            or not set(fallback).issubset(set(pairs))):
+        fail("run_one_p2j_case","contract","P2J_V3_FALLBACK_NATIVE_TRACE_MISMATCH",
+             expected="fallback count == unique subset of real committed pairs",
+             actual={"pairs":fallback,"count":native["completion_fallback_count"]})
+    if mode!="probabilistic_complete_fallback" and fallback:
+        fail("run_one_p2j_case","contract","P2J_V3_FALLBACK_LEAKED_TO_CONTROL",
+             expected="no fallback in original Greedy and P2J-v2",actual=fallback)
+    if mode!="one_batch_greedy":
         counted_edges=int(native["certified_score_edge_count"])
         covered_tasks=int(native["certified_score_supported_tasks"])
         bound=int(native["certified_score_max_matching"])
         actual_count=int(native["tasks_committed"])
-        if (bound!=actual_count or not 0<=bound<=covered_tasks<=scene.num_tasks
-                or bound>scene.num_robots or counted_edges<covered_tasks):
+        expected_count=(bound+len(fallback)
+                        if mode=="probabilistic_complete_fallback" else bound)
+        if (actual_count!=expected_count
+                or not 0<=bound<=covered_tasks<=scene.num_tasks
+                or bound>scene.num_robots or counted_edges<covered_tasks
+                or (mode=="probabilistic_complete_fallback"
+                    and actual_count!=scene.num_tasks)):
             fail("run_one_p2j_case","contract",
-                 "P2J_CERTIFIED_SCORE_MATCHING_CONTRACT",
-                 expected="positive delivered Score graph max matching == committed; "
-                          "matching <= supported tasks <= total tasks; "
-                          "score edges >= supported tasks",
+                 "P2J_V3_CERTIFIED_SCORE_COMPLETION_CONTRACT",
+                 expected={"committed":"certified max matching + paid fallback",
+                           "v3_total_tasks":scene.num_tasks},
                  actual={"score_edges":counted_edges,"supported_tasks":covered_tasks,
-                         "maximum_matching":bound,"committed":actual_count})
+                         "score_maximum":bound,"fallback_count":len(fallback),
+                         "committed":actual_count})
+    fallback_cost=sum(scene.cost_matrix[r][t] for r,t in fallback)
+    vote_supported_cost=float(native["total_assignment_cost"])-fallback_cost
     reference,cost,increase=measure_p2j_complete_quality(scene=scene,native=native)
     return {
         "source_sha":source_sha,"seed":scene.seed,
         "loss_percent":int(round(p_loss*100)),"mode":mode,
         "scene_sha256":scene_sha256(scene),"robots":scene.num_robots,
         "tasks":scene.num_tasks,"capacity":1,
-        "votes_per_voter":votes_per_voter if mode=="probabilistic_global_margin" else "",
-        "temperature":temperature if mode=="probabilistic_global_margin" else "",
-        "margin_rule":margin_rule if mode=="probabilistic_global_margin" else "",
+        "votes_per_voter":votes_per_voter if mode!="one_batch_greedy" else "",
+        "temperature":temperature if mode!="one_batch_greedy" else "",
+        "margin_rule":margin_rule if mode!="one_batch_greedy" else "",
         "native_complete":int(native["full_commit"]),
         "committed_tasks":int(native["tasks_committed"]),
         "coverage_percent":100*int(native["tasks_committed"])/scene.num_tasks,
@@ -280,6 +296,10 @@ def run_one_p2j_case(
         "certified_score_edge_count":native["certified_score_edge_count"],
         "certified_score_supported_tasks":native["certified_score_supported_tasks"],
         "certified_score_max_matching":native["certified_score_max_matching"],
+        "completion_fallback_count":len(fallback),
+        "completion_fallback_cost_m":fallback_cost,
+        "completion_fallback_pairs_json":json.dumps(fallback,separators=(",",":")),
+        "vote_supported_cost_m":vote_supported_cost,
         "assignment_digest":native["assignment_digest_sha256"],
         "native_assignment_json":json.dumps(pairs,separators=(",",":")),
         "first_epoch_digest":native["first_epoch_sha256"],
