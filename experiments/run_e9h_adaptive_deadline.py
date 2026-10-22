@@ -153,7 +153,7 @@ def build_e9h_deadline_schedule(*, profile, robots: int,
         estimate_e9h_adaptive_deadline(
             profile=profile,active_robots=n,total_tasks=robots,
             reference_phy_mbps=design_rate_mbps,margin_factor=margin_factor,
-            phase=("vote_batch" if voting_strategy in ("greedy_batch", "greedy_batch_task_order")
+            phase=("vote_batch" if voting_strategy in ("greedy_batch", "greedy_batch_task_order", "probabilistic_batch")
                    and batch_vote_scope == "all" else "vote"),
         ) for n in range(1,robots+1)
     )
@@ -302,18 +302,20 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
                                 arm, schedules, oracle_total_cost,
                                 guarded_cost_ms=None, p_vote_loss=None,
                                 external_observer=None, voting_strategy="greedy_task",
-                                batch_vote_scope="all", capture_task_epoch_ids=False):
+                                batch_vote_scope="all", capture_task_epoch_ids=False,
+                                votes_per_voter=100, temperature=5.0,
+                                margin_rule="absolute"):
     """Original TASK, local cost, physical ballots, Score and Commit only.
 
     Opt-in p_vote_loss separates Vote drop from Cost p_loss; the original
     E9H behavior defaults p_vote_loss to p_loss without runtime changes.
     """
     name,decision_rule,margin_factor,is_adaptive=arm
-    if voting_strategy not in ("greedy_task", "greedy_batch", "greedy_batch_task_order"):
+    if voting_strategy not in ("greedy_task", "greedy_batch", "greedy_batch_task_order", "probabilistic_batch"):
         raise ProtocolError(Diagnostic(
             owner=OWNER, function="run_e9h_original_voting_case",
             category="data", code="P2_UNKNOWN_VOTING_SCHEDULE",
-            expected=("greedy_task", "greedy_batch", "greedy_batch_task_order"), actual=voting_strategy,
+            expected=("greedy_task", "greedy_batch", "greedy_batch_task_order", "probabilistic_batch"), actual=voting_strategy,
         ))
     vote_loss = p_loss if p_vote_loss is None else p_vote_loss
     task_sampler=create_e9g_sampler(profile=profile,seed=seed,phy_rate_mbps=rate)
@@ -357,6 +359,8 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
         per_active_round_deadline_ms=active_schedule,
         enforce_vote_deadline=True,
         batch_vote_scope=batch_vote_scope,
+        probabilistic_seed=(seed if voting_strategy=="probabilistic_batch" else None),
+        votes_per_voter=votes_per_voter,temperature=temperature,margin_rule=margin_rule,
     )
     if external_observer is not None:
         # Read-only replay of *original* committed-round immutable traces.
@@ -446,7 +450,7 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
             expected=expected_cost_receivers,actual=cost_receiver_observations,
             details=f"n={n} seed={seed} cost_loss={p_loss} vote_loss={vote_loss}",
         ))
-    if voting_strategy in ("greedy_batch", "greedy_batch_task_order"):
+    if voting_strategy in ("greedy_batch", "greedy_batch_task_order", "probabilistic_batch"):
         phase_timing = summarize_e9h_phase_timing(task_ms=task_ms, result=result)
     else:
         phase_timing = None
@@ -500,6 +504,9 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
             task_events=task_trace.events, result=result,
         ),
         "voting_strategy":voting_strategy,
+        "votes_per_voter":(votes_per_voter if voting_strategy=="probabilistic_batch" else ""),
+        "vote_temperature":(temperature if voting_strategy=="probabilistic_batch" else ""),
+        "margin_rule":(margin_rule if voting_strategy=="probabilistic_batch" else ""),
         **({"voted_task_ids":tuple(epoch.voted_task_id for epoch in result.rounds),
             "newly_committed_by_epoch":tuple(epoch.newly_committed_pairs for epoch in result.rounds)}
            if capture_task_epoch_ids else {}),
