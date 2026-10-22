@@ -2155,10 +2155,12 @@ are **NOT preconditions** for stochastic success even at PL0.
   `publish_probabilistic_batch_scores` own positive-only candidate-paid
   Score and the candidate's true self-known Cost; the original
   Score/Commit reliability assumption is unchanged.
-- `coordination.resolve_dynamic_probability_margin_winners`
-  owns dynamic rank and capacity-one retirement from certified
-  candidate-local count/own-cost Score only (data/P2J_UNKNOWN_MARGIN_RULE,
-  contract/P2J_INVALID_CERTIFIED_SCORE); original
+- `coordination.validate_probability_score_view` owns certified score
+  and margin-rule validation (data/P2J_UNKNOWN_MARGIN_RULE,
+  contract/P2J_INVALID_CERTIFIED_SCORE);
+  `coordination.resolve_dynamic_probability_margin_winners` owns ONLY
+  dynamic rank and capacity-one retirement from validated
+  candidate-local count/own-cost Score; original
   `simulate_greedy_batch_vote_epoch`, `simulate_democracy_hungarian_lossy`,
   `simulate_democracy_hungarian_retirement` retain one original
   Cost→Vote→Score→Commit timeline and membership without a second
