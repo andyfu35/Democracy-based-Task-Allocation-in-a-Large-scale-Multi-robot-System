@@ -2186,7 +2186,7 @@ Run 12-case smoke (PL0/30/90, two seeds, two modes) after targeted and
 full tests; optional PL0 ×100Seeds ×2 modes gate controls original
 Greedy fidelity but deliberately does NOT force the stochastic mode
 to be complete; then formal 2,000 actual native method cases in 20
-summary groups. Original failed/incomplete allocations retain their
+summary groups. Every per-seed result also includes original opt-in read-only committed pair JSON, independently checked for duplicate robot/task and recomputed distance. Original failed/incomplete allocations retain their
 physical sender cost, bytes and time, and report task coverage as
 the primary feasibility measure. **Only** fully completed native
 assignments receive Global Greedy cost gap; incomplete rows leave it
