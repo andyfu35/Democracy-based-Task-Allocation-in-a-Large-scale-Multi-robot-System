@@ -478,6 +478,9 @@ class LossyCoordinationResult:
     qualified_announcement_count: int = 0
     plurality_tie_break_count: int = 0
     plurality_winner_vote_count: int = 0
+    certified_score_edge_count: int = 0
+    certified_score_supported_tasks: int = 0
+    certified_score_max_matching: int = 0
     budget_exhausted: bool = False
     budget_stop_phase: str | None = None
     budget_stop_diagnostic: Diagnostic | None = None
@@ -652,6 +655,9 @@ def _summarize_lossy_result(
     qualified_announcement_count: int = 0,
     plurality_tie_break_count: int = 0,
     plurality_winner_vote_count: int = 0,
+    certified_score_edge_count: int = 0,
+    certified_score_supported_tasks: int = 0,
+    certified_score_max_matching: int = 0,
     budget_exhausted: bool = False,
     budget_stop_phase: str | None = None,
     budget_stop_diagnostic: Diagnostic | None = None,
@@ -700,6 +706,9 @@ def _summarize_lossy_result(
         qualified_announcement_count=qualified_announcement_count,
         plurality_tie_break_count=plurality_tie_break_count,
         plurality_winner_vote_count=plurality_winner_vote_count,
+        certified_score_edge_count=certified_score_edge_count,
+        certified_score_supported_tasks=certified_score_supported_tasks,
+        certified_score_max_matching=certified_score_max_matching,
         budget_exhausted=budget_exhausted,
         budget_stop_phase=budget_stop_phase,
         budget_stop_diagnostic=budget_stop_diagnostic,
@@ -2308,6 +2317,14 @@ def simulate_greedy_batch_vote_epoch(
         vote_decision_rule="received_plurality",
         announcement_threshold=1,
         qualified_announcement_count=len(scores),
+        certified_score_edge_count=(len(certified) if probabilistic_ballots is not None else 0),
+        certified_score_supported_tasks=(
+            len({task for task,_robot in certified})
+            if probabilistic_ballots is not None else 0
+        ),
+        certified_score_max_matching=(
+            len(winners) if probabilistic_ballots is not None else 0
+        ),
         plurality_tie_break_count=tied,
         plurality_winner_vote_count=(
             max((count for count,_own_cost in certified.values()), default=0)
