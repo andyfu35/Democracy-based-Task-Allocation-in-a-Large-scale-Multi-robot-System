@@ -1214,6 +1214,7 @@ def validate_probabilistic_batch_scope(
     vote_repetitions: int, batch_vote_scope: str,
     probabilistic_seed: int | None, votes_per_voter: int,
     temperature: float, margin_rule: str, enforce_vote_deadline: bool,
+    num_robots: int, num_tasks: int,
     send_budget: SenderPayloadBudget | None,
     preknown_cost_snapshot: RetirementCostSnapshot | None,
 ) -> None:
@@ -1222,6 +1223,7 @@ def validate_probabilistic_batch_scope(
         return
     valid=(
         max_rounds == 1 and cost_repetitions == 1 and vote_repetitions == 1
+        and 1 <= num_robots <= 255 and 1 <= num_tasks <= 107
         and batch_vote_scope == "all" and enforce_vote_deadline
         and send_budget is None and preknown_cost_snapshot is None
         and type(probabilistic_seed) is int and probabilistic_seed >= 0
@@ -1234,9 +1236,11 @@ def validate_probabilistic_batch_scope(
             owner="coordination", function="validate_probabilistic_batch_scope",
             category="contract", code="P2J_ONE_SHOT_SCOPE_VIOLATION",
             expected="one Cost and one Vote Batch, one epoch, finite tau>0, "
-                     "tickets 1..255, seed>=0, absolute/normalized margin, "
-                     "received cutoff, no external Cost, no send budget",
-            actual={"max_rounds":max_rounds,"cost_repetitions":cost_repetitions,
+                     "tickets 1..255, seed>=0, robots<=255, tasks<=107, "
+                     "absolute/normalized margin, received cutoff, "
+                     "no external Cost, no send budget",
+            actual={"max_rounds":max_rounds,"num_robots":num_robots,
+                    "num_tasks":num_tasks,"cost_repetitions":cost_repetitions,
                     "vote_repetitions":vote_repetitions,"batch_vote_scope":batch_vote_scope,
                     "seed":probabilistic_seed,"votes_per_voter":votes_per_voter,
                     "temperature":temperature,"margin_rule":margin_rule,
@@ -2800,6 +2804,7 @@ def simulate_democracy_hungarian_retirement(
         batch_vote_scope=batch_vote_scope, probabilistic_seed=probabilistic_seed,
         votes_per_voter=votes_per_voter, temperature=temperature,
         margin_rule=margin_rule, enforce_vote_deadline=enforce_vote_deadline,
+        num_robots=num_robots, num_tasks=num_tasks,
         send_budget=send_budget, preknown_cost_snapshot=preknown_cost_snapshot,
     )
     if preknown_cost_snapshot is not None:
