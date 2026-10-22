@@ -339,16 +339,23 @@ def summarize_p2j_cases(rows: list[dict],losses: tuple[int,...]) -> list[dict]:
                 "mean_score_sender_kB":mean("score_bytes")/1000,
                 "mean_certified_score_edges":mean(
                     "certified_score_edge_count",
-                    [r for r in cohort if r["mode"]=="probabilistic_global_margin"],
+                    [r for r in cohort if r["mode"]!="one_batch_greedy"],
                 ),
                 "mean_certified_score_supported_tasks":mean(
                     "certified_score_supported_tasks",
-                    [r for r in cohort if r["mode"]=="probabilistic_global_margin"],
+                    [r for r in cohort if r["mode"]!="one_batch_greedy"],
                 ),
                 "mean_certified_score_max_matching":mean(
                     "certified_score_max_matching",
-                    [r for r in cohort if r["mode"]=="probabilistic_global_margin"],
+                    [r for r in cohort if r["mode"]!="one_batch_greedy"],
                 ),
+                "mean_completion_fallback_count":mean("completion_fallback_count"),
+                "fallback_seed_percent":(
+                    100*sum(int(r["completion_fallback_count"]>0) for r in cohort)
+                    /len(cohort)
+                ),
+                "mean_completion_fallback_cost_m":mean("completion_fallback_cost_m"),
+                "mean_vote_supported_cost_m":mean("vote_supported_cost_m"),
                 "mean_vote_receiver_drops":mean("vote_receiver_drops"),
             })
     return output
@@ -357,7 +364,7 @@ def summarize_p2j_cases(rows: list[dict],losses: tuple[int,...]) -> list[dict]:
 def validate_p2j_matched_grid(
     rows: list[dict], losses: tuple[int,...], first_seed: int, seeds: int,
 ) -> None:
-    """Both arms are paired on identical original E0 seed scenes and greedy cost."""
+    """All three arms share exactly the same E0 scene and Greedy reference."""
     expected=tuple((loss,seed,mode)
                    for loss in losses
                    for seed in range(first_seed,first_seed+seeds)
@@ -366,13 +373,18 @@ def validate_p2j_matched_grid(
     if expected!=observed:
         fail("validate_p2j_matched_grid","contract","P2J_GRID_NOT_PAIRED",
              expected=len(expected),actual={"count":len(observed),"unique":len(set(observed))})
-    for i in range(0,len(rows),2):
-        a,b=rows[i:i+2]
-        if (a["scene_sha256"]!=b["scene_sha256"]
-                or a["full_info_global_greedy_cost"]!=b["full_info_global_greedy_cost"]):
-            fail("validate_p2j_matched_grid","contract","P2J_SCENE_OR_REFERENCE_MISMATCH",
-                 expected=(a["scene_sha256"],a["full_info_global_greedy_cost"]),
-                 actual=(b["scene_sha256"],b["full_info_global_greedy_cost"]))
+    for i in range(0,len(rows),len(MODES)):
+        reference=rows[i]
+        for observed in rows[i+1:i+len(MODES)]:
+            if (reference["scene_sha256"]!=observed["scene_sha256"]
+                    or reference["full_info_global_greedy_cost"]
+                       !=observed["full_info_global_greedy_cost"]):
+                fail("validate_p2j_matched_grid","contract",
+                     "P2J_SCENE_OR_REFERENCE_MISMATCH",
+                     expected=(reference["scene_sha256"],
+                               reference["full_info_global_greedy_cost"]),
+                     actual=(observed["scene_sha256"],
+                             observed["full_info_global_greedy_cost"]))
     for row in rows:
         complete=bool(row["native_complete"])
         if complete!=(row["cost_increase_percent"] not in ("",None)):
@@ -388,16 +400,14 @@ def save_p2j_evidence(*, root: Path, rows: list[dict], args,
     raw_path=root/"per_seed_p2j.csv"
     config_path=root/"run_config_p2j.json"
     manifest={
-        "study":"P2J_V2_RELIABLE_SCORE_GLOBAL_MATCHING",
+        "study":"P2J_V3_DETERMINISTIC_FALLBACK_PAIRED",
         "source_sha":source_sha,"created_utc":datetime.now(timezone.utc).isoformat(),
         "python":sys.version,"platform":platform.platform(),
         "formal":bool(args.formal),"config":config,
         "cases":len(rows),"groups":len(summary),
         "sha256":{p.name:sha256_file(p) for p in
                   (raw_path,config_path,summary_path)},
-        "notice":"No-loss Greedy parity is required only for control. "
-                 "Stochastic global-matching results may remain incomplete if the CERTIFIED Score graph is Hall-deficient; "
-                 "neither successes nor cost quality may be fabricated.",
+        "notice":"Control Greedy and v2 preserve native behavior; V3 adds real paid Commit for deterministic zero-Score completion. Fallback realized Cost is evaluated OFFLINE after native selection, NEVER used to choose a robot. Incomplete cost ratios remain blank.",
     }
     (root/"manifest_p2j.json").write_text(
         json.dumps(manifest,ensure_ascii=False,indent=2),encoding="utf-8",
@@ -414,14 +424,14 @@ def run_p2j(args):
              expected="fresh append-only evidence directory",actual=str(root))
     root.mkdir(parents=True)
     config={
-        "study":"P2J_V2_RELIABLE_SCORE_GLOBAL_MATCHING",
+        "study":"P2J_V3_DETERMINISTIC_FALLBACK_PAIRED",
         "source_sha":source_sha,"loss_percent":losses,
         "first_seed":args.first_seed,"seeds":args.seeds,
         "robots":100,"tasks":100,"capacity":1,"modes":MODES,
         "votes_per_voter":args.votes_per_voter,
         "temperature":args.temperature,"margin_rule":args.margin_rule,
         "vote_policy":"Uniform task then per-task visible-Cost Boltzmann",
-        "assignment":"Global max-cardinality certified Score matching, then "+args.margin_rule+" signed vote margin, received ticket count, announced own Cost",
+        "assignment":"V2 Score max-cardinality with signed margin; V3 keeps all positive-Score winners, then assigns idle robots to unmatched tasks by sorted ID without reading unknown Cost",
         "transmission":"one original Cost broadcast and one serialized Vote per voter; no DATA retries; reliable paid Score/Commit",
         "radio":"Rady empirical latency samples plus hypothetical 144Mbps shared serialized medium",
         "cost_reference":"offline full-info global minimum-pair Greedy (complete-only)",
@@ -450,13 +460,14 @@ def run_p2j(args):
                     rows.append(result)
                     print(f"P2J PL={loss}% seed={seed} mode={mode} "
                           f"committed={result['committed_tasks']}/100 "
+                          f"fallback={result['completion_fallback_count']} "
                           f"cost_gap={result['cost_increase_percent']} "
                           f"stop_ms={result['native_stop_ms']:.3f} "
                           f"SEND_bytes={result['sender_bytes']}",flush=True)
     validate_p2j_matched_grid(rows,losses,args.first_seed,args.seeds)
     save_p2j_evidence(root=root,rows=rows,args=args,
                       config=config,source_sha=source_sha,losses=losses)
-    print(f"P2J_COMPLETE rows={len(rows)} groups={2*len(losses)} "
+    print(f"P2J_COMPLETE rows={len(rows)} groups={len(MODES)*len(losses)} "
           f"root={root}",flush=True)
 
 
