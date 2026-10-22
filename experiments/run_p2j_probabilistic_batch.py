@@ -1,4 +1,4 @@
-"""P2J-v2 one-Cost, one-Vote-Batch stochastic 100-ticket globally optimized MRTA.
+"""P2J-v3 paired one-shot Greedy, positive-Score global v2 and zero-vote completion v3.
 
 Original native Global Greedy single-batch is the paired control. A new
 probabilistic_batch voter draws exactly 100 tickets locally (one uniform
@@ -40,7 +40,8 @@ from experiments.run_p1_matched_five import (
 )
 
 OWNER = "experiments.run_p2j_probabilistic_batch"
-MODES = ("one_batch_greedy", "probabilistic_global_margin")
+MODES = ("one_batch_greedy", "probabilistic_global_margin",
+         "probabilistic_complete_fallback")
 FORMAL_LOSSES = tuple(range(0,91,10))
 RAW_FIELDS = (
     "source_sha","seed","loss_percent","mode","scene_sha256",
@@ -54,6 +55,8 @@ RAW_FIELDS = (
     "commit_sends","commit_bytes","vote_tickets_attempted",
     "certified_score_edge_count","certified_score_supported_tasks",
     "certified_score_max_matching",
+    "completion_fallback_count","completion_fallback_cost_m",
+    "completion_fallback_pairs_json","vote_supported_cost_m",
     "cost_receiver_drops","vote_receiver_drops","rounds_executed",
     "assignment_digest","native_assignment_json","first_epoch_digest","native_diagnostic",
 )
@@ -65,6 +68,8 @@ SUMMARY_FIELDS = (
     "mean_vote_sender_kB","mean_score_sender_kB",
     "mean_certified_score_edges","mean_certified_score_supported_tasks",
     "mean_certified_score_max_matching",
+    "mean_completion_fallback_count","fallback_seed_percent",
+    "mean_completion_fallback_cost_m","mean_vote_supported_cost_m",
     "mean_vote_receiver_drops",
 )
 
@@ -147,9 +152,9 @@ def audit_p2j_native_sender(
              actual={**result,"rounds":native["rounds_executed"]})
     # A ticket is a local logical draw, not a separate physical packet.
     result["vote_tickets_attempted"]=(
-        robots*votes_per_voter if mode=="probabilistic_global_margin" else 0
+        robots*votes_per_voter if mode!="one_batch_greedy" else 0
     )
-    if mode=="probabilistic_global_margin" and result["vote_bytes"]>robots*1200:
+    if mode!="one_batch_greedy" and result["vote_bytes"]>robots*1200:
         fail("audit_p2j_native_sender","contract","P2J_PROBABILITY_PACKET_NOT_BATCHED",
              expected=f"at most {robots} x 1200B Vote",actual=result["vote_bytes"])
     return result
@@ -164,7 +169,7 @@ def execute_p2j_native(
         fail("execute_p2j_native","data","P2J_UNKNOWN_MODE",
              expected=MODES,actual=mode)
     n=scene.num_robots
-    strategy=("probabilistic_batch" if mode=="probabilistic_global_margin" else "greedy_batch")
+    strategy=("probabilistic_batch" if mode!="one_batch_greedy" else "greedy_batch")
     arm=next(a for a in selected_e9i_arms() if a[0]=="adaptive_guarded_k1_received")
     schedule=build_e9h_deadline_schedule(
         profile=profile,robots=n,design_rate_mbps=144.0,
@@ -183,6 +188,9 @@ def execute_p2j_native(
         capture_assignment_pairs=True,
         votes_per_voter=votes_per_voter,temperature=temperature,
         margin_rule=margin_rule,
+        completion_policy=(
+            "idle_robot_id" if mode=="probabilistic_complete_fallback" else "none"
+        ),
     )
 
 
