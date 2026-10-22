@@ -151,7 +151,7 @@ not be omitted from totals.
 Formal = 10 losses × 100 seeds × 2 native methods = **2,000 original
 native runs**, 20 summary cells. Raw evidence append-only per new
 output root, CSV includes per-seed input SHA, scene hash, source commit,
-transport phases, native stop, full-complete cost and partial-cost
+transport phases, original committed pair JSON plus independent capacity/absolute Cost verification, native stop, full-complete cost and partial-cost
 distinction; JSON manifest includes hashes. Do not merge into
 main or replace README curves before the user supplies results and
 we independently audit.
