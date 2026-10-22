@@ -220,6 +220,12 @@ class P2JProbabilityTests(unittest.TestCase):
         evs=result.rounds[0].coordination.events
         score=[e for e in evs if e.phase=="vote_score_announcement"]
         commits=[e for e in evs if e.phase=="commit"]
+        certified=result.rounds[0].coordination
+        self.assertEqual(certified.certified_score_max_matching,len(result.assigned_pairs))
+        self.assertGreaterEqual(certified.certified_score_supported_tasks,
+                                certified.certified_score_max_matching)
+        self.assertGreaterEqual(certified.certified_score_edge_count,
+                                certified.certified_score_supported_tasks)
         self.assertTrue(score)
         self.assertTrue(commits)
         self.assertEqual(len(commits),len(result.assigned_pairs))
@@ -235,6 +241,27 @@ class P2JProbabilityTests(unittest.TestCase):
             sum(e.payload_bytes for e in evs),
             sampler.summarize_network()["application_sender_bytes"],
         )
+
+    def test_global_solver_is_invariant_to_input_robot_and_task_order(self):
+        scores={
+            (0,0):(6,20.0),(0,2):(3,4.0),
+            (1,0):(10,5.0),(1,1):(1,8.0),
+            (2,1):(7,11.0),(2,2):(2,3.0),
+        }
+        forward=resolve_dynamic_probability_margin_winners(
+            scores=scores,physical_tasks=(0,1,2),physical_robots=(0,1,2),
+        )
+        reversed_input=resolve_dynamic_probability_margin_winners(
+            scores=scores,physical_tasks=(2,1,0),physical_robots=(2,1,0),
+        )
+        self.assertEqual(forward,reversed_input)
+
+    def test_empty_reliable_score_cannot_be_replaced_with_oracle_cost(self):
+        winners,ties=resolve_dynamic_probability_margin_winners(
+            scores={},physical_tasks=(0,1,2),physical_robots=(0,1,2),
+        )
+        self.assertEqual(winners,())
+        self.assertEqual(ties,0)
 
     def test_one_cost_one_vote_no_retries_at_90_percent_loss(self):
         sampler=WifiCausalTimingSampler(
