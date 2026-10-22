@@ -20,6 +20,7 @@ from .optimizer import (
     solve_visible_hungarian_assignment,
     solve_all_visible_greedy_task_votes,
     solve_visible_batched_greedy_assignment,
+    sample_probabilistic_pair_votes,
     solve_visible_task_ordered_greedy_assignment,
     validate_cost_matrix,
 )
@@ -1145,14 +1146,14 @@ def validate_epoch_voting_strategy(
     strategy: str,
     num_tasks: int,
 ) -> None:
-    if strategy not in ("hungarian", "greedy_task", "greedy_batch", "greedy_batch_task_order"):
+    if strategy not in ("hungarian", "greedy_task", "greedy_batch", "greedy_batch_task_order", "probabilistic_batch"):
         raise ProtocolError(
             Diagnostic(
                 owner="coordination",
                 function="validate_epoch_voting_strategy",
                 category="data",
                 code="UNKNOWN_VOTING_STRATEGY",
-                expected=("hungarian", "greedy_task", "greedy_batch", "greedy_batch_task_order"),
+                expected=("hungarian", "greedy_task", "greedy_batch", "greedy_batch_task_order", "probabilistic_batch"),
                 actual=strategy,
             )
         )
@@ -1205,6 +1206,70 @@ def build_epoch_local_proposals(
         )
         for voter_local_id in range(len(physical_robots))
     )
+
+
+
+def validate_probabilistic_batch_scope(
+    *, voting_strategy: str, max_rounds: int, cost_repetitions: int,
+    vote_repetitions: int, batch_vote_scope: str,
+    probabilistic_seed: int | None, votes_per_voter: int,
+    temperature: float, margin_rule: str, enforce_vote_deadline: bool,
+    send_budget: SenderPayloadBudget | None,
+    preknown_cost_snapshot: RetirementCostSnapshot | None,
+) -> None:
+    """One-shot probabilistic mode cannot silently acquire retries or hidden Cost."""
+    if voting_strategy != "probabilistic_batch":
+        return
+    valid=(
+        max_rounds == 1 and cost_repetitions == 1 and vote_repetitions == 1
+        and batch_vote_scope == "all" and enforce_vote_deadline
+        and send_budget is None and preknown_cost_snapshot is None
+        and type(probabilistic_seed) is int and probabilistic_seed >= 0
+        and type(votes_per_voter) is int and 1 <= votes_per_voter <= 255
+        and type(temperature) in (int,float) and math.isfinite(temperature)
+        and temperature > 0 and margin_rule in ("absolute","normalized")
+    )
+    if not valid:
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="validate_probabilistic_batch_scope",
+            category="contract", code="P2J_ONE_SHOT_SCOPE_VIOLATION",
+            expected="one Cost and one Vote Batch, one epoch, finite tau>0, "
+                     "tickets 1..255, seed>=0, absolute/normalized margin, "
+                     "received cutoff, no external Cost, no send budget",
+            actual={"max_rounds":max_rounds,"cost_repetitions":cost_repetitions,
+                    "vote_repetitions":vote_repetitions,"batch_vote_scope":batch_vote_scope,
+                    "seed":probabilistic_seed,"votes_per_voter":votes_per_voter,
+                    "temperature":temperature,"margin_rule":margin_rule,
+                    "enforce_vote_deadline":enforce_vote_deadline,
+                    "send_budget":send_budget is not None,
+                    "preknown_cost_snapshot":preknown_cost_snapshot is not None},
+        ))
+
+
+def build_epoch_probabilistic_ballots(
+    *, cost_matrix: tuple[tuple[float, ...], ...],
+    visible: tuple[frozenset[int], ...],
+    physical_robots: tuple[int, ...],
+    physical_tasks: tuple[int, ...],
+    seed: int, votes_per_voter: int, temperature: float, round_id: int,
+) -> tuple[tuple[tuple[int, int, int], ...], ...]:
+    """Plan only from each voter's received Cost; map local IDs to real IDs."""
+    if len(visible)!=len(physical_robots):
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="build_epoch_probabilistic_ballots",
+            category="contract", code="P2J_LOCAL_VIEW_COUNT_MISMATCH",
+            expected=len(physical_robots), actual=len(visible),
+        ))
+    ballots=[]
+    for voter_local_id, rows in enumerate(visible):
+        weighted=sample_probabilistic_pair_votes(
+            cost_matrix=cost_matrix, visible_robot_ids=rows,
+            voter_id=voter_local_id, seed=seed, votes_per_voter=votes_per_voter,
+            temperature=temperature, round_id=round_id,
+        )
+        ballots.append(tuple((physical_tasks[task],physical_robots[robot],count)
+                             for task,robot,count in weighted))
+    return tuple(ballots)
 
 
 def validate_batch_vote_scope(*, voting_strategy: str, batch_vote_scope: str) -> None:
@@ -1315,7 +1380,7 @@ def validate_vote_decision_rule(
                 actual=rule,
             )
         )
-    if voting_strategy in ("greedy_batch", "greedy_batch_task_order") and rule != "received_plurality":
+    if voting_strategy in ("greedy_batch", "greedy_batch_task_order", "probabilistic_batch") and rule != "received_plurality":
         raise ProtocolError(Diagnostic(
             owner="coordination", function="validate_vote_decision_rule",
             category="planning", code="BATCH_GREEDY_REQUIRES_RECEIVED_PLURALITY",
@@ -1323,9 +1388,9 @@ def validate_vote_decision_rule(
         ))
     if rule in ("quarter_plurality", "received_plurality") and (
         (voting_strategy == "greedy_task" and num_tasks != 1)
-        or (voting_strategy in ("greedy_batch", "greedy_batch_task_order")
+        or (voting_strategy in ("greedy_batch", "greedy_batch_task_order", "probabilistic_batch")
             and rule != "received_plurality")
-        or voting_strategy not in ("greedy_task", "greedy_batch", "greedy_batch_task_order")
+        or voting_strategy not in ("greedy_task", "greedy_batch", "greedy_batch_task_order", "probabilistic_batch")
     ):
         raise ProtocolError(
             Diagnostic(
