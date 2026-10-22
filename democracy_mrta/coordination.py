@@ -2126,32 +2126,56 @@ def simulate_greedy_batch_vote_epoch(
     capture_vote_audit: bool,
     voted_task_ids: tuple[int, ...] | None = None,
     task_ordered: bool = False,
+    probabilistic_ballots: tuple[tuple[tuple[int, int, int], ...], ...] | None = None,
+    votes_per_voter: int = 100,
+    margin_rule: str = "absolute",
 ) -> LossyCoordinationResult:
-    """One Cost snapshot -> scoped Vote -> reliable Score -> capacity-one Commit."""
+    """One Cost snapshot -> one Vote batch -> reliable Score -> capacity-one Commit."""
     eligible_vote_tasks = physical_tasks if voted_task_ids is None else voted_task_ids
     cost_finished_ms = max(ready_times, default=0.0)
     vote_cutoff_ms = cost_finished_ms + phase_timeout_ms
-    votes, observed_votes, counts = collect_greedy_batch_votes(
-        proposals=proposals, physical_robots=physical_robots, ready_times=ready_times,
-        round_id=round_id, cutoff_ms=vote_cutoff_ms, sampler=sampler,
-        loss_sampler=loss_sampler, p_vote_loss=p_vote_loss,
-        voted_task_ids=voted_task_ids,
-    )
+    if probabilistic_ballots is None:
+        votes, observed_votes, counts = collect_greedy_batch_votes(
+            proposals=proposals, physical_robots=physical_robots, ready_times=ready_times,
+            round_id=round_id, cutoff_ms=vote_cutoff_ms, sampler=sampler,
+            loss_sampler=loss_sampler, p_vote_loss=p_vote_loss,
+            voted_task_ids=voted_task_ids,
+        )
+    else:
+        votes, observed_votes, counts = collect_probabilistic_batch_votes(
+            ballots=probabilistic_ballots, physical_robots=physical_robots,
+            physical_tasks=physical_tasks, ready_times=ready_times,
+            round_id=round_id, cutoff_ms=vote_cutoff_ms, sampler=sampler,
+            loss_sampler=loss_sampler, p_vote_loss=p_vote_loss,
+            votes_per_voter=votes_per_voter,
+        )
     score_release_ms = max(
         vote_cutoff_ms,
         max((event.arrival_time_ms for event in votes), default=0.0),
     )
-    scores, certified = publish_greedy_batch_scores(
-        counted_votes=counts, physical_robots=physical_robots,
-        round_id=round_id, release_ms=score_release_ms, sampler=sampler,
-    )
-    winner_selector = (
-        resolve_capacity_one_task_ordered_winners if task_ordered
-        else resolve_capacity_one_batch_winners
-    )
-    winners, tied = winner_selector(
-        scores=certified, physical_tasks=eligible_vote_tasks, physical_robots=physical_robots,
-    )
+    if probabilistic_ballots is None:
+        scores, certified = publish_greedy_batch_scores(
+            counted_votes=counts, physical_robots=physical_robots,
+            round_id=round_id, release_ms=score_release_ms, sampler=sampler,
+        )
+        winner_selector = (
+            resolve_capacity_one_task_ordered_winners if task_ordered
+            else resolve_capacity_one_batch_winners
+        )
+        winners, tied = winner_selector(
+            scores=certified, physical_tasks=eligible_vote_tasks,
+            physical_robots=physical_robots,
+        )
+    else:
+        scores, certified = publish_probabilistic_batch_scores(
+            counted_votes=counts, cost_matrix=cost_matrix,
+            physical_robots=physical_robots, physical_tasks=physical_tasks,
+            round_id=round_id, release_ms=score_release_ms, sampler=sampler,
+        )
+        winners, tied = resolve_dynamic_probability_margin_winners(
+            scores=certified, physical_tasks=eligible_vote_tasks,
+            physical_robots=physical_robots, margin_rule=margin_rule,
+        )
     scores_done_ms = max(
         score_release_ms, max((event.arrival_time_ms for event in scores), default=score_release_ms),
     )
@@ -2165,7 +2189,9 @@ def simulate_greedy_batch_vote_epoch(
         scores_done_ms, max((event.arrival_time_ms for event in commits), default=scores_done_ms),
     )
     return _summarize_lossy_result(
-        method=("democracy_task_ordered_batch_received_plurality" if task_ordered
+        method=("democracy_probabilistic_margin_one_batch"
+                if probabilistic_ballots is not None else
+                "democracy_task_ordered_batch_received_plurality" if task_ordered
                 else "democracy_batched_greedy_received_plurality"),
         cost_matrix=cost_matrix, assigned_pairs=winners,
         cost_phase_completion_ms=cost_finished_ms,
@@ -2207,6 +2233,10 @@ def simulate_democracy_hungarian_lossy(
     send_budget: SenderPayloadBudget | None = None,
     enforce_vote_deadline: bool = False,
     batch_vote_task_ids: tuple[int, ...] | None = None,
+    probabilistic_seed: int | None = None,
+    votes_per_voter: int = 100,
+    temperature: float = 5.0,
+    margin_rule: str = "absolute",
 ) -> LossyCoordinationResult:
     num_robots, num_tasks = validate_cost_matrix(cost_matrix)
     physical_robots, physical_tasks = validate_epoch_identity_mapping(
@@ -2276,14 +2306,23 @@ def simulate_democracy_hungarian_lossy(
             visible=visible, cost_completion_ms=cost_completion,
             stop_phase="cost", send_budget=send_budget,
         )
-    proposals = build_epoch_local_proposals(
-        cost_matrix=cost_matrix,
-        visible=visible,
-        physical_robots=physical_robots,
-        physical_tasks=physical_tasks,
-        strategy=voting_strategy,
-    )
-    if voting_strategy in ("greedy_batch", "greedy_batch_task_order"):
+    if voting_strategy == "probabilistic_batch":
+        ballots = build_epoch_probabilistic_ballots(
+            cost_matrix=cost_matrix, visible=visible,
+            physical_robots=physical_robots, physical_tasks=physical_tasks,
+            seed=probabilistic_seed, votes_per_voter=votes_per_voter,
+            temperature=temperature, round_id=round_id,
+        )
+        proposals: tuple[AssignmentSolution, ...] = ()
+    else:
+        ballots = None
+        proposals = build_epoch_local_proposals(
+            cost_matrix=cost_matrix, visible=visible,
+            physical_robots=physical_robots,
+            physical_tasks=physical_tasks,
+            strategy=voting_strategy,
+        )
+    if voting_strategy in ("greedy_batch", "greedy_batch_task_order", "probabilistic_batch"):
         return simulate_greedy_batch_vote_epoch(
             cost_matrix=cost_matrix, cost_events=events,
             cost_deliveries=deliveries, visible=visible, ready_times=ready_times,
@@ -2293,6 +2332,8 @@ def simulate_democracy_hungarian_lossy(
             p_vote_loss=vote_loss_probability, capture_vote_audit=capture_vote_audit,
             voted_task_ids=batch_vote_task_ids,
             task_ordered=(voting_strategy == "greedy_batch_task_order"),
+            probabilistic_ballots=ballots, votes_per_voter=votes_per_voter,
+            margin_rule=margin_rule,
         )
 
     ledgers_by_task: dict[int, dict[int, set[int]]] = {
@@ -2671,6 +2712,10 @@ def simulate_democracy_hungarian_retirement(
     per_active_round_deadline_ms: tuple[float, ...] | None = None,
     enforce_vote_deadline: bool = False,
     batch_vote_scope: str = "all",
+    probabilistic_seed: int | None = None,
+    votes_per_voter: int = 100,
+    temperature: float = 5.0,
+    margin_rule: str = "absolute",
 ) -> MultiRoundRetirementResult:
     """Multi-round membership owner; reuses the same E2 single-round vote engine.
 
@@ -2701,7 +2746,7 @@ def simulate_democracy_hungarian_retirement(
     )
     if isinstance(sampler, WifiCausalTimingSampler) and (
         cost_repetitions != 1 or vote_repetitions != 1 or
-        voting_strategy not in ("greedy_task", "greedy_batch", "greedy_batch_task_order")
+        voting_strategy not in ("greedy_task", "greedy_batch", "greedy_batch_task_order", "probabilistic_batch")
     ):
         raise ProtocolError(Diagnostic(
             owner="coordination", function="simulate_democracy_hungarian_retirement",
@@ -2731,6 +2776,14 @@ def simulate_democracy_hungarian_retirement(
     validate_batch_vote_scope(
         voting_strategy=voting_strategy, batch_vote_scope=batch_vote_scope,
     )
+    validate_probabilistic_batch_scope(
+        voting_strategy=voting_strategy, max_rounds=max_rounds,
+        cost_repetitions=cost_repetitions, vote_repetitions=vote_repetitions,
+        batch_vote_scope=batch_vote_scope, probabilistic_seed=probabilistic_seed,
+        votes_per_voter=votes_per_voter, temperature=temperature,
+        margin_rule=margin_rule, enforce_vote_deadline=enforce_vote_deadline,
+        send_budget=send_budget, preknown_cost_snapshot=preknown_cost_snapshot,
+    )
     if preknown_cost_snapshot is not None:
         validate_preknown_retirement_cost_snapshot(
             snapshot=preknown_cost_snapshot, num_robots=num_robots,
@@ -2749,7 +2802,7 @@ def simulate_democracy_hungarian_retirement(
                 cost_repetitions=cost_repetitions,
                 enforce_cost_deadline=enforce_vote_deadline,
             )
-            if voting_strategy in ("greedy_task", "greedy_batch", "greedy_batch_task_order") else None
+            if voting_strategy in ("greedy_task", "greedy_batch", "greedy_batch_task_order", "probabilistic_batch") else None
         )
     membership = initialize_retirement_membership(
         num_robots=num_robots,
@@ -2797,6 +2850,8 @@ def simulate_democracy_hungarian_retirement(
             send_budget=send_budget,
             enforce_vote_deadline=enforce_vote_deadline,
             batch_vote_task_ids=(pending_tasks[:1] if batch_vote_scope == "one_task" else None),
+            probabilistic_seed=probabilistic_seed, votes_per_voter=votes_per_voter,
+            temperature=temperature, margin_rule=margin_rule,
         )
         require_retirement_commit_announcements(
             round_result=round_result,
@@ -2837,6 +2892,8 @@ def simulate_democracy_hungarian_retirement(
     )
     return MultiRoundRetirementResult(
         method=(
+            "democracy_probabilistic_margin_one_batch_retirement"
+            if voting_strategy == "probabilistic_batch" else
             "democracy_task_ordered_batch_received_plurality_retirement"
             if voting_strategy == "greedy_batch_task_order" else
             ("democracy_serial_global_greedy_received_plurality_retirement"
