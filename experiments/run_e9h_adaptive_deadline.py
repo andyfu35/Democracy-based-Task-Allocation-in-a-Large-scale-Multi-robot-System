@@ -305,7 +305,7 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
                                 batch_vote_scope="all", capture_task_epoch_ids=False,
                                 capture_assignment_pairs=False,
                                 votes_per_voter=100, temperature=5.0,
-                                margin_rule="absolute"):
+                                margin_rule="absolute", completion_policy="none"):
     """Original TASK, local cost, physical ballots, Score and Commit only.
 
     Opt-in p_vote_loss separates Vote drop from Cost p_loss; the original
@@ -362,6 +362,7 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
         batch_vote_scope=batch_vote_scope,
         probabilistic_seed=(seed if voting_strategy=="probabilistic_batch" else None),
         votes_per_voter=votes_per_voter,temperature=temperature,margin_rule=margin_rule,
+        completion_policy=completion_policy,
     )
     if external_observer is not None:
         # Read-only replay of *original* committed-round immutable traces.
@@ -504,6 +505,14 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
         "certified_score_max_matching":(
             result.rounds[0].coordination.certified_score_max_matching
             if voting_strategy=="probabilistic_batch" and result.rounds else ""
+        ),
+        "completion_fallback_pairs":(
+            result.rounds[0].coordination.completion_fallback_pairs
+            if voting_strategy=="probabilistic_batch" and result.rounds else ()
+        ),
+        "completion_fallback_count":(
+            len(result.rounds[0].coordination.completion_fallback_pairs)
+            if voting_strategy=="probabilistic_batch" and result.rounds else 0
         ),
         "task_announcement_ms":task_ms,
         "allocation_or_stop_ms":task_ms+result.global_agreement_ms,
