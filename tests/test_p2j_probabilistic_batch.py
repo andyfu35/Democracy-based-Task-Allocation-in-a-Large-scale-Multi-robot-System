@@ -147,13 +147,13 @@ class P2JProbabilityTests(unittest.TestCase):
 
     def test_global_matching_repairs_stranded_tasks_using_one_vote_edges(self):
         # The previous irreversible greedy method takes T1/R0 (large
-        # margin), then T0/R1, stranding T2. Globally T1/R1 can take
-        # one positive vote and T2/R0 can run: no additional Vote or Cost.
-        # All three commitments must precede original reliable Commit.
+        # margin), then T0/R1, stranding T2 with idle R2. Global
+        # optimization chooses T1/R1 (one vote), T0/R2 (one vote),
+        # T2/R0 to satisfy every task, without new Vote/Cost traffic.
         scores={
-            (0,0):(19,10.0),(0,1):(13,15.0),
-            (1,0):(30,5.0),(1,1):(1,11.0),
-            (2,0):(5,12.0),(2,2):(1,20.0),
+            (0,0):(15,10.0),(0,1):(14,15.0),(0,2):(1,20.0),
+            (1,0):(70,5.0),(1,1):(1,11.0),
+            (2,0):(5,12.0),
         }
         winners,_=resolve_dynamic_probability_margin_winners(
             scores=scores,physical_tasks=(0,1,2),
