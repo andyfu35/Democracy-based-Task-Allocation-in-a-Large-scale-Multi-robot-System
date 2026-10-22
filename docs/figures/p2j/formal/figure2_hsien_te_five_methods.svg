@@ -1,0 +1,335 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1120" role="img" aria-label="Figure 2 Reliable Task Allocation with Hsien-Te Methods">
+<rect width="1800" height="1120" fill="white"/>
+<text x="38" y="46" font-family="Arial,Helvetica,sans-serif" font-size="30" font-weight="bold" fill="#132B42">Figure 2 · Reliable Task Allocation</text>
+<text x="38" y="78" font-family="Arial,Helvetica,sans-serif" font-size="17" fill="#526174">Comparison under packet loss · 100 robots × 100 tasks · 100 seeds</text>
+<line x1="45" y1="113" x2="75" y2="113" stroke="#187BB8" stroke-width="6"/>
+<text x="87" y="118" font-family="Arial,Helvetica,sans-serif" font-size="16" fill="#152B43" font-weight="normal">Full Retransmission</text>
+<line x1="370" y1="113" x2="400" y2="113" stroke="#D27B2B" stroke-width="6"/>
+<text x="412" y="118" font-family="Arial,Helvetica,sans-serif" font-size="16" fill="#152B43" font-weight="normal">Cost Retransmission Only</text>
+<line x1="810" y1="113" x2="840" y2="113" stroke="#1B9564" stroke-width="6"/>
+<text x="852" y="118" font-family="Arial,Helvetica,sans-serif" font-size="16" fill="#152B43" font-weight="normal">CBAA</text>
+<line x1="1012" y1="113" x2="1042" y2="113" stroke="#8C55A7" stroke-width="6"/>
+<text x="1054" y="118" font-family="Arial,Helvetica,sans-serif" font-size="16" fill="#152B43" font-weight="normal">Baseline Centralized</text>
+<line x1="1410" y1="113" x2="1440" y2="113" stroke="#D43C51" stroke-width="6"/>
+<text x="1452" y="118" font-family="Arial,Helvetica,sans-serif" font-size="16" fill="#152B43" font-weight="bold">Hsien-Te Methods</text>
+<rect x="34" y="154" width="840" height="463" rx="14" fill="#FAFCFF" stroke="#CFDBE5"/>
+<text x="59" y="188" font-family="Arial,Helvetica,sans-serif" font-size="23" font-weight="bold" fill="#172B43">A. Full allocation success</text>
+<text x="59" y="215" font-family="Arial,Helvetica,sans-serif" font-size="15" fill="#526174">Complete 100-task allocations · %</text>
+<line x1="122" y1="541.00" x2="839" y2="541.00" stroke="#DFE6EF" stroke-width="1"/>
+<text x="109" y="546.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">0</text>
+<line x1="122" y1="466.95" x2="839" y2="466.95" stroke="#DFE6EF" stroke-width="1"/>
+<text x="109" y="471.95" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">25</text>
+<line x1="122" y1="392.90" x2="839" y2="392.90" stroke="#DFE6EF" stroke-width="1"/>
+<text x="109" y="397.90" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">50</text>
+<line x1="122" y1="318.86" x2="839" y2="318.86" stroke="#DFE6EF" stroke-width="1"/>
+<text x="109" y="323.86" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">75</text>
+<line x1="122" y1="244.81" x2="839" y2="244.81" stroke="#DFE6EF" stroke-width="1"/>
+<text x="109" y="249.81" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">100</text>
+<text x="122.00" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">0%</text>
+<text x="201.67" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">10%</text>
+<text x="281.33" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">20%</text>
+<text x="361.00" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">30%</text>
+<text x="440.67" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">40%</text>
+<text x="520.33" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">50%</text>
+<text x="600.00" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">60%</text>
+<text x="679.67" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">70%</text>
+<text x="759.33" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">80%</text>
+<text x="839.00" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">90%</text>
+<text x="480.50" y="593.00" font-family="Arial,Helvetica,sans-serif" font-size="14" text-anchor="middle" fill="#43536A">Packet loss</text>
+<text x="829" y="292" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="15" fill="#43536A">All five methods overlap at 100%</text>
+<polyline points="122.00,244.81 201.67,244.81 281.33,244.81 361.00,244.81 440.67,244.81 520.33,244.81 600.00,244.81 679.67,244.81 759.33,244.81 839.00,244.81" stroke="#187BB8" stroke-width="3.1" fill="none"/>
+<polyline points="122.00,244.81 201.67,244.81 281.33,244.81 361.00,244.81 440.67,244.81 520.33,244.81 600.00,244.81 679.67,244.81 759.33,244.81 839.00,244.81" stroke="#D27B2B" stroke-width="3.1" fill="none"/>
+<polyline points="122.00,244.81 201.67,244.81 281.33,244.81 361.00,244.81 440.67,244.81 520.33,244.81 600.00,244.81 679.67,244.81 759.33,244.81 839.00,244.81" stroke="#1B9564" stroke-width="3.1" fill="none"/>
+<polyline points="122.00,244.81 201.67,244.81 281.33,244.81 361.00,244.81 440.67,244.81 520.33,244.81 600.00,244.81 679.67,244.81 759.33,244.81 839.00,244.81" stroke="#8C55A7" stroke-width="3.1" fill="none"/>
+<polyline points="122.00,244.81 201.67,244.81 281.33,244.81 361.00,244.81 440.67,244.81 520.33,244.81 600.00,244.81 679.67,244.81 759.33,244.81 839.00,244.81" stroke="#D43C51" stroke-width="4.3" fill="none"/>
+<circle cx="122.00" cy="244.81" r="12" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL0: 100.000000</title></circle>
+<circle cx="201.67" cy="244.81" r="12" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL10: 100.000000</title></circle>
+<circle cx="281.33" cy="244.81" r="12" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL20: 100.000000</title></circle>
+<circle cx="361.00" cy="244.81" r="12" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL30: 100.000000</title></circle>
+<circle cx="440.67" cy="244.81" r="12" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL40: 100.000000</title></circle>
+<circle cx="520.33" cy="244.81" r="12" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL50: 100.000000</title></circle>
+<circle cx="600.00" cy="244.81" r="12" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL60: 100.000000</title></circle>
+<circle cx="679.67" cy="244.81" r="12" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL70: 100.000000</title></circle>
+<circle cx="759.33" cy="244.81" r="12" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL80: 100.000000</title></circle>
+<circle cx="839.00" cy="244.81" r="12" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL90: 100.000000</title></circle>
+<circle cx="122.00" cy="244.81" r="10" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL0: 100.000000</title></circle>
+<circle cx="201.67" cy="244.81" r="10" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL10: 100.000000</title></circle>
+<circle cx="281.33" cy="244.81" r="10" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL20: 100.000000</title></circle>
+<circle cx="361.00" cy="244.81" r="10" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL30: 100.000000</title></circle>
+<circle cx="440.67" cy="244.81" r="10" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL40: 100.000000</title></circle>
+<circle cx="520.33" cy="244.81" r="10" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL50: 100.000000</title></circle>
+<circle cx="600.00" cy="244.81" r="10" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL60: 100.000000</title></circle>
+<circle cx="679.67" cy="244.81" r="10" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL70: 100.000000</title></circle>
+<circle cx="759.33" cy="244.81" r="10" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL80: 100.000000</title></circle>
+<circle cx="839.00" cy="244.81" r="10" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL90: 100.000000</title></circle>
+<circle cx="122.00" cy="244.81" r="8" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL0: 100.000000</title></circle>
+<circle cx="201.67" cy="244.81" r="8" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL10: 100.000000</title></circle>
+<circle cx="281.33" cy="244.81" r="8" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL20: 100.000000</title></circle>
+<circle cx="361.00" cy="244.81" r="8" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL30: 100.000000</title></circle>
+<circle cx="440.67" cy="244.81" r="8" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL40: 100.000000</title></circle>
+<circle cx="520.33" cy="244.81" r="8" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL50: 100.000000</title></circle>
+<circle cx="600.00" cy="244.81" r="8" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL60: 100.000000</title></circle>
+<circle cx="679.67" cy="244.81" r="8" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL70: 100.000000</title></circle>
+<circle cx="759.33" cy="244.81" r="8" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL80: 100.000000</title></circle>
+<circle cx="839.00" cy="244.81" r="8" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL90: 100.000000</title></circle>
+<circle cx="122.00" cy="244.81" r="6" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL0: 100.000000</title></circle>
+<circle cx="201.67" cy="244.81" r="6" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL10: 100.000000</title></circle>
+<circle cx="281.33" cy="244.81" r="6" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL20: 100.000000</title></circle>
+<circle cx="361.00" cy="244.81" r="6" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL30: 100.000000</title></circle>
+<circle cx="440.67" cy="244.81" r="6" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL40: 100.000000</title></circle>
+<circle cx="520.33" cy="244.81" r="6" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL50: 100.000000</title></circle>
+<circle cx="600.00" cy="244.81" r="6" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL60: 100.000000</title></circle>
+<circle cx="679.67" cy="244.81" r="6" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL70: 100.000000</title></circle>
+<circle cx="759.33" cy="244.81" r="6" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL80: 100.000000</title></circle>
+<circle cx="839.00" cy="244.81" r="6" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL90: 100.000000</title></circle>
+<circle cx="122.00" cy="244.81" r="3.9" fill="#D43C51" stroke="#D43C51" stroke-width="2"><title>Hsien-Te Methods PL0: 100.000000</title></circle>
+<circle cx="201.67" cy="244.81" r="3.9" fill="#D43C51" stroke="#D43C51" stroke-width="2"><title>Hsien-Te Methods PL10: 100.000000</title></circle>
+<circle cx="281.33" cy="244.81" r="3.9" fill="#D43C51" stroke="#D43C51" stroke-width="2"><title>Hsien-Te Methods PL20: 100.000000</title></circle>
+<circle cx="361.00" cy="244.81" r="3.9" fill="#D43C51" stroke="#D43C51" stroke-width="2"><title>Hsien-Te Methods PL30: 100.000000</title></circle>
+<circle cx="440.67" cy="244.81" r="3.9" fill="#D43C51" stroke="#D43C51" stroke-width="2"><title>Hsien-Te Methods PL40: 100.000000</title></circle>
+<circle cx="520.33" cy="244.81" r="3.9" fill="#D43C51" stroke="#D43C51" stroke-width="2"><title>Hsien-Te Methods PL50: 100.000000</title></circle>
+<circle cx="600.00" cy="244.81" r="3.9" fill="#D43C51" stroke="#D43C51" stroke-width="2"><title>Hsien-Te Methods PL60: 100.000000</title></circle>
+<circle cx="679.67" cy="244.81" r="3.9" fill="#D43C51" stroke="#D43C51" stroke-width="2"><title>Hsien-Te Methods PL70: 100.000000</title></circle>
+<circle cx="759.33" cy="244.81" r="3.9" fill="#D43C51" stroke="#D43C51" stroke-width="2"><title>Hsien-Te Methods PL80: 100.000000</title></circle>
+<circle cx="839.00" cy="244.81" r="3.9" fill="#D43C51" stroke="#D43C51" stroke-width="2"><title>Hsien-Te Methods PL90: 100.000000</title></circle>
+<rect x="918" y="154" width="840" height="463" rx="14" fill="#FAFCFF" stroke="#CFDBE5"/>
+<text x="943" y="188" font-family="Arial,Helvetica,sans-serif" font-size="23" font-weight="bold" fill="#172B43">B. Cost difference vs. global Greedy</text>
+<text x="943" y="215" font-family="Arial,Helvetica,sans-serif" font-size="15" fill="#526174">Fully completed trials only · signed %</text>
+<line x1="1006" y1="541.00" x2="1723" y2="541.00" stroke="#DFE6EF" stroke-width="1"/>
+<text x="993" y="546.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">-10</text>
+<line x1="1006" y1="478.80" x2="1723" y2="478.80" stroke="#ACBDD0" stroke-width="1.8"/>
+<text x="993" y="483.80" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">0</text>
+<line x1="1006" y1="416.60" x2="1723" y2="416.60" stroke="#DFE6EF" stroke-width="1"/>
+<text x="993" y="421.60" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">10</text>
+<line x1="1006" y1="354.40" x2="1723" y2="354.40" stroke="#DFE6EF" stroke-width="1"/>
+<text x="993" y="359.40" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">20</text>
+<line x1="1006" y1="292.20" x2="1723" y2="292.20" stroke="#DFE6EF" stroke-width="1"/>
+<text x="993" y="297.20" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">30</text>
+<line x1="1006" y1="230.00" x2="1723" y2="230.00" stroke="#DFE6EF" stroke-width="1"/>
+<text x="993" y="235.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">40</text>
+<text x="1006.00" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">0%</text>
+<text x="1085.67" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">10%</text>
+<text x="1165.33" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">20%</text>
+<text x="1245.00" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">30%</text>
+<text x="1324.67" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">40%</text>
+<text x="1404.33" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">50%</text>
+<text x="1484.00" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">60%</text>
+<text x="1563.67" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">70%</text>
+<text x="1643.33" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">80%</text>
+<text x="1723.00" y="567.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">90%</text>
+<text x="1364.50" y="593.00" font-family="Arial,Helvetica,sans-serif" font-size="14" text-anchor="middle" fill="#43536A">Packet loss</text>
+<text x="1713" y="454.8" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="15" fill="#43536A">Four original methods overlap at 0%</text>
+<polyline points="1006.00,478.80 1085.67,478.80 1165.33,478.80 1245.00,478.80 1324.67,478.80 1404.33,478.80 1484.00,478.80 1563.67,478.80 1643.33,478.80 1723.00,478.80" stroke="#187BB8" stroke-width="3.1" fill="none"/>
+<polyline points="1006.00,478.80 1085.67,478.80 1165.33,478.80 1245.00,478.80 1324.67,478.80 1404.33,478.80 1484.00,478.80 1563.67,478.80 1643.33,478.80 1723.00,478.80" stroke="#D27B2B" stroke-width="3.1" fill="none"/>
+<polyline points="1006.00,478.80 1085.67,478.80 1165.33,478.80 1245.00,478.80 1324.67,478.80 1404.33,478.80 1484.00,478.80 1563.67,478.80 1643.33,478.80 1723.00,478.80" stroke="#1B9564" stroke-width="3.1" fill="none"/>
+<polyline points="1006.00,478.80 1085.67,478.80 1165.33,478.80 1245.00,478.80 1324.67,478.80 1404.33,478.80 1484.00,478.80 1563.67,478.80 1643.33,478.80 1723.00,478.80" stroke="#8C55A7" stroke-width="3.1" fill="none"/>
+<polyline points="1006.00,520.13 1085.67,518.60 1165.33,516.77 1245.00,516.20 1324.67,512.63 1404.33,507.94 1484.00,496.26 1563.67,473.64 1643.33,418.49 1723.00,257.04" stroke="#D43C51" stroke-width="4.3" fill="none"/>
+<circle cx="1006.00" cy="478.80" r="9.5" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL0: 0.000000</title></circle>
+<circle cx="1085.67" cy="478.80" r="9.5" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL10: 0.000000</title></circle>
+<circle cx="1165.33" cy="478.80" r="9.5" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL20: 0.000000</title></circle>
+<circle cx="1245.00" cy="478.80" r="9.5" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL30: 0.000000</title></circle>
+<circle cx="1324.67" cy="478.80" r="9.5" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL40: 0.000000</title></circle>
+<circle cx="1404.33" cy="478.80" r="9.5" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL50: 0.000000</title></circle>
+<circle cx="1484.00" cy="478.80" r="9.5" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL60: 0.000000</title></circle>
+<circle cx="1563.67" cy="478.80" r="9.5" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL70: 0.000000</title></circle>
+<circle cx="1643.33" cy="478.80" r="9.5" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL80: 0.000000</title></circle>
+<circle cx="1723.00" cy="478.80" r="9.5" fill="none" stroke="#187BB8" stroke-width="2"><title>Full Retransmission PL90: 0.000000</title></circle>
+<circle cx="1006.00" cy="478.80" r="7.5" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL0: 0.000000</title></circle>
+<circle cx="1085.67" cy="478.80" r="7.5" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL10: 0.000000</title></circle>
+<circle cx="1165.33" cy="478.80" r="7.5" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL20: 0.000000</title></circle>
+<circle cx="1245.00" cy="478.80" r="7.5" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL30: 0.000000</title></circle>
+<circle cx="1324.67" cy="478.80" r="7.5" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL40: 0.000000</title></circle>
+<circle cx="1404.33" cy="478.80" r="7.5" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL50: 0.000000</title></circle>
+<circle cx="1484.00" cy="478.80" r="7.5" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL60: 0.000000</title></circle>
+<circle cx="1563.67" cy="478.80" r="7.5" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL70: 0.000000</title></circle>
+<circle cx="1643.33" cy="478.80" r="7.5" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL80: 0.000000</title></circle>
+<circle cx="1723.00" cy="478.80" r="7.5" fill="none" stroke="#D27B2B" stroke-width="2"><title>Cost Retransmission Only PL90: 0.000000</title></circle>
+<circle cx="1006.00" cy="478.80" r="5.5" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL0: 0.000000</title></circle>
+<circle cx="1085.67" cy="478.80" r="5.5" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL10: 0.000000</title></circle>
+<circle cx="1165.33" cy="478.80" r="5.5" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL20: 0.000000</title></circle>
+<circle cx="1245.00" cy="478.80" r="5.5" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL30: 0.000000</title></circle>
+<circle cx="1324.67" cy="478.80" r="5.5" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL40: 0.000000</title></circle>
+<circle cx="1404.33" cy="478.80" r="5.5" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL50: 0.000000</title></circle>
+<circle cx="1484.00" cy="478.80" r="5.5" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL60: 0.000000</title></circle>
+<circle cx="1563.67" cy="478.80" r="5.5" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL70: 0.000000</title></circle>
+<circle cx="1643.33" cy="478.80" r="5.5" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL80: 0.000000</title></circle>
+<circle cx="1723.00" cy="478.80" r="5.5" fill="none" stroke="#1B9564" stroke-width="2"><title>CBAA PL90: 0.000000</title></circle>
+<circle cx="1006.00" cy="478.80" r="3.5" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL0: 0.000000</title></circle>
+<circle cx="1085.67" cy="478.80" r="3.5" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL10: 0.000000</title></circle>
+<circle cx="1165.33" cy="478.80" r="3.5" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL20: 0.000000</title></circle>
+<circle cx="1245.00" cy="478.80" r="3.5" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL30: 0.000000</title></circle>
+<circle cx="1324.67" cy="478.80" r="3.5" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL40: 0.000000</title></circle>
+<circle cx="1404.33" cy="478.80" r="3.5" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL50: 0.000000</title></circle>
+<circle cx="1484.00" cy="478.80" r="3.5" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL60: 0.000000</title></circle>
+<circle cx="1563.67" cy="478.80" r="3.5" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL70: 0.000000</title></circle>
+<circle cx="1643.33" cy="478.80" r="3.5" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL80: 0.000000</title></circle>
+<circle cx="1723.00" cy="478.80" r="3.5" fill="none" stroke="#8C55A7" stroke-width="2"><title>Baseline Centralized PL90: 0.000000</title></circle>
+<circle cx="1006.00" cy="520.13" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL0: -6.644001</title></circle>
+<circle cx="1085.67" cy="518.60" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL10: -6.398991</title></circle>
+<circle cx="1165.33" cy="516.77" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL20: -6.105165</title></circle>
+<circle cx="1245.00" cy="516.20" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL30: -6.013297</title></circle>
+<circle cx="1324.67" cy="512.63" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL40: -5.438454</title></circle>
+<circle cx="1404.33" cy="507.94" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL50: -4.685558</title></circle>
+<circle cx="1484.00" cy="496.26" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL60: -2.806288</title></circle>
+<circle cx="1563.67" cy="473.64" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL70: 0.829363</title></circle>
+<circle cx="1643.33" cy="418.49" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL80: 9.696424</title></circle>
+<circle cx="1723.00" cy="257.04" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL90: 35.653057</title></circle>
+<rect x="34" y="642" width="840" height="463" rx="14" fill="#FAFCFF" stroke="#CFDBE5"/>
+<text x="59" y="676" font-family="Arial,Helvetica,sans-serif" font-size="23" font-weight="bold" fill="#172B43">C. Communication stop time</text>
+<text x="59" y="703" font-family="Arial,Helvetica,sans-serif" font-size="15" fill="#526174">All seeds · modeled seconds (log scale)</text>
+<line x1="122" y1="1016.43" x2="839" y2="1016.43" stroke="#DFE6EF" stroke-width="1"/>
+<text x="109" y="1021.43" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">1</text>
+<line x1="122" y1="954.55" x2="839" y2="954.55" stroke="#DFE6EF" stroke-width="1"/>
+<text x="109" y="959.55" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">3</text>
+<line x1="122" y1="886.74" x2="839" y2="886.74" stroke="#DFE6EF" stroke-width="1"/>
+<text x="109" y="891.74" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">10</text>
+<line x1="122" y1="824.86" x2="839" y2="824.86" stroke="#DFE6EF" stroke-width="1"/>
+<text x="109" y="829.86" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">30</text>
+<line x1="122" y1="757.04" x2="839" y2="757.04" stroke="#DFE6EF" stroke-width="1"/>
+<text x="109" y="762.04" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">100</text>
+<text x="122.00" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">0%</text>
+<text x="201.67" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">10%</text>
+<text x="281.33" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">20%</text>
+<text x="361.00" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">30%</text>
+<text x="440.67" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">40%</text>
+<text x="520.33" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">50%</text>
+<text x="600.00" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">60%</text>
+<text x="679.67" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">70%</text>
+<text x="759.33" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">80%</text>
+<text x="839.00" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">90%</text>
+<text x="480.50" y="1081.00" font-family="Arial,Helvetica,sans-serif" font-size="14" text-anchor="middle" fill="#43536A">Packet loss</text>
+<polyline points="122.00,954.41 201.67,894.75 281.33,878.36 361.00,864.76 440.67,851.62 520.33,837.41 600.00,820.78 679.67,801.97 759.33,776.24 839.00,734.76" stroke="#187BB8" stroke-width="3.1" fill="none"/>
+<polyline points="122.00,964.58 201.67,921.59 281.33,908.44 361.00,896.65 440.67,885.23 520.33,871.76 600.00,856.50 679.67,838.45 759.33,813.87 839.00,773.19" stroke="#D27B2B" stroke-width="3.1" fill="none"/>
+<polyline points="122.00,908.92 201.67,887.00 281.33,878.24 361.00,869.22 440.67,860.71 520.33,852.33 600.00,841.52 679.67,829.29 759.33,810.10 839.00,776.03" stroke="#1B9564" stroke-width="3.1" fill="none"/>
+<polyline points="122.00,1006.82 201.67,971.94 281.33,958.80 361.00,945.76 440.67,931.57 520.33,920.55 600.00,907.00 679.67,887.43 759.33,863.60 839.00,820.53" stroke="#8C55A7" stroke-width="3.1" fill="none"/>
+<polyline points="122.00,977.39 201.67,974.14 281.33,973.47 361.00,973.60 440.67,973.47 520.33,973.65 600.00,973.42 679.67,973.49 759.33,973.04 839.00,973.32" stroke="#D43C51" stroke-width="4.3" fill="none"/>
+<circle cx="122.00" cy="954.41" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL0: 3.007361</title></circle>
+<circle cx="201.67" cy="894.75" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL10: 8.674368</title></circle>
+<circle cx="281.33" cy="878.36" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL20: 11.603625</title></circle>
+<circle cx="361.00" cy="864.76" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL30: 14.773080</title></circle>
+<circle cx="440.67" cy="851.62" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL40: 18.655165</title></circle>
+<circle cx="520.33" cy="837.41" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL50: 24.006920</title></circle>
+<circle cx="600.00" cy="820.78" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL60: 32.252584</title></circle>
+<circle cx="679.67" cy="801.97" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL70: 45.036214</title></circle>
+<circle cx="759.33" cy="776.24" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL80: 71.115381</title></circle>
+<circle cx="839.00" cy="734.76" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL90: 148.525218</title></circle>
+<circle cx="122.00" cy="964.58" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL0: 2.510482</title></circle>
+<circle cx="201.67" cy="921.59" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL10: 5.386006</title></circle>
+<circle cx="281.33" cy="908.44" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL20: 6.802294</title></circle>
+<circle cx="361.00" cy="896.65" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL30: 8.386155</title></circle>
+<circle cx="440.67" cy="885.23" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL40: 10.270674</title></circle>
+<circle cx="520.33" cy="871.76" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL50: 13.046500</title></circle>
+<circle cx="600.00" cy="856.50" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL60: 17.106434</title></circle>
+<circle cx="679.67" cy="838.45" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL70: 23.565801</title></circle>
+<circle cx="759.33" cy="813.87" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL80: 36.461222</title></circle>
+<circle cx="839.00" cy="773.19" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL90: 75.078593</title></circle>
+<circle cx="122.00" cy="908.92" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL0: 6.744911</title></circle>
+<circle cx="201.67" cy="887.00" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL10: 9.953815</title></circle>
+<circle cx="281.33" cy="878.24" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL20: 11.628827</title></circle>
+<circle cx="361.00" cy="869.22" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL30: 13.647431</title></circle>
+<circle cx="440.67" cy="860.71" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL40: 15.874644</title></circle>
+<circle cx="520.33" cy="852.33" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL50: 18.420907</title></circle>
+<circle cx="600.00" cy="841.52" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL60: 22.316996</title></circle>
+<circle cx="679.67" cy="829.29" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL70: 27.728572</title></circle>
+<circle cx="759.33" cy="810.10" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL80: 38.987349</title></circle>
+<circle cx="839.00" cy="776.03" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL90: 71.383177</title></circle>
+<circle cx="122.00" cy="1006.82" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL0: 1.186000</title></circle>
+<circle cx="201.67" cy="971.94" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL10: 2.203200</title></circle>
+<circle cx="281.33" cy="958.80" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL20: 2.781900</title></circle>
+<circle cx="361.00" cy="945.76" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL30: 3.506700</title></circle>
+<circle cx="440.67" cy="931.57" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL40: 4.511800</title></circle>
+<circle cx="520.33" cy="920.55" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL50: 5.486400</title></circle>
+<circle cx="600.00" cy="907.00" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL60: 6.978700</title></circle>
+<circle cx="679.67" cy="887.43" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL70: 9.878100</title></circle>
+<circle cx="759.33" cy="863.60" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL80: 15.079900</title></circle>
+<circle cx="839.00" cy="820.53" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL90: 32.397000</title></circle>
+<circle cx="122.00" cy="977.39" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL0: 1.999947</title></circle>
+<circle cx="201.67" cy="974.14" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL10: 2.118938</title></circle>
+<circle cx="281.33" cy="973.47" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL20: 2.144214</title></circle>
+<circle cx="361.00" cy="973.60" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL30: 2.139312</title></circle>
+<circle cx="440.67" cy="973.47" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL40: 2.144170</title></circle>
+<circle cx="520.33" cy="973.65" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL50: 2.137393</title></circle>
+<circle cx="600.00" cy="973.42" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL60: 2.146143</title></circle>
+<circle cx="679.67" cy="973.49" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL70: 2.143200</title></circle>
+<circle cx="759.33" cy="973.04" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL80: 2.160456</title></circle>
+<circle cx="839.00" cy="973.32" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL90: 2.149717</title></circle>
+<rect x="918" y="642" width="840" height="463" rx="14" fill="#FAFCFF" stroke="#CFDBE5"/>
+<text x="943" y="676" font-family="Arial,Helvetica,sans-serif" font-size="23" font-weight="bold" fill="#172B43">D. Attempted communication payload</text>
+<text x="943" y="703" font-family="Arial,Helvetica,sans-serif" font-size="15" fill="#526174">All seeds · sender kB (log scale)</text>
+<line x1="1006" y1="1001.65" x2="1723" y2="1001.65" stroke="#DFE6EF" stroke-width="1"/>
+<text x="993" y="1006.65" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">100</text>
+<line x1="1006" y1="942.84" x2="1723" y2="942.84" stroke="#DFE6EF" stroke-width="1"/>
+<text x="993" y="947.84" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">300</text>
+<line x1="1006" y1="878.38" x2="1723" y2="878.38" stroke="#DFE6EF" stroke-width="1"/>
+<text x="993" y="883.38" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">1000</text>
+<line x1="1006" y1="819.56" x2="1723" y2="819.56" stroke="#DFE6EF" stroke-width="1"/>
+<text x="993" y="824.56" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">3000</text>
+<line x1="1006" y1="755.11" x2="1723" y2="755.11" stroke="#DFE6EF" stroke-width="1"/>
+<text x="993" y="760.11" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="end" fill="#536276">10000</text>
+<text x="1006.00" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">0%</text>
+<text x="1085.67" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">10%</text>
+<text x="1165.33" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">20%</text>
+<text x="1245.00" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">30%</text>
+<text x="1324.67" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">40%</text>
+<text x="1404.33" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">50%</text>
+<text x="1484.00" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">60%</text>
+<text x="1563.67" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">70%</text>
+<text x="1643.33" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">80%</text>
+<text x="1723.00" y="1055.00" font-family="Arial,Helvetica,sans-serif" font-size="13" text-anchor="middle" fill="#526174">90%</text>
+<text x="1364.50" y="1081.00" font-family="Arial,Helvetica,sans-serif" font-size="14" text-anchor="middle" fill="#43536A">Packet loss</text>
+<polyline points="1006.00,970.95 1085.67,917.44 1165.33,901.24 1245.00,887.81 1324.67,874.57 1404.33,860.75 1484.00,845.28 1563.67,826.66 1643.33,802.37 1723.00,762.80" stroke="#187BB8" stroke-width="3.1" fill="none"/>
+<polyline points="1006.00,971.83 1085.67,938.17 1165.33,925.82 1245.00,914.99 1324.67,903.93 1404.33,891.74 1484.00,877.82 1563.67,860.40 1643.33,837.23 1723.00,799.00" stroke="#D27B2B" stroke-width="3.1" fill="none"/>
+<polyline points="1006.00,863.31 1085.67,842.33 1165.33,833.95 1245.00,825.34 1324.67,817.22 1404.33,809.23 1484.00,798.92 1563.67,787.27 1643.33,769.00 1723.00,736.58" stroke="#1B9564" stroke-width="3.1" fill="none"/>
+<polyline points="1006.00,1008.71 1085.67,1003.66 1165.33,997.80 1245.00,990.77 1324.67,982.93 1404.33,973.50 1484.00,962.21 1563.67,947.03 1643.33,925.97 1723.00,888.43" stroke="#8C55A7" stroke-width="3.1" fill="none"/>
+<polyline points="1006.00,981.82 1085.67,982.08 1165.33,982.39 1245.00,982.70 1324.67,983.08 1404.33,983.49 1484.00,984.01 1563.67,984.62 1643.33,985.44 1723.00,986.14" stroke="#D43C51" stroke-width="4.3" fill="none"/>
+<circle cx="1006.00" cy="970.95" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL0: 177.448000</title></circle>
+<circle cx="1085.67" cy="917.44" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL10: 482.071800</title></circle>
+<circle cx="1165.33" cy="901.24" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL20: 652.483840</title></circle>
+<circle cx="1245.00" cy="887.81" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL30: 838.478600</title></circle>
+<circle cx="1324.67" cy="874.57" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL40: 1073.796480</title></circle>
+<circle cx="1404.33" cy="860.75" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL50: 1390.027160</title></circle>
+<circle cx="1484.00" cy="845.28" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL60: 1855.845560</title></circle>
+<circle cx="1563.67" cy="826.66" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL70: 2627.804520</title></circle>
+<circle cx="1643.33" cy="802.37" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL80: 4136.572600</title></circle>
+<circle cx="1723.00" cy="762.80" r="4.5" fill="#187BB8" stroke="white" stroke-width="1.3"><title>Full Retransmission PL90: 8661.795160</title></circle>
+<circle cx="1006.00" cy="971.83" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL0: 174.548000</title></circle>
+<circle cx="1085.67" cy="938.17" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL10: 327.345360</title></circle>
+<circle cx="1165.33" cy="925.82" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL20: 412.259560</title></circle>
+<circle cx="1245.00" cy="914.99" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL30: 504.658000</title></circle>
+<circle cx="1324.67" cy="903.93" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL40: 620.550480</title></circle>
+<circle cx="1404.33" cy="891.74" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL50: 779.109040</title></circle>
+<circle cx="1484.00" cy="877.82" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL60: 1010.482400</title></circle>
+<circle cx="1563.67" cy="860.40" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL70: 1399.253920</title></circle>
+<circle cx="1643.33" cy="837.23" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL80: 2156.975200</title></circle>
+<circle cx="1723.00" cy="799.00" r="4.5" fill="#D27B2B" stroke="white" stroke-width="1.3"><title>Cost Retransmission Only PL90: 4405.012640</title></circle>
+<circle cx="1006.00" cy="863.31" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL0: 1325.040000</title></circle>
+<circle cx="1085.67" cy="842.33" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL10: 1961.008000</title></circle>
+<circle cx="1165.33" cy="833.95" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL20: 2292.976000</title></circle>
+<circle cx="1245.00" cy="825.34" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL30: 2693.040000</title></circle>
+<circle cx="1324.67" cy="817.22" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL40: 3134.448000</title></circle>
+<circle cx="1404.33" cy="809.23" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL50: 3639.088000</title></circle>
+<circle cx="1484.00" cy="798.92" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL60: 4411.248000</title></circle>
+<circle cx="1563.67" cy="787.27" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL70: 5483.760000</title></circle>
+<circle cx="1643.33" cy="769.00" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL80: 7715.120000</title></circle>
+<circle cx="1723.00" cy="736.58" r="4.5" fill="#1B9564" stroke="white" stroke-width="1.3"><title>CBAA PL90: 14135.600000</title></circle>
+<circle cx="1006.00" cy="1008.71" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL0: 87.648000</title></circle>
+<circle cx="1085.67" cy="1003.66" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL10: 96.322100</title></circle>
+<circle cx="1165.33" cy="997.80" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL20: 107.460500</title></circle>
+<circle cx="1245.00" cy="990.77" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL30: 122.540200</title></circle>
+<circle cx="1324.67" cy="982.93" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL40: 141.871200</title></circle>
+<circle cx="1404.33" cy="973.50" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL50: 169.174600</title></circle>
+<circle cx="1484.00" cy="962.21" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL60: 208.905600</title></circle>
+<circle cx="1563.67" cy="947.03" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL70: 277.392500</title></circle>
+<circle cx="1643.33" cy="925.97" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL80: 411.102200</title></circle>
+<circle cx="1723.00" cy="888.43" r="4.5" fill="#8C55A7" stroke="white" stroke-width="1.3"><title>Baseline Centralized PL90: 828.926900</title></circle>
+<circle cx="1006.00" cy="981.82" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL0: 144.833210</title></circle>
+<circle cx="1085.67" cy="982.08" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL10: 144.137790</title></circle>
+<circle cx="1165.33" cy="982.39" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL20: 143.312730</title></circle>
+<circle cx="1245.00" cy="982.70" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL30: 142.466920</title></circle>
+<circle cx="1324.67" cy="983.08" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL40: 141.470260</title></circle>
+<circle cx="1404.33" cy="983.49" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL50: 140.377650</title></circle>
+<circle cx="1484.00" cy="984.01" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL60: 139.039110</title></circle>
+<circle cx="1563.67" cy="984.62" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL70: 137.462870</title></circle>
+<circle cx="1643.33" cy="985.44" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL80: 135.367280</title></circle>
+<circle cx="1723.00" cy="986.14" r="4.5" fill="#D43C51" stroke="white" stroke-width="1.3"><title>Hsien-Te Methods PL90: 133.621610</title></circle>
+</svg>

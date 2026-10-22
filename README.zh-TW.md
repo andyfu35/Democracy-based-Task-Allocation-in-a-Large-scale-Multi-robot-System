@@ -268,7 +268,7 @@ $$
 
 ## B. 封包遺失韌性與通訊流量
 
-**2026-10-21 更新之主要比較：**圖一仍為真正逐任務投票與 Cost 僅交換一次的 Task-Ordered Centralized Greedy 基準；圖二改為 **Full Retransmission、Cost Retransmission Only、CBAA、Baseline Centralized** 四條曲線，舊版 Proposed 多輪決策及 CBBA 不再出現在*主要圖二*，但歷史 P2G 原始證據保留。兩圖皆為 100 Robots、100 Tasks、capacity=1、0%～90% 掉包率（間距 10%），每組 100 Seeds。**圖一成本分母是完整資訊 Task-ID-Ordered Greedy；圖二分母是完整資訊 Global Minimum-Pair Greedy，兩者不可混為一談。**
+**2026-10-22 正式比較更新：**圖一維持真正逐任務投票與 Cost 僅交換一次的 Task-Ordered Centralized Greedy 基準。圖二保留原本 **Full Retransmission、Cost Retransmission Only、CBAA、Baseline Centralized** 四種方法，並新增 **Hsien-Te Methods**（P2J-v3），共五條曲線；舊版多輪 Proposed 與 CBBA 僅保留於歷史實驗。圖二皆為 100 Robots、100 Tasks、capacity=1、每個掉包率 100 Seeds、0%～90% 間距 10%；各方法的實際通訊／終止協定並不完全相同。**圖一成本分母是 Task-ID-Ordered Greedy；圖二是 Global Minimum-Pair Greedy，兩者不可混為一談。**
 
 ### 圖一：逐任務任務分配
 
@@ -282,17 +282,19 @@ Proposed 對 T0 至 T99 逐一投票，每個任務只嘗試一次，收到票�
 
 [正式 P2H 獨立審核](docs/P2H_FORMAL_100SEED_AUDIT.md) · [20 組已驗證統計](docs/figures/p2h/formal/verified_20point_summary.csv) · [P2H 規格](docs/P2H_INTERACTIVE_FIGURE1.md)。
 
-### 圖二：可靠 Cost／Vote 重傳比較
+### 圖二：Hsien-Te Methods 與四種原始方法比較
 
-![圖二：完整重傳、僅 Cost 重傳、CBAA 與集中式基準；完整任務分配率、Global Greedy 成本、模擬時間與實際嘗試發送的應用層 Bytes](docs/figures/p2i/formal/figure2_reliable_four_method.svg)
+![圖二：Hsien-Te Methods、完整重傳、僅 Cost 重傳、CBAA 與集中式基準的完整任務分配率、Global Greedy 成本差異、模擬時間和實際嘗試發送 Bytes](docs/figures/p2j/formal/figure2_hsien_te_five_methods.svg)
 
-**保留四種方法：** **Full Retransmission**（P2I：Cost 與 Vote 原封包均使用 ACK 確認並對缺失資料重傳）、**Cost Retransmission Only**（P2I：Cost 可靠補傳後，每台機器人僅發送一次可能掉包的 Batch Vote）、**CBAA**（原生共識拍賣方法）及 **Baseline Centralized**（單一協調者對缺失 Cost 補傳，再執行一次 Global Greedy 的特定集中式基準）。P2I 的兩個模式皆為**一次決策回合**，並非舊版最多 300 輪重新決策。舊 Proposed 與 CBBA 僅從主要圖二移除，原始 P2G 歷史圖與來源未刪除；單一集中式基準不代表所有集中式演算法。
+**五種方法：** **Hsien-Te Methods** 是 **P2J-v3** 的正式發表名稱，原生模式仍為 `probabilistic_complete_fallback`：每台機器人只發送一次可能掉包的 Cost 與一個包含 100 張機率抽樣票的 Vote Batch；候選機器人可靠且有計費地公告自身收到的票數和自身 Cost，再進行正票最大匹配，最後將閒置機器人依固定 ID 規則分給尚未完成的任務，並逐一發送有計費的 Commit。其他四種維持原樣：**Full Retransmission**（P2I：Cost、Vote 都可靠補傳）、**Cost Retransmission Only**（P2I：只可靠補傳 Cost）、**CBAA**（原生共識拍賣）、**Baseline Centralized**（特定集中式 Global Greedy，Cost 可重傳）。舊 Proposed 多輪決策與 CBBA 未放入本次主要圖二，但保留原始研究紀錄。
 
-**90% 掉包率、各方法 100 Seeds：**四種方法皆為 100/100 完整完成，對**完整資訊 Global Minimum-Pair Greedy** 的平均成本差異皆為 **0%**。Full Retransmission 為 **148.53 s／8,661.80 kB**；Cost Retransmission Only 為 **75.08 s／4,405.01 kB**；CBAA 為 **71.38 s／14,135.60 kB**；Baseline Centralized 為 **32.40 s／828.93 kB**。只補傳 Cost 相對完整重傳，時間降低 **49.45%**、發送量降低 **49.14%**，但本次的特定集中式基準仍在時間與 Bytes 上優於兩個 P2I 模式。兩個 P2I 模式都能完整指派，與原生**本地自投票、一票相對多數及可靠 Score／Commit** 有關，不能宣稱實體網路也完全可靠。
+**30% 掉包率、每方法 100 Seeds：**五種方法皆為 **100/100 次完整指派 100 個任務**。Hsien-Te Methods 對完整資訊 Global Greedy 的有號成本差異為 **−6.01%**，模擬通訊時間 **2.139 秒**，嘗試發送量 **142.47 kB**。Full Retransmission 為 **0%、14.773 秒、838.48 kB**；Cost Retransmission Only 為 **0%、8.386 秒、504.66 kB**；CBAA 為 **0%、13.647 秒、2,693.04 kB**；Baseline Centralized 為 **0%、3.507 秒、122.54 kB**。必須如實指出：這個集中式基準的發送量仍**小於** Hsien-Te Methods，只是模型通訊停止時間較長。
 
-**計量與資料限制：** Bytes 計入每次實際嘗試的 DATA SEND、重傳及有計費的應用層 Cost／Vote bitmap ACK；封包即使掉包仍計入發送量。P2I 之 ACK、TASK、Score、Commit 採可靠控制訊息假設；未模擬 ACK 掉包、RF 碰撞、MAC 重傳、OFDMA 或實體 100 台機器人量測。CBAA 原生結束條件與 Proposed 的付費 Commit 並不完全相同。P2I 是 **2,000 筆新執行案例**；CBAA 與 Centralized 為歷史來源資料而非本次重跑。集中式曲線的時間與 kB 使用**舊版已驗證 P2G SVG tooltip 四位小數**，未冒稱有更高精度。全部 40 組繪圖資料獨立保存並標明來源，未完成案例不可把成本差異補零。
+**90% 掉包率：**五種方法都得到 **100/100 次完整指派**。Hsien-Te Methods 僅需 **2.150 秒／133.62 kB**，但成本差異升為 **+35.65%**；其他四種歷史方法在其 Cost 恢復／共識假設下仍維持 **0%**。此時 Hsien-Te Methods 有 **38/100 Seeds** 需要零票補全，平均每 Seed 補 **0.54 個任務**。因此我們能保證目前模型下的任務*指派*完整性，但不能宣稱嚴重掉包下的分配品質同樣最佳。
 
-[圖二 40 組來源資料](docs/figures/p2i/formal/verified_40point_summary.csv) · [P2I 正式資料稽核](docs/P2I_FORMAL_100SEED_AUDIT.md) · [P2I 原生實驗規格](https://github.com/andyfu35/Democracy-based-Task-Allocation-in-a-Large-scale-Multi-robot-System/blob/experiment/p2i-cost-vote-ackretry-20261021/docs/P2I_RELIABLE_TRANSPORT.md)。
+**比較限制與計量：**Hsien-Te Methods 的 10 組點來自 **1,000 筆實際 P2J-v3 原生案例**（完整 P2J-v3 實驗有三方法、共 3,000 筆）；其他四種的 40 組點為原先已核對的歷史資料，**不是這次全部重跑**。雖然採相同 E0 種子、機器人／任務設定和 Global Greedy 成本分母，各演算法原生封包、可靠控制訊息、終止條件不完全相同，尤其 CBAA 的結束觀測與 Proposed 付費 Commit 不同。時間為**模擬通訊停止時間，不含全域最佳化的 CPU 運算時間**；發送量包含掉包 SEND、使用重傳時的重傳／計費 ACK、Score、Commit。P2J 的 Score／Commit 與 P2I 的 ACK／Score／Commit 假設可靠，不是 100 台機器人實體 Wi-Fi 的保證。成本負值代表優於**貪婪基準**，不代表已超越真正的全域最佳解；只對完整成功案例統計成本。
+
+[圖二 50 組來源數據](docs/figures/p2j/formal/verified_50point_hsien_te_summary.csv) · [Hsien-Te Methods 五方法稽核報告](docs/HSIEN_TE_FIGURE2_COMPARISON_AUDIT.md) · [原始四方法圖二封存版](docs/figures/p2i/formal/figure2_reliable_four_method.svg) · [P2J-v3 原生規格](https://github.com/andyfu35/Democracy-based-Task-Allocation-in-a-Large-scale-Multi-robot-System/blob/experiment/p2j-v3-completion-fallback-20261022/docs/P2J_V3_COMPLETION_FALLBACK.md)。
 
 ## C. 協調時間與 Deadline 設計
 
