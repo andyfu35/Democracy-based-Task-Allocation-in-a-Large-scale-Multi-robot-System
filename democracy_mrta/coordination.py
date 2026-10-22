@@ -481,6 +481,7 @@ class LossyCoordinationResult:
     certified_score_edge_count: int = 0
     certified_score_supported_tasks: int = 0
     certified_score_max_matching: int = 0
+    completion_fallback_pairs: tuple[tuple[int, int], ...] = ()
     budget_exhausted: bool = False
     budget_stop_phase: str | None = None
     budget_stop_diagnostic: Diagnostic | None = None
@@ -658,6 +659,7 @@ def _summarize_lossy_result(
     certified_score_edge_count: int = 0,
     certified_score_supported_tasks: int = 0,
     certified_score_max_matching: int = 0,
+    completion_fallback_pairs: tuple[tuple[int, int], ...] = (),
     budget_exhausted: bool = False,
     budget_stop_phase: str | None = None,
     budget_stop_diagnostic: Diagnostic | None = None,
@@ -709,6 +711,7 @@ def _summarize_lossy_result(
         certified_score_edge_count=certified_score_edge_count,
         certified_score_supported_tasks=certified_score_supported_tasks,
         certified_score_max_matching=certified_score_max_matching,
+        completion_fallback_pairs=completion_fallback_pairs,
         budget_exhausted=budget_exhausted,
         budget_stop_phase=budget_stop_phase,
         budget_stop_diagnostic=budget_stop_diagnostic,
@@ -1231,9 +1234,17 @@ def validate_probabilistic_batch_scope(
     num_robots: int, num_tasks: int,
     send_budget: SenderPayloadBudget | None,
     preknown_cost_snapshot: RetirementCostSnapshot | None,
+    completion_policy: str = "none",
 ) -> None:
-    """One-shot probabilistic mode cannot silently acquire retries or hidden Cost."""
+    """Validate one-shot and opt-in completion without changing legacy methods."""
     if voting_strategy != "probabilistic_batch":
+        if completion_policy != "none":
+            raise ProtocolError(Diagnostic(
+                owner="coordination", function="validate_probabilistic_batch_scope",
+                category="contract", code="P2J_V3_FALLBACK_REQUIRES_PROBABILISTIC_VOTE",
+                expected={"strategy":"probabilistic_batch","completion_policy":"idle_robot_id"},
+                actual={"strategy":voting_strategy,"completion_policy":completion_policy},
+            ))
         return
     valid=(
         max_rounds == 1 and cost_repetitions == 1 and vote_repetitions == 1
@@ -1244,6 +1255,7 @@ def validate_probabilistic_batch_scope(
         and type(votes_per_voter) is int and 1 <= votes_per_voter <= 255
         and type(temperature) in (int,float) and math.isfinite(temperature)
         and temperature > 0 and margin_rule in ("absolute","normalized")
+        and completion_policy in ("none","idle_robot_id")
     )
     if not valid:
         raise ProtocolError(Diagnostic(
@@ -1252,12 +1264,13 @@ def validate_probabilistic_batch_scope(
             expected="one Cost and one Vote Batch, one epoch, finite tau>0, "
                      "tickets 1..255, seed>=0, robots<=255, tasks<=107, "
                      "absolute/normalized margin, received cutoff, "
-                     "no external Cost, no send budget",
+                     "no external Cost, no send budget, completion none/idle_robot_id",
             actual={"max_rounds":max_rounds,"num_robots":num_robots,
                     "num_tasks":num_tasks,"cost_repetitions":cost_repetitions,
                     "vote_repetitions":vote_repetitions,"batch_vote_scope":batch_vote_scope,
                     "seed":probabilistic_seed,"votes_per_voter":votes_per_voter,
                     "temperature":temperature,"margin_rule":margin_rule,
+                    "completion_policy":completion_policy,
                     "enforce_vote_deadline":enforce_vote_deadline,
                     "send_budget":send_budget is not None,
                     "preknown_cost_snapshot":preknown_cost_snapshot is not None},
@@ -1862,10 +1875,66 @@ def validate_probability_score_view(
         ))
 
 
+def complete_unassigned_score_matching(
+    *, supported_pairs: tuple[tuple[int, int], ...],
+    scores: dict[tuple[int, int], tuple[int, float]],
+    physical_tasks: tuple[int, ...],
+    physical_robots: tuple[int, ...],
+) -> tuple[tuple[tuple[int, int], ...], tuple[tuple[int, int], ...]]:
+    """Opt-in deterministic zero-vote completion after maximum positive matching.
+
+    Use only leftover task/robot IDs; never read any unannounced Cost for
+    selection. Existing positive Score matches are retained unchanged.
+    Every fallback executor will emit one original paid reliable Commit.
+    """
+    validate_one_to_one_commits(supported_pairs)
+    used_robots={robot for robot,_task in supported_pairs}
+    used_tasks={task for _robot,task in supported_pairs}
+    if (not used_robots.issubset(set(physical_robots))
+            or not used_tasks.issubset(set(physical_tasks))
+            or any((task,robot) not in scores for robot,task in supported_pairs)):
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="complete_unassigned_score_matching",
+            category="contract",code="P2J_V3_INVALID_POSITIVE_SCORE_MATCH",
+            expected="existing matches unique and supported by physically announced Score",
+            actual=supported_pairs[:12],
+        ))
+    pending=tuple(sorted(set(physical_tasks)-used_tasks))
+    idle=tuple(sorted(set(physical_robots)-used_robots))
+    if len(idle)<len(pending):
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="complete_unassigned_score_matching",
+            category="planning",code="P2J_V3_INSUFFICIENT_IDLE_CAPACITY",
+            expected={"idle_robots_at_least":len(pending)},
+            actual={"idle_robots":len(idle),"remaining_tasks":len(pending)},
+            details="E0 full allocation assumes every robot can execute every task",
+        ))
+    fallback=tuple((robot,task) for robot,task in zip(idle,pending))
+    if any((task,robot) in scores for robot,task in fallback):
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="complete_unassigned_score_matching",
+            category="contract",code="P2J_V3_POSITIVE_MATCH_LEFT_UNUSED",
+            expected="fallback must be zero-Score after verified maximum matching",
+            actual=fallback[:12],
+        ))
+    completed=tuple(sorted(
+        supported_pairs+fallback,key=lambda pair:(pair[1],pair[0])
+    ))
+    validate_one_to_one_commits(completed)
+    if len(completed)!=len(physical_tasks):
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="complete_unassigned_score_matching",
+            category="contract",code="P2J_V3_COMPLETION_POSTCONDITION",
+            expected=len(physical_tasks),actual=len(completed),
+        ))
+    return completed,fallback
+
+
 def resolve_dynamic_probability_margin_winners(
     *, scores: dict[tuple[int,int],tuple[int,float]],
     physical_tasks: tuple[int,...],physical_robots: tuple[int,...],
     margin_rule: str="absolute",
+    completion_policy: str="none",
 ) -> tuple[tuple[tuple[int,int],...],int]:
     """Globally optimize the same reliable Score snapshot, before ANY Commit.
 
@@ -1883,6 +1952,12 @@ def resolve_dynamic_probability_margin_winners(
         physical_robots=physical_robots,margin_rule=margin_rule,
     )
     if not scores:
+        if completion_policy=="idle_robot_id":
+            winners,_fallback=complete_unassigned_score_matching(
+                supported_pairs=(),scores=scores,physical_tasks=physical_tasks,
+                physical_robots=physical_robots,
+            )
+            return winners,0
         return (),0
 
     task_ids=tuple(sorted(physical_tasks))
@@ -1984,6 +2059,11 @@ def resolve_dynamic_probability_margin_winners(
             for (t,_other_robot),(v,_own_cost) in scores.items())>1
         for robot,task in winners
     )
+    if completion_policy=="idle_robot_id":
+        winners,_fallback=complete_unassigned_score_matching(
+            supported_pairs=winners,scores=scores,
+            physical_tasks=physical_tasks,physical_robots=physical_robots,
+        )
     return winners,tied
 
 
