@@ -1818,6 +1818,32 @@ def publish_probabilistic_batch_scores(
     return events,certified
 
 
+def validate_probability_score_view(
+    *, scores: dict[tuple[int,int],tuple[int,float]],
+    physical_tasks: tuple[int,...],physical_robots: tuple[int,...],
+    margin_rule: str,
+) -> None:
+    """Only positive physically certified Score may enter margin planning."""
+    if margin_rule not in ("absolute","normalized"):
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="validate_probability_score_view",
+            category="data",code="P2J_UNKNOWN_MARGIN_RULE",
+            expected=("absolute","normalized"),actual=margin_rule,
+        ))
+    robots=set(physical_robots)
+    tasks=set(physical_tasks)
+    if any((task not in tasks or robot not in robots or
+            type(count) is not int or count<=0 or
+            type(cost) not in (int,float) or not math.isfinite(cost) or cost<0)
+           for (task,robot),(count,cost) in scores.items()):
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="validate_probability_score_view",
+            category="contract",code="P2J_INVALID_CERTIFIED_SCORE",
+            expected="positive physically certified votes and nonnegative own Cost",
+            actual=list(scores.items())[:8],
+        ))
+
+
 def resolve_dynamic_probability_margin_winners(
     *, scores: dict[tuple[int,int],tuple[int,float]],
     physical_tasks: tuple[int,...],physical_robots: tuple[int,...],
@@ -1830,24 +1856,12 @@ def resolve_dynamic_probability_margin_winners(
     task, recompute every remaining margin from eligible Score packets. Zero
     positive votes = no candidate; never reconstruct missing Cost or Vote.
     """
-    if margin_rule not in ("absolute","normalized"):
-        raise ProtocolError(Diagnostic(
-            owner="coordination",function="resolve_dynamic_probability_margin_winners",
-            category="data",code="P2J_UNKNOWN_MARGIN_RULE",
-            expected=("absolute","normalized"),actual=margin_rule,
-        ))
+    validate_probability_score_view(
+        scores=scores,physical_tasks=physical_tasks,
+        physical_robots=physical_robots,margin_rule=margin_rule,
+    )
     robots=set(physical_robots)
     tasks=set(physical_tasks)
-    if any((task not in tasks or robot not in robots or
-            type(count) is not int or count<=0 or
-            type(cost) not in (int,float) or not math.isfinite(cost) or cost<0)
-           for (task,robot),(count,cost) in scores.items()):
-        raise ProtocolError(Diagnostic(
-            owner="coordination",function="resolve_dynamic_probability_margin_winners",
-            category="contract",code="P2J_INVALID_CERTIFIED_SCORE",
-            expected="positive physically certified votes and nonnegative own Cost",
-            actual=list(scores.items())[:8],
-        ))
     winners=[]
     ties=0
     while tasks and robots:
