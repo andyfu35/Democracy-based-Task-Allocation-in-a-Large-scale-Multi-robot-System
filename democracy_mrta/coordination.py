@@ -4,6 +4,11 @@ from dataclasses import dataclass
 import math
 import struct
 
+import numpy as np
+from scipy.optimize import linear_sum_assignment
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import maximum_bipartite_matching
+
 from .diagnostics import Diagnostic, ProtocolError
 
 from .network import (
@@ -1853,49 +1858,124 @@ def resolve_dynamic_probability_margin_winners(
     physical_tasks: tuple[int,...],physical_robots: tuple[int,...],
     margin_rule: str="absolute",
 ) -> tuple[tuple[tuple[int,int],...],int]:
-    """No task-ID order: recompute EACH task's top-two margin after retirement.
+    """Globally optimize the same reliable Score snapshot, before ANY Commit.
 
-    Select highest task margin, then top-voted candidate on that task, with
-    announced own Cost breaking same-vote candidate ties. Remove robot and
-    task, recompute every remaining margin from eligible Score packets. Zero
-    positive votes = no candidate; never reconstruct missing Cost or Vote.
+    Lexicographic targets: (1) MAXIMUM count of positive-Score Robot/Task
+    pairs, (2) largest sum of signed top-two vote advantages, (3) greatest
+    counted Vote support, (4) lowest ANNOUNCED candidate-own Cost.
+    Unlike retired-robot greedy, all task/robot choices are solved together;
+    late tasks may displace an earlier popular match without re-voting.
+    Only successfully reported positive Score edges exist in this graph.
+    One Hungarian optimization is LOCAL after reliable Score broadcast:
+    no new Cost/Vote/Score frame, deadline, or second membership machine.
     """
     validate_probability_score_view(
         scores=scores,physical_tasks=physical_tasks,
         physical_robots=physical_robots,margin_rule=margin_rule,
     )
-    robots=set(physical_robots)
-    tasks=set(physical_tasks)
-    winners=[]
-    ties=0
-    while tasks and robots:
-        priorities=[]
-        for task in tasks:
-            candidates=sorted(
-                ((count,cost,robot) for (scored_task,robot),(count,cost) in scores.items()
-                 if scored_task==task and robot in robots),
-                key=lambda x:(-x[0],x[1],x[2]),
-            )
-            if not candidates:
-                continue
-            top_count,top_cost,top_robot=candidates[0]
-            second_count=candidates[1][0] if len(candidates)>1 else 0
-            margin=top_count-second_count
-            if margin_rule=="normalized":
-                margin=margin/sum(item[0] for item in candidates)
-            priorities.append((
-                -margin,-top_count,top_cost,task,top_robot,
-                sum(item[0]==top_count for item in candidates)>1,
-            ))
-        if not priorities:
-            break
-        _margin,_votes,_cost,task,robot,was_tied=min(priorities)
-        ties+=int(was_tied)
-        winners.append((robot,task))
-        robots.remove(robot)
-        tasks.remove(task)
+    if not scores:
+        return (),0
+
+    task_ids=tuple(sorted(physical_tasks))
+    robot_ids=tuple(sorted(physical_robots))
+    task_index={task:i for i,task in enumerate(task_ids)}
+    robot_index={robot:i for i,robot in enumerate(robot_ids)}
+    n_tasks,n_robots=len(task_ids),len(robot_ids)
+    max_matching_size=min(n_tasks,n_robots)
+    max_vote=max(count for count,_cost in scores.values())
+    max_reported_cost=max(cost for _count,cost in scores.values())
+    candidates_by_task: dict[int,list[tuple[int,int,float]]]={}
+    for (task,robot),(count,own_cost) in scores.items():
+        candidates_by_task.setdefault(task,[]).append((robot,count,own_cost))
+
+    # Margin is attached to EACH edge (not a task-constant): a task's
+    # runner-up receives a negative relative advantage if the leader
+    # wins significantly more votes. This preserves ticket-gap priority
+    # while permitting globally necessary reassignments.
+    margins: dict[tuple[int,int],int]={}
+    largest_margin=0
+    for task,candidates in candidates_by_task.items():
+        ranked=sorted(candidates,key=lambda item:(-item[1],item[2],item[0]))
+        highest=ranked[0][1]
+        runner_up=ranked[1][1] if len(ranked)>1 else 0
+        has_unique_leader=(len(ranked)==1 or highest>runner_up)
+        total_votes=sum(count for _robot,count,_own_cost in ranked)
+        for robot,count,_own_cost in candidates:
+            best_other=(runner_up if has_unique_leader and robot==ranked[0][0]
+                        else highest)
+            raw_advantage=count-best_other
+            margin=(raw_advantage if margin_rule=="absolute"
+                    else round(10000*raw_advantage/total_votes))
+            margins[(task,robot)]=margin
+            largest_margin=max(largest_margin,abs(margin))
+
+    # Bounded positive matching reward dominates ALL possible secondary
+    # changes for 100R100T. Within equal cardinality, a unit of margin
+    # dominates aggregate ticket and normalized Cost differences; a
+    # ticket dominates total normalized Cost. Dummy task columns permit
+    # incomplete outcomes only if the certified positive-Score graph
+    # truly cannot support more disjoint pairs.
+    vote_weight=max_matching_size+1
+    margin_weight=(max_matching_size*max_vote*vote_weight
+                   +max_matching_size+1)
+    max_abs_edge=(largest_margin*margin_weight
+                  +max_vote*vote_weight+1)
+    cardinality_bonus=2*max_matching_size*max_abs_edge+1
+    forbidden_cost=cardinality_bonus*(max_matching_size+2)
+    assignment_cost=np.full(
+        (n_tasks,n_robots+n_tasks),forbidden_cost,dtype=np.float64,
+    )
+    assignment_cost[:,n_robots:]=0.0
+    for (task,robot),(count,own_cost) in scores.items():
+        margin=margins[(task,robot)]
+        normalized_cost=own_cost/(max_reported_cost+1.0)
+        edge_utility=(margin*margin_weight
+                      +count*vote_weight-normalized_cost)
+        assignment_cost[task_index[task],robot_index[robot]]=(
+            -cardinality_bonus-edge_utility
+        )
+    assigned_tasks,assigned_columns=linear_sum_assignment(assignment_cost)
+    winners=tuple(sorted(
+        ((robot_ids[col],task_ids[row])
+         for row,col in zip(assigned_tasks,assigned_columns)
+         if col<n_robots and (task_ids[row],robot_ids[col]) in scores),
+        key=lambda pair:(pair[1],pair[0]),
+    ))
+
+    # Independent cardinality proof boundary. If the Score graph admits
+    # more eligible disjoint pairs, do NOT silently publish a deficient
+    # allocation as optimal. Hall-deficient graphs are valid outcomes.
+    edge_rows=np.fromiter(
+        (task_index[task] for task,_robot in scores),
+        dtype=np.int32,count=len(scores),
+    )
+    edge_cols=np.fromiter(
+        (robot_index[robot] for _task,robot in scores),
+        dtype=np.int32,count=len(scores),
+    )
+    supported=csr_matrix(
+        (np.ones(len(scores),dtype=np.int8),(edge_rows,edge_cols)),
+        shape=(n_tasks,n_robots),
+    )
+    maximum_possible=int(np.count_nonzero(
+        maximum_bipartite_matching(supported,perm_type="column")>=0,
+    ))
+    if len(winners)!=maximum_possible:
+        raise ProtocolError(Diagnostic(
+            owner="coordination",
+            function="resolve_dynamic_probability_margin_winners",
+            category="planning",code="P2J_SCORE_GLOBAL_CARDINALITY_MISMATCH",
+            expected={"maximum_positive_score_pairs":maximum_possible},
+            actual={"chosen_positive_score_pairs":len(winners)},
+            details=f"tasks={n_tasks} robots={n_robots} positive_score_edges={len(scores)}",
+        ))
     validate_one_to_one_commits(winners)
-    return tuple(sorted(winners,key=lambda pair:(pair[1],pair[0]))),ties
+    tied=sum(
+        sum(int(t==task and v==scores[(task,robot)][0])
+            for (t,_other_robot),(v,_own_cost) in scores.items())>1
+        for robot,task in winners
+    )
+    return winners,tied
 
 
 def encode_greedy_batch_packet(
