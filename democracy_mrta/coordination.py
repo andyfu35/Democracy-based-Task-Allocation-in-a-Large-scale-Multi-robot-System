@@ -2256,6 +2256,20 @@ def simulate_greedy_batch_vote_epoch(
             counted_votes=counts, physical_robots=physical_robots,
             round_id=round_id, release_ms=score_release_ms, sampler=sampler,
         )
+    else:
+        scores, certified = publish_probabilistic_batch_scores(
+            counted_votes=counts, cost_matrix=cost_matrix,
+            physical_robots=physical_robots, physical_tasks=physical_tasks,
+            round_id=round_id, release_ms=score_release_ms, sampler=sampler,
+        )
+    # Score is a paid RELIABLE announcement, received by all before
+    # matching. Optimization sees only decoded certified Score packets,
+    # never a sender's hidden Cost or a dropped/late remote Vote.
+    scores_done_ms = max(
+        score_release_ms,
+        max((event.arrival_time_ms for event in scores), default=score_release_ms),
+    )
+    if probabilistic_ballots is None:
         winner_selector = (
             resolve_capacity_one_task_ordered_winners if task_ordered
             else resolve_capacity_one_batch_winners
@@ -2265,18 +2279,10 @@ def simulate_greedy_batch_vote_epoch(
             physical_robots=physical_robots,
         )
     else:
-        scores, certified = publish_probabilistic_batch_scores(
-            counted_votes=counts, cost_matrix=cost_matrix,
-            physical_robots=physical_robots, physical_tasks=physical_tasks,
-            round_id=round_id, release_ms=score_release_ms, sampler=sampler,
-        )
         winners, tied = resolve_dynamic_probability_margin_winners(
             scores=certified, physical_tasks=eligible_vote_tasks,
             physical_robots=physical_robots, margin_rule=margin_rule,
         )
-    scores_done_ms = max(
-        score_release_ms, max((event.arrival_time_ms for event in scores), default=score_release_ms),
-    )
     commits = emit_greedy_batch_commits(
         winners=winners, round_id=round_id,
         release_ms=scores_done_ms, sampler=sampler,
