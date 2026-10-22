@@ -103,6 +103,7 @@ a fake 0% Greedy gap.
   Score including the candidate's OWN original self-known Cost.
 - `coordination.publish_probabilistic_batch_scores`: physically paid
   candidate Score announcements (only successful local receipts).
+- `coordination.validate_probability_score_view`: validates only candidate-received positive Score and margin rule before planning.
 - `coordination.resolve_dynamic_probability_margin_winners`: recalculates
   all remaining vote gaps after each capacity-one assignment; no second
   epoch/state machine or task-ID-first ordering.
