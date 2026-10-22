@@ -1853,8 +1853,15 @@ def validate_probability_score_view(
     *, scores: dict[tuple[int,int],tuple[int,float]],
     physical_tasks: tuple[int,...],physical_robots: tuple[int,...],
     margin_rule: str,
+    completion_policy: str = "none",
 ) -> None:
-    """Only positive physically certified Score may enter margin planning."""
+    """Validate certified Score and opt-in completion policy before planning."""
+    if completion_policy not in ("none","idle_robot_id"):
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="validate_probability_score_view",
+            category="data",code="P2J_V3_UNKNOWN_COMPLETION_POLICY",
+            expected=("none","idle_robot_id"),actual=completion_policy,
+        ))
     if margin_rule not in ("absolute","normalized"):
         raise ProtocolError(Diagnostic(
             owner="coordination",function="validate_probability_score_view",
@@ -1950,6 +1957,7 @@ def resolve_dynamic_probability_margin_winners(
     validate_probability_score_view(
         scores=scores,physical_tasks=physical_tasks,
         physical_robots=physical_robots,margin_rule=margin_rule,
+        completion_policy=completion_policy,
     )
     if not scores:
         if completion_policy=="idle_robot_id":
@@ -2316,6 +2324,7 @@ def simulate_greedy_batch_vote_epoch(
     probabilistic_ballots: tuple[tuple[tuple[int, int, int], ...], ...] | None = None,
     votes_per_voter: int = 100,
     margin_rule: str = "absolute",
+    completion_policy: str = "none",
 ) -> LossyCoordinationResult:
     """One Cost snapshot -> one Vote batch -> reliable Score -> capacity-one Commit."""
     eligible_vote_tasks = physical_tasks if voted_task_ids is None else voted_task_ids
@@ -2371,7 +2380,12 @@ def simulate_greedy_batch_vote_epoch(
         winners, tied = resolve_dynamic_probability_margin_winners(
             scores=certified, physical_tasks=eligible_vote_tasks,
             physical_robots=physical_robots, margin_rule=margin_rule,
+            completion_policy=completion_policy,
         )
+    fallback_pairs=(
+        tuple((robot,task) for robot,task in winners if (task,robot) not in certified)
+        if probabilistic_ballots is not None else ()
+    )
     commits = emit_greedy_batch_commits(
         winners=winners, round_id=round_id,
         release_ms=scores_done_ms, sampler=sampler,
@@ -2382,7 +2396,9 @@ def simulate_greedy_batch_vote_epoch(
         scores_done_ms, max((event.arrival_time_ms for event in commits), default=scores_done_ms),
     )
     return _summarize_lossy_result(
-        method=("democracy_probabilistic_score_global_margin_v2_one_batch"
+        method=("democracy_probabilistic_complete_fallback_v3_one_batch"
+                if probabilistic_ballots is not None and completion_policy=="idle_robot_id"
+                else "democracy_probabilistic_score_global_margin_v2_one_batch"
                 if probabilistic_ballots is not None else
                 "democracy_task_ordered_batch_received_plurality" if task_ordered
                 else "democracy_batched_greedy_received_plurality"),
@@ -2403,8 +2419,9 @@ def simulate_greedy_batch_vote_epoch(
             if probabilistic_ballots is not None else 0
         ),
         certified_score_max_matching=(
-            len(winners) if probabilistic_ballots is not None else 0
+            len(winners)-len(fallback_pairs) if probabilistic_ballots is not None else 0
         ),
+        completion_fallback_pairs=fallback_pairs,
         plurality_tie_break_count=tied,
         plurality_winner_vote_count=(
             max((count for count,_own_cost in certified.values()), default=0)
@@ -2442,6 +2459,7 @@ def simulate_democracy_hungarian_lossy(
     votes_per_voter: int = 100,
     temperature: float = 5.0,
     margin_rule: str = "absolute",
+    completion_policy: str = "none",
 ) -> LossyCoordinationResult:
     num_robots, num_tasks = validate_cost_matrix(cost_matrix)
     physical_robots, physical_tasks = validate_epoch_identity_mapping(
@@ -2538,7 +2556,7 @@ def simulate_democracy_hungarian_lossy(
             voted_task_ids=batch_vote_task_ids,
             task_ordered=(voting_strategy == "greedy_batch_task_order"),
             probabilistic_ballots=ballots, votes_per_voter=votes_per_voter,
-            margin_rule=margin_rule,
+            margin_rule=margin_rule, completion_policy=completion_policy,
         )
 
     ledgers_by_task: dict[int, dict[int, set[int]]] = {
@@ -2921,6 +2939,7 @@ def simulate_democracy_hungarian_retirement(
     votes_per_voter: int = 100,
     temperature: float = 5.0,
     margin_rule: str = "absolute",
+    completion_policy: str = "none",
 ) -> MultiRoundRetirementResult:
     """Multi-round membership owner; reuses the same E2 single-round vote engine.
 
@@ -2989,6 +3008,7 @@ def simulate_democracy_hungarian_retirement(
         margin_rule=margin_rule, enforce_vote_deadline=enforce_vote_deadline,
         num_robots=num_robots, num_tasks=num_tasks,
         send_budget=send_budget, preknown_cost_snapshot=preknown_cost_snapshot,
+        completion_policy=completion_policy,
     )
     if preknown_cost_snapshot is not None:
         validate_preknown_retirement_cost_snapshot(
@@ -3058,6 +3078,7 @@ def simulate_democracy_hungarian_retirement(
             batch_vote_task_ids=(pending_tasks[:1] if batch_vote_scope == "one_task" else None),
             probabilistic_seed=probabilistic_seed, votes_per_voter=votes_per_voter,
             temperature=temperature, margin_rule=margin_rule,
+            completion_policy=completion_policy,
         )
         require_retirement_commit_announcements(
             round_result=round_result,
@@ -3098,7 +3119,9 @@ def simulate_democracy_hungarian_retirement(
     )
     return MultiRoundRetirementResult(
         method=(
-            "democracy_probabilistic_score_global_margin_v2_one_batch_retirement"
+            "democracy_probabilistic_complete_fallback_v3_one_batch_retirement"
+            if voting_strategy == "probabilistic_batch" and completion_policy=="idle_robot_id"
+            else "democracy_probabilistic_score_global_margin_v2_one_batch_retirement"
             if voting_strategy == "probabilistic_batch" else
             "democracy_task_ordered_batch_received_plurality_retirement"
             if voting_strategy == "greedy_batch_task_order" else
