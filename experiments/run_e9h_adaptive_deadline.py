@@ -303,6 +303,7 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
                                 guarded_cost_ms=None, p_vote_loss=None,
                                 external_observer=None, voting_strategy="greedy_task",
                                 batch_vote_scope="all", capture_task_epoch_ids=False,
+                                capture_assignment_pairs=False,
                                 votes_per_voter=100, temperature=5.0,
                                 margin_rule="absolute"):
     """Original TASK, local cost, physical ballots, Score and Commit only.
@@ -504,6 +505,8 @@ def run_e9h_original_voting_case(*, scenario, profile, n, seed, p_loss,
             task_events=task_trace.events, result=result,
         ),
         "voting_strategy":voting_strategy,
+        **({"native_assignment_pairs":tuple(result.assigned_pairs)}
+           if capture_assignment_pairs else {}),
         "votes_per_voter":(votes_per_voter if voting_strategy=="probabilistic_batch" else ""),
         "vote_temperature":(temperature if voting_strategy=="probabilistic_batch" else ""),
         "margin_rule":(margin_rule if voting_strategy=="probabilistic_batch" else ""),
