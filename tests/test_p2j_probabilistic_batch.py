@@ -182,6 +182,7 @@ class P2JProbabilityTests(unittest.TestCase):
                   cost_repetitions=1,vote_repetitions=1,batch_vote_scope="all",
                   probabilistic_seed=4,votes_per_voter=100,temperature=5.0,
                   margin_rule="absolute",enforce_vote_deadline=True,
+                  num_robots=3,num_tasks=3,
                   send_budget=None,preknown_cost_snapshot=None)
         with self.assertRaises(ProtocolError) as exc:
             validate_probabilistic_batch_scope(**args)
