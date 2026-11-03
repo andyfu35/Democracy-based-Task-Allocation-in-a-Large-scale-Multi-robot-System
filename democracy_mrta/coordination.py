@@ -2436,6 +2436,276 @@ def simulate_greedy_batch_vote_epoch(
     )
 
 
+
+@dataclass(frozen=True)
+class P2KLocalVoteResult:
+    """One real Cost/Vote epoch; distinct local decisions, NEVER global repair."""
+    local_assignments: tuple[tuple[tuple[int, int], ...], ...]
+    robot_claims: tuple[tuple[int, int], ...]
+    local_vote_views: tuple[tuple[tuple[int, ...], ...], ...]
+    cost_visible_rows: tuple[frozenset[int], ...]
+    events: tuple[CommunicationEvent, ...]
+    deliveries: tuple[DeliveryObservation, ...]
+    decision_time_ms: float
+    cost_completion_ms: float
+
+    @property
+    def sender_bytes(self) -> int:
+        return sum(event.payload_bytes for event in self.events)
+
+
+def validate_p2k_local_scope(
+    *, cost_matrix: tuple[tuple[float, ...], ...],
+    votes_per_voter: int, policy: str, p_loss: float, seed: int,
+) -> tuple[int, int]:
+    """Isolate P2K experimental scope without altering legacy P2J contracts."""
+    robots, tasks = validate_cost_matrix(cost_matrix)
+    validate_packet_loss_probability(p_loss)
+    if (robots > 255 or tasks > 255
+            or type(votes_per_voter) is not int or votes_per_voter > 1184
+            or votes_per_voter < tasks or votes_per_voter % tasks
+            or policy not in ("cost_softmax", "optimized_kbest")
+            or type(seed) is not int or seed < 0):
+        raise ProtocolError(Diagnostic(
+            owner="coordination", function="validate_p2k_local_scope",
+            category="data", code="P2K_INVALID_EXPERIMENT_SCOPE",
+            expected="capacity-one robots>=tasks, IDs<=255, task-divisible "
+                     "tickets<=1184, known policy and nonnegative seed",
+            actual={"robots":robots,"tasks":tasks,"tickets":votes_per_voter,
+                    "policy":policy,"seed":seed,"loss":p_loss},
+        ))
+    return robots, tasks
+
+
+def encode_p2k_vote_packet(
+    *, round_id: int, sender_id: int, candidates: tuple[int, ...],
+) -> bytes:
+    """One original physical broadcast; task index implicit in ticket order.
+
+    For 100 tasks and 500 tickets: 16B header + 500B candidates = 516B.
+    This is a NEW opt-in wire type; P2J PVOT limits remain unchanged.
+    """
+    valid=(type(round_id) is int and 0 <= round_id <= 0xffffffff
+           and type(sender_id) is int and 0 <= sender_id <= 0xffffffff
+           and isinstance(candidates, tuple) and 0 < len(candidates) <= 1184
+           and all(type(r) is int and 0 <= r <= 255 for r in candidates))
+    if not valid:
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="encode_p2k_vote_packet",
+            category="data",code="P2K_BAD_PACKET_INPUT",
+            expected="uint32 epoch/sender, <=1184 uint8 candidate IDs",
+            actual={"round":round_id,"sender":sender_id,"count":len(candidates)
+                    if isinstance(candidates,tuple) else None},
+        ))
+    packet=_PROB_HEADER.pack(b"P2KV",round_id,sender_id,len(candidates))+bytes(candidates)
+    if len(packet)>_BATCH_MAX_PACKET_BYTES:
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="encode_p2k_vote_packet",
+            category="contract",code="P2K_PACKET_EXCEEDS_MTU",
+            expected=f"<= {_BATCH_MAX_PACKET_BYTES}B",actual=len(packet),
+        ))
+    return packet
+
+
+def decode_p2k_vote_packet(
+    packet: bytes, *, round_id: int, sender_id: int,
+    votes_per_voter: int, robots: int,
+) -> tuple[int, ...]:
+    """Verify the genuine wire bytes BEFORE any receiver counts a ticket."""
+    if not isinstance(packet,bytes) or len(packet)<_PROB_HEADER.size:
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="decode_p2k_vote_packet",
+            category="data",code="P2K_INVALID_PACKET_BYTES",
+            expected="P2KV header and candidate payload",
+            actual=type(packet).__name__,
+        ))
+    magic,actual_round,actual_sender,slots=_PROB_HEADER.unpack_from(packet)
+    if (magic!=b"P2KV" or actual_round!=round_id
+            or actual_sender!=sender_id or slots!=votes_per_voter
+            or len(packet)!=_PROB_HEADER.size+slots
+            or any(r>=robots for r in packet[_PROB_HEADER.size:])):
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="decode_p2k_vote_packet",
+            category="contract",code="P2K_INVALID_RECEIVED_BALLOT",
+            expected={"magic":"P2KV","round":round_id,
+                      "sender":sender_id,"tickets":votes_per_voter,
+                      "robot_range":f"0..{robots-1}"},
+            actual={"magic":magic,"round":actual_round,
+                    "sender":actual_sender,"tickets":slots,
+                    "size":len(packet)},
+        ))
+    return tuple(packet[_PROB_HEADER.size:])
+
+
+def collect_p2k_local_vote_views(
+    *, ballots: tuple[tuple[int, ...], ...],
+    ready_times: tuple[float, ...], votes_per_voter: int,
+    tasks: int, cutoff_ms: float, sampler, loss_sampler,
+    p_loss: float, round_id: int,
+) -> tuple[list[CommunicationEvent],list[DeliveryObservation],
+           tuple[tuple[tuple[int, ...], ...], ...]]:
+    """Vote transport owner: every receiver sees ONLY delivered timely batches."""
+    robots=len(ballots)
+    if len(ready_times)!=robots or any(len(b)!=votes_per_voter for b in ballots):
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="collect_p2k_local_vote_views",
+            category="contract",code="P2K_BALLOT_COUNT_MISMATCH",
+            expected={"robots":robots,"tickets":votes_per_voter},
+            actual={"ballots":len(ballots),"ready":len(ready_times)},
+        ))
+    votes=[[[0]*tasks for _ in range(robots)] for _ in range(robots)]
+    slots=votes_per_voter//tasks
+    events=[]
+    deliveries=[]
+    order=(sorted(range(robots),key=lambda r:(ready_times[r],r))
+           if isinstance(sampler,WifiCausalTimingSampler) else range(robots))
+    for sender in order:
+        packet=encode_p2k_vote_packet(
+            round_id=round_id,sender_id=sender,candidates=ballots[sender],
+        )
+        event=_broadcast_event(
+            phase="vote",sender_id=sender,round_id=round_id,
+            send_time_ms=ready_times[sender],payload_bytes=len(packet),sampler=sampler,
+        )
+        events.append(event)
+        observed=_lossy_broadcast_deliveries(
+            event=event,num_robots=robots,loss_sampler=loss_sampler,
+            p_loss=p_loss,round_id=round_id,
+        )
+        deliveries.extend(observed)
+        decoded=decode_p2k_vote_packet(
+            packet,round_id=round_id,sender_id=sender,
+            votes_per_voter=votes_per_voter,robots=robots,
+        )
+        recipients=([sender] if ready_times[sender] <= cutoff_ms else [])
+        recipients.extend(
+            item.receiver_id for item in observed
+            if item.delivered and item.arrival_time_ms is not None
+            and item.arrival_time_ms<=cutoff_ms
+        )
+        for receiver in recipients:
+            for idx,candidate in enumerate(decoded):
+                votes[receiver][candidate][idx//slots]+=1
+    return (events,deliveries,
+            tuple(tuple(tuple(row) for row in receiver) for receiver in votes))
+
+
+def resolve_p2k_local_assignment(
+    *, counts: tuple[tuple[int, ...], ...],
+) -> tuple[tuple[int, int], ...]:
+    """Local-only maximum-cardinality positive-vote matching, then ticket sum.
+
+    Missing/zero-support edges are prohibited; no fallback or oracle Cost.
+    Deterministic robot ID tie-break operates on each receiver's own matrix.
+    """
+    robots=len(counts)
+    tasks=len(counts[0]) if counts else 0
+    if (not robots or not tasks or any(len(row)!=tasks for row in counts)
+            or any(type(v) is not int or v < 0 for row in counts for v in row)):
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="resolve_p2k_local_assignment",
+            category="data",code="P2K_INVALID_LOCAL_VOTE_MATRIX",
+            expected="rectangular nonnegative integer received vote matrix",
+            actual={"rows":robots,"tasks":tasks},
+        ))
+    total=sum(sum(row) for row in counts)
+    scale=tasks*(robots+1)+1
+    cardinality_bonus=(total+1)*scale+tasks*(robots+1)+1
+    # Each task can match one robot or one unique dummy "unassigned".
+    # Unobserved edges are worse than dummy, so zero Vote never implies
+    # consent or certainty about an unreceived ballot.
+    weights=np.zeros((tasks,robots+tasks),dtype=np.int64)
+    weights[:,:robots]=-1
+    for robot,row in enumerate(counts):
+        for task,votes in enumerate(row):
+            if votes:
+                weights[task,robot]=cardinality_bonus+votes*scale+(robots-robot)
+    task_indices,robot_indices=linear_sum_assignment(weights,maximize=True)
+    pairs=tuple(sorted(
+        (int(robot),int(task))
+        for task,robot in zip(task_indices,robot_indices)
+        if robot<robots and counts[int(robot)][int(task)]>0
+    ))
+    validate_one_to_one_commits(pairs)
+    return pairs
+
+
+def simulate_p2k_local_vote_epoch(
+    *, cost_matrix: tuple[tuple[float, ...], ...],
+    sampler, loss_sampler, p_loss: float, phase_timeout_ms: float,
+    seed: int, votes_per_voter: int, policy: str,
+    k: int = 5, epsilon: float = 0.10, temperature: float = 5.0,
+    round_id: int = 0,
+) -> P2KLocalVoteResult:
+    """One P2K epoch: physical Cost -> own visible optimizer -> lossy Vote.
+
+    Deliberately NO Score, NO Commit, NO local-claim network message, NO
+    global correction. A central experiment observer may read the resulting
+    claims ONLY AFTER all robots have made their private local decisions.
+    """
+    from .optimizer import sample_p2k_task_balanced_votes
+    robots,tasks=validate_p2k_local_scope(
+        cost_matrix=cost_matrix,votes_per_voter=votes_per_voter,
+        policy=policy,p_loss=p_loss,seed=seed,
+    )
+    if (type(phase_timeout_ms) not in (int,float)
+            or not math.isfinite(phase_timeout_ms) or phase_timeout_ms<=0):
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="simulate_p2k_local_vote_epoch",
+            category="time",code="P2K_INVALID_PHASE_TIMEOUT",
+            expected="finite positive milliseconds",actual=phase_timeout_ms,
+        ))
+    cost_events,cost_deliveries,visible,ready_times=_simulate_lossy_cost_broadcasts(
+        num_robots=robots,num_tasks=tasks,sampler=sampler,loss_sampler=loss_sampler,
+        p_loss=p_loss,phase_timeout_ms=phase_timeout_ms,
+        round_id=round_id,enforce_cost_deadline=True,
+    )
+    ballots=tuple(
+        sample_p2k_task_balanced_votes(
+            cost_matrix=cost_matrix,visible_robot_ids=visible[voter],
+            voter_id=voter,seed=seed,votes_per_voter=votes_per_voter,
+            policy=policy,k=k,epsilon=epsilon,temperature=temperature,
+            round_id=round_id,
+        )
+        for voter in range(robots)
+    )
+    cost_finished=max(ready_times,default=0.0)
+    cutoff=cost_finished+phase_timeout_ms
+    vote_events,vote_deliveries,local_views=collect_p2k_local_vote_views(
+        ballots=ballots,ready_times=ready_times,
+        votes_per_voter=votes_per_voter,tasks=tasks,cutoff_ms=cutoff,
+        sampler=sampler,loss_sampler=loss_sampler,p_loss=p_loss,
+        round_id=round_id,
+    )
+    assignments=tuple(
+        resolve_p2k_local_assignment(counts=counts) for counts in local_views
+    )
+    # Each executor acts ONLY on its OWN locally computed full assignment.
+    claims=tuple(
+        (robot,task) for robot,assignment in enumerate(assignments)
+        for candidate,task in assignment if candidate==robot
+    )
+    events=tuple(cost_events+vote_events)
+    deliveries=tuple(cost_deliveries+vote_deliveries)
+    if (any(event.phase not in ("cost","vote") for event in events)
+            or len(claims)!=len({robot for robot,_task in claims})
+            or any(robot not in range(robots) or task not in range(tasks)
+                   for robot,task in claims)):
+        raise ProtocolError(Diagnostic(
+            owner="coordination",function="simulate_p2k_local_vote_epoch",
+            category="safety",code="P2K_UNEXPECTED_WIRE_OR_CLAIM",
+            expected="only original Cost/Vote SEND and each robot <=1 local task",
+            actual={"phases":sorted(set(e.phase for e in events)),
+                    "claims":claims},
+        ))
+    return P2KLocalVoteResult(
+        local_assignments=assignments,robot_claims=claims,
+        local_vote_views=local_views,cost_visible_rows=visible,
+        events=events,deliveries=deliveries,
+        decision_time_ms=cutoff,cost_completion_ms=cost_finished,
+    )
+
+
 def simulate_democracy_hungarian_lossy(
     *,
     cost_matrix: tuple[tuple[float, ...], ...],
