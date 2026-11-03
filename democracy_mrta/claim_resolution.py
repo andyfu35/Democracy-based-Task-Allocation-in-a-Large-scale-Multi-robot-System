@@ -1659,3 +1659,731 @@ def coordinate_p2m_task_owners(
         timeout_wait_total_ms=timeout_wait_total,
         last_first_grant_arrival_ms=last_first_grant_arrival,
     )
+
+
+# P2R is a NEW opt-in announcement protocol in the EXISTING ownership
+# owner module. No new Cost/Vote optimizer, hidden global matching, or
+# copy of P2M's CLAIM/ACK transaction machinery is introduced.
+_P2R_CHALLENGE_WIRE = struct.Struct("<4sIII")  # 16B
+
+
+@dataclass(frozen=True)
+class P2RAnnouncementResult:
+    executed_pairs: tuple[tuple[int, int], ...]
+    reserved_pairs: tuple[tuple[int, int], ...]
+    events: tuple[CommunicationEvent, ...]
+    deliveries: tuple[DeliveryObservation, ...]
+    rounds_executed: int
+    owner_observed_conflicts: int
+    peer_observed_challenges: int
+    challenge_deferrals: int
+    denial_receipts: int
+    retargeted_intents: int
+    intents_seen_by_owner: int
+    decisions: tuple[dict, ...]
+    recipient_seen_executing_tasks: tuple[tuple[int, ...], ...]
+    finish_ms: float
+    first_diagnostic: Diagnostic | None
+
+    @property
+    def sender_bytes(self) -> int:
+        return sum(event.payload_bytes for event in self.events)
+
+
+def validate_p2r_announcement_scope(
+    *, run: P2KLocalVoteResult, cost_matrix: tuple[tuple[float, ...], ...],
+    votes_per_voter: int, p_loss: float, max_rounds: int,
+    intent_repetitions: int, decision_repetitions: int,
+    announcement_repetitions: int,
+) -> tuple[int, int]:
+    """One data/contract boundary; vote contents remain sender-private."""
+    robots,tasks=validate_cost_matrix(cost_matrix)
+    validate_packet_loss_probability(p_loss)
+    if (not 1 <= tasks <= robots <= 255
+            or type(votes_per_voter) is not int
+            or not tasks <= votes_per_voter <= 1184
+            or votes_per_voter % tasks
+            or type(max_rounds) is not int or not 1 <= max_rounds <= 255
+            or any(type(n) is not int or not 1 <= n <= 5
+                   for n in (intent_repetitions,decision_repetitions,
+                             announcement_repetitions))
+            or len(run.local_vote_views)!=robots
+            or len(run.local_assignments)!=robots
+            or len(run.cost_visible_rows)!=robots
+            or any(len(view)!=robots or
+                   any(len(row)!=tasks for row in view)
+                   for view in run.local_vote_views)
+            or any(event.phase not in ("cost","vote") for event in run.events)
+            or len({r for r,_task in run.robot_claims})!=len(run.robot_claims)):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="validate_p2r_announcement_scope",
+            category="contract",code="P2R_INVALID_ANNOUNCEMENT_SCOPE",
+            expected="native P2Q 1000-ticket Cost/Vote-only epoch; "
+                     "capacity1; rounds 1..255; repetitions 1..5",
+            actual={"robots":robots,"tasks":tasks,
+                    "votes":votes_per_voter,"rounds":max_rounds,
+                    "intent_copies":intent_repetitions,
+                    "decision_copies":decision_repetitions,
+                    "executing_copies":announcement_repetitions},
+        ))
+    return robots,tasks
+
+
+def encode_p2r_intent(intent: P2LClaim) -> bytes:
+    """Same validated local support fields as P2L but NEW 28B INTENT tag."""
+    return b"P2RI"+encode_p2l_claim_packet(intent)[4:]
+
+
+def decode_p2r_intent(
+    packet: bytes, *, sender_id: int, claim_round: int,
+    robots: int, tasks: int, tickets_per_task: int,
+) -> P2LClaim:
+    """Only a directly delivered, sender-owned INTENT can be a candidate."""
+    if not isinstance(packet,bytes) or len(packet)!=CLAIM_WIRE.size:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="decode_p2r_intent",
+            category="data",code="P2R_INVALID_INTENT_PACKET",
+            expected=CLAIM_WIRE.size,actual=(
+                len(packet) if isinstance(packet,bytes) else type(packet).__name__),
+        ))
+    if packet[:4]!=b"P2RI":
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="decode_p2r_intent",
+            category="contract",code="P2R_WRONG_INTENT_TAG",
+            expected="P2RI",actual=packet[:4],
+        ))
+    return decode_p2l_claim_packet(
+        b"P2LC"+packet[4:],claim_round=claim_round,
+        sender_id=sender_id,tasks=tasks,robots=robots,
+        tickets_per_task=tickets_per_task,
+    )
+
+
+def encode_p2r_challenge(
+    *, round_id: int, challenger: int, task_id: int,
+) -> bytes:
+    """One unicast conflict alert; advisory ONLY, never winner authority."""
+    if any(type(x) is not int or not 0 <= x <= 0xffffffff
+           for x in (round_id,challenger,task_id)):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="encode_p2r_challenge",
+            category="data",code="P2R_INVALID_CHALLENGE",
+            expected="nonnegative uint32 round/challenger/task",
+            actual=(round_id,challenger,task_id),
+        ))
+    return _P2R_CHALLENGE_WIRE.pack(
+        b"P2RH",round_id,challenger,task_id,
+    )
+
+
+def decode_p2r_challenge(
+    packet: bytes, *, sender_id: int, task_id: int,
+    claim_round: int, robots: int, tasks: int,
+) -> None:
+    """Alert cannot be spoofed into an allocation, even if delivered."""
+    if (not isinstance(packet,bytes) or
+            len(packet)!=_P2R_CHALLENGE_WIRE.size or
+            _P2R_CHALLENGE_WIRE.unpack(packet)!=(
+                b"P2RH",claim_round,sender_id,task_id) or
+            not 0 <= sender_id < robots or
+            not 0 <= task_id < tasks):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="decode_p2r_challenge",
+            category="contract",code="P2R_CHALLENGE_IDENTITY_MISMATCH",
+            expected=("P2RH",claim_round,sender_id,task_id),
+            actual=packet,
+        ))
+
+
+def encode_p2r_owner_response(
+    *, round_id: int, owner_id: int, robot_id: int,
+    task_id: int, commit: bool,
+) -> bytes:
+    """20B original validated P2M fields; P2RC/P2RD are NOT P2MD."""
+    packet=encode_p2m_owner_decision(
+        round_id=round_id,owner_id=owner_id,
+        robot_id=robot_id,task_id=task_id,granted=commit,
+    )
+    return (b"P2RC" if commit else b"P2RD")+packet[4:]
+
+
+def decode_p2r_owner_response(
+    packet: bytes, *, sender_id: int, robot_id: int, task_id: int,
+    claim_round: int, robots: int,
+) -> bool:
+    """Actual physical sender must be task's one fixed safety owner."""
+    if not isinstance(packet,bytes) or len(packet)!=_OWNER_DECISION_WIRE.size:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="decode_p2r_owner_response",
+            category="data",code="P2R_INVALID_RESPONSE_PACKET",
+            expected=_OWNER_DECISION_WIRE.size,
+            actual=(len(packet) if isinstance(packet,bytes)
+                    else type(packet).__name__),
+        ))
+    tag=packet[:4]
+    if tag not in (b"P2RC",b"P2RD"):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="decode_p2r_owner_response",
+            category="contract",code="P2R_INVALID_RESPONSE_TAG",
+            expected=("P2RC","P2RD"),actual=tag,
+        ))
+    owner=p2m_task_owner_id(task_id=task_id,robots=robots)
+    if sender_id!=owner:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="decode_p2r_owner_response",
+            category="safety",code="P2R_NOT_FIXED_OWNER",
+            expected=owner,actual=sender_id,
+        ))
+    received=decode_p2m_owner_decision(
+        b"P2MD"+packet[4:],
+        round_id=claim_round,owner_id=sender_id,
+        robot_id=robot_id,task_id=task_id,robots=robots,
+    )
+    if received!=(tag==b"P2RC"):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="decode_p2r_owner_response",
+            category="contract",code="P2R_RESPONSE_FLAG_MISMATCH",
+            expected=(tag==b"P2RC"),actual=received,
+        ))
+    return received
+
+
+def transmit_p2r_intent_window(
+    *, intents: tuple[P2LClaim, ...],
+    robots: int, tasks: int, votes_per_voter: int,
+    repetitions: int, start_ms: float,
+    sampler, loss_sampler, p_loss: float,
+) -> tuple[list[CommunicationEvent],list[DeliveryObservation],
+           dict[int,list[P2LClaim]],dict[int,set[int]],float]:
+    """Physical P2RI broadcasts; each receiver learns ONLY its receipts.
+
+    Return the task owner's own observed candidate set and each
+    contender's locally observed other contenders, never global votes.
+    """
+    copies=[]
+    for intent in sorted(intents,key=lambda x:x.robot_id):
+        if intent.task_id is None:
+            continue
+        for copy in range(repetitions):
+            copies.append((intent,copy))
+    events=[]
+    observations=[]
+    owner_receipts:dict[int,dict[int,P2LClaim]]={}
+    heard_by_robot:dict[int,dict[int,set[int]]]={}
+    finish=start_ms
+    for intent,copy in copies:
+        task=intent.task_id
+        wire=encode_p2r_intent(intent)
+        event=_broadcast_event(
+            phase="p2r_intent",sender_id=intent.robot_id,
+            task_id=task,round_id=intent.claim_round+1,
+            send_time_ms=start_ms,payload_bytes=len(wire),
+            sampler=sampler,transmission_index=copy,
+        )
+        events.append(event)
+        finish=max(finish,event.arrival_time_ms)
+        observed=_lossy_broadcast_deliveries(
+            event=event,num_robots=robots,
+            loss_sampler=loss_sampler,p_loss=p_loss,
+            round_id=intent.claim_round+1,
+        )
+        observations.extend(observed)
+        # The sending robot knows its own local INTENT without radio receipt.
+        heard_by_robot.setdefault(intent.robot_id,{}).setdefault(
+            task,set()).add(intent.robot_id)
+        owner=p2m_task_owner_id(task_id=task,robots=robots)
+        if intent.robot_id==owner:
+            owner_receipts.setdefault(task,{})[intent.robot_id]=intent
+        for obs in observed:
+            if not obs.delivered:
+                continue
+            decoded=decode_p2r_intent(
+                wire,sender_id=intent.robot_id,
+                claim_round=intent.claim_round,robots=robots,
+                tasks=tasks,tickets_per_task=votes_per_voter//tasks,
+            )
+            heard_by_robot.setdefault(obs.receiver_id,{}).setdefault(
+                task,set()).add(decoded.robot_id)
+            if obs.receiver_id==owner:
+                owner_receipts.setdefault(task,{})[decoded.robot_id]=decoded
+    return (
+        events,observations,
+        {task:list(claims.values()) for task,claims in owner_receipts.items()},
+        {robot:by_task.get(next(
+            (intent.task_id for intent in intents
+             if intent.robot_id==robot),-1),set())
+         for robot,by_task in heard_by_robot.items()},
+        finish,
+    )
+
+
+def transmit_p2r_conflict_challenges(
+    *, intents: tuple[P2LClaim, ...],
+    peer_seen: dict[int,set[int]], robots: int, tasks: int,
+    start_ms: float,sampler,loss_sampler,p_loss: float,
+) -> tuple[list[CommunicationEvent],list[DeliveryObservation],
+           set[int],int,float]:
+    """ONLY a contestant who personally saw a rival emits an alert."""
+    events=[]
+    deliveries=[]
+    owner_alerts=set()
+    challenge_count=0
+    finish=start_ms
+    for intent in sorted(intents,key=lambda x:x.robot_id):
+        task=intent.task_id
+        if task is None:
+            continue
+        local=peer_seen.get(intent.robot_id,set())
+        if len(local)<2 or intent.robot_id not in local:
+            continue
+        owner=p2m_task_owner_id(task_id=task,robots=robots)
+        if owner==intent.robot_id:
+            # Fixed owner already knows its own received competing INTENT.
+            owner_alerts.add(task)
+            continue
+        wire=encode_p2r_challenge(
+            round_id=intent.claim_round,challenger=intent.robot_id,
+            task_id=task,
+        )
+        event=_unicast_event(
+            phase="p2r_challenge",sender_id=intent.robot_id,
+            receiver_id=owner,task_id=task,round_id=intent.claim_round+1,
+            send_time_ms=start_ms,payload_bytes=len(wire),sampler=sampler,
+        )
+        events.append(event)
+        finish=max(finish,event.arrival_time_ms)
+        obs=_lossy_unicast_delivery(
+            event=event,loss_sampler=loss_sampler,p_loss=p_loss,
+            round_id=intent.claim_round+1,
+        )
+        deliveries.append(obs)
+        challenge_count+=1
+        if obs.delivered:
+            decode_p2r_challenge(
+                wire,sender_id=intent.robot_id,task_id=task,
+                claim_round=intent.claim_round,robots=robots,tasks=tasks,
+            )
+            owner_alerts.add(task)
+    return events,deliveries,owner_alerts,challenge_count,finish
+
+
+def choose_p2r_owner_responses(
+    *, owner_receipts: dict[int,list[P2LClaim]],
+    owner_alerts: set[int], reserved: dict[int,int],
+    previously_deferred: set[int], robots: int,
+    claim_round: int,
+) -> tuple[list[tuple[int,int,bool]],list[dict],set[int],int]:
+    """Only REAL owner-received INTENTs can compete and reserve a task.
+
+    A delivered peer CHALLENGE is advisory; if owner knows only one
+    candidate it may defer ONE round to gather more evidence. It can
+    NEVER nominate an unreceived or fabricated contestant.
+    """
+    responses=[]
+    decisions=[]
+    deferrals=set()
+    conflicts=0
+    for task,claims in sorted(owner_receipts.items()):
+        owner=p2m_task_owner_id(task_id=task,robots=robots)
+        if len({c.robot_id for c in claims})!=len(claims):
+            raise ProtocolError(Diagnostic(
+                owner=OWNER,function="choose_p2r_owner_responses",
+                category="contract",code="P2R_DUPLICATE_OWNER_INTENT",
+                expected="deduplicated one INTENT per robot/task/round",
+                actual={"task":task,"robots":[c.robot_id for c in claims]},
+            ))
+        existing=reserved.get(task)
+        if existing is None:
+            if (len(claims)==1 and task in owner_alerts
+                    and task not in previously_deferred):
+                deferrals.add(task)
+                decisions.append({
+                    "round":claim_round,"task":task,"owner":owner,
+                    "status":"DEFER_CHALLENGE","received":[c.robot_id for c in claims],
+                })
+                continue
+            winners,losers,collided=resolve_p2l_claim_conflicts(
+                claims=tuple(claims),locked_tasks=frozenset(),
+            )
+            if len(winners)!=1 or winners[0][1]!=task:
+                raise ProtocolError(Diagnostic(
+                    owner=OWNER,function="choose_p2r_owner_responses",
+                    category="contract",code="P2R_INVALID_OWNER_WINNER",
+                    expected={"task":task,"winner_count":1},
+                    actual=winners,
+                ))
+            winner=winners[0][0]
+            reserved[task]=winner
+            conflicts+=collided
+        else:
+            winner=existing
+            losers=tuple(c.robot_id for c in claims if c.robot_id!=winner)
+            if len(claims)>1:
+                conflicts+=1
+        decisions.append({
+            "round":claim_round,"task":task,"owner":owner,
+            "status":"CONFLICT" if len(claims)>1 else "SOLO",
+            "received":[{"robot":c.robot_id,
+                         "support":c.support_votes,
+                         "ballots":c.received_ballots}
+                        for c in claims],
+            "reserved_winner":winner,"previously_reserved":existing is not None,
+        })
+        for claim in claims:
+            responses.append((claim.robot_id,task,claim.robot_id==winner))
+    return responses,decisions,deferrals,conflicts
+
+
+def transmit_p2r_owner_responses(
+    *, responses: tuple[tuple[int,int,bool], ...],
+    claim_round: int, robots: int, repetitions: int,
+    start_ms: float,sampler,loss_sampler,p_loss: float,
+) -> tuple[list[CommunicationEvent],list[DeliveryObservation],
+           dict[int,tuple[int,bool]],float]:
+    """COMMIT for reserved winner, DENY only owner-seen rival/locked intent.
+
+    No ACK stage: sender repeats up to fixed repetitions. The owner
+    keeps its irreversible task reservation if all COMMIT copies drop.
+    """
+    events=[]
+    deliveries=[]
+    received={}
+    finish=start_ms
+    for robot,task,commit in sorted(responses,key=lambda x:(x[1],x[0])):
+        owner=p2m_task_owner_id(task_id=task,robots=robots)
+        wire=encode_p2r_owner_response(
+            round_id=claim_round,owner_id=owner,
+            robot_id=robot,task_id=task,commit=commit,
+        )
+        if robot==owner:
+            actually_committed=decode_p2r_owner_response(
+                wire,sender_id=owner,robot_id=robot,
+                task_id=task,claim_round=claim_round,robots=robots,
+            )
+            received[robot]=(task,actually_committed)
+            continue
+        for copy in range(repetitions):
+            phase="p2r_commit" if commit else "p2r_deny"
+            event=_unicast_event(
+                phase=phase,sender_id=owner,
+                receiver_id=robot,task_id=task,round_id=claim_round+1,
+                send_time_ms=start_ms,payload_bytes=len(wire),sampler=sampler,
+                transmission_index=copy,
+            )
+            events.append(event)
+            finish=max(finish,event.arrival_time_ms)
+            obs=_lossy_unicast_delivery(
+                event=event,loss_sampler=loss_sampler,p_loss=p_loss,
+                round_id=claim_round+1,
+            )
+            deliveries.append(obs)
+            if obs.delivered:
+                actually_committed=decode_p2r_owner_response(
+                    wire,sender_id=owner,robot_id=robot,
+                    task_id=task,claim_round=claim_round,robots=robots,
+                )
+                if robot in received and received[robot]!=(task,actually_committed):
+                    raise ProtocolError(Diagnostic(
+                        owner=OWNER,function="transmit_p2r_owner_responses",
+                        category="safety",code="P2R_CONFLICTING_OWNER_DECISIONS",
+                        expected=received[robot],
+                        actual=(task,actually_committed),
+                    ))
+                received[robot]=(task,actually_committed)
+    return events,deliveries,received,finish
+
+
+def transmit_p2r_execution_announcements(
+    *, newly_executed: tuple[tuple[int,int],...], claim_round: int,
+    robots: int, tasks: int, repetitions: int,
+    start_ms: float,sampler,loss_sampler,p_loss: float,
+) -> tuple[list[CommunicationEvent],list[DeliveryObservation],
+           dict[int,set[int]],float]:
+    """P2NX only for physically COMMIT-receiving executors."""
+    events=[]
+    deliveries=[]
+    known={}
+    finish=start_ms
+    for robot,task in sorted(newly_executed):
+        wire=encode_p2n_execution_announcement(
+            claim_round=claim_round,robot_id=robot,
+            task_id=task,robots=robots,
+        )
+        known.setdefault(robot,set()).add(task)
+        for copy in range(repetitions):
+            event=_broadcast_event(
+                phase="execution_announce",sender_id=robot,
+                task_id=task,round_id=claim_round+1,
+                send_time_ms=start_ms,payload_bytes=len(wire),
+                sampler=sampler,transmission_index=copy,
+            )
+            events.append(event)
+            finish=max(finish,event.arrival_time_ms)
+            observed=_lossy_broadcast_deliveries(
+                event=event,num_robots=robots,
+                loss_sampler=loss_sampler,p_loss=p_loss,
+                round_id=claim_round+1,
+            )
+            deliveries.extend(observed)
+            for obs in observed:
+                if obs.delivered:
+                    decode_p2n_execution_announcement(
+                        wire,claim_round=claim_round,
+                        sender_id=robot,task_id=task,
+                        robots=robots,tasks=tasks,
+                    )
+                    known.setdefault(obs.receiver_id,set()).add(task)
+    return events,deliveries,known,finish
+
+
+def select_p2r_local_intent_task(
+    *, run:P2KLocalVoteResult, robot_id:int,
+    own_cost_row:tuple[float,...], tried:frozenset[int],
+    known_executing:frozenset[int], first_attempt:bool,
+    active_task:int|None,
+) -> int|None:
+    """A robot cannot request another task while its INTENT is unresolved.
+
+    A real received P2NX may eliminate an outstanding tentative
+    intent. The robot changes target otherwise ONLY on actual DENY.
+    """
+    if active_task is not None and active_task not in (tried | known_executing):
+        return active_task
+    return select_p2m_local_request_task(
+        run=run,robot_id=robot_id,own_cost_row=own_cost_row,
+        tried_tasks=tried,first_attempt=first_attempt,
+        known_executing_tasks=known_executing,
+    )
+
+
+def validate_p2r_unique_execution(
+    *, reserved:dict[int,int],executed:dict[int,int],
+    events:tuple[CommunicationEvent,...], rounds:int,
+) -> None:
+    """Safety gate: only true irreversible owner COMMIT can execute."""
+    pairs=tuple((robot,task) for robot,task in executed.items())
+    validate_one_to_one_commits(pairs)
+    validate_one_to_one_commits(tuple(
+        (robot,task) for task,robot in reserved.items()
+    ))
+    if (any(reserved.get(task)!=robot for robot,task in pairs)
+            or any(event.phase not in (
+                "p2r_intent","p2r_challenge","p2r_commit",
+                "p2r_deny","execution_announce",
+            ) for event in events)):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="validate_p2r_unique_execution",
+            category="safety",code="P2R_UNAUTHORISED_EXECUTION",
+            expected="every actual executor receives unique task-owner COMMIT "
+                     "and every physical phase is explicitly permitted",
+            actual={"reserved":reserved,"executed":executed,
+                    "phases":sorted({e.phase for e in events}),
+                    "rounds":rounds},
+        ))
+
+
+def coordinate_p2r_announced_intents(
+    *, run:P2KLocalVoteResult,cost_matrix:tuple[tuple[float,...],...],
+    votes_per_voter:int,sampler,loss_sampler,p_loss:float,
+    max_rounds:int=101,intent_repetitions:int=3,
+    decision_repetitions:int=3,announcement_repetitions:int=3,
+) -> P2RAnnouncementResult:
+    """ONE P2R task-ownership lifecycle in the existing real owner module.
+
+    This is not a second copy of P2M's CLAIM/ACK/GRANT state machine:
+    it uses public one-to-one Task Owner authorization but new
+    P2RI broadcast, contestant-only P2RH, P2RC/P2RD only where
+    physically received P2RI exists, and P2NX after actual COMMIT.
+    Only the robot's OWN P2Q private vote view can nominate a task;
+    only real owner-received intents can reserve it. Lack of a
+    response leads to repeating the SAME intent, not moving to a
+    new task (prevents multiple hidden task reservations per robot).
+    """
+    robots,tasks=validate_p2r_announcement_scope(
+        run=run,cost_matrix=cost_matrix,
+        votes_per_voter=votes_per_voter,p_loss=p_loss,
+        max_rounds=max_rounds,intent_repetitions=intent_repetitions,
+        decision_repetitions=decision_repetitions,
+        announcement_repetitions=announcement_repetitions,
+    )
+    pending=set(range(robots))
+    tried=[set() for _ in range(robots)]
+    active:dict[int,int]={}
+    seen_executing=[set() for _ in range(robots)]
+    reserved:dict[int,int]={}  # one fixed owner's irreversible reservations
+    executed:dict[int,int]={}  # only delivered authentic P2RC
+    previously_deferred=set()
+    events=[]
+    deliveries=[]
+    decisions=[]
+    finish=max(run.decision_time_ms,
+               max((e.arrival_time_ms for e in run.events),default=0.0))
+    conflicts=0
+    challenges=0
+    deferred_count=0
+    denial_receipts=0
+    retargets=0
+    received_intents=0
+    first_diagnostic=None
+    rounds=0
+    for claim_round in range(max_rounds):
+        if not pending or len(executed)>=tasks:
+            break
+        round_intents=[]
+        rounds+=1
+        for robot in sorted(pending):
+            # Actual, per-robot P2NX delivery cache only.
+            if robot in active and active[robot] in seen_executing[robot]:
+                tried[robot].add(active.pop(robot))
+            old_task=active.get(robot)
+            task=select_p2r_local_intent_task(
+                run=run,robot_id=robot,own_cost_row=cost_matrix[robot],
+                tried=frozenset(tried[robot]),
+                known_executing=frozenset(seen_executing[robot]),
+                first_attempt=robot not in active and not tried[robot]
+                              and claim_round==0,
+                active_task=active.get(robot),
+            )
+            if task is None:
+                # Incomplete is a real observable outcome, not a
+                # model-assisted search for globally unclaimed tasks.
+                continue
+            if old_task is not None and old_task!=task:
+                retargets+=1
+            active[robot]=task
+            round_intents.append(make_p2l_claim(
+                run=run,robot_id=robot,task_id=task,
+                claim_round=claim_round,votes_per_voter=votes_per_voter,
+            ))
+        if not round_intents:
+            break
+        packet_events,packet_deliveries,by_owner,peer_seen,finish=(
+            transmit_p2r_intent_window(
+                intents=tuple(round_intents),robots=robots,tasks=tasks,
+                votes_per_voter=votes_per_voter,
+                repetitions=intent_repetitions,start_ms=finish,
+                sampler=sampler,loss_sampler=loss_sampler,p_loss=p_loss,
+            )
+        )
+        events.extend(packet_events)
+        deliveries.extend(packet_deliveries)
+        received_intents+=sum(len(v) for v in by_owner.values())
+        ch_events,ch_deliveries,alerts,challenge_count,finish=(
+            transmit_p2r_conflict_challenges(
+                intents=tuple(round_intents),peer_seen=peer_seen,
+                robots=robots,tasks=tasks,start_ms=finish,
+                sampler=sampler,loss_sampler=loss_sampler,p_loss=p_loss,
+            )
+        )
+        events.extend(ch_events)
+        deliveries.extend(ch_deliveries)
+        challenges+=challenge_count
+        responses,owner_decisions,deferred,collisions=(
+            choose_p2r_owner_responses(
+                owner_receipts=by_owner,owner_alerts=alerts,
+                reserved=reserved,previously_deferred=previously_deferred,
+                robots=robots,claim_round=claim_round,
+            )
+        )
+        decisions.extend(owner_decisions)
+        conflicts+=collisions
+        deferred_count+=len(deferred)
+        previously_deferred.update(deferred)
+        response_events,response_deliveries,actual_responses,finish=(
+            transmit_p2r_owner_responses(
+                responses=tuple(responses),claim_round=claim_round,
+                robots=robots,repetitions=decision_repetitions,
+                start_ms=finish,sampler=sampler,loss_sampler=loss_sampler,
+                p_loss=p_loss,
+            )
+        )
+        events.extend(response_events)
+        deliveries.extend(response_deliveries)
+        newly_executed=[]
+        for robot,(task,committed) in sorted(actual_responses.items()):
+            if active.get(robot)!=task:
+                raise ProtocolError(Diagnostic(
+                    owner=OWNER,function="coordinate_p2r_announced_intents",
+                    category="state",code="P2R_STALE_DECISION_FOR_DIFFERENT_TASK",
+                    expected=active.get(robot),
+                    actual={"robot":robot,"decision_task":task},
+                ))
+            if committed:
+                if (reserved.get(task)!=robot or
+                        (robot in executed and executed[robot]!=task)):
+                    raise ProtocolError(Diagnostic(
+                        owner=OWNER,function="coordinate_p2r_announced_intents",
+                        category="safety",code="P2R_COMMIT_NOT_RESERVED",
+                        expected={"owner_reservation":(task,robot),
+                                  "robot_single_task":True},
+                        actual={"reserved":reserved.get(task),
+                                "robot":robot,"prior":executed.get(robot)},
+                    ))
+                if robot not in executed:
+                    executed[robot]=task
+                    newly_executed.append((robot,task))
+                pending.discard(robot)
+                active.pop(robot,None)
+            else:
+                denial_receipts+=1
+                tried[robot].add(task)
+                active.pop(robot,None)
+        announce_events,announce_deliveries,known,finish=(
+            transmit_p2r_execution_announcements(
+                newly_executed=tuple(newly_executed),
+                claim_round=claim_round,robots=robots,tasks=tasks,
+                repetitions=announcement_repetitions,
+                start_ms=finish,sampler=sampler,
+                loss_sampler=loss_sampler,p_loss=p_loss,
+            )
+        )
+        events.extend(announce_events)
+        deliveries.extend(announce_deliveries)
+        for robot,received in known.items():
+            seen_executing[robot].update(received)
+        if len(executed)>=tasks:
+            break
+    validate_p2r_unique_execution(
+        reserved=reserved,executed=executed,
+        events=tuple(events),rounds=rounds,
+    )
+    pairs=tuple(sorted(
+        ((robot,task) for robot,task in executed.items()),
+        key=lambda x:(x[1],x[0]),
+    ))
+    reserved_pairs=tuple(sorted(
+        ((robot,task) for task,robot in reserved.items()),
+        key=lambda x:(x[1],x[0]),
+    ))
+    if len(pairs)!=tasks:
+        unreached=tuple(sorted(task for task in range(tasks)
+                               if task not in reserved))
+        undelivered=tuple(sorted(task for task,robot in reserved.items()
+                                 if executed.get(robot)!=task))
+        first_diagnostic=Diagnostic(
+            owner=OWNER,function="coordinate_p2r_announced_intents",
+            category="time" if undelivered else "planning",
+            code=("P2R_COMMIT_NOT_DELIVERED" if undelivered else
+                  "P2R_INCOMPLETE_AFTER_ROUNDS"),
+            expected={"executed_tasks":tasks,"duplicated_tasks":0},
+            actual={"executed":len(executed),"reserved":len(reserved),
+                    "missing_owner_intents":unreached,
+                    "reserved_but_not_executed":undelivered,
+                    "rounds":rounds},
+            details="No silence-as-approval, no oracle task replacement.",
+        )
+    return P2RAnnouncementResult(
+        executed_pairs=pairs,reserved_pairs=reserved_pairs,
+        events=tuple(events),deliveries=tuple(deliveries),
+        rounds_executed=rounds,owner_observed_conflicts=conflicts,
+        peer_observed_challenges=challenges,
+        challenge_deferrals=deferred_count,
+        denial_receipts=denial_receipts,
+        retargeted_intents=retargets,
+        intents_seen_by_owner=received_intents,
+        decisions=tuple(decisions),
+        recipient_seen_executing_tasks=tuple(
+            tuple(sorted(known)) for known in seen_executing
+        ),
+        finish_ms=finish,first_diagnostic=first_diagnostic,
+    )
