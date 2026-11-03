@@ -134,9 +134,8 @@ class P2MTaskOwnerTests(unittest.TestCase):
             d["task"]==0 and d["reserved_winner"]==1
             for d in result.owner_decisions
         ))
-        self.assertEqual(
-            result.first_diagnostic.code,"P2M_REQUEST_ACK_LIMIT",
-        )
+        self.assertIsNone(result.first_diagnostic)
+        self.assertGreaterEqual(result.request_receipt_ack_timeouts,1)
         self.assertTrue(any(
             e.phase=="owner_request_ack" for e in result.events
         ))
