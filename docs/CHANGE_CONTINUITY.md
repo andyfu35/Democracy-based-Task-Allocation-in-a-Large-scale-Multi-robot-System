@@ -3830,3 +3830,158 @@ vote budget to test the precise number-of-voters convergence claim.
 - experiment canonical §63: 7d1ee39e95fb8cababe4605be3386bca79d13533
 - continuity SHA is represented by the immediately subsequent branch
   history commit; user's git rev-parse HEAD pins the final source.
+
+
+## 2026-11-03 — P2L original Softmax 1000-vote conflict-CLAIM ownership experiment
+
+### Purpose / bounded concern / parent
+User requests a DIRECT executable 10-seed comparison: preserve P2K's
+single original 1000-ticket Cost-Softmax P2KV broadcast and local
+receiver-vote assignment, but add a *restricted* post-Vote task CLAIM
+to resolve real duplicate claimants by normalized support and allow
+losers to reclaim otherwise unassigned tasks. Existing P2K no-claim
+and P2J Score/Commit are NOT rewritten. Independent opt-in branch
+experiment/p2l-softmax-claim-conflicts was created from
+experiment/p2k-consensus-free-local-voting after reading AGENTS.md ->
+docs/AI_CHANGE_PROTOCOL.md -> docs/CHANGE_CONTINUITY.md ->
+docs/P2K_CONSENSUS_FREE_LOCAL_VOTING.md + docs/EXPERIMENT_PROTOCOL.md §63 ->
+true original P2K coordination/optimizer and experiment owner functions.
+
+### Changed/new files, exact function/owner responsibility
+- New democracy_mrta/claim_resolution.py:
+  * validate_p2l_claim_scope: one input/data-contract boundary for
+    native P2K Cost/Vote-only evidence, ticket count, claim channels,
+    ACK limits and task scope.
+  * make_p2l_claim: derive ONLY claim sender's own received Vote support
+    numerator and total valid received original P2KV packets.
+  * encode_p2l_claim_packet / decode_p2l_claim_packet: own 28B P2LC
+    on-wire format and strict epoch/sender/task/denominator validation.
+  * encode_p2l_ack_packet / validate_p2l_ack_packet: physical 16B
+    P2AK receipt data and integrity boundary.
+  * transmit_p2l_claim_with_receipts: sole network owner for each
+    original sender-paid CLAIM broadcast, all lossy remote receipt
+    observations, every physically sent lossy ACK and bounded
+    retransmitted CLAIM. Missing ACKs after attempts produce
+    time/P2L_CLAIM_ACK_BUDGET_EXHAUSTED, not a fabricated success.
+  * resolve_p2l_claim_conflicts: exact rational own-support /
+    (tickets_per_task * received_ballots), per-task winner only
+    among decoded public CLAIMs, deterministic ties.
+  * choose_p2l_next_task: loser picks ONLY unlocked tasks from own
+    receiver-local support row, then own original Cost row and task ID.
+  * coordinate_p2l_claims: exclusive bounded synchronous CLAIM-round
+    ownership stage. Existing verified winners remain locked; losers
+    may retry. An uncertified claim round returns zero authorized
+    executed tasks (fail closed), NOT a global Cost/Vote oracle
+    completion. NO PSCR, executor Commit, Vote resends, full Score
+    publication, hidden selector or duplicate retirement state machine.
+  * P2LClaim / P2LClaimResult are immutable data evidence, not
+    a second membership machine.
+- New experiments/run_p2l_claim_conflicts.py:
+  validate_p2l_axes, compute_p2l_vote_view_similarity,
+  analyze_p2l_actual_executions, run_p2l_paired_seed,
+  summarize_p2l_rows, save_p2l_evidence, run_p2l own a single
+  paired P2K original Cost/Vote source and three counterfactual
+  experimental arms (local_only / bounded_ack / ideal_paid), correct
+  per-task total-variation Vote similarity, online/offline decision
+  separation, actual per-phase attempted SEND/Bytes including
+  failed CLAIm/ACK attempts, successful-allocation-only Global
+  Greedy cost gap, source SHA/scene and append-only raw/summary/
+  audit/manifest. Structured expected/actual/details diagnostic
+  JSON accompanies the first failed owner and error code.
+- New tests/test_p2l_claim_conflicts.py:
+  on-wire CLAIM/ACK bounds, normalized ratio vs raw-ticket reversal,
+  original plan collision resolved into unique tasks under ideal_paid,
+  per-ACK genuine sender charging at PL0, fail-closed PL100 ACK budget,
+  original Score/Commit scope rejection, partial-cost exclusion, corrected
+  Vote similarity and 1000-ticket 10-seed config gate.
+- New docs/P2L_SOFTMAX_CLAIM_CONFLICTS.md:
+  canonical P2L CLAIM wire, assumptions, failure/first owner diagnostic,
+  fairness and executable Mac test/smoke/10-seed/ZIP runbook.
+- docs/EXPERIMENT_PROTOCOL.md new §64:
+  canonical P2L protocol distinct from preserved P2K §63.
+- This mandatory docs/CHANGE_CONTINUITY.md entry.
+
+### Responsibility movement and preserved behavior
+No P2K/P2J owner responsibility moved or hidden state changed.
+The unchanged optimizer.sample_p2k_task_balanced_votes(policy=cost_softmax)
+still samples one original local-cost Softmax packet per voter; the
+unchanged coordination.simulate_p2k_local_vote_epoch still physically
+sends ONE Cost and ONE P2KV Vote under receiver Bernoulli loss,
+with independently calculated P2K receiver-local match and self-claim.
+Original P2K historical results, P2J V3 reliable PSCR/Commit/fallback
+semantics, published figures, TASK source and network model remain
+unchanged. New P2L ownership claims occur strictly AFTER P2K decision.
+
+### Intentionally changed behavior / limits
+New P2L option sends 28B initial CLAIM from each robot, including idle,
+then only unresolved/losers send further CLAIMs; tasks confirmed after
+restricted conflict comparison are retained. For 100 tasks, each
+voter has 1000 original logical tickets = ten per task, ONE
+1016B P2KV original physical SEND; no additional Vote sends.
+
+Two explicit CLAIM channel assumptions:
+1. bounded_ack (primary): each 28B CLAIM multicast and each 16B
+   peer ACK are charged and subjected to the same loss probability as
+   Cost/Vote. Up to 24 original CLAIM attempts per sender/round,
+   no magical reliable delivery. Expected remote receipt confirmation
+   is ALL peers; first failure is reported; actual execution is
+   withheld for the entire unsafe allocation, counted as incomplete.
+   This is intentionally conservative and may underperform at PL90.
+2. ideal_paid (optimistic control only): sender-paid one model-
+   reliable CLAIM multicast, no ACK; must NOT be sold as physically
+   reliable radio or fair same-loss CLAIM overhead.
+
+All P2L arms share exactly the same initial paired Cost/Vote native
+trace per (seed, loss), but claim channels are counterfactual separate
+radio continuations. The P2L CLAIM exchange assumes a synchronous
+pre-known-membership round barrier, so it is NOT strictly
+consensus-free nor a proven asynchronous safety protocol. Extra
+CPU/scheduler timing remains unmodeled as with P2K. ACK budget/liveness
+and reliable-control assumption differences MUST be disclosed.
+Default max_claim_rounds raised to 101 (to permit initial all-idle
+round plus up to 100 sequential uniquely won tasks), bounded 1..255.
+
+### Diagnostic boundary / open risks
+First-failure categories fixed to data/time/state/dependency/planning/
+safety/runtime/contract with exact owner/function/category/code.
+Examples: claim_resolution.validate_p2l_claim_scope/contract/
+P2L_INVALID_CLAIM_SCOPE; make_p2l_claim/contract/
+P2L_LOCAL_BALLOT_TOTAL_INVALID; decode_p2l_claim_packet/contract/
+P2L_RECEIVED_CLAIM_INVALID; transmit_p2l_claim_with_receipts/time/
+P2L_CLAIM_ACK_BUDGET_EXHAUSTED; resolve_p2l_claim_conflicts/safety/
+P2L_RECLAIMED_LOCKED_TASK; coordinate_p2l_claims/planning/
+P2L_UNRESOLVED_TASKS_AFTER_ROUNDS;
+experiments.run_p2l_claim_conflicts.run_p2l_paired_seed/contract/
+P2L_SOURCE_NETWORK_LEDGER_MISMATCH.
+This implementation neither proves true asynchronous distributed
+global termination detection nor models realistic correlated Wi-Fi
+burst loss, collision, multicast ACK storms, or local CPU solve cost.
+Candidate CLAIM counts are authenticated in the simulation only,
+not cryptographically verified against peer ballots. Tasks are all
+generalist and capacity-one; heterogeneous robot capability remains
+outside the experiment. High PL may fail closed after expensive ACK
+attempts. The baseline arm may contain actual conflicting self-claims;
+P2L records them as genuine, not a fabricated valid allocation.
+
+### Test state / next step / code SHA
+GitHub connector wrote and read back P2L code, tests, canonical doc,
+but an independent clone/compile/unittest/real smoke/formal execution
+has NOT been completed in the current execution environment.
+The user must run focused P2L, original P2K and full unittest; then
+2-seed 0/30/90 smoke (18 rows) and 10-seed 0/30/50/90 study
+(120 rows, 12 summary groups) on Mac. Bring first traceback on failure,
+or original per-seed/summary/config/manifest/log ZIP on completion;
+publish no performance claim before raw data validation.
+
+- original P2L claim owner SHA: 4d050703b1a0faa923f066ddcc71f110675508a6
+- paired experiment owner SHA: 4b5e775378eb4ae389a021b4eef3ce56e645e64e
+- raw Temperature field correction SHA: 0bd6e528b1d64fa6675e12e77076bce413a0d40d
+- focused P2L test owner SHA: 8c2d2dfb174f5054a2e5b9472c2042199ef076cb
+- initial P2L canonical/runbook SHA: 2a410f0ca488e1df9dd943666e0d965ac4fa72ce
+- formal canonical §64 SHA: 5459faaf5426aa82c034dc1e4e30c400546dc28c
+- worst-case round limit claim SHA: 4ce345e7d31e39c0bb42d1f947abc993dd565973
+- worst-case round limit runner SHA: 5d11d54f1c404d3d379f4c3e908cee6458404dd4
+- updated Mac runbook SHA: 5c7694ce69f7da3c57ec6cef7df3ab040683d697
+- structured diagnostic raw JSON SHA: 0ec78942edfb3e3bdd12f95d25a298738816b5dd
+- this continuity record's own SHA follows as the next branch history
+  commit; the user's git rev-parse HEAD is final evidence source.
