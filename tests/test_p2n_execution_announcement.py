@@ -142,6 +142,33 @@ class P2NExecutionAnnouncementTests(unittest.TestCase):
                  if sender==robot}
             self.assertEqual(set(tasks),own)
 
+    def test_reserved_but_lost_grant_never_generates_executing_announcement(self):
+        class DropRemoteGrantAndDeny:
+            def is_delivered(self,key,p_loss):
+                return "|owner_decision|" not in key
+
+        result=self.run_owner(loss_sampler=DropRemoteGrantAndDeny(),loss=0.30)
+        # T0 is irrevocably reserved to R1, but R1's owner GRANT
+        # never reaches R1. Reservation alone MUST NOT generate P2NX.
+        self.assertIn((1,0),result.reserved_pairs)
+        self.assertNotIn((1,0),result.executed_pairs)
+        self.assertNotIn((1,0),result.announced_executions)
+        self.assertEqual(
+            set(result.announced_executions),set(result.executed_pairs),
+        )
+        self.assertEqual(
+            sum(e.phase=="execution_announce" for e in result.events),
+            len(result.executed_pairs)*3,
+        )
+        self.assertTrue(all(
+            (e.sender_id,e.task_id) in result.executed_pairs
+            for e in result.events if e.phase=="execution_announce"
+        ))
+        self.assertEqual(
+            len({task for _r,task in result.executed_pairs}),
+            len(result.executed_pairs),
+        )
+
     def test_every_recipient_cache_equals_only_its_actual_receipts(self):
         result=self.run_owner(loss=0.50)
         for robot in range(3):
