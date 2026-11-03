@@ -119,6 +119,9 @@ select_p2m_local_request_task, coordinate_p2m_task_owners.
 - P2M_REQUEST_ACK_LIMIT: time, request receipt ACK not received;
   if owner received the actual CLAIM, subsequent owner response may
   still resolve it (ACK receiver outcome is NOT exposed to owner)
+  Successful subsequent GRANT/DENY clears this from terminal allocation
+  failure; the event is counted separately as
+  request_receipt_ack_timeouts (nonterminal network warning).
 - P2M_DECISION_DELIVERY_LIMIT: time, owner decision not delivered
 - P2M_UNAUTHORISED_OWNER_DECISION: contract, wrong owner/stale decision
 - P2M_TASK_OWNER_NO_UNIQUE_WINNER: contract, invalid owner arbitration
