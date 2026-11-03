@@ -3718,3 +3718,115 @@ Native three-way pairing = 0..90% loss step10 x 100 seeds x 3 arms = 3,000 fresh
 ## 2026-10-22 — Hsien-Te Methods official name and Figure2 source audit (documentation only)
 
 User names P2J-v3 `probabilistic_complete_fallback` **Hsien-Te Methods** for scientific publication. Changed docs/P2J_V3_COMPLETION_FALLBACK.md (display title and formal ZIP outcome), docs/EXPERIMENT_PROTOCOL.md §62 (canonical name-to-original-mode alias) and this continuity entry. P2J-v3 original runtime source SHA `33bd5f771b347365d768890ea71e87f0c1e7c6a3`, original manifest/raw IDs and all actual owner functions `optimizer.sample_probabilistic_pair_votes`, `coordination.resolve_dynamic_probability_margin_winners`, `coordination.complete_unassigned_score_matching`, `experiments.run_p2j_probabilistic_batch.run_one_p2j_case` are **unchanged**. No hidden Cost, duplicate matching state, modified sender/Score/Commit semantics, or retuned votes. The ZIP SHA256 `9839901650acc1d2feba0a14158a55c1211796a486bfc6c2d5fd9c8ac358e710` has 3,000 actual native paired cases, 30 cohorts and 1,000/1,000 complete Hsien-Te native task allocations. Main Figure2 (new five-series SVG, CSV, audit, bilingual README) publication commit `c7f8876c6c6e332423590d8a38b1244bb5e937b7`, archival four-series artifact retained. PL30 −6.0133% cost and 2.1393s/142.47kB; PL90 +35.6531% and 2.1497s/133.62kB. Valid only under E0 100 generalist robots/100 tasks, reliable paid Score/Commit, and modeled RF timing excluding solver CPU; CBAA native stopping semantics and baseline cohorts differ. The original owner/function/category/code/expected/actual/details diagnostics, fixed data/time/state/dependency/planning/safety/runtime/contract categories and 100-vote stochastic policy remain unchanged. Source docs-only commits `0130cae0f2a5d4899c7a20edaf7bb24a6c337735` and `eab0949d3102a891380ba3b147d64098871b0756`; this third continuity commit is recorded by Git history. No new executable tests or formal runs were made by renaming. Next: use main publication, keep original experiment source SHA for reproducibility.
+
+
+## 2026-11-03 — P2K receiver-local no-consensus vote experiment (opt-in branch)
+
+### Purpose and isolated concern
+Test the user's statistical hypothesis: with 100 robots voting 100/200/500/1000
+tickets from only locally received costs, different receiver-side Vote loss
+may still produce highly similar local maximum-cardinality assignments.
+Separate new branch experiment/p2k-consensus-free-local-voting rooted at
+P2J-v3 commit 9287676a0aa22f4932d119ae9ed3a54b7a5dce3b.
+P2J V3's reliable PSCR/Commit is deliberately NOT invoked in P2K.
+
+### Files / exact owners / named functions
+- democracy_mrta/optimizer.py:
+  sample_p2k_task_balanced_votes owns seeded pure local visible-cost
+  sampling, approximate top-K perturb-and-MAP assignment proposals,
+  proposal-cost softmax and task-balanced tickets. No hidden Cost row.
+- democracy_mrta/coordination.py:
+  validate_p2k_local_scope owns input/MTU scope;
+  encode_p2k_vote_packet / decode_p2k_vote_packet own new separate compact
+  P2KV wire, retaining legacy PVOT intact;
+  collect_p2k_local_vote_views owns each receiver's actual delivered and
+  timely ballot tally using original network event/loss functions;
+  resolve_p2k_local_assignment owns private positive-edge capacity-one
+  maximum-cardinality matching and vote objective;
+  simulate_p2k_local_vote_epoch owns original one Cost and one Vote
+  per robot runtime, emits no PSCR/Score/Commit, returns only private
+  tentative assignments and own claims for offline audit.
+  P2KLocalVoteResult is immutable returned evidence, not a new state machine.
+- experiments/run_p2k_consensus_free.py:
+  validate_p2k_config, run_one_p2k_case, analyze_p2k_local_claims,
+  summarize_p2k_rows, save_p2k_results, run_p2k own independent
+  experiment axes, owner read-only contract tests, collision/missing
+  metrics and source-hash-pinned per-seed CSV, audited JSONL, summary CSV,
+  run configuration and manifest. Uses actual existing TASK wire with
+  the existing hypothetical 144 Mbps Rady-based shared medium.
+- tests/test_p2k_consensus_free.py:
+  reproducing local tickets, exactly-500 P2KV packet, visible-row
+  restriction, zero-loss receiver agreement, lossy independent views,
+  collision/missing observer-only nonrepair, config/MTU scope.
+- docs/P2K_CONSENSUS_FREE_LOCAL_VOTING.md:
+  new canonical runbook and model assumptions.
+- docs/EXPERIMENT_PROTOCOL.md §63:
+  P2K opt-in formal canonical contract.
+- docs/CHANGE_CONTINUITY.md:
+  this change record. No existing README figures are republished.
+
+### Responsibility / behavior
+No responsibility migrated from P2J V3. P2K is an experimental new
+selection policy and receiver-local decision path which shares the
+original Cost send/loss, original TASK dissemination, and original
+packet scheduling; it never replaces other owners. The sole deliberately
+changed behavior relative to P2J is to eliminate reliable candidate
+Score/Commit/repair and let each robot select only the task assigned to
+itself by its own actually received Vote batches. Cost preprocessing
+introduces optimization-guided candidate probability, compared against
+a no-consensus task-cost Softmax control with identical P2KV transport.
+V3's PVOT<=255 and Score/Commit/positive-score fallback remain unchanged.
+P2K proposal alternatives are approximate perturb-and-MAP, not an
+exact K-best proof. P2KV at 500 tickets/100 tasks is one 516B sender
+packet; all send attempts are counted. TASK reliability remains an
+explicit paid protocol assumption. CPU optimization time is NOT
+represented in modeled network stop time.
+
+### First failure and diagnostics
+Categories remain data/time/state/dependency/planning/safety/runtime/
+contract. P2K first structured errors include:
+- optimizer/sample_p2k_task_balanced_votes/data/P2K_INVALID_LOCAL_VOTE_POLICY
+- optimizer/sample_p2k_task_balanced_votes/planning/P2K_NO_VISIBLE_PROPOSAL
+- optimizer/sample_p2k_task_balanced_votes/contract/P2K_TICKET_TOTAL_MISMATCH
+- coordination/validate_p2k_local_scope/data/P2K_INVALID_EXPERIMENT_SCOPE
+- coordination/encode_p2k_vote_packet/data/P2K_BAD_PACKET_INPUT
+- coordination/decode_p2k_vote_packet/contract/P2K_INVALID_RECEIVED_BALLOT
+- coordination/collect_p2k_local_vote_views/contract/P2K_BALLOT_COUNT_MISMATCH
+- coordination/resolve_p2k_local_assignment/data/P2K_INVALID_LOCAL_VOTE_MATRIX
+- coordination/simulate_p2k_local_vote_epoch/safety/P2K_UNEXPECTED_WIRE_OR_CLAIM
+- experiments.run_p2k_consensus_free/run_one_p2k_case/contract/
+  P2K_FORBIDDEN_RELIABLE_SCORE_COMMIT
+- experiments.run_p2k_consensus_free/run_one_p2k_case/contract/
+  P2K_NETWORK_LEDGER_MISMATCH
+
+### Verification / open risks
+Source written and inspected via GitHub connector; isolated environment
+cannot clone GitHub via container network, so local Python compilation,
+unittest smoke and 100-seed formal are NOT claimed executed. The user's
+Mac MUST run focused P2K and original P2J/full tests, followed by
+12-case smoke before any formal 4000-case run. Report first traceback
+without masking failures. Important research risks: unreliable Vote
+views can yield divergent assignments, duplicated/missing task claims;
+large-scale local per-voter Hungarian computations have unmodeled CPU
+time; receiver-level independent Bernoulli loss does not model burst
+loss; a single P2KV packet remains subject to packet-level delivery.
+Full-matrix local agreement is diagnostic, not physical consensus;
+full-cost gap exists only for complete collision-free claims.
+Data audit defaults to only first seed per cohort to limit huge JSONL.
+
+### Next step
+Run local tests and 100R100T smoke, examine first failing owner if any;
+run 100-seed formal only if verified. Return fresh raw/summary/manifest
+ZIP for independent audit. Later compare robot count grid at fixed
+vote budget to test the precise number-of-voters convergence claim.
+
+### Code / test / specification commit SHA
+- optimizer local sampler: 266b883acede01dd71fd43fa4cb2bf2fd0dd5ec7
+- coordination physical receiver-local actor: 69c7c1d670f0518dedbf3273f14eff074e34389b
+- experiment runner: 0e5109e093a7d53ad2be3c5fc83ddb0e578d9c5b
+- focused test source: a1d1f7f610e757d372e9d7b7c7f1c482c5498748
+- standalone test import fix: d7828ee836e42d0b55b9f8f804af3eecc9467776
+- detailed runbook: 6c651ff6d8ef2274d4894f83bae8ea0aad8b8a00
+- experiment canonical §63: 7d1ee39e95fb8cababe4605be3386bca79d13533
+- continuity SHA is represented by the immediately subsequent branch
+  history commit; user's git rev-parse HEAD pins the final source.
