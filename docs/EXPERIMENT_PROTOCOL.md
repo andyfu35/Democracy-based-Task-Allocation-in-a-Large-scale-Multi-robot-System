@@ -2452,3 +2452,70 @@ fail. The single-method formal exploratory axis is 100R100T,
 older-arm comparisons. Do focused P2M regression + six-case smoke
 before the ten-seed run. GitHub commits alone do not establish
 local test pass or performance claims.
+
+
+## 66. P2N post-GRANT repeated EXECUTING announcement (2026-11-03)
+
+This opt-in protocol retains exact P2M (§65) initial Task/Cost/Vote,
+cost-softmax 1000-ticket P2KV 1016B original one-send-per-robot
+contract and fixed owner(task) = task_id % robots. It adds ONLY
+20B P2NX EXECUTING broadcast after an actually delivered owner GRANT,
+three physically attempted copies per executed task. A P2NX is
+advisory occupancy metadata, NEVER another Grant, global Score,
+reliable Commit, completion proof, or release of an owner reservation.
+No old-method arms are executed in P2N research, including no
+separate P2M baseline run. Full specification, diagnostic matrix
+and standalone Mac 10-seed instructions are in
+docs/P2N_EXECUTION_ANNOUNCEMENT.md.
+
+P2NX is little-endian 4sIIII (20 bytes): tag P2NX, original claim
+round, executor sender ID, task ID and fixed task owner ID.
+Only a robot physically receiving owner GRANT emits a P2NX.
+Each original send is charged even if all recipients drop it;
+each remote receiver independently delivers/drops copies 0/1/2
+under the same per-recipient Bernoulli p_loss as original Cost
+and Vote, keyed by sender, task, receiver, epoch and copy.
+Only a genuinely delivered and validated P2NX changes that
+recipient's OWN known_executing_tasks set, deduplicated by task.
+Sender knows its own executing task locally, without self-radio SEND.
+
+For the NEXT task selection by an unresolved robot, only personally
+denied task IDs and personally received EXECUTING task IDs are excluded
+from its OWN original vote-support+own-Cost preferences. A missing
+P2NX is not proof that a task is free, and even an unknown occupied
+task can still be requested: its original unique fixed owner
+must still DENY. No global reservation set, hidden Vote samples,
+global score fallback, all-peer ACK or second membership state.
+If owner GRANT does not physically arrive, its task stays reserved
+and unexecuted, and NO EXECUTING announcement is generated;
+the protocol favors safety over fault-tolerant liveness.
+
+The true original owner democracy_mrta.claim_resolution
+coordinate_p2m_task_owners accepts optional
+execution_announce_repetitions=0 (P2M default preserved)
+or 1..5 (P2N uses exactly 3), invoking separate exact
+validate_p2n_announcement_repetitions, encode/decode_p2n_
+execution_announcement, transmit_p2n_execution_announcement.
+select_p2m_local_request_task only optionally excludes actually
+received known-executing IDs. Original P2M wire/CSV/runtime stays
+unchanged by default. Experiment source owner
+experiments.run_p2m_task_owner.run_one_p2m_case adds new phase
+accounting only for P2N opt-in. Dedicated runner
+experiments.run_p2n_execution_announcement reports only P2N
+results, not old alternatives, with first owner/function/category/code
+diagnostics and complete real P2NX receiver observations in audit JSONL.
+
+Application payload bound: with 100 tasks granted, each executor
+sends 3*20B; 100*60=6,000 sender application Bytes.
+Per-recipient independent three-copy receipt probability is 1-p^3
+(97.3% at 30% PL and 27.1% at 90% PL), not universal delivery
+and not physically verified Wi-Fi reliability. Same existing Rady
+shared 144Mbps Wi-Fi 6 proxy and missing CPU-time caveat.
+Protocol does not guarantee asynchronous consensus/termination.
+Safety tests must verify no duplicate granted executor/task,
+no announcement before GRANT, no fabricated local knowledge
+from lost broadcasts, no free transmissions, and no P2M
+default changes. Default 100R100T, 1000 votes, losses
+0/30/50/90%, seeds0..9 and 3 announcements = 40 NEW-method
+cases, with 6-case focused smoke. The first local traceback
+must be diagnosed before formally interpreting new results.
