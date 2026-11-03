@@ -856,7 +856,8 @@ def coordinate_p2m_task_owners(
         next_pending=set()
         for task,claims in sorted(inbound.items()):
             owner=p2m_task_owner_id(task_id=task,robots=robots)
-            if task not in reserved:
+            previously_reserved=(task in reserved)
+            if not previously_reserved:
                 winners,losers,collision=resolve_p2l_claim_conflicts(
                     claims=tuple(claims),locked_tasks=frozenset(),
                 )
@@ -880,8 +881,7 @@ def coordinate_p2m_task_owners(
                      "tickets_per_task":c.tickets_per_task}
                     for c in claims
                 ],"reserved_winner":winner,
-                "already_locked":task in reserved and winner not in
-                    tuple(c.robot_id for c in claims),
+                "already_locked":previously_reserved,
             })
             for claim in claims:
                 granted=(claim.robot_id==winner)
