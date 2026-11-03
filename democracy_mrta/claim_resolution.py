@@ -48,6 +48,7 @@ class P2LClaimResult:
     conflict_task_rounds: int
     reassignment_claims: int
     initial_collision_tasks: int
+    public_claims: tuple[P2LClaim, ...]
     finish_ms: float
     first_diagnostic: Diagnostic | None = None
 
@@ -370,6 +371,7 @@ def coordinate_p2l_claims(
     pending = set(range(robots))
     events: list[CommunicationEvent] = []
     deliveries: list[DeliveryObservation] = []
+    certified_claims: list[P2LClaim] = []
     clock = max(run.decision_time_ms,
                 max((event.arrival_time_ms for event in run.events), default=0.0))
     rounds = 0
@@ -411,6 +413,7 @@ def coordinate_p2l_claims(
         rounds += 1
         if first_error is not None:
             break
+        certified_claims.extend(public_claims)
         winners, losers, new_conflicts = resolve_p2l_claim_conflicts(
             claims=tuple(public_claims), locked_tasks=frozenset(locked),
         )
@@ -444,5 +447,6 @@ def coordinate_p2l_claims(
         rounds_executed=rounds, conflict_task_rounds=conflict_task_rounds,
         reassignment_claims=reassignment_claims,
         initial_collision_tasks=initial_conflicts,
+        public_claims=tuple(certified_claims),
         finish_ms=clock, first_diagnostic=first_error,
     )
