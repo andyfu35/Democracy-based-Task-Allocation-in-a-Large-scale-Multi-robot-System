@@ -3985,3 +3985,30 @@ publish no performance claim before raw data validation.
 - structured diagnostic raw JSON SHA: 0ec78942edfb3e3bdd12f95d25a298738816b5dd
 - this continuity record's own SHA follows as the next branch history
   commit; the user's git rev-parse HEAD is final evidence source.
+
+
+### 2026-11-03 — P2L source-audit closeout (same bounded claim concern)
+To independently inspect the claimed support used by public conflict
+arbitration, the true original claim owner
+claim_resolution.coordinate_p2l_claims now retains ONLY authenticated-in-
+model fully certified PUBLIC P2LClaim packet fields in immutable
+P2LClaimResult.public_claims; it does not merge private Vote matrices
+or change winner policy, network loss, retry limits, fallback or
+default no-Score/Commit behavior. The experiment evidence owner
+run_p2l_paired_seed serializes source-sender own receiver-local support
+rows, valid received original ballot counts, and those certified public
+CLAIM records for the first audit seeds. The test owner
+tests/test_p2l_claim_conflicts.py regression requires the loser re-CLAIM
+to appear as the fourth published record in a 3R/3T controlled example.
+The P2L runbook explains that this is OFFLINE evidence only. No
+diagnostic contract category, code or routing behavior changed; first
+failed expected/actual/details remain accessible in
+claim_diagnostic_json. Historical P2K/P2J unchanged.
+
+Claim trace owner SHA 3136934017a2a3edf95aa88ef067d75d79d21659;
+experiment audit SHA 73e6a5c4aac53cd8bb24cc4c22cc204a42218dd7;
+focused regression SHA 0db4f1602f5cba67d9c1b70cf71647fb26c2cc2e;
+runbook audit description SHA b26442cc8f2cc485accc6a1592232b6223680763.
+The next continuity commit pins these edits in the same branch history.
+Local Python compilation, unit/smoke and 10-seed findings are still NOT
+claimed verified. Next action remains Mac test/smoke followed by 10 seeds.
