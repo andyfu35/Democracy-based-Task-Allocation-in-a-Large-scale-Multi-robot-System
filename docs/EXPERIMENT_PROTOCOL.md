@@ -2291,3 +2291,91 @@ source edits are not proof that local Mac testing passed. Formal grid:
 with only the first configured audit seeds retaining full per-robot
 vote matrices to control storage. No published completion guarantee
 under arbitrary packet loss is claimed.
+
+
+## 64. P2L 1000-ticket Softmax plus conflict-only CLAIM (2026-11-03)
+
+### Scope and matched native policies
+This opt-in P2L protocol follows P2K §63 and changes ONLY the
+post-local-decision ownership step. The original P2K 1000-ticket
+per-task Softmax with tau=5.0 is used: each voter sends ONE 1016B
+P2KV vote (100 tasks x10 tickets, plus 16B header), after ONE original
+cost broadcast. Cost and Vote use independent per-receiver Bernoulli
+loss and existing native owner and Wi-Fi timing. No PSCR Score, no
+global Vote matrix, no original reliable executor Commit, no hidden
+cost/Score winner repair. TASK dissemination remains the same initial
+sender-paid model-reliable source assumption as P2K.
+
+Three paired arms share EXACTLY the same native original Cost/Vote
+SENDs and per-robot receiver-local votes for each (scene, seed, loss):
+- local_only: each robot executes just its own tentative local match,
+  including real collisions and missed tasks, without any final message;
+- bounded_ack: all robots send 28B original CLAIM (including explicit
+  idle); only losers/idle propose additional 28B CLAIM in further
+  local ownership rounds. Each CLAIM broadcast and 16B per-recipient ACK
+  independently drops with the same p_loss. Repeated original CLAIM
+  copies are limited by max_attempts=24; all original physical SEND,
+  including duplicates, lost CLAIMs and lost ACKs, are sender-charged.
+  Sender must ACK-confirm every remote receiver; if any expected claim
+  cannot be certified, the method fails closed (zero authorized
+  executions) and records explicit time/P2L_CLAIM_ACK_BUDGET_EXHAUSTED.
+- ideal_paid: one sender-paid, assumed guaranteed-delivered CLAIM per
+  sender/round, no ACK/retries. This is an idealized reliability
+  sensitivity/upper-bound control; comparing this to the realistic
+  lossy arm without disclosing different channel assumptions is invalid.
+
+### Self-reported ratio and restricted conflict negotiation
+P2LC fields are round/robot/task-or-idle/support_count/valid_received_
+ballot_count/tickets_per_task. Each CLAIM may reveal ONLY the sending
+robot's own support for its own proposed task and original Vote-receipt
+count, NOT other candidates' private views or full Cost/Score matrices.
+
+For task j and claiming robot r, normalized support is
+
+    S_rj = V^(r)[r,j] / (B_j * N_r), with B_j = 10
+
+where N_r counts the actual original Vote batches received by robot r,
+including its own timely batch. Compare exact rational fractions
+(N_r=0 implies score 0), then tie-break by larger raw support,
+larger N_r and smaller robot ID. One winning robot per contested task
+is publicly confirmed when expected CLAIMs are certified. Winners keep
+their previously locked tasks. Only losing/idle robots can claim a
+remaining unclaimed task in the next round, prioritizing their own
+received Vote support, then their OWN known task Cost and task ID.
+No global reoptimization against a single merged Score matrix exists.
+
+The owner claim_resolution.coordinate_p2l_claims exclusively owns the
+bounded claim-round coordination; it does not add another retirement
+membership state machine. transmit_p2l_claim_with_receipts owns real
+lossy original CLAIM/ACK transmissions; make_p2l_claim owns private
+candidate-local evidence; resolve_p2l_claim_conflicts owns public
+conflict arbitration; choose_p2l_next_task owns local loser planning.
+Original coordination.simulate_p2k_local_vote_epoch and
+optimizer.sample_p2k_task_balanced_votes are unchanged. Source-specific
+errors identify owner/function/category/code, plus expected/actual/details.
+
+**Safety assumption:** These P2L rounds are synchronized by a public
+round barrier and a pre-known robot roster. ACK-confirmation of every
+claimant's expected messages establishes a common claim transcript in
+the model, but this is a restricted *agreement* mechanism, NOT literally
+zero consensus or a proof of fault-tolerant asynchronous execution.
+If any required claim fails ACK/retransmission budget, all task
+executions for that P2L arm are withheld (fail closed), and the outcome
+remains incomplete. CPU solver computation is unmodeled, and no live RF
+or 802.11 MAC ACK correctness is claimed.
+
+### Evidence and runbook
+See docs/P2L_SOFTMAX_CLAIM_CONFLICTS.md for on-wire schema, three matched
+arms, per-seed raw/summary/audit evidence, exact Mac commands,
+first-diagnostic boundaries, retry/round cap and cost reference.
+Offline Global Greedy cost gap is emitted only for 100% valid task
+execution. Claim broadcast/ACK physical send counts and Bytes are separate
+and INCLUDE physical attempts that failed to arrive. Full allocation
+success is never inferred from high tentative local-view agreement.
+
+First 10-seed experiment is 100R100T, loss=0/30/50/90%, B=1000,
+3 arms=120 P2L per-seed rows. A 2-seed 0/30/90 smoke and focused/full
+unit regressions are required before interpreting experimental evidence.
+Source-only GitHub commits are NOT execution evidence; local tests
+and 10-seed outcomes remain pending until the operator runs them.
+Historical P2K and P2J figures, protocol and raw evidence are unchanged.
