@@ -4448,3 +4448,220 @@ Test source commit SHA: db7caf68b5aa53112d805deea0490bddb477ba69.
 Continuity SHA is recorded by the next Git commit.
 Remaining risk is unchanged: focused tests, native smoke and
 10-seed results need actual Mac execution before claiming success.
+
+
+## 2026-11-03 — P2O causal parallel owner transport, one concern
+
+### User need and evidence
+User asked why P2N modeled 24.91s at PL0 and 40.70/75.07/258.44
+seconds at PL30/50/90, and authorized trying the previously
+proposed timing fix. Existing true owner
+claim_resolution.coordinate_p2m_task_owners uses one common
+clock, each robot's transmit_p2m_owner_request/decision
+runs through an entire ACK/retry exchange BEFORE the
+next independent robot may send. This falsely serializes
+independent application-level END-TO-END waiting in addition
+to the existing shared-medium physical radio. Also, a
+robot that actually receives GRANT cannot announce its
+execution until its owner's final ACK process returns.
+
+### Required reading and scope
+Read in order AGENTS.md, docs/AI_CHANGE_PROTOCOL.md,
+docs/CHANGE_CONTINUITY.md; canonical
+docs/P2N_EXECUTION_ANNOUNCEMENT.md,
+docs/P2M_TASK_OWNER_ARBITRATION.md and
+docs/EXPERIMENT_PROTOCOL.md §§65–66; actual
+claim_resolution owner and the exact
+coordinate_p2m_task_owners,
+transmit_p2m_owner_request,
+transmit_p2m_owner_decision,
+transmit_p2n_execution_announcement,
+select_p2m_local_request_task functions,
+original coordination._unicast_event/_broadcast_event/
+_lossy_unicast_delivery/_lossy_broadcast_deliveries,
+network.WifiCausalTimingSampler.sample_packet_ms,
+and native experiments.run_p2m_task_owner.run_one_p2m_case.
+
+This change is one TIMING SCHEDULING concern in the
+existing true task-claim owner, not a new task optimizer,
+winner/retirement state machine or extra reliable messages.
+Branch experiment/p2o-causal-owner-timing from
+experiment/p2n-execution-announcement.
+
+### True owners, files, exact named functions
+- democracy_mrta/claim_resolution.py:
+  * P2OExchangeWindow is an immutable physical observation/timing
+    bundle, not a second task allocation state machine.
+  * validate_p2o_timing_scope: validates explicit positive finite
+    retry_timeout_ms, start_ms, unique candidate plans, max attempts,
+    and request-vs-decision phase, diagnostic
+    time/P2O_INVALID_TEMPORAL_SCOPE.
+  * encode_p2o_exchange_payloads: preserves ORIGINAL unaltered
+    P2LC 28B, P2AK 16B, P2MD 20B, P2MA 16B encoders, diagnostic
+    data/P2O_CANNOT_SEND_IDLE_CLAIM.
+  * validate_p2o_received_payload: checks genuine received
+    bytes with original P2M decoders before applying claim or
+    grant, diagnostics contract/P2O_RECEIVED_CLAIM_CHANGED
+    and P2O_RECEIVED_GRANT_CHANGED.
+  * schedule_p2o_exchange_window: a reusable one-round PHYSICAL
+    temporal event queue only. Schedules all independent sender
+    CLAIM/GRANT releases at the same round start, original shared
+    Wi-Fi sampler sequentializes only actual physical SENDs,
+    ACKs arise only from actually delivered request/decision;
+    per-sender retries are enqueued at send_release+fixed timeout
+    and capped at max_attempts; source-code loss keys/packet schemas
+    and failed attempt Bytes retained. Upon FIRST physically
+    received GRANT, original 3 P2NX notice SENDs are immediately
+    enqueued, independently lossy; owner continues any legitimate
+    final ACK recovery but does not delay robot execution.
+    First-failure diagnostics time/P2O_NONCAUSAL_EVENT_TIME,
+    time/P2O_EVENT_ORDER_REVERSED,
+    contract/P2O_DECISION_ACK_INVALID,
+    runtime/P2O_UNKNOWN_EVENT_KIND,
+    safety/P2O_UNAUTHORIZED_ANNOUNCEMENT.
+    It does NOT compute winners, transfer votes, replan tasks,
+    retire robots, look at global Cost or lock owner tasks.
+  * validate_p2o_announcement_receipts: verifies a physically
+    received unique GRANT behind each originally attempted
+    EXECUTING P2NX notice, then applies receiver-specific
+    original P2NX success to THAT robot's private task-occupied
+    advisory set only. Never consults global locks for planning;
+    diagnostics safety/P2O_NOTICE_WITHOUT_DELIVERED_GRANT,
+    contract/P2O_INVALID_NOTICE_RECEIVER.
+  * coordinate_p2m_task_owners: the ONE unchanged functional
+    task owner now accepts timing_mode=serial (default) or
+    causal, retry_timeout_ms=100.0 for P2O. The SAME original
+    vote/local choice, owner task ID map, per-task normalized
+    winner, irrevocable reservation, GRANT safety, candidate
+    DENY-only retries, same round maximum and no global
+    occupancy oracle are preserved. Opt-in causal mode uses
+    two physically event-scheduled windows per original owner
+    round (all REQUEST contenders, then all owner DECISIONS)
+    and consumes only those physical results; old serial code
+    remains default for historical studies. First failures
+    time/P2O_REQUEST_NOT_DELIVERED or
+    time/P2O_OWNER_DECISION_NOT_DELIVERED include exact
+    robot/task/attempts/timeout. It records phase window
+    durations, last FIRST delivered GRANT time, timeout
+    diagnostic spans and real protocol-end clock.
+  * P2MTaskOwnerResult adds defaulted, immutable extra
+    time observations; does not replace old result contract.
+- experiments/run_p2m_task_owner.py:
+  run_one_p2m_case adds optional timing_mode and
+  retry_timeout_ms forwarding to original true owner.
+  Only when causal, emits P2O_EXTENSION_FIELDS and
+  detailed original physical control event/recipient
+  delivery audit; for all historical omitted kwargs
+  it keeps original exactly P2M/P2N CSV schema and
+  original serial chronology. No new logic to
+  recompute assignment or repair owner outcome.
+- NEW experiments/run_p2o_causal_owner_timing.py:
+  validate_p2o_axes, run_p2o, summarize_p2o_rows,
+  save_p2o_evidence own ONLY new P2O 100R100T,
+  1000-ticket Cost Softmax, 3 P2NX, explicit
+  retry_timeout_ms=100, max_attempts=24, 101 owner
+  rounds, loss0/30/50/90, first ten Seeds, 40
+  new native scenario cases (no old arms).
+  Full independent raw/per-seed/summary/audit/config/
+  source SHA/scene SHA/file SHA256 manifest and
+  modeled timeline breakdown.
+- NEW tests/test_p2o_causal_owner_timing.py:
+  small actual shared-radio timing sampler; validates
+  all 3 remote candidates can release concurrently,
+  3xP2NX at FIRST actual GRANT even when decision ACKs
+  repeatedly drop; no EXECUTING when reserved GRANT
+  did not arrive; no phantom occupancy on lost
+  broadcast; real received CLAIM considered even
+  if outgoing receipt ACK lost; malformed retry
+  timeout diagnostic and single-method runner.
+- NEW docs/P2O_CAUSAL_OWNER_TIMING.md: canonical
+  timing specification, measurement boundaries and
+  exact Mac targeted tests/smoke/formal runbook.
+- docs/EXPERIMENT_PROTOCOL.md §67: new global canonical.
+- docs/CHANGE_CONTINUITY.md: this mandatory record.
+
+### Preserved / intentionally changed
+Preserved: original B1000 Cost-Softmax one Cost and one
+1016B P2KV physically sender-paid broadcast per robot;
+TASK startup modeled reliable, same receiver loss;
+no PSCR/full-global Score/Commit; unchanged exact
+28/16/20/16 owner control bytes, 3x20B EXECUTING
+only on actually received owner GRANT, fixed
+owner(task)=task%robots, same vote-support ranking and
+one robot per task+one task per robot; old
+P2M/P2N serial mode default and canonical/raw
+evidence remain untouched. No CBAA/CBBA or older
+methods are run in this new experiment.
+
+Intentionally changed: when timing_mode="causal"
+independent contenders start in parallel as physical
+SEND release events, while ORIGINAL 144Mbps shared
+radio still has one serialized physical service.
+A physical receipt causes ACK at actual receipt
+time; each sender independently starts same-payload
+retry on an EXPLICIT 100ms timeout, not on imagined
+dropped-packet arrival. No synthetic successful
+ACK. When a GRANT is physically received, that
+robot's first executable time is recorded immediately,
+and its original 3 P2NX SENDs are scheduled at
+that time instead of after the final ACK drain.
+The owner still retries its identical GRANT if
+ACK lost (up to 24), keeping the task irrevocably
+reserved. Therefore measured completion/Bytes/cost
+CAN change under newly timed physical retries;
+no identical-result or 100%-completion claim
+is made before local execution.
+
+### Diagnostic contract, risk and next steps
+All categories remain data/time/state/dependency/planning/
+safety/runtime/contract, with owner/function/category/code/
+expected/actual/details. The first actual failed
+physical owner request/decision boundary is recorded
+instead of faking a globally complete allocation.
+Synchronous known-roster round barriers still exist
+(this is NOT fully asynchronous fault-tolerant MRTA).
+100ms retry timer is a new study assumption, NOT
+calibrated Rady/802.11 MAC timer. Communication
+model is Rady residual + causal single-shared-medium
+hypothetical 144Mbps proxy without real RF collisions,
+OFDMA, per-peer queues or correlated wireless loss.
+CPU planning runtime is not included. If a robot
+receives neither request confirmation nor final
+decision its task remains safely incomplete; a
+lost GRANT can cause irrevocable reservation
+without execution. Sender attempted Bytes count
+all lost control/announcement copies. Timeouts
+wait relative to physical SEND release (not
+full network Round-Trip-Time measurement).
+Native stop and first delivered GRANT are distinct.
+
+GitHub source commits do not prove Python imports,
+unit tests or simulation pass. Container cannot
+resolve github.com; operator must locally run
+P2O-only compile/targeted tests and 6-case smoke
+before new-method-only 40-case exploratory run,
+then upload per_seed_p2o.csv, summary_p2o.csv,
+audit_p2o.jsonl, config, manifest, full log.
+User specifically prohibits unnecessary old-arm
+reruns. On failure fix actual owner/function and
+sync docs, never add a wrapper to hide the issue.
+
+### Commit SHA provenance
+- true owner causal heap and original wire helpers:
+  f219291f40594ab43d5e58df4abd87b338017519
+- true task owner opt-in causal mode:
+  c8cf11b2b8b7599746d498d7612c26325e4eb726
+- optional no-announcement mode contract cleanup:
+  e9bcf2a983d7a7f81b5b7678fd0dfce0d3cecfa3
+- original native source owner new time-only metrics:
+  a15d5d0d9d1abda0e071363926032341be179f31
+- dedicated P2O single-method 40-case runner:
+  29e6a35a49f39c0b7c42675ed0ad704db969c7c5
+- targeted physical-loss/first-GRANT tests:
+  618b693ad3320c307ea7584fd74d5f95a1639738
+- P2O canonical and Mac runbook:
+  f121f1a7b15239c28b26c0d8c7bd4ac90bd09ec5
+- EXPERIMENT_PROTOCOL §67:
+  e369c05464b18cbde46a0b5e331f284c9d08e23f
+- this continuity record SHA is its Git commit,
+  and latest branch HEAD pins the exact source.
