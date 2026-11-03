@@ -2519,3 +2519,87 @@ default changes. Default 100R100T, 1000 votes, losses
 0/30/50/90%, seeds0..9 and 3 announcements = 40 NEW-method
 cases, with 6-case focused smoke. The first local traceback
 must be diagnosed before formally interpreting new results.
+
+
+## 67. P2O causal shared-radio timing of the unchanged P2N task owner (2026-11-03)
+
+P2O changes only the OWNER CONTROL TRANSPORT CHRONOLOGY, not task
+decision/capacity/loss contracts. Prior P2N serial code advances
+the shared release clock to each robot's complete CLAIM/ACK and
+GRANT/DENY/ACK arrival; therefore delays for physically independent
+peers are summed on top of the existing one-shared-radio scheduler.
+P2O opts in to timing_mode="causal" with explicit physical
+sender-local retry_timeout_ms=100.0. ALL robots within a
+bounded owner round begin CLAIM at the same modeled start time;
+only actual original radio SENDs and airtime are serialized
+by the unchanged WifiCausalTimingSampler. Each owner/candidate
+creates an ACK solely after physical receipt of its original
+P2LC/P2MD. Each sender retries the SAME original packet only
+on its own explicit timeout and up to original max_attempts=24.
+Late ACKs and in-flight duplicated packets still count physical
+SENDs and can be received but never double-grant. The owner
+does not know its outgoing ACK's hidden receiver outcome.
+After the original synchronized claim window the one
+original coordinator determines the same kind of owner-local
+normalized-support task winners, irrevocably locking each
+task BEFORE any GRANT is physically attempted. All owner
+P2MD decisions start in parallel as physical radio releases
+for that task-owner round. Physically received GRANT lets
+the exact executor immediately begin its original three 20B
+P2NX broadcasts, without waiting for the last decision ACK
+return. Owner may still retransmit the SAME P2MD if final
+ACK is not received, never reallocating the task. Physically
+lost GRANT never triggers EXECUTING and remains an incomplete,
+safely reserved task. Failed control packets are still fully
+sender charged, as are all three physical P2NX copies.
+
+Original P2M/P2N callers keep timing_mode="serial" by default,
+byte-for-byte original protocol packet formats and original
+cost/vote/voter input; the P2O study runs ONLY the causal
+mode on the same original native Cost-Softmax 1000 ticket
+Cost/Vote epoch with 100R100T, three P2NX repeats and loss
+0/30/50/90%, 10 Seeds each = 40 new cases. No separate P2M,
+P2N, P2J, P2E, CBAA, CBBA or centralized method arm is
+executed. P2O changes both simulated timing and potentially
+which previously-lost control retries/claims are physically
+received under an explicit fixed timeout, so cost/completion
+must be freshly measured, NOT assumed unchanged.
+
+One named owner module democracy_mrta.claim_resolution retains
+task ownership arbitration: coordinate_p2m_task_owners
+with opt-in causal SEND stages via
+schedule_p2o_exchange_window (time only), while
+validate_p2o_timing_scope owns data/time contract,
+encode_p2o_exchange_payloads owns use of original
+P2M on-wire schemas, validate_p2o_received_payload
+owns received bytes, validate_p2o_announcement_receipts
+owns physically observed local notice state.
+No new winner/retirement machine and no new reliable
+Score, Commit, oracle, or shared occupancy list exists.
+FIRST failures time/P2O_INVALID_TEMPORAL_SCOPE,
+time/P2O_NONCAUSAL_EVENT_TIME,
+time/P2O_EVENT_ORDER_REVERSED,
+time/P2O_REQUEST_NOT_DELIVERED,
+time/P2O_OWNER_DECISION_NOT_DELIVERED, or
+safety/P2O_UNAUTHORIZED_ANNOUNCEMENT and
+P2O_NOTICE_WITHOUT_DELIVERED_GRANT identify the
+correct owner/function/category/code with expected/actual.
+Original P2M uniqueness and no-double-grant diagnostics
+are retained.
+
+The existing independent per-receiver Cost/Vote and
+P2NX Bernoulli loss, fixed task-owner winner rule,
+serialized PHY service and nonoverlap Rady residual
+are unchanged; however explicit 100ms retransmission
+deadline is a NEW, non-calibrated time assumption.
+The round barrier remains, this is causal parallel
+RELEASE scheduling, not fully asynchronous MRTA or
+actual 100-robot Wi-Fi performance. Abort on first
+P2O focused test or smoke failure; do not claim improved
+time/cost until native 40-case result audit. Capture
+per-phase original physical SEND count/Bytes, real
+recipient delivery observations, full-valid-only cost,
+first-GRANT arrivals, REQUEST/DECISION windows, timeouts,
+native modeled stop and manifest/scene SHA.
+Full canonical/runnable specification:
+docs/P2O_CAUSAL_OWNER_TIMING.md.
