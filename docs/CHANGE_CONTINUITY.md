@@ -4429,3 +4429,22 @@ add a wrapper to hide the issue.
   1e3ebd10798b21abcae9d1a755cbec21f2efab59
 - this continuity record is the next branch history commit;
   the user's git rev-parse HEAD pins the final source.
+
+
+### 2026-11-03 — P2N lost-GRANT safety test closeout
+Within the same P2N post-GRANT announcement concern, added focused
+test test_reserved_but_lost_grant_never_generates_executing_announcement
+in tests/test_p2n_execution_announcement.py. It injects actual loss
+of each remote owner_decision packet while retaining genuine task
+owner reservations and public initial CLAIM delivery. The test
+asserts (a) a reserved task whose executor never physically received
+GRANT has NO P2NX announcement; (b) P2NX senders are exactly the
+physically GRANT-receiving robot-task pairs; (c) each such pair
+physically attempts exactly three 20-byte announcements; (d)
+unique task ownership/execution remains safe under lost GRANT.
+No owner logic, normal behavior, diagnostic code or canonical
+rule changed; this test enforces the original safety contract.
+Test source commit SHA: db7caf68b5aa53112d805deea0490bddb477ba69.
+Continuity SHA is recorded by the next Git commit.
+Remaining risk is unchanged: focused tests, native smoke and
+10-seed results need actual Mac execution before claiming success.
