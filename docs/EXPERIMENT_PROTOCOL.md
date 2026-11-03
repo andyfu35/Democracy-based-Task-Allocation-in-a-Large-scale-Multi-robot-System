@@ -2379,3 +2379,68 @@ unit regressions are required before interpreting experimental evidence.
 Source-only GitHub commits are NOT execution evidence; local tests
 and 10-seed outcomes remain pending until the operator runs them.
 Historical P2K and P2J figures, protocol and raw evidence are unchanged.
+
+
+## 65. P2M deterministic per-task owner instead of all-peer CLAIM ACK (2026-11-03)
+
+P2M isolates one new task-ownership concern without rewriting
+historical P2J, P2K or P2L. Per the user's instruction, the P2M
+experiment runs ONLY task_owner; it does NOT separately run P2K
+local_only, P2L bounded_ack/ideal_paid or old comparison arms.
+See docs/P2M_TASK_OWNER_ARBITRATION.md for exact sender/receiver
+message schema, safety/timeout boundaries and executable 10-seed
+Mac runbook.
+
+Previously observed P2L 30% loss Seed0, 100R/100T 1000 tickets:
+independent private P2K matchings led to eight duplicated tasks and
+nine missing tasks. For example R59/R90 both self-claimed T29;
+R27/R68/R87 self-claimed T37. Local Hungarian-type one-to-one
+constraints were not violated INSIDE any individual receiver's
+matching; the union of the 100 inconsistent private decisions is
+not itself one-to-one. Different complete P2KV packets were
+physically lost to different receivers. This is not a proven
+double-counting bug in original Vote decoder. Source P2L ZIP
+contains per-seed CSV but omits per-robot audit JSONL; P2M emits
+the missing detailed local candidate-score/owner transcript.
+
+P2M keeps the native one-Cost and one-1000-ticket-task-balanced
+P2KV SEND per robot. Fixed owner(task) = task_id mod num_robots.
+A candidate sends ONE 28-byte P2LC request by unicast to the
+task owner (with physically modeled bounded sender retries).
+The task owner returns a 16-byte physical REQUEST receipt ACK.
+An owner may consider only claims whose receipt ACK reached
+the candidate, never claims from hidden globally known sources.
+At each synchronous owner-local decision window, the owner
+compares only actually confirmed bidder-owned normalized support
+(ticket_count /(valid_received_Vote_batches * tickets_per_task)),
+using exact fraction and fixed tie breaks. It irrevocably reserves
+the task to one bidder before its 20-byte P2MD GRANT or DENY
+unicast, with 16-byte decision ACK attempts. No competing owner
+can assign the same task. Robots act ONLY after receiving their
+owner's physical GRANT; if no receipt or response, a robot blocks
+rather than inventing authorization. A task reserved but not
+granted physically to its recipient stays unexecuted, never
+reallocated without explicit cancellation.
+
+Only locally denied robots send a next request, chosen by their
+OWN original Vote self-support, own task cost, and personally
+denied task IDs. They receive NO global live task-availability
+list or Score matrix, and may request an already reserved task,
+which its owner denies. A robot receiving a GRANT never submits
+another bid. All original transmitted packets, including dropped
+copies, count toward application sender Bytes and modeled time.
+No PSCR, no full peer-wide ACK quorum, no hidden repair.
+
+This is task-level *coordination* under a synchronous known-roster
+assumption, not entirely consensus-free or a proven asynchronous
+crash-tolerant deployment. Owner liveliness, lost REQUEST ACK,
+lost GRANT, radio correlated loss and CPU solve time remain
+explicit open limitations. Tests must assert NO duplicate task
+execution, no double-granted robot, task owner maps correctly,
+requests/grants require genuine delivered messages, and safe
+partial completion is reported honestly when bounded attempts
+fail. The single-method formal exploratory axis is 100R100T,
+1000 votes, loss 0/30/50/90%, seeds0..9 = 40 cases, not 120
+older-arm comparisons. Do focused P2M regression + six-case smoke
+before the ten-seed run. GitHub commits alone do not establish
+local test pass or performance claims.
