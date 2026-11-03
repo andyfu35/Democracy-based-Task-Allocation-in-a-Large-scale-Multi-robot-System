@@ -61,7 +61,7 @@ class P2RIntentConflictTests(unittest.TestCase):
     def setUp(self):
         self.costs=((2.,1.,9.),(1.,2.,8.),(9.,8.,1.))
         self.run_routed=fixture(((0,1),(1,2),(2,0)))
-        self.run_conflict=fixture(((0,1),(1,1),(2,2)))
+        self.run_conflict=fixture(((0,1),(1,0),(2,1)))
 
     def execute(self, run, *, loss_sampler=None, attempts=3, rounds=7):
         sampler=WifiCausalTimingSampler(
@@ -111,7 +111,7 @@ class P2RIntentConflictTests(unittest.TestCase):
         self.assertGreater(result.peer_observed_challenges,0)
         self.assertGreater(result.denial_receipts,0)
         self.assertGreater(
-            sum(e.phase=="p2r_deny" for e in result.events),-1,
+            sum(e.phase=="p2r_deny" for e in result.events),0,
         )
         self.assertEqual(set(result.executed_pairs),
                          {(0,1),(1,0),(2,2)})
