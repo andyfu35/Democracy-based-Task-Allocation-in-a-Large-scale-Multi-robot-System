@@ -507,7 +507,7 @@ def parse_args(argv=None):
     parser.add_argument("--temperature",type=float,default=5.0)
     parser.add_argument("--channels",default="bounded_ack,ideal_paid")
     parser.add_argument("--max-claim-attempts",type=int,default=24)
-    parser.add_argument("--max-claim-rounds",type=int,default=100)
+    parser.add_argument("--max-claim-rounds",type=int,default=101)
     parser.add_argument("--audit-seeds",type=int,default=1)
     parser.add_argument("--rady-json",type=Path,default=DEFAULT_RADY)
     parser.add_argument("--output-root",type=Path,required=True)
