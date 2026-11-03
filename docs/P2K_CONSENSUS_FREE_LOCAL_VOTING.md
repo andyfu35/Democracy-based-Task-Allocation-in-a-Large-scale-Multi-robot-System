@@ -143,3 +143,35 @@ Status: GitHub source edits and tests are authored; remote connector
 cannot execute Python in this repository. Compilation, focused regression,
 smoke and formal run are pending the user's Mac. On first failure report
 the first full traceback; do not silently correct the algorithm to hit 100%.
+
+
+## P2Q opt-in extension (2026-11-03): optimized rank-square votes
+
+This original P2K document defines historical cost_softmax and
+optimized_kbest policies and remains their canonical contract. Neither
+legacy policy is altered or re-run by the P2Q-only experiment.
+P2Q registers ONE NEW opt-in
+sample_p2k_task_balanced_votes(policy="optimized_rank_square")
+in the existing owner module democracy_mrta.optimizer.
+The existing locally visible Hungarian + seeded perturb-and-MAP
+proposals are reused, sorted by original local assignment cost,
+then weighted as w(rank)=1/rank^2 (rank1=1; rank2=0.25;
+rank3=1/9), instead of optimized_kbest's exponential
+cost-gap weighting. When a proposal covers a task, proposals'
+weighted robot votes are aggregated with epsilon=0 exploration;
+a task uncovered by all visible proposals falls back
+ONLY to visible local cost softmax. The fixed 10 integer
+tickets per 100 tasks are apportioned by deterministic
+largest remainder, avoiding independent random ticket draws
+while preserving the original 1016B P2KV wire and independent
+per-receiver Cost/Vote packet loss. No hidden Cost rows are used.
+P2Q's separate experiment does NOT add CLAIM/ACK/GRANT,
+EXECUTING, reliable Score/Commit or any repair.
+
+Raising rank separation might lower local vote-score ties,
+but cannot imply common winner across different lossy
+receiver-local matrices. All duplicate/missing task
+self-executions are reported as real failed full allocations,
+even if every receiver's own top-vote count has no tie.
+Detailed P2Q canonical contract, diagnostics and Mac
+runbook: docs/P2Q_OPTIMIZED_RANK_SQUARED_VOTING.md.
