@@ -28,7 +28,7 @@ from experiments.run_p2m_task_owner import (
     PHASES as P2M_PHASES,run_one_p2m_case,validate_p2m_axes,
 )
 
-OWNER="experiments.run_p2o_execution_announcement"
+OWNER="experiments.run_p2o_causal_owner_timing"
 STUDY="P2O_1000_SOFTMAX_TASK_OWNER_CAUSAL_TIMING_ONLY"
 FIELDS=P2M_FIELDS+P2N_EXTENSION_FIELDS+P2O_EXTENSION_FIELDS
 PHASES=P2M_PHASES+("execution_announce",)
@@ -186,7 +186,7 @@ def run_p2o(args):
         "retry_timeout_ms":args.retry_timeout_ms,
         "timing_mode":"causal",
         "only_method":"task_owner_with_causal_parallel_radio_timing",
-        "execution_announcement":"P2OX 20B; after physically received GRANT; "
+        "execution_announcement":"P2NX 20B; after physically received GRANT; "
                                  "3 independent lossy physical broadcasts",
         "receiver_knowledge":"only actually delivered authenticated-in-model "
                              "EXECUTING; not a global reservation oracle",
