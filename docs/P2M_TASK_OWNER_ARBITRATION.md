@@ -47,10 +47,14 @@ Historical code remains unmodified and reusable as a Cost/Vote source.
 3. Owner acknowledgement of REQUEST: a physical 16B P2AK unicast to
    that same requester. Requester retries its *unchanged* original
    claim until receipt ACK arrives or max_attempts is exhausted.
-   The owner only considers a CLAIM whose REQUEST was physically
-   delivered and whose receipt ACK arrived at the claimant.
-   Any claimant unable to certify this pair is BLOCKED and does
-   not propose another task (no hidden acknowledgement).
+   The owner considers ANY CLAIM its own receiver actually obtained,
+   regardless of whether its outgoing ACK reached the claimant.
+   A missing receipt ACK causes unchanged request retries; even
+   after exhausting those ACK retries the owner may still evaluate
+   its real received CLAIM and send a GRANT or DENY. The claimant
+   cannot switch tasks or execute until that OWNER decision actually
+   reaches it. If no REQUEST reached the owner at all, the
+   claimant remains BLOCKED (no hidden acknowledgement).
 4. One owner independently compares only its OWN physically confirmed
    pending CLAIMs, by exact rational score:
 
@@ -112,7 +116,9 @@ select_p2m_local_request_task, coordinate_p2m_task_owners.
 
 - P2M_INVALID_OWNER_MAP: data, invalid fixed task owner mapping
 - P2M_INVALID_OWNER_SCOPE: contract, P2K source/sizes invalid
-- P2M_REQUEST_ACK_LIMIT: time, owner request not mutually confirmed
+- P2M_REQUEST_ACK_LIMIT: time, request receipt ACK not received;
+  if owner received the actual CLAIM, subsequent owner response may
+  still resolve it (ACK receiver outcome is NOT exposed to owner)
 - P2M_DECISION_DELIVERY_LIMIT: time, owner decision not delivered
 - P2M_UNAUTHORISED_OWNER_DECISION: contract, wrong owner/stale decision
 - P2M_TASK_OWNER_NO_UNIQUE_WINNER: contract, invalid owner arbitration
