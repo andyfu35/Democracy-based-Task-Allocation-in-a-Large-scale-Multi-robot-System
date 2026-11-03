@@ -450,3 +450,501 @@ def coordinate_p2l_claims(
         public_claims=tuple(certified_claims),
         finish_ms=clock, first_diagnostic=first_error,
     )
+
+
+# P2M: one deterministic owner per task (NOT an all-peer CLAIM quorum).
+# This is an alternative owner-specific arbitration path inside the existing
+# claim-resolution owner, NOT a second retirement or voting state machine.
+_OWNER_DECISION_WIRE = struct.Struct("<4sIIII")  # 20B
+_OWNER_DECISION_ACK_WIRE = struct.Struct("<4sIII")  # 16B
+
+
+@dataclass(frozen=True)
+class P2MTaskOwnerResult:
+    executed_pairs: tuple[tuple[int, int], ...]
+    reserved_pairs: tuple[tuple[int, int], ...]
+    events: tuple[CommunicationEvent, ...]
+    deliveries: tuple[DeliveryObservation, ...]
+    rounds_executed: int
+    conflicted_task_rounds: int
+    reassignment_requests: int
+    blocked_robot_ids: tuple[int, ...]
+    owner_decisions: tuple[dict, ...]
+    finish_ms: float
+    first_diagnostic: Diagnostic | None
+
+    @property
+    def sender_bytes(self) -> int:
+        return sum(e.payload_bytes for e in self.events)
+
+
+def p2m_task_owner_id(*, task_id: int, robots: int) -> int:
+    """Fixed task ownership, known before Cost/Vote: no leader election."""
+    if (type(task_id) is not int or task_id < 0
+            or type(robots) is not int or robots < 1):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="p2m_task_owner_id",
+            category="data", code="P2M_INVALID_OWNER_MAP",
+            expected="nonnegative task and positive robot count",
+            actual=(task_id, robots),
+        ))
+    return task_id % robots
+
+
+def validate_p2m_owner_scope(
+    *, run: P2KLocalVoteResult, cost_matrix: tuple[tuple[float, ...], ...],
+    votes_per_voter: int, p_loss: float, max_attempts: int, max_rounds: int,
+) -> tuple[int, int]:
+    """Bounded one-Cost/one-Vote + unicast-only owner scope."""
+    robots, tasks = validate_cost_matrix(cost_matrix)
+    validate_packet_loss_probability(p_loss)
+    valid = (
+        1 <= tasks <= robots <= 255 and type(votes_per_voter) is int
+        and votes_per_voter >= tasks and votes_per_voter <= 1184
+        and votes_per_voter % tasks == 0
+        and type(max_attempts) is int and 1 <= max_attempts <= 128
+        and type(max_rounds) is int and 1 <= max_rounds <= 255
+        and len(run.local_vote_views) == robots
+        and len(run.local_assignments) == robots
+        and len(run.cost_visible_rows) == robots
+        and all(len(view) == robots and all(len(row) == tasks for row in view)
+                for view in run.local_vote_views)
+        and all(e.phase in ("cost", "vote") for e in run.events)
+        and len({r for r, _t in run.robot_claims}) == len(run.robot_claims)
+    )
+    if not valid:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="validate_p2m_owner_scope",
+            category="contract", code="P2M_INVALID_OWNER_SCOPE",
+            expected="native P2K Cost/Vote-only result, robots>=tasks, "
+                     "uint8 robot/task IDs, divisible 1..1184 tickets, "
+                     "1..128 attempts, 1..255 rounds",
+            actual={"robots":robots,"tasks":tasks,"votes":votes_per_voter,
+                    "max_attempts":max_attempts,"max_rounds":max_rounds,
+                    "phases":tuple(sorted({e.phase for e in run.events}))},
+        ))
+    return robots, tasks
+
+
+def encode_p2m_owner_decision(
+    *, round_id: int, owner_id: int, robot_id: int,
+    task_id: int, granted: bool,
+) -> bytes:
+    """20B task-owner decision; owner ID is verified from public task map."""
+    if (any(type(i) is not int or i < 0 or i > 0xffffffff
+            for i in (round_id,owner_id,robot_id,task_id))
+            or type(granted) is not bool):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="encode_p2m_owner_decision",
+            category="data", code="P2M_INVALID_DECISION_FIELDS",
+            expected="uint32 round/owner/robot/task and boolean grant",
+            actual=(round_id,owner_id,robot_id,task_id,granted),
+        ))
+    return _OWNER_DECISION_WIRE.pack(
+        b"P2MD",round_id,robot_id,task_id,int(granted),
+    )
+
+
+def decode_p2m_owner_decision(
+    packet: bytes, *, round_id: int, owner_id: int,
+    robot_id: int, task_id: int, robots: int,
+) -> bool:
+    """The only grant accepted by a requester comes from task's fixed owner."""
+    if not isinstance(packet,bytes) or len(packet)!=_OWNER_DECISION_WIRE.size:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="decode_p2m_owner_decision",
+            category="data", code="P2M_DECISION_WIRE_SIZE_INVALID",
+            expected=_OWNER_DECISION_WIRE.size,
+            actual=len(packet) if isinstance(packet,bytes) else type(packet).__name__,
+        ))
+    tag,rnd,recipient,task,flag=_OWNER_DECISION_WIRE.unpack(packet)
+    if (tag!=b"P2MD" or rnd!=round_id or recipient!=robot_id
+            or task!=task_id or flag not in (0,1)
+            or owner_id!=p2m_task_owner_id(task_id=task_id,robots=robots)):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="decode_p2m_owner_decision",
+            category="contract", code="P2M_UNAUTHORISED_OWNER_DECISION",
+            expected={"round":round_id,"owner":p2m_task_owner_id(
+                task_id=task_id,robots=robots),
+                "robot":robot_id,"task":task_id,"flag":(0,1)},
+            actual={"tag":tag,"round":rnd,"owner":owner_id,
+                    "robot":recipient,"task":task,"flag":flag},
+        ))
+    return bool(flag)
+
+
+def transmit_p2m_owner_request(
+    *, claim: P2LClaim, robots: int, tasks: int,
+    sampler, loss_sampler, p_loss: float, max_attempts: int,
+    release_ms: float,
+) -> tuple[list[CommunicationEvent],list[DeliveryObservation],
+           P2LClaim | None,float,Diagnostic | None]:
+    """Request -> deterministic task owner -> single receipt ACK.
+
+    A requester retries only after a failed ACK round trip. An owner
+    counts a request as confirmed only if the REQUEST reached it AND
+    its receipt ACK physically reached the requester. A failed bid is
+    never inferred from the experiment's omniscient sender list.
+    """
+    if claim.task_id is None:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="transmit_p2m_owner_request",
+            category="data",code="P2M_IDLE_OWNER_REQUEST",
+            expected="concrete task",actual=claim,
+        ))
+    owner=p2m_task_owner_id(task_id=claim.task_id,robots=robots)
+    packet=encode_p2l_claim_packet(claim)
+    if claim.robot_id==owner:
+        return [],[],decode_p2l_claim_packet(
+            packet,claim_round=claim.claim_round,sender_id=claim.robot_id,
+            tasks=tasks,robots=robots,tickets_per_task=claim.tickets_per_task,
+        ),release_ms,None
+    events=[]
+    deliveries=[]
+    clock=release_ms
+    for copy in range(max_attempts):
+        sent=_unicast_event(
+            phase="owner_request",sender_id=claim.robot_id,receiver_id=owner,
+            send_time_ms=clock,payload_bytes=len(packet),sampler=sampler,
+            task_id=claim.task_id,round_id=claim.claim_round+1,
+            transmission_index=copy,
+        )
+        events.append(sent)
+        receipt=_lossy_unicast_delivery(
+            event=sent,loss_sampler=loss_sampler,p_loss=p_loss,
+            round_id=claim.claim_round+1,
+        )
+        deliveries.append(receipt)
+        clock=max(clock,sent.arrival_time_ms)
+        if not receipt.delivered:
+            continue
+        decoded=decode_p2l_claim_packet(
+            packet,claim_round=claim.claim_round,sender_id=claim.robot_id,
+            tasks=tasks,robots=robots,tickets_per_task=claim.tickets_per_task,
+        )
+        ack=encode_p2l_ack_packet(
+            claim_round=claim.claim_round,ack_sender_id=owner,
+            claim_robot_id=claim.robot_id,
+        )
+        sent_ack=_unicast_event(
+            phase="owner_request_ack",sender_id=owner,
+            receiver_id=claim.robot_id,send_time_ms=clock,
+            payload_bytes=len(ack),sampler=sampler,
+            task_id=claim.task_id,round_id=claim.claim_round+1,
+            transmission_index=copy,
+        )
+        events.append(sent_ack)
+        ack_receipt=_lossy_unicast_delivery(
+            event=sent_ack,loss_sampler=loss_sampler,p_loss=p_loss,
+            round_id=claim.claim_round+1,
+        )
+        deliveries.append(ack_receipt)
+        clock=max(clock,sent_ack.arrival_time_ms)
+        if ack_receipt.delivered:
+            validate_p2l_ack_packet(
+                ack,claim_round=claim.claim_round,
+                ack_sender_id=owner,claim_robot_id=claim.robot_id,
+            )
+            return events,deliveries,decoded,clock,None
+    diagnostic=Diagnostic(
+        owner=OWNER,function="transmit_p2m_owner_request",
+        category="time",code="P2M_REQUEST_ACK_LIMIT",
+        expected="task owner receipt and requester receipt ACK",
+        actual={"robot":claim.robot_id,"task":claim.task_id,
+                "attempts":max_attempts},
+        details="The robot is BLOCKED; no request is inferred delivered",
+    )
+    return events,deliveries,None,clock,diagnostic
+
+
+def transmit_p2m_owner_decision(
+    *, claim: P2LClaim, robots: int, granted: bool,
+    sampler, loss_sampler, p_loss: float, max_attempts: int,
+    release_ms: float,
+) -> tuple[list[CommunicationEvent],list[DeliveryObservation],
+           bool,float,Diagnostic | None]:
+    """Owner -> claimant GRANT/DENY, claimant -> owner ACK.
+
+    Owner makes GRANT irrevocable BEFORE transmission. Candidate acts
+    only after a physically delivered GRANT. If final ACK is lost,
+    the owner retransmits but NEVER reallocates the reserved task.
+    Thus an uncertain result may be incomplete but cannot duplicate a
+    task or exceed robot capacity. No other robot sees this decision.
+    """
+    task=claim.task_id
+    if task is None:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="transmit_p2m_owner_decision",
+            category="data",code="P2M_IDLE_OWNER_DECISION",
+            expected="concrete task",actual=claim,
+        ))
+    owner=p2m_task_owner_id(task_id=task,robots=robots)
+    wire=encode_p2m_owner_decision(
+        round_id=claim.claim_round,owner_id=owner,
+        robot_id=claim.robot_id,task_id=task,granted=granted,
+    )
+    if claim.robot_id==owner:
+        accepted=decode_p2m_owner_decision(
+            wire,round_id=claim.claim_round,owner_id=owner,
+            robot_id=claim.robot_id,task_id=task,robots=robots,
+        )
+        return [],[],accepted if granted else True,release_ms,None
+    events=[]
+    deliveries=[]
+    clock=release_ms
+    receiver_got_decision=False
+    for copy in range(max_attempts):
+        sent=_unicast_event(
+            phase="owner_decision",sender_id=owner,
+            receiver_id=claim.robot_id,send_time_ms=clock,
+            payload_bytes=len(wire),sampler=sampler,
+            task_id=task,round_id=claim.claim_round+1,
+            transmission_index=copy,
+        )
+        events.append(sent)
+        obs=_lossy_unicast_delivery(
+            event=sent,loss_sampler=loss_sampler,p_loss=p_loss,
+            round_id=claim.claim_round+1,
+        )
+        deliveries.append(obs)
+        clock=max(clock,sent.arrival_time_ms)
+        if not obs.delivered:
+            continue
+        decoded_grant=decode_p2m_owner_decision(
+            wire,round_id=claim.claim_round,owner_id=owner,
+            robot_id=claim.robot_id,task_id=task,robots=robots,
+        )
+        if decoded_grant!=granted:
+            raise ProtocolError(Diagnostic(
+                owner=OWNER,function="transmit_p2m_owner_decision",
+                category="contract",code="P2M_DECISION_FLAG_CHANGED",
+                expected=granted,actual=decoded_grant,
+            ))
+        receiver_got_decision=True
+        ack=_OWNER_DECISION_ACK_WIRE.pack(
+            b"P2MA",claim.claim_round,claim.robot_id,task,
+        )
+        sent_ack=_unicast_event(
+            phase="owner_decision_ack",sender_id=claim.robot_id,
+            receiver_id=owner,send_time_ms=clock,
+            payload_bytes=len(ack),sampler=sampler,
+            task_id=task,round_id=claim.claim_round+1,
+            transmission_index=copy,
+        )
+        events.append(sent_ack)
+        ack_obs=_lossy_unicast_delivery(
+            event=sent_ack,loss_sampler=loss_sampler,p_loss=p_loss,
+            round_id=claim.claim_round+1,
+        )
+        deliveries.append(ack_obs)
+        clock=max(clock,sent_ack.arrival_time_ms)
+        if ack_obs.delivered:
+            if _OWNER_DECISION_ACK_WIRE.unpack(ack)!=(
+                    b"P2MA",claim.claim_round,claim.robot_id,task):
+                raise ProtocolError(Diagnostic(
+                    owner=OWNER,function="transmit_p2m_owner_decision",
+                    category="contract",code="P2M_DECISION_ACK_MALFORMED",
+                    expected="P2MA round/robot/task",
+                    actual=ack,
+                ))
+            return events,deliveries,True,clock,None
+    # An actually delivered grant remains safe even if the final ACK
+    # is lost: owner irrevocably reserves this task, and robot knows it.
+    if receiver_got_decision:
+        return events,deliveries,True,clock,None
+    diagnostic=Diagnostic(
+        owner=OWNER,function="transmit_p2m_owner_decision",
+        category="time",code="P2M_DECISION_DELIVERY_LIMIT",
+        expected="physical delivery of owner GRANT/DENY",
+        actual={"robot":claim.robot_id,"task":task,"granted":granted,
+                "attempts":max_attempts},
+        details="Robot gets no decision and is BLOCKED; GRANT reserved forever",
+    )
+    return events,deliveries,False,clock,diagnostic
+
+
+def select_p2m_local_request_task(
+    *, run: P2KLocalVoteResult, robot_id: int,
+    own_cost_row: tuple[float, ...],
+    tried_tasks: frozenset[int], first_attempt: bool,
+) -> int | None:
+    """Candidate knows ONLY its own Vote view, own Cost and local rejects."""
+    tasks=len(own_cost_row)
+    if first_attempt:
+        original=dict(run.robot_claims).get(robot_id)
+        if original is not None and original not in tried_tasks:
+            return original
+    return choose_p2l_next_task(
+        available_tasks=frozenset(range(tasks))-tried_tasks,
+        own_received_vote_row=run.local_vote_views[robot_id][robot_id],
+        own_cost_row=own_cost_row,
+    )
+
+
+def coordinate_p2m_task_owners(
+    *, run: P2KLocalVoteResult, cost_matrix: tuple[tuple[float, ...], ...],
+    votes_per_voter: int, sampler, loss_sampler,
+    p_loss: float, max_attempts: int = 24, max_rounds: int = 101,
+) -> P2MTaskOwnerResult:
+    """One authoritative owner per task, unicast-only CLAIM and decisions.
+
+    Same original P2K local Softmax Votes; owner(task) = task % robots.
+    Each owner sees ONLY confirmed request packets addressed to its task.
+    Robots see ONLY their own received decision/own Cost/Vote and local
+    rejected-task list; no global locked-task visibility, global vote
+    matrix, all-peer ACK, task Score broadcast or hidden recovery.
+    This is a synchronous known-roster experiment with serial radio
+    scheduling, not a proof of asynchronous crash tolerance.
+    """
+    robots,tasks=validate_p2m_owner_scope(
+        run=run,cost_matrix=cost_matrix,votes_per_voter=votes_per_voter,
+        p_loss=p_loss,max_attempts=max_attempts,max_rounds=max_rounds,
+    )
+    pending=set(range(robots))
+    blocked=set()
+    tried=[set() for _ in range(robots)]
+    reserved:dict[int,int]={}  # task -> robot, maintained ONLY by task owner
+    executed:dict[int,int]={}  # robot -> task, from physically received grant
+    owner_decisions=[]
+    events=[]
+    deliveries=[]
+    clock=max(run.decision_time_ms,
+              max((e.arrival_time_ms for e in run.events),default=0.0))
+    rounds=0
+    conflicts=0
+    reassignments=0
+    first_error=None
+    for claim_round in range(max_rounds):
+        if not pending or len(executed)==tasks:
+            break
+        inbound:dict[int,list[P2LClaim]]={}
+        rounds+=1
+        for robot in sorted(pending):
+            task=select_p2m_local_request_task(
+                run=run,robot_id=robot,own_cost_row=cost_matrix[robot],
+                tried_tasks=frozenset(tried[robot]),
+                first_attempt=(claim_round==0),
+            )
+            if task is None:
+                blocked.add(robot)
+                if first_error is None:
+                    first_error=Diagnostic(
+                        owner=OWNER,function="select_p2m_local_request_task",
+                        category="planning",code="P2M_ALL_LOCAL_TASKS_REJECTED",
+                        expected="another task not previously denied",
+                        actual={"robot":robot,"tried":len(tried[robot])},
+                    )
+                continue
+            if claim_round>0:
+                reassignments+=1
+            claim=make_p2l_claim(
+                run=run,robot_id=robot,task_id=task,
+                claim_round=claim_round,votes_per_voter=votes_per_voter,
+            )
+            sent,observed,delivered,clock,error=transmit_p2m_owner_request(
+                claim=claim,robots=robots,tasks=tasks,
+                sampler=sampler,loss_sampler=loss_sampler,p_loss=p_loss,
+                max_attempts=max_attempts,release_ms=clock,
+            )
+            events.extend(sent)
+            deliveries.extend(observed)
+            if error is not None:
+                blocked.add(robot)
+                if first_error is None: first_error=error
+            elif delivered is not None:
+                inbound.setdefault(task,[]).append(delivered)
+        next_pending=set()
+        for task,claims in sorted(inbound.items()):
+            owner=p2m_task_owner_id(task_id=task,robots=robots)
+            if task not in reserved:
+                winners,losers,collision=resolve_p2l_claim_conflicts(
+                    claims=tuple(claims),locked_tasks=frozenset(),
+                )
+                if len(winners)!=1 or winners[0][1]!=task:
+                    raise ProtocolError(Diagnostic(
+                        owner=OWNER,function="coordinate_p2m_task_owners",
+                        category="contract",code="P2M_TASK_OWNER_NO_UNIQUE_WINNER",
+                        expected={"task":task,"winner_count":1},
+                        actual=winners,
+                    ))
+                winner=winners[0][0]
+                reserved[task]=winner  # irreversible BEFORE sending GRANT
+                conflicts+=collision
+            else:
+                winner=reserved[task]
+            owner_decisions.append({
+                "round":claim_round,"task":task,"owner":owner,
+                "confirmed_claimants":[
+                    {"robot":c.robot_id,"votes":c.support_votes,
+                     "received_ballots":c.received_ballots,
+                     "tickets_per_task":c.tickets_per_task}
+                    for c in claims
+                ],"reserved_winner":winner,
+                "already_locked":task in reserved and winner not in
+                    tuple(c.robot_id for c in claims),
+            })
+            for claim in claims:
+                granted=(claim.robot_id==winner)
+                sent,observed,received,clock,error=transmit_p2m_owner_decision(
+                    claim=claim,robots=robots,granted=granted,
+                    sampler=sampler,loss_sampler=loss_sampler,p_loss=p_loss,
+                    max_attempts=max_attempts,release_ms=clock,
+                )
+                events.extend(sent)
+                deliveries.extend(observed)
+                if error is not None:
+                    blocked.add(claim.robot_id)
+                    if first_error is None: first_error=error
+                elif received and granted:
+                    if claim.robot_id in executed and executed[claim.robot_id]!=task:
+                        raise ProtocolError(Diagnostic(
+                            owner=OWNER,function="coordinate_p2m_task_owners",
+                            category="safety",code="P2M_ROBOT_DOUBLE_GRANT",
+                            expected="at most one GRANT per robot",
+                            actual={"robot":claim.robot_id,
+                                    "old":executed[claim.robot_id],"new":task},
+                        ))
+                    executed[claim.robot_id]=task
+                elif received:
+                    tried[claim.robot_id].add(task)
+                    next_pending.add(claim.robot_id)
+        pending=next_pending
+        if not pending:
+            break
+    pairs=tuple(sorted(((robot,task) for robot,task in executed.items()),
+                       key=lambda x:(x[1],x[0])))
+    locked_pairs=tuple(sorted(((robot,task) for task,robot in reserved.items()),
+                              key=lambda x:(x[1],x[0])))
+    validate_one_to_one_commits(pairs)
+    validate_one_to_one_commits(locked_pairs)
+    if (any(robot in blocked for robot,_task in pairs)
+            or any(event.phase not in (
+                "owner_request","owner_request_ack",
+                "owner_decision","owner_decision_ack") for event in events)
+            or any(reserved.get(task)!=robot for robot,task in pairs)):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="coordinate_p2m_task_owners",
+            category="safety",code="P2M_INVALID_RESERVED_EXECUTION",
+            expected="each execution backed by unique task-owner reservation and "
+                     "physical grant delivery, only four owner unicast phases",
+            actual={"executed":pairs,"reserved":locked_pairs,
+                    "blocked":sorted(blocked),
+                    "phases":sorted({e.phase for e in events})},
+        ))
+    if len(pairs)<tasks and first_error is None:
+        first_error=Diagnostic(
+            owner=OWNER,function="coordinate_p2m_task_owners",
+            category="planning",code="P2M_TASK_OWNER_ALLOCATION_INCOMPLETE",
+            expected=tasks,actual=len(pairs),
+            details=f"rounds={rounds}, blocked={len(blocked)}, "
+                    f"reserved={len(locked_pairs)}",
+        )
+    return P2MTaskOwnerResult(
+        executed_pairs=pairs,reserved_pairs=locked_pairs,
+        events=tuple(events),deliveries=tuple(deliveries),
+        rounds_executed=rounds,conflicted_task_rounds=conflicts,
+        reassignment_requests=reassignments,
+        blocked_robot_ids=tuple(sorted(blocked)),
+        owner_decisions=tuple(owner_decisions),
+        finish_ms=clock,first_diagnostic=first_error,
+    )
