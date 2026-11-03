@@ -171,6 +171,36 @@ class P2OCausalOwnerTimingTests(unittest.TestCase):
         self.assertGreaterEqual(result.request_receipt_ack_timeouts,1)
         self.assertIsNone(result.first_diagnostic)
 
+    def test_real_shared_radio_ledger_charges_every_send(self):
+        source=replace(
+            fixture(),robot_claims=((0,1),(1,2),(2,0)),
+        )
+        sampler=WifiCausalTimingSampler(
+            profile(),19,WifiTimingConfig(phy_rate_mbps=144.0),
+        )
+        result=coordinate_p2m_task_owners(
+            run=source,cost_matrix=self.costs,votes_per_voter=600,
+            sampler=sampler,loss_sampler=DropPhase("|owner_request_ack|"),
+            p_loss=0.30,max_attempts=2,max_rounds=10,
+            execution_announce_repetitions=3,
+            timing_mode="causal",retry_timeout_ms=100.0,
+        )
+        ledger=sampler.summarize_network()
+        self.assertEqual(ledger["packet_count"],len(result.events))
+        self.assertEqual(ledger["application_sender_bytes"],
+                         result.sender_bytes)
+        self.assertEqual(len({task for _,task in result.executed_pairs}),
+                         len(result.executed_pairs))
+        self.assertTrue(all(
+            e.send_time_ms<=n.send_time_ms
+            for e,n in zip(result.events,result.events[1:])
+        ))
+        self.assertEqual(
+            sum(e.phase=="execution_announce" for e in result.events),
+            len(result.executed_pairs)*3,
+        )
+        self.assertGreaterEqual(result.request_receipt_ack_timeouts,1)
+
     def test_retry_timeout_has_named_diagnostic(self):
         for value in (float("nan"),float("inf"),-1.0,0.0):
             with self.subTest(value=value):
