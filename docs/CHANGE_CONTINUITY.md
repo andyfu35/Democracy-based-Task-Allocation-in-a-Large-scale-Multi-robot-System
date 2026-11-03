@@ -4179,3 +4179,51 @@ No legacy benchmark reruns or old-arm plotting are requested.
 - protocol canonical §65 SHA 766cfc127ca2464443fae03cd50d1e3ebe11d351
 - continuity entry SHA follows in the next branch history commit;
   user's local git rev-parse HEAD pins the actual source.
+
+
+### 2026-11-03 — P2M owner-receipt / outgoing-ACK visibility correction
+Source-level final audit found a subtle causal boundary error in the
+new task-owner handshake: the task owner cannot observe whether its
+outgoing receipt ACK physically arrived at a different robot. The
+initial source had filtered received owner CLAIMs by successful
+bidder-side receipt of that ACK, an oracle-visibility shortcut which
+would make owner arbitration dependent on a remote receive fact.
+
+Fixed the true owner claim_resolution.transmit_p2m_owner_request in
+place: it records any CLAIM actually received by the target owner
+even if its receipt ACK is lost, keeps retrying identical request
+for the bidder according to bounded ACK attempts, and returns that
+actual owner-received CLAIM (NOT a fabricated delivery) to
+coordinate_p2m_task_owners for task-local arbitration. A robot may
+never execute or change tasks without a physically delivered
+owner GRANT/DENY; no new information synchronization message is
+introduced, and receipt-ACK errors remain diagnostic.
+coordinate_p2m_task_owners now includes physically received owner
+requests in each task owner's candidate ledger independent of the
+outgoing ACK's delivery. If the REQUEST itself never reached the
+owner, the bidder is blocked. This keeps the experiment honest and
+may improve liveness after a lost receipt ACK, without changing
+the original P2K Cost/Vote packet, encoded messages or true
+task/robot uniqueness constraints.
+
+Added one focused test to tests/test_p2m_task_owner.py with a
+deterministic source that delivers every REQUEST/GRANT but loses
+every owner receipt ACK. A task owner must still correctly
+resolve the collision from its actually received CLAIMs, and
+the bidder can act only after owner GRANT arrived. Changed
+docs/P2M_TASK_OWNER_ARBITRATION.md and
+docs/EXPERIMENT_PROTOCOL.md §65 in lockstep.
+No wrapper, second state machine or old comparison arm.
+The categories remain data/time/state/dependency/planning/safety/
+runtime/contract; request ACK budget code P2M_REQUEST_ACK_LIMIT
+can be a first diagnostic even if a later GRANT resolves the task.
+The actual owner does not read the outgoing-ACK delivery bit.
+
+Relevant commits:
+- true owner causal fix 88b74488c8bcb66d3fe36aebd536e4e1cb039fee
+- focused owner-ACK visibility regression 889844ef7b3bba13691860d29355114f4f8546f5
+- P2M canonical correction ee7e98afc7a77a266f8842ef5ffef46aeae54068
+- protocol canonical correction 888af0bd8f1f72ee123e6b665eca045f7199bb74
+- this continuity commit follows in Git history; next step remains
+  compile/focused-unit/6-case smoke and then only new-method 10 seeds.
+No Python test completion is claimed without actual local output.
