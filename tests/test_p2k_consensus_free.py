@@ -9,13 +9,19 @@ from democracy_mrta.coordination import (
     resolve_p2k_local_assignment,simulate_p2k_local_vote_epoch,
 )
 from democracy_mrta.diagnostics import ProtocolError
-from democracy_mrta.network import BernoulliLossSampler,EmpiricalLatencySampler
+from democracy_mrta.network import BernoulliLossSampler,EmpiricalLatencySampler,EmpiricalLatencyProfile
 from democracy_mrta.optimizer import sample_p2k_task_balanced_votes
 from experiments.run_p2k_consensus_free import (
     validate_p2k_config,analyze_p2k_local_claims,
 )
 from democracy_mrta.scenario import generate_e0_scenario
-from tests.test_p2j_probabilistic_batch import synthetic_profile
+def synthetic_profile():
+    return EmpiricalLatencyProfile(
+        source_repository="test",source_commit="test",source_blob_sha="0"*40,
+        location="2",location_label="p2k",config="ax_160mhz_6ghz",
+        config_label="synthetic",steady_start_s=0.0,steady_end_s=4.0,
+        samples_ms=(3.0,4.0,5.0,6.0),
+    )
 
 
 class P2KConsensusFreeTests(unittest.TestCase):
