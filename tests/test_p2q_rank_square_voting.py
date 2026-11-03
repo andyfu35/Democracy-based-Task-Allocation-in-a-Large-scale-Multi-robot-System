@@ -163,6 +163,39 @@ class P2QRankSquareVotingTests(unittest.TestCase):
         self.assertEqual(metrics["receiver_task_positive_support_count"],2)
         self.assertAlmostEqual(metrics["receiver_task_top_tie_percent"],50)
 
+    def test_offline_evidence_validation_has_its_own_diagnostic_boundary(self):
+        source={
+            "robots":2,"tasks":2,"full_valid_allocation":1,
+            "duplicate_task_count":0,"unassigned_task_count":0,
+            "unique_task_completion_percent":100.0,
+        }
+        with self.assertRaises(ProtocolError) as exc:
+            analyze_p2q_vote_consensus(
+                source_row=source,
+                received_vote_matrices=(
+                    ((1,2),(3,4)),
+                ),
+            )
+        self.assertEqual(
+            exc.exception.diagnostic.function,
+            "validate_p2q_received_vote_matrices",
+        )
+        self.assertEqual(
+            exc.exception.diagnostic.code,"P2Q_INVALID_AUDIT_VIEW",
+        )
+        with self.assertRaises(ProtocolError) as exc:
+            analyze_p2q_vote_consensus(
+                source_row=source,
+                received_vote_matrices=(
+                    ((1,2),(3,-1)),
+                    ((3,1),(2,4)),
+                ),
+            )
+        self.assertEqual(
+            exc.exception.diagnostic.code,
+            "P2Q_NEGATIVE_OR_NONINTEGER_RECEIVED_VOTE",
+        )
+
     def test_one_only_method_grid_and_summary(self):
         args=parse_args(["--output-root","results/_p2q_unit"])
         self.assertEqual(validate_p2q_axes(args),(0,30,50,90))
