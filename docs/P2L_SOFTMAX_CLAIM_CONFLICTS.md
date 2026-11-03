@@ -132,6 +132,10 @@ Per-seed metrics:
   is fully valid; partial/conflicted/confirmation-failed cost gap blank;
 - success/failure diagnostic owner/function/category/code, source Git SHA,
   scene hash, raw per-seed CSV, summary, first-audit-seed JSONL and manifest.
+- first-audit-seed JSONL includes each receiver's OWN candidate-support row,
+  actually received Vote-batch count, the certified public CLAIM packet
+  transcript (including losers' retries), and structured first-failure
+  details. These observations are OFFLINE and never used to select a winner.
 
 Diagnostic examples:
 - claim_resolution.validate_p2l_claim_scope / contract /
