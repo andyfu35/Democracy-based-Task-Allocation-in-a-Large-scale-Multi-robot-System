@@ -2408,8 +2408,12 @@ P2KV SEND per robot. Fixed owner(task) = task_id mod num_robots.
 A candidate sends ONE 28-byte P2LC request by unicast to the
 task owner (with physically modeled bounded sender retries).
 The task owner returns a 16-byte physical REQUEST receipt ACK.
-An owner may consider only claims whose receipt ACK reached
-the candidate, never claims from hidden globally known sources.
+The owner may consider ANY CLAIM physically received by its own
+receiver, without knowing whether its outgoing ACK reached the
+requester. An unreceived ACK prompts identical REQUEST retries;
+the requester may not execute or switch tasks until an owner
+GRANT/DENY physically arrives. This avoids the dishonest oracle
+of task-owner reading delivery of its own outgoing ACK.
 At each synchronous owner-local decision window, the owner
 compares only actually confirmed bidder-owned normalized support
 (ticket_count /(valid_received_Vote_batches * tickets_per_task)),
