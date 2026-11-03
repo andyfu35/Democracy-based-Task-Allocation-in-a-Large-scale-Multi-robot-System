@@ -199,15 +199,18 @@ def make_p2r_evidence_row(
         scene=scene,owner_result=owner_result,
     )
     robots,tasks=scene.num_robots,scene.num_tasks
-    events=task_trace.events+vote_run.events+owner_result.events
+    events=tuple(task_trace.events)+vote_run.events+owner_result.events
     observations=vote_run.deliveries+owner_result.deliveries
     phases={}
     for event in events:
-        record=phases.setdefault(event.phase,{"sends":0,"bytes":0})
+        phase="task" if event.phase=="task_announcement" else event.phase
+        record=phases.setdefault(phase,{"sends":0,"bytes":0})
         record["sends"]+=1
         record["bytes"]+=event.payload_bytes
     extra_phases={e.phase for e in owner_result.events}
-    if (any(phase not in PHASES for phase in extra_phases)
+    if (any(e.phase not in ("task_announcement",)+PHASES[1:]
+            for e in events)
+            or any(phase not in PHASES for phase in extra_phases)
             or {phase:phases.get(phase,{}).get("sends",0)
                 for phase in ("cost","vote")}!={"cost":robots,"vote":robots}):
         fail("make_p2r_evidence_row","contract",
