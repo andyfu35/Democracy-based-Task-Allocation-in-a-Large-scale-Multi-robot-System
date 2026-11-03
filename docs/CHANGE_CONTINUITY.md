@@ -4960,3 +4960,47 @@ full valid, unique, tie, cost, time, Bytes.
 - this continuity record SHA is its
   new Git commit; the final branch
   HEAD is printed by git rev-parse HEAD.
+
+
+### 2026-11-03 — P2Q offline diagnostic boundary separation (same concern)
+After targeted source review and prior to local execution, separated
+three responsibilities that were originally combined in the new
+experiments.run_p2q_rank_square_voting.analyze_p2q_vote_consensus:
+- validate_p2q_received_vote_matrices is now the sole offline
+  receiver-matrix DATA/CONTRACT gate. The original failure codes
+  P2Q_INVALID_AUDIT_VIEW and
+  P2Q_NEGATIVE_OR_NONINTEGER_RECEIVED_VOTE now identify this
+  exact first owner function, with expected/actual, instead
+  of incorrectly blaming the statistical analyzer.
+- analyze_p2q_vote_consensus is solely the independent read-only
+  vote tie / positive-support / top-margin metric function.
+  It uses the above validator as its diagnostic boundary,
+  and retains the contract/P2Q_INCONSISTENT_TIE_DENOMINATOR
+  arithmetic invariant.
+- diagnose_p2q_local_execution is solely the read-only SAFETY
+  observation owner for independent duplicate/missing self-claims,
+  recording nonfatal
+  safety/P2Q_LOCAL_EXECUTIONS_NOT_ONE_TO_ONE
+  and first_failure owner/function/category/code.
+  It never chooses a task or repairs an allocation.
+
+This is an internal diagnostic responsibility correction,
+NOT a change in actual optimizer/rank^2 formula,
+original per-receiver Cost/Vote transport,
+per-task integer ticket apportionment, matching result,
+byte ledger or experiment axis. All old method default
+behavior remains identical. Canonical P2Q file was
+synchronized with these exact names in commit
+ceac1613af62ad6dc468d3b6a484cda26750c5c4.
+New source split commit
+a520f37c98042f7975e5bf07e08c37a79c48a928.
+Test source commit
+591cd1cbae0b8bacbd441396fc20f7f7dff14a1f
+adds malformed dimension and negative-ticket
+receiver matrix cases proving that validation,
+rather than tie analysis, is first failure owner.
+Open risk unchanged: GitHub source checks are not
+full native Python execution; user must run
+the P2Q-only targeted tests and smoke first,
+then the 10-seed four-loss matrix if green.
+This continuity record SHA follows in the next commit.
