@@ -65,6 +65,14 @@ FIELDS=(
     "native_stop_ms","first_owner_failure","first_owner_failure_json",
     "execution_pairs_json","reserved_pairs_json",
 )
+# Extra fields only for the opt-in P2N EXECUTING announcement experiment.
+# P2M original CSV schema and recorded behavior remain unchanged.
+P2N_EXTENSION_FIELDS=(
+    "announcement_repetitions","announced_execution_count",
+    "announcement_known_task_receipts","announcement_avoided_requests",
+    "execution_announce_sends","execution_announce_bytes",
+    "execution_announce_receiver_drops",
+)
 SUMMARY_FIELDS=(
     "loss_percent","seeds","full_valid_percent",
     "mean_unique_task_completion_percent","mean_coverage_percent",
@@ -167,8 +175,12 @@ def analyze_p2m_owner_result(*,scene,local_run,owner_result):
 
 
 def run_one_p2m_case(*,scene,profile,loss,votes,temperature,
-                     max_attempts,max_rounds,source_sha,capture_audit):
-    """One physical Cost/Softmax/Vote epoch + only new task-owner unicast."""
+                     max_attempts,max_rounds,source_sha,capture_audit,
+                     execution_announce_repetitions: int = 0):
+    """Same native Cost/Softmax/Vote; optional owner-owned P2N EXECUTING.
+
+    Default 0 maintains the original P2M on-wire, runtime and CSV schema.
+    """
     robots=scene.num_robots
     loss_sampler=BernoulliLossSampler(scene.seed)
     task_sampler=create_e9g_sampler(
@@ -208,18 +220,21 @@ def run_one_p2m_case(*,scene,profile,loss,votes,temperature,
         votes_per_voter=votes,sampler=owner_sampler,
         loss_sampler=loss_sampler,p_loss=loss,
         max_attempts=max_attempts,max_rounds=max_rounds,
+        execution_announce_repetitions=execution_announce_repetitions,
     )
     all_events=tuple(task_wire.events)+local.events+result.events
     stage={"task":tuple(task_wire.events),"cost":tuple(
         e for e in local.events if e.phase=="cost"),
         "vote":tuple(e for e in local.events if e.phase=="vote")}
-    for phase in PHASES[3:]:
+    phases=PHASES+(("execution_announce",)
+                  if execution_announce_repetitions else ())
+    for phase in phases[3:]:
         stage[phase]=tuple(e for e in result.events if e.phase==phase)
-    if (any(e.phase not in (("task_announcement",)+PHASES[1:]) for e in all_events)
+    if (any(e.phase not in (("task_announcement",)+phases[1:]) for e in all_events)
             or len(stage["cost"])!=robots or len(stage["vote"])!=robots
             or sum(len(v) for v in stage.values())!=len(all_events)):
         fail("run_one_p2m_case","contract","P2M_UNEXPECTED_NETWORK_PHASE",
-             expected=PHASES,actual=[e.phase for e in all_events])
+             expected=phases,actual=[e.phase for e in all_events])
     models=(
         (task_sampler,task_wire.events),
         (local_sampler,local.events),
@@ -263,15 +278,26 @@ def run_one_p2m_case(*,scene,profile,loss,votes,temperature,
             json.dumps(asdict(first),ensure_ascii=False,separators=(",",":"))
             if first is not None else ""),
     }
-    for phase in PHASES:
+    for phase in phases:
         row[phase+"_sends"]=len(stage[phase])
         row[phase+"_bytes"]=sum(e.payload_bytes for e in stage[phase])
-        if phase.startswith("owner_"):
+        if phase.startswith("owner_") or phase=="execution_announce":
             row[phase+"_receiver_drops"]=sum(
                 e.phase==phase and not e.delivered for e in result.deliveries)
-    if set(row)!=set(FIELDS):
+    if execution_announce_repetitions:
+        row.update({
+            "announcement_repetitions":execution_announce_repetitions,
+            "announced_execution_count":len(result.announced_executions),
+            "announcement_known_task_receipts":sum(
+                len(tasks) for tasks in result.recipient_seen_executing_tasks),
+            "announcement_avoided_requests":result.avoided_announced_requests,
+        })
+    expected_fields=set(FIELDS)|(
+        set(P2N_EXTENSION_FIELDS) if execution_announce_repetitions else set()
+    )
+    if set(row)!=expected_fields:
         fail("run_one_p2m_case","contract","P2M_RAW_FIELD_SCHEMA_MISMATCH",
-             expected=sorted(FIELDS),actual=sorted(row))
+             expected=sorted(expected_fields),actual=sorted(row))
     audit=None
     if capture_audit:
         audit={
@@ -292,6 +318,18 @@ def run_one_p2m_case(*,scene,profile,loss,votes,temperature,
             "irreversible_task_reservations":result.reserved_pairs,
             "first_failure":asdict(first) if first is not None else None,
         }
+        if execution_announce_repetitions:
+            audit.update({
+                "execution_announced_pairs":result.announced_executions,
+                "receiver_local_known_executing_tasks":
+                    result.recipient_seen_executing_tasks,
+                "announcement_avoided_requests":
+                    result.avoided_announced_requests,
+                "announcement_delivery_observations":[
+                    asdict(obs) for obs in result.deliveries
+                    if obs.phase=="execution_announce"
+                ],
+            })
     return row,audit
 
 
