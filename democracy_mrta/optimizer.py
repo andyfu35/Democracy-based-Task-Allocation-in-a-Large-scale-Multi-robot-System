@@ -501,6 +501,143 @@ def sample_probabilistic_pair_votes(
     return tuple((task_id,robot_id,count) for (task_id,robot_id),count in sorted(counts.items()))
 
 
+
+def sample_p2k_task_balanced_votes(
+    *, cost_matrix: tuple[tuple[float, ...], ...],
+    visible_robot_ids: frozenset[int] | set[int] | tuple[int, ...],
+    voter_id: int, seed: int, votes_per_voter: int,
+    policy: str = "optimized_kbest", k: int = 5,
+    epsilon: float = 0.10, temperature: float = 5.0,
+    round_id: int = 0,
+) -> tuple[int, ...]:
+    """Pure P2K local policy: one candidate ID per task-balanced ticket.
+
+    Only cost rows in visible_robot_ids enter the local candidate solver or
+    per-task proposal distribution. Candidate solutions are distinct feasible
+    perturb-and-MAP assignments, NOT claimed to be exact k-best. Every task
+    receives exactly votes_per_voter / num_tasks tickets, including when the
+    voter sees too few robots to produce a full assignment.
+    """
+    num_robots, num_tasks = validate_cost_matrix(
+        cost_matrix, allow_tasks_exceed_robots=True,
+    )
+    rows = tuple(sorted(set(visible_robot_ids)))
+    if (policy not in ("cost_softmax", "optimized_kbest")
+            or type(votes_per_voter) is not int
+            or votes_per_voter < num_tasks or votes_per_voter % num_tasks
+            or votes_per_voter > 1184
+            or type(k) is not int or not 1 <= k <= 10
+            or type(epsilon) not in (int, float)
+            or not math.isfinite(epsilon) or not 0 <= epsilon <= 1
+            or type(temperature) not in (int, float)
+            or not math.isfinite(temperature) or temperature <= 0
+            or type(seed) is not int or seed < 0
+            or type(round_id) is not int or round_id < 0
+            or type(voter_id) is not int or not 0 <= voter_id < num_robots
+            or voter_id not in rows or not rows or num_robots > 255
+            or any(type(r) is not int or r < 0 or r >= num_robots for r in rows)):
+        raise ProtocolError(Diagnostic(
+            owner="optimizer", function="sample_p2k_task_balanced_votes",
+            category="data", code="P2K_INVALID_LOCAL_VOTE_POLICY",
+            expected="known self-inclusive robot rows; valid cost_softmax/optimized_kbest; "
+                     "1..10 proposals, epsilon 0..1, positive tau, and task-divisible "
+                     "votes up to 1184 in one compact packet",
+            actual={"policy":policy,"tickets":votes_per_voter,"k":k,
+                    "epsilon":epsilon,"temperature":temperature,"visible":rows,
+                    "voter":voter_id,"tasks":num_tasks},
+        ))
+    digest = hashlib.sha256(
+        f"P2K|{seed}|{round_id}|{voter_id}|{votes_per_voter}|"
+        f"{policy}|{k}|{epsilon:.17g}|{temperature:.17g}".encode("ascii")
+    ).digest()
+    rng = random.Random(int.from_bytes(digest, "big"))
+    local = tuple(tuple(float(x) for x in cost_matrix[r]) for r in rows)
+    proposals: list[tuple[float, tuple[tuple[int, int], ...]]] = []
+    if policy == "optimized_kbest":
+        distinct: dict[tuple[tuple[int, int], ...], float] = {}
+        # First solution is exact optimal over locally visible rows. The
+        # remaining distinct assignments use bounded seeded perturbations.
+        # They are approximate near-optimal proposals; no hidden row is read.
+        for attempt in range(max(12, k * 16)):
+            matrix = (
+                local if attempt == 0 else
+                tuple(tuple(value + rng.uniform(-temperature, temperature)
+                            for value in row) for row in local)
+            )
+            local_rows, task_cols = linear_sum_assignment(matrix)
+            pairs = tuple(sorted(
+                (int(task), int(rows[int(r)]))
+                for r, task in zip(local_rows, task_cols)
+            ))
+            if pairs not in distinct:
+                distinct[pairs] = sum(
+                    float(cost_matrix[robot][task]) for task, robot in pairs
+                )
+            if len(distinct) >= k:
+                break
+        proposals = sorted(
+            ((total, pairs) for pairs, total in distinct.items()),
+            key=lambda entry: (entry[0], entry[1]),
+        )[:k]
+        if not proposals:
+            raise ProtocolError(Diagnostic(
+                owner="optimizer", function="sample_p2k_task_balanced_votes",
+                category="planning", code="P2K_NO_VISIBLE_PROPOSAL",
+                expected="at least one local maximum-cardinality assignment",
+                actual={"visible":rows,"tasks":num_tasks},
+            ))
+    proposal_weights: list[float] = []
+    if proposals:
+        best = proposals[0][0]
+        cardinality = len(proposals[0][1])
+        if any(len(pairs) != cardinality for _, pairs in proposals):
+            raise ProtocolError(Diagnostic(
+                owner="optimizer", function="sample_p2k_task_balanced_votes",
+                category="contract", code="P2K_INCOMPARABLE_PROPOSALS",
+                expected=cardinality, actual=[len(pairs) for _,pairs in proposals],
+            ))
+        proposal_weights = [
+            math.exp(-max(0.0, cost - best) / (cardinality * temperature))
+            for cost, _pairs in proposals
+        ]
+    slots = votes_per_voter // num_tasks
+    ballot: list[int] = []
+    for task_id in range(num_tasks):
+        minimum = min(local[ri][task_id] for ri in range(len(rows)))
+        base = [
+            math.exp(-(local[ri][task_id] - minimum) / temperature)
+            for ri in range(len(rows))
+        ]
+        base_total = sum(base)
+        support = {r: 0.0 for r in rows}
+        if proposals:
+            for weight, (_cost, pairs) in zip(proposal_weights, proposals):
+                for task, robot in pairs:
+                    if task == task_id:
+                        support[robot] += weight
+                        break
+        support_total = sum(support.values())
+        if support_total:
+            weights = [
+                (1.0 - epsilon) * support[robot] / support_total
+                + epsilon * base[ri] / base_total
+                for ri, robot in enumerate(rows)
+            ]
+        else:
+            # The locally optimized partial assignments may omit this task.
+            # Falling back to *visible* task-cost probabilities retains
+            # support without fabricating a missing candidate or Cost row.
+            weights = [weight / base_total for weight in base]
+        ballot.extend(rng.choices(rows, weights=weights, k=slots))
+    if len(ballot) != votes_per_voter:
+        raise ProtocolError(Diagnostic(
+            owner="optimizer", function="sample_p2k_task_balanced_votes",
+            category="contract", code="P2K_TICKET_TOTAL_MISMATCH",
+            expected=votes_per_voter, actual=len(ballot),
+        ))
+    return tuple(ballot)
+
+
 def solve_sequential_greedy_reference(
     cost_matrix: tuple[tuple[float, ...], ...],
 ) -> AssignmentSolution:
