@@ -2684,3 +2684,129 @@ communication time.
 
 Canonical owner/rule details and exact Mac runbook:
 docs/P2Q_OPTIMIZED_RANK_SQUARED_VOTING.md.
+
+
+## 69. P2R announcement-first conflict-only arbitration and safe COMMIT (2026-11-03)
+
+P2R is the user's NEW algorithm, inheriting unchanged P2Q
+optimized_rank_square vote generation: 100 robots/100 tasks
+capacity1, K5 candidate local assignments weighted 1/rank^2,
+epsilon0, 1000 task-balanced integer tickets, one original
+sender-paid Cost row and one 1016B P2KV Vote frame per
+robot, independent physical receiver-specific 0/30/50/90%
+loss. External TASK startup remains model-reliable
+and sender paid; actual 144Mbps Rady shared-medium model,
+original private positive-support local matching and
+no CPU solve time are unchanged. This is one ANNOUNCEMENT
+COORDINATION concern, not another change to Vote design
+or cost source. Historical P2Q/P2O and Figure2 sources
+and their default behavior are untouched.
+
+P2R adds three actual 28B P2RI INTENT broadcast
+copies per pending robot for its one locally chosen
+task; NOT the P2LC CLAIM/ACK exchange. The 28B
+sender-owned self-support numerator/received ballots/
+task ticket count uses original validated P2L data
+fields but NEW tag P2RI. Only each receiver's
+actually delivered messages enter its local observed
+contender set. Task owner is deterministic
+owner(t)=task_id mod robots, publicly known from
+TASK. If one real contestant physically observes
+a rival P2RI for its same task, it unicasts one 16B
+P2RH CHALLENGE to that owner, independent of whether
+owner saw both. A P2RH is an advisory alert and
+NEVER supplies a missing/unauthenticated contender
+or authorizes a robot. If owner directly saw only
+one P2RI but physically receives a challenge,
+it can defer ONE round; another owner round
+gives contenders a chance to re-announce.
+Owner only considers PHYSICALLY RECEIVED distinct
+P2RI support to determine its unique winner
+with the SAME rational support/tie-break rule
+as existing P2L claims; no hidden Vote/Cost.
+
+Owner reserves one task irreversibly BEFORE sending
+a 20B P2RC COMMIT (3 copies default) to its
+winner. For only physically observed losing
+intent senders, and only when conflict/locked
+task exists, send 20B P2RD DENY (3 copies).
+There is no CLAIM receipt ACK or COMMIT ACK;
+all sends and receiver drops are individually
+charged. A robot can EXECUTE ONLY upon actual
+P2RC delivery (or as its own task's fixed
+owner applying the same locally checked COMMIT).
+A lost P2RC leaves the task reserved but not
+executed; never silently reallocate or assume
+acknowledgment. On genuine COMMIT send exactly
+three original 20B P2NX advisory EXECUTING
+broadcasts; only genuine receiver P2NX
+receipts affect that receiver's own future
+candidate exclusion. On genuine DENY the
+loser retargets to the next task using its
+own original P2Q vote self-support and Cost;
+without COMMIT/DENY it REPEATS THE SAME
+P2RI intent instead of switching, because
+the owner might have already reserved
+a task for it. This avoids issuing two
+irreversible task reservations to one
+unaware robot via different owners.
+The owner may persist with original reserved
+winner if a late contender arrives.
+
+P2R is not a reliable consensus proof or
+globally minimum-cost auction. Missing or
+delayed INTENT/CHALLENGE/COMMIT/DENY may
+lead to safe incomplete allocations and
+higher costs. An observed tie within a
+private P2Q vote matrix and a duplicated
+cross-receiver self-nomination are distinct.
+One P2R task may be unclaimed even when
+no conflict is ever observed. The only
+shared safety truth is the one deterministic
+task owner's irrevocable task reservation,
+never an oracle in each robot's planner.
+All physical sender application bytes including
+dropped messages and all control phases
+are reported. Full-cost gap against
+offline Global Greedy is only reported
+when ALL tasks genuinely execute uniquely.
+
+One true owner democracy_mrta.claim_resolution
+owns the new protocol through separate named
+data/wire/physical conflict/safety functions,
+including validate_p2r_announcement_scope,
+encode/decode_p2r_intent,
+encode/decode_p2r_challenge,
+encode/decode_p2r_owner_response,
+transmit_p2r_intent_window,
+transmit_p2r_conflict_challenges,
+choose_p2r_owner_responses,
+transmit_p2r_owner_responses,
+transmit_p2r_execution_announcements,
+select_p2r_local_intent_task,
+validate_p2r_unique_execution and
+coordinate_p2r_announced_intents.
+No duplicate Cost/Vote/optimizer state machine,
+no hidden global receipt and no wrapper
+around old P2M CLAIM arbitration is created.
+The original P2M/P2N/P2O code paths remain
+unchanged and are not run by P2R.
+
+One NEW experiment runner
+experiments.run_p2r_intent_conflict_commit
+uses original P2Q single Cost/Vote epoch
+ONCE per seed, calls the true claim_resolution
+owner ONCE, verifies actual physical
+sender byte/send ledger and recipient-local
+P2NX evidence, reports first diagnostic
+owner/function/category/code (not silent
+repair) and saves new per-seed CSV, summary,
+first-seed physical JSONL audit, config,
+source SHA, scene SHA and SHA256 manifest.
+Formal P2R ONLY: PL0/30/50/90% ×10
+Seeds =40 cases; smoke PL0/30/90% ×2
+Seeds=6. No separate historical baseline
+run. The optional 3x broadcast assumptions
+are not 802.11 correlated-loss guarantees.
+Canonical details and executable instructions:
+docs/P2R_ANNOUNCEMENT_CONFLICT_COMMIT.md.
