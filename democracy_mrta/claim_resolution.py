@@ -347,7 +347,7 @@ def coordinate_p2l_claims(
     cost_matrix: tuple[tuple[float, ...], ...],
     votes_per_voter: int, sampler, loss_sampler,
     p_loss: float, channel: str = "bounded_ack",
-    max_attempts: int = 24, max_rounds: int = 100,
+    max_attempts: int = 24, max_rounds: int = 101,
 ) -> P2LClaimResult:
     """Single bounded CLAIM ownership concern after P2K; no PSCR or global Score.
 
