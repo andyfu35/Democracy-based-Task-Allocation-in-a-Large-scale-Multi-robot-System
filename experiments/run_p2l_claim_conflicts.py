@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+from dataclasses import asdict
 from datetime import datetime, timezone
 import json
 import math
@@ -59,7 +60,7 @@ FIELDS=(
     "claim_receiver_drops","ack_receiver_drops",
     "claim_rounds","conflict_task_rounds","reassignment_claims",
     "initial_conflict_tasks","claim_exchange_complete",
-    "claim_diagnostic","native_stop_ms","execution_pairs_json",
+    "claim_diagnostic","claim_diagnostic_json","native_stop_ms","execution_pairs_json",
 )
 SUMMARY_FIELDS=(
     "arm","loss_percent","votes_per_voter","seeds",
@@ -335,6 +336,12 @@ def run_p2l_paired_seed(
                 f"{claim.first_diagnostic.category}/"
                 f"{claim.first_diagnostic.code}"
                 if claim is not None and claim.first_diagnostic is not None else ""
+            ),
+            "claim_diagnostic_json":(
+                json.dumps(asdict(claim.first_diagnostic),
+                           ensure_ascii=False,separators=(",",":"))
+                if claim is not None and claim.first_diagnostic is not None
+                else ""
             ),
             "native_stop_ms":stop_ms,
         }
