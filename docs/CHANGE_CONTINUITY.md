@@ -4702,3 +4702,25 @@ very high loss and a hypothesized 100ms retry timer
 remain explicit open risks; next step is target P2O
 unittest + six-case smoke, then ONLY P2O 10 seeds.
 This continuity record's SHA is the next Git commit.
+
+
+### 2026-11-03 — P2O recipient-local P2NX evidence gate
+Added only a focused regression to
+tests/test_p2o_causal_owner_timing.py,
+test_every_private_known_task_is_supported_by_an_actual_notice.
+It reconstructs the known_executing_tasks set separately for
+each robot from (a) that robot's own physically received
+owner GRANT and (b) the actual physically delivered P2NX
+receiver observations addressed to that robot. It requires
+exact equality with the scheduler's own per-robot cache and
+does not permit global reservations, unreceived broadcasts,
+or another robot's private receipt to influence this local
+task selection input. The actual owner
+claim_resolution.validate_p2o_announcement_receipts
+and original 20B P2NX encoding remain unchanged. No packet,
+timing, state-machine, schema, or behavior change was needed.
+Safety contract P2O_NOTICE_WITHOUT_DELIVERED_GRANT remains
+unchanged. Source test SHA
+bdf8337434d1b60d4c8b8162f8b6678050634766;
+this continuity edit's SHA is the next branch commit.
+Native execution and P2O-only smoke remain pending.
