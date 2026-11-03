@@ -457,6 +457,7 @@ def coordinate_p2l_claims(
 # claim-resolution owner, NOT a second retirement or voting state machine.
 _OWNER_DECISION_WIRE = struct.Struct("<4sIIII")  # 20B
 _OWNER_DECISION_ACK_WIRE = struct.Struct("<4sIII")  # 16B
+_P2N_EXECUTING_WIRE = struct.Struct("<4sIIII")     # 20B
 
 
 @dataclass(frozen=True)
@@ -473,6 +474,9 @@ class P2MTaskOwnerResult:
     owner_decisions: tuple[dict, ...]
     finish_ms: float
     first_diagnostic: Diagnostic | None
+    announced_executions: tuple[tuple[int, int], ...] = ()
+    recipient_seen_executing_tasks: tuple[tuple[int, ...], ...] = ()
+    avoided_announced_requests: int = 0
 
     @property
     def sender_bytes(self) -> int:
@@ -774,6 +778,140 @@ def transmit_p2m_owner_decision(
         details="Robot gets no decision and is BLOCKED; GRANT reserved forever",
     )
     return events,deliveries,False,clock,diagnostic
+
+
+
+
+def validate_p2n_announcement_repetitions(repetitions: int) -> int:
+    """One opt-in protocol knob. P2M default 0 preserves all old behavior."""
+    if type(repetitions) is not int or not 0 <= repetitions <= 5:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="validate_p2n_announcement_repetitions",
+            category="data", code="P2N_INVALID_ANNOUNCEMENT_REPETITIONS",
+            expected="integer 0 (legacy P2M) or 1..5 physical broadcasts",
+            actual=repetitions,
+        ))
+    return repetitions
+
+
+def encode_p2n_execution_announcement(
+    *, claim_round: int, robot_id: int, task_id: int, robots: int,
+) -> bytes:
+    """20B EXECUTING notice, authored ONLY after the claimant got a GRANT.
+
+    Wire is tag, claim_round, actual executor, task ID, public owner ID.
+    Announcement is advisory; it is NEVER authority to execute.
+    """
+    if (type(claim_round) is not int or not 0 <= claim_round <= 0xffffffff
+            or type(robot_id) is not int or not 0 <= robot_id < robots
+            or type(task_id) is not int or not 0 <= task_id <= 255
+            or type(robots) is not int or not 1 <= robots <= 255):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="encode_p2n_execution_announcement",
+            category="data", code="P2N_INVALID_EXECUTING_FIELDS",
+            expected="uint32 claim_round, valid robot/task and robot count 1..255",
+            actual={"round":claim_round,"robot":robot_id,"task":task_id,
+                    "robots":robots},
+        ))
+    return _P2N_EXECUTING_WIRE.pack(
+        b"P2NX", claim_round, robot_id, task_id,
+        p2m_task_owner_id(task_id=task_id, robots=robots),
+    )
+
+
+def decode_p2n_execution_announcement(
+    packet: bytes, *, claim_round: int, sender_id: int,
+    task_id: int, robots: int, tasks: int,
+) -> tuple[int, int]:
+    """Validate *received wire*, sender identity and task-owner mapping.
+
+    This function cannot infer that other peers received the notice.
+    Sender was previously approved by its owner in the live actor.
+    """
+    if not isinstance(packet, bytes) or len(packet) != _P2N_EXECUTING_WIRE.size:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="decode_p2n_execution_announcement",
+            category="data", code="P2N_BAD_EXECUTING_PACKET_SIZE",
+            expected=_P2N_EXECUTING_WIRE.size,
+            actual=len(packet) if isinstance(packet, bytes) else type(packet).__name__,
+        ))
+    tag, actual_round, robot, task, owner = _P2N_EXECUTING_WIRE.unpack(packet)
+    if (tag != b"P2NX" or actual_round != claim_round
+            or robot != sender_id or task != task_id
+            or not 0 <= robot < robots or not 0 <= task < tasks
+            or owner != p2m_task_owner_id(task_id=task, robots=robots)):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="decode_p2n_execution_announcement",
+            category="contract", code="P2N_EXECUTING_IDENTITY_MISMATCH",
+            expected={"tag":"P2NX","round":claim_round,"sender":sender_id,
+                      "task":task_id,"owner":p2m_task_owner_id(
+                          task_id=task_id,robots=robots)},
+            actual={"tag":tag,"round":actual_round,"sender":robot,
+                    "task":task,"owner":owner},
+        ))
+    return robot, task
+
+
+def transmit_p2n_execution_announcement(
+    *, robot_id: int, task_id: int, claim_round: int,
+    robots: int, tasks: int, repetitions: int,
+    sampler, loss_sampler, p_loss: float, release_ms: float,
+) -> tuple[list[CommunicationEvent], list[DeliveryObservation],
+           tuple[int, ...], float]:
+    """Actual repeated EXECUTING broadcasts; charge EVERY attempted SEND.
+
+    Remote receiver caches only its own truly delivered notices;
+    consecutive repeats are deduplicated by task ID. The physical
+    announcements contain no global Score or vote distribution.
+    This helper is called only AFTER receipt of an owner GRANT.
+    """
+    valid_repetitions=validate_p2n_announcement_repetitions(repetitions)
+    if not valid_repetitions:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="transmit_p2n_execution_announcement",
+            category="contract", code="P2N_CANNOT_SEND_ZERO_REPETITIONS",
+            expected="1..5 actual broadcast attempts",actual=repetitions,
+        ))
+    packet=encode_p2n_execution_announcement(
+        claim_round=claim_round, robot_id=robot_id,
+        task_id=task_id, robots=robots,
+    )
+    # This is the physically received TASK dimension, not an extra
+    # task availability oracle. No true global reservation map is sent.
+    receivers=set()
+    events=[]
+    deliveries=[]
+    clock=release_ms
+    for copy in range(valid_repetitions):
+        event=_broadcast_event(
+            phase="execution_announce",sender_id=robot_id,
+            task_id=task_id,round_id=claim_round+1,
+            send_time_ms=clock,payload_bytes=len(packet),sampler=sampler,
+            transmission_index=copy,
+        )
+        events.append(event)
+        observed=_lossy_broadcast_deliveries(
+            event=event,num_robots=robots,
+            loss_sampler=loss_sampler,p_loss=p_loss,
+            round_id=claim_round+1,
+        )
+        deliveries.extend(observed)
+        clock=max(clock,event.arrival_time_ms)
+        for receipt in observed:
+            if receipt.delivered and receipt.arrival_time_ms is not None:
+                _executor, actual_task=decode_p2n_execution_announcement(
+                    packet,claim_round=claim_round,
+                    sender_id=robot_id,task_id=task_id,
+                    robots=robots,tasks=tasks,
+                )
+                if actual_task!=task_id:
+                    raise ProtocolError(Diagnostic(
+                        owner=OWNER,function="transmit_p2n_execution_announcement",
+                        category="contract",code="P2N_RECEIVED_TASK_CHANGED",
+                        expected=task_id,actual=actual_task,
+                    ))
+                receivers.add(receipt.receiver_id)
+    return events, deliveries, tuple(sorted(receivers)), clock
 
 
 def select_p2m_local_request_task(
