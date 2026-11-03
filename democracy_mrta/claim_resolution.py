@@ -1714,7 +1714,10 @@ def validate_p2r_announcement_scope(
                    any(len(row)!=tasks for row in view)
                    for view in run.local_vote_views)
             or any(event.phase not in ("cost","vote") for event in run.events)
-            or len({r for r,_task in run.robot_claims})!=len(run.robot_claims)):
+            or len({r for r,_task in run.robot_claims})!=len(run.robot_claims)
+            or any(type(r) is not int or not 0<=r<robots
+                   or type(task) is not int or not 0<=task<tasks
+                   for r,task in run.robot_claims)):
         raise ProtocolError(Diagnostic(
             owner=OWNER,function="validate_p2r_announcement_scope",
             category="contract",code="P2R_INVALID_ANNOUNCEMENT_SCOPE",
