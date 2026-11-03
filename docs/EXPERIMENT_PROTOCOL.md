@@ -2414,6 +2414,10 @@ requester. An unreceived ACK prompts identical REQUEST retries;
 the requester may not execute or switch tasks until an owner
 GRANT/DENY physically arrives. This avoids the dishonest oracle
 of task-owner reading delivery of its own outgoing ACK.
+If the REQUEST arrived and a subsequent GRANT/DENY arrived, a lost
+outgoing receipt ACK is logged as request_receipt_ack_timeouts,
+NOT a failed allocation. If no REQUEST reaches the owner at all,
+the robot is blocked with P2M_REQUEST_ACK_LIMIT.
 At each synchronous owner-local decision window, the owner
 compares only actually confirmed bidder-owned normalized support
 (ticket_count /(valid_received_Vote_batches * tickets_per_task)),
