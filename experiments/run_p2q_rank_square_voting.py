@@ -72,21 +72,60 @@ def validate_p2q_axes(args):
     return losses
 
 
-def analyze_p2q_vote_consensus(*, source_row, received_vote_matrices):
-    """Observer-only tie and local cross-robot collision diagnosis.
-
-    The observer is NOT a local voter or authorization channel. No
-    rank-tie or duplicate statistic can influence matching decisions.
-    """
+def validate_p2q_received_vote_matrices(*,source_row,matrices):
+    """Data/contract boundary: the offline observer's actual receipt view."""
     robots=source_row["robots"]
     tasks=source_row["tasks"]
-    if (len(received_vote_matrices)!=robots
-            or any(len(view)!=robots for view in received_vote_matrices)
-            or any(len(row)!=tasks for view in received_vote_matrices
+    if (len(matrices)!=robots
+            or any(len(view)!=robots for view in matrices)
+            or any(len(row)!=tasks for view in matrices
                    for row in view)):
-        fail("analyze_p2q_vote_consensus","contract","P2Q_INVALID_AUDIT_VIEW",
+        fail("validate_p2q_received_vote_matrices","contract",
+             "P2Q_INVALID_AUDIT_VIEW",
              expected=f"{robots} receivers x {robots} robots x {tasks} tasks",
-             actual={"receivers":len(received_vote_matrices)})
+             actual={"receivers":len(matrices)})
+    for view in matrices:
+        for row in view:
+            for value in row:
+                if type(value) is not int or value<0:
+                    fail("validate_p2q_received_vote_matrices","data",
+                         "P2Q_NEGATIVE_OR_NONINTEGER_RECEIVED_VOTE",
+                         expected="nonnegative integral received vote count",
+                         actual=value)
+
+
+def diagnose_p2q_local_execution(*,source_row):
+    """Safety observation; NEVER authorize or repair any self-claim."""
+    if source_row["full_valid_allocation"]:
+        return ""
+    diagnostic=Diagnostic(
+        owner=OWNER,function="diagnose_p2q_local_execution",
+        category="safety",code="P2Q_LOCAL_EXECUTIONS_NOT_ONE_TO_ONE",
+        expected={"unique_tasks":source_row["tasks"],
+                  "duplicate_tasks":0,"unassigned_tasks":0},
+        actual={"unique_percent":
+                source_row["unique_task_completion_percent"],
+                "duplicate_tasks":source_row["duplicate_task_count"],
+                "unassigned_tasks":source_row["unassigned_task_count"]},
+        details="Different receiver-local matchings led to unverified "
+                "self-executions. No CLAIM/Commit/owner repair exists.",
+    )
+    return json.dumps(
+        asdict(diagnostic),ensure_ascii=False,separators=(",",":"),
+    )
+
+
+def analyze_p2q_vote_consensus(*,source_row,received_vote_matrices):
+    """Observer-only analysis, separate from data validation and safety.
+
+    A top-vote tie for one receiver/task is NOT a globally
+    duplicated task self-execution. This cannot affect live decisions.
+    """
+    validate_p2q_received_vote_matrices(
+        source_row=source_row,matrices=received_vote_matrices,
+    )
+    robots=source_row["robots"]
+    tasks=source_row["tasks"]
     ties=0
     positive=0
     zero=0
@@ -94,13 +133,10 @@ def analyze_p2q_vote_consensus(*, source_row, received_vote_matrices):
     any_ties=[False]*tasks
     for receiver_view in received_vote_matrices:
         for task_id in range(tasks):
-            counts=[receiver_view[r][task_id] for r in range(robots)]
-            if any(type(count) is not int or count<0 for count in counts):
-                fail("analyze_p2q_vote_consensus","data",
-                     "P2Q_NEGATIVE_OR_NONINTEGER_RECEIVED_VOTE",
-                     expected="nonnegative integral received vote count",
-                     actual={"task":task_id,"counts":counts})
-            ranking=sorted(counts,reverse=True)
+            ranking=sorted(
+                (receiver_view[r][task_id] for r in range(robots)),
+                reverse=True,
+            )
             best=ranking[0]
             if best==0:
                 zero+=1
@@ -115,22 +151,6 @@ def analyze_p2q_vote_consensus(*, source_row, received_vote_matrices):
              "P2Q_INCONSISTENT_TIE_DENOMINATOR",
              expected=robots*tasks,
              actual={"positive":positive,"zero":zero,"ties":ties})
-    duplicate=source_row["duplicate_task_count"]
-    missing=source_row["unassigned_task_count"]
-    diagnostic=(
-        asdict(Diagnostic(
-            owner=OWNER,function="analyze_p2q_vote_consensus",
-            category="safety",code="P2Q_LOCAL_EXECUTIONS_NOT_ONE_TO_ONE",
-            expected={"unique_tasks":tasks,"duplicate_tasks":0,
-                      "unassigned_tasks":0},
-            actual={"unique_percent":
-                    source_row["unique_task_completion_percent"],
-                    "duplicate_tasks":duplicate,"unassigned_tasks":missing},
-            details="Observed independently executed receiver-local matching; "
-                    "no CLAIM/Commit/owner repair exists in P2Q",
-        ))
-        if not source_row["full_valid_allocation"] else None
-    )
     return {
         "receiver_task_positive_support_count":positive,
         "receiver_task_top_vote_ties":ties,
@@ -138,9 +158,9 @@ def analyze_p2q_vote_consensus(*, source_row, received_vote_matrices):
         "receiver_task_top_tie_percent":(100.0*ties/positive if positive else 0.0),
         "mean_positive_top_two_vote_margin":(gaps/positive if positive else 0.0),
         "task_any_receiver_top_tie_count":sum(any_ties),
-        "first_diagnostic_json":(
-            json.dumps(diagnostic,ensure_ascii=False,separators=(",",":"))
-            if diagnostic is not None else ""),
+        "first_diagnostic_json":diagnose_p2q_local_execution(
+            source_row=source_row,
+        ),
     }
 
 
