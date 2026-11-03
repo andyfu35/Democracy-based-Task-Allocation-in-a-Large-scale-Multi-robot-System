@@ -111,6 +111,40 @@ class P2MTaskOwnerTests(unittest.TestCase):
                             len(d["confirmed_claimants"])==2
                             for d in result.owner_decisions))
 
+    def test_owner_must_not_use_hidden_ack_delivery_to_filter_received_bids(self):
+        # Every REQUEST genuinely reaches its owner, but request-receipt
+        # ACKs fail. The owner can still arbitrate from its own actually
+        # received CLAIM, and its separately delivered GRANT/DENY tells
+        # the robot whether to execute or try another task.
+        class DropOwnerReceiptAck:
+            def is_delivered(self,key,p_loss):
+                return "|owner_request_ack|" not in key
+
+        result=coordinate_p2m_task_owners(
+            run=fixture(),cost_matrix=self.costs,
+            votes_per_voter=600,
+            sampler=EmpiricalLatencySampler(profile(),3),
+            loss_sampler=DropOwnerReceiptAck(),p_loss=0.30,
+            max_attempts=2,max_rounds=10,
+        )
+        self.assertEqual(
+            set(result.executed_pairs),{(0,1),(1,0),(2,2)},
+        )
+        self.assertTrue(any(
+            d["task"]==0 and d["reserved_winner"]==1
+            for d in result.owner_decisions
+        ))
+        self.assertEqual(
+            result.first_diagnostic.code,"P2M_REQUEST_ACK_LIMIT",
+        )
+        self.assertTrue(any(
+            e.phase=="owner_request_ack" for e in result.events
+        ))
+        self.assertFalse(any(
+            obs.delivered for obs in result.deliveries
+            if obs.phase=="owner_request_ack"
+        ))
+
     def test_all_links_lost_fails_partially_but_never_double_executes(self):
         result=self.run_owner(1.0,max_attempts=2)
         self.assertEqual(len(result.executed_pairs),2)
