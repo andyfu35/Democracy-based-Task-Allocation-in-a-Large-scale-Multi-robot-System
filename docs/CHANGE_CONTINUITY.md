@@ -4665,3 +4665,40 @@ sync docs, never add a wrapper to hide the issue.
   e369c05464b18cbde46a0b5e331f284c9d08e23f
 - this continuity record SHA is its Git commit,
   and latest branch HEAD pins the exact source.
+
+
+### 2026-11-03 — P2O closing audit: literal original wire and sender ledger
+After the main time-scheduling concern and canonical documentation
+were published, reviewed the opt-in experiment source and focused
+test contract again. Two textual metadata mistakes caused by
+deriving the P2O-only study from the existing P2N source were
+corrected in the true new experiment owner
+experiments.run_p2o_causal_owner_timing.py:
+- Its diagnostic owner identifier is now EXACTLY
+  experiments.run_p2o_causal_owner_timing (not the old source
+  filename variant); categories and error codes are unchanged.
+- The original EXECUTING wire tag is correctly reported as
+  P2NX, not the incorrectly renamed P2OX. The actual original
+  encode/decode/physical packet was ALWAYS P2NX; no packet
+  bytes or owner winner logic changed during this metadata fix.
+Commit: 1cbfe98b3e98ff996e5425a8aa1d0e6497039fbd.
+
+Added regression test
+test_real_shared_radio_ledger_charges_every_send
+in tests/test_p2o_causal_owner_timing.py. It uses the
+original WifiCausalTimingSampler under physical receipt-ACK
+loss to assert trace packet_count equals every actual
+P2O original owner SEND; application_sender_bytes equals
+sum of original payload bytes, sends are causally
+nondecreasing, every physically granted robot-task
+issues exactly three P2NX SENDs and no duplicate task
+execution occurs despite those missed ACKs.
+Test commit: 6fffe2b3538a2482ecaec49ca37a9ef5bc48efd0.
+This test is written but still requires native Python
+execution on a complete Mac repo; a GitHub commit is
+not test-pass evidence. No historical P2N runs are
+repeated or modified. Incomplete assignments under
+very high loss and a hypothesized 100ms retry timer
+remain explicit open risks; next step is target P2O
+unittest + six-case smoke, then ONLY P2O 10 seeds.
+This continuity record's SHA is the next Git commit.
