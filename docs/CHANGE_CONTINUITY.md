@@ -5416,3 +5416,28 @@ on Mac; neither source readback nor
 commit is evidence those native tests pass.
 This continuity edit's exact SHA is its
 GitHub resulting commit.
+
+
+### 2026-11-03 — P2R physical conflict/DENY regression strengthening
+Updated only tests/test_p2r_intent_conflict_commit.py's
+test_only_conflicting_intents_trigger_challenges_and_denies:
+the original fixture's losing robot was also that task's
+fixed owner, and therefore its DENY correctly happened
+as a FREE self-local decision, leaving no physical
+DENY SEND. This did not truly test the requested
+conflict-only on-air rejection mechanism. Changed
+the fixture so R0 and R2 contest T1 while its owner
+R1 intends T0; the losing contestant R2 is NOT
+the task owner. The regression now requires
+a genuinely attempted physical p2r_deny SEND,
+at least one actual conditional p2r_challenge
+SEND, and the same unique completion
+{(R0,T1),(R1,T0),(R2,T2)} after loser
+reselection. Test-only SHA:
+a1a8175b8b0afd5c3e3944b0014eef3af2b970b1.
+No task-owner behavior, wire, message
+bytes, vote policy, canonical protocol
+or old method has changed. Actual native
+Python execution remains pending.
+This continuity update SHA is its
+resulting Git commit.
