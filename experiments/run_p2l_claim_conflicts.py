@@ -41,7 +41,7 @@ STUDY="P2L_1000_SOFTMAX_CONFLICT_ONLY_PAIRED"
 CHANNELS=("bounded_ack", "ideal_paid")
 FIELDS=(
     "source_sha","seed","scene_sha256","robots","tasks",
-    "loss_percent","votes_per_voter","arm","channel",
+    "loss_percent","votes_per_voter","temperature","arm","channel",
     "preclaim_unique_percent","preclaim_duplicate_tasks",
     "preclaim_unassigned_tasks","preclaim_assignment_agreement_percent",
     "corrected_preclaim_vote_similarity_percent",
