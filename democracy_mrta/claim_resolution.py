@@ -918,15 +918,21 @@ def select_p2m_local_request_task(
     *, run: P2KLocalVoteResult, robot_id: int,
     own_cost_row: tuple[float, ...],
     tried_tasks: frozenset[int], first_attempt: bool,
+    known_executing_tasks: frozenset[int] = frozenset(),
 ) -> int | None:
-    """Candidate knows ONLY its own Vote view, own Cost and local rejects."""
+    """Candidate uses ONLY own votes, own cost, own DENYs and received EXECUTING.
+
+    Announcements are advisory negatives, NOT a proof that unknown tasks
+    are available. The fixed task owner still makes every GRANT.
+    """
     tasks=len(own_cost_row)
+    excluded=tried_tasks | known_executing_tasks
     if first_attempt:
         original=dict(run.robot_claims).get(robot_id)
-        if original is not None and original not in tried_tasks:
+        if original is not None and original not in excluded:
             return original
     return choose_p2l_next_task(
-        available_tasks=frozenset(range(tasks))-tried_tasks,
+        available_tasks=frozenset(range(tasks))-excluded,
         own_received_vote_row=run.local_vote_views[robot_id][robot_id],
         own_cost_row=own_cost_row,
     )
@@ -936,6 +942,7 @@ def coordinate_p2m_task_owners(
     *, run: P2KLocalVoteResult, cost_matrix: tuple[tuple[float, ...], ...],
     votes_per_voter: int, sampler, loss_sampler,
     p_loss: float, max_attempts: int = 24, max_rounds: int = 101,
+    execution_announce_repetitions: int = 0,
 ) -> P2MTaskOwnerResult:
     """One authoritative owner per task, unicast-only CLAIM and decisions.
 
@@ -951,9 +958,15 @@ def coordinate_p2m_task_owners(
         run=run,cost_matrix=cost_matrix,votes_per_voter=votes_per_voter,
         p_loss=p_loss,max_attempts=max_attempts,max_rounds=max_rounds,
     )
+    repetitions=validate_p2n_announcement_repetitions(
+        execution_announce_repetitions,
+    )
     pending=set(range(robots))
     blocked=set()
     tried=[set() for _ in range(robots)]
+    seen_executing=[set() for _ in range(robots)]
+    announced_executions=[]
+    avoided_announced_requests=0
     reserved:dict[int,int]={}  # task -> robot, maintained ONLY by task owner
     executed:dict[int,int]={}  # robot -> task, from physically received grant
     owner_decisions=[]
@@ -976,7 +989,18 @@ def coordinate_p2m_task_owners(
                 run=run,robot_id=robot,own_cost_row=cost_matrix[robot],
                 tried_tasks=frozenset(tried[robot]),
                 first_attempt=(claim_round==0),
+                known_executing_tasks=frozenset(seen_executing[robot]),
             )
+            if repetitions:
+                unfiltered=select_p2m_local_request_task(
+                    run=run,robot_id=robot,own_cost_row=cost_matrix[robot],
+                    tried_tasks=frozenset(tried[robot]),
+                    first_attempt=(claim_round==0),
+                )
+                if (unfiltered is not None
+                        and unfiltered in seen_executing[robot]
+                        and unfiltered!=task):
+                    avoided_announced_requests+=1
             if task is None:
                 blocked.add(robot)
                 if first_error is None:
@@ -1068,6 +1092,23 @@ def coordinate_p2m_task_owners(
                                     "old":executed[claim.robot_id],"new":task},
                         ))
                     executed[claim.robot_id]=task
+                    if repetitions:
+                        # Owner has already reserved this task and the
+                        # robot actually received its GRANT. Only now
+                        # can an EXECUTING announcement be transmitted.
+                        ae,ad,receivers,clock=transmit_p2n_execution_announcement(
+                            robot_id=claim.robot_id,task_id=task,
+                            claim_round=claim_round,robots=robots,tasks=tasks,
+                            repetitions=repetitions,sampler=sampler,
+                            loss_sampler=loss_sampler,p_loss=p_loss,
+                            release_ms=clock,
+                        )
+                        events.extend(ae)
+                        deliveries.extend(ad)
+                        announced_executions.append((claim.robot_id,task))
+                        seen_executing[claim.robot_id].add(task)
+                        for receiver in receivers:
+                            seen_executing[receiver].add(task)
                 elif received:
                     tried[claim.robot_id].add(task)
                     next_pending.add(claim.robot_id)
@@ -1083,8 +1124,15 @@ def coordinate_p2m_task_owners(
     if (any(robot in blocked for robot,_task in pairs)
             or any(event.phase not in (
                 "owner_request","owner_request_ack",
-                "owner_decision","owner_decision_ack") for event in events)
-            or any(reserved.get(task)!=robot for robot,task in pairs)):
+                "owner_decision","owner_decision_ack")
+                + (("execution_announce",) if repetitions else ())
+                for event in events)
+            or any(reserved.get(task)!=robot for robot,task in pairs)
+            or (repetitions and
+                (len(announced_executions)!=len(pairs)
+                 or set(announced_executions)!=set(pairs)
+                 or sum(e.phase=="execution_announce" for e in events)
+                    !=len(pairs)*repetitions))):
         raise ProtocolError(Diagnostic(
             owner=OWNER,function="coordinate_p2m_task_owners",
             category="safety",code="P2M_INVALID_RESERVED_EXECUTION",
@@ -1111,4 +1159,9 @@ def coordinate_p2m_task_owners(
         blocked_robot_ids=tuple(sorted(blocked)),
         owner_decisions=tuple(owner_decisions),
         finish_ms=clock,first_diagnostic=first_error,
+        announced_executions=tuple(announced_executions),
+        recipient_seen_executing_tasks=(
+            tuple(tuple(sorted(tasks)) for tasks in seen_executing)
+            if repetitions else ()),
+        avoided_announced_requests=avoided_announced_requests,
     )
