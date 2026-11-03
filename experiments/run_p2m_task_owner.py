@@ -73,6 +73,11 @@ P2N_EXTENSION_FIELDS=(
     "execution_announce_sends","execution_announce_bytes",
     "execution_announce_receiver_drops",
 )
+P2O_EXTENSION_FIELDS=(
+    "timing_mode","retry_timeout_ms","request_window_total_ms",
+    "decision_window_total_ms","timeout_wait_total_ms",
+    "last_first_grant_arrival_ms","owner_protocol_finish_ms",
+)
 SUMMARY_FIELDS=(
     "loss_percent","seeds","full_valid_percent",
     "mean_unique_task_completion_percent","mean_coverage_percent",
@@ -176,10 +181,13 @@ def analyze_p2m_owner_result(*,scene,local_run,owner_result):
 
 def run_one_p2m_case(*,scene,profile,loss,votes,temperature,
                      max_attempts,max_rounds,source_sha,capture_audit,
-                     execution_announce_repetitions: int = 0):
-    """Same native Cost/Softmax/Vote; optional owner-owned P2N EXECUTING.
+                     execution_announce_repetitions: int = 0,
+                     timing_mode: str = "serial",
+                     retry_timeout_ms: float = 100.0):
+    """Original Cost/Vote; opt-in P2O causal scheduling at the TRUE owner.
 
-    Default 0 maintains the original P2M on-wire, runtime and CSV schema.
+    No other method arm is executed. Default serial keeps P2M/P2N
+    source and CSV contract unchanged for old callers.
     """
     robots=scene.num_robots
     loss_sampler=BernoulliLossSampler(scene.seed)
@@ -221,6 +229,7 @@ def run_one_p2m_case(*,scene,profile,loss,votes,temperature,
         loss_sampler=loss_sampler,p_loss=loss,
         max_attempts=max_attempts,max_rounds=max_rounds,
         execution_announce_repetitions=execution_announce_repetitions,
+        timing_mode=timing_mode,retry_timeout_ms=retry_timeout_ms,
     )
     all_events=tuple(task_wire.events)+local.events+result.events
     stage={"task":tuple(task_wire.events),"cost":tuple(
@@ -292,8 +301,22 @@ def run_one_p2m_case(*,scene,profile,loss,votes,temperature,
                 len(tasks) for tasks in result.recipient_seen_executing_tasks),
             "announcement_avoided_requests":result.avoided_announced_requests,
         })
+    if timing_mode=="causal":
+        row.update({
+            "timing_mode":timing_mode,
+            "retry_timeout_ms":retry_timeout_ms,
+            "request_window_total_ms":result.request_window_total_ms,
+            "decision_window_total_ms":result.decision_window_total_ms,
+            "timeout_wait_total_ms":result.timeout_wait_total_ms,
+            "last_first_grant_arrival_ms":(
+                result.last_first_grant_arrival_ms
+                if result.last_first_grant_arrival_ms is not None else ""),
+            "owner_protocol_finish_ms":result.finish_ms,
+        })
     expected_fields=set(FIELDS)|(
         set(P2N_EXTENSION_FIELDS) if execution_announce_repetitions else set()
+    )|(
+        set(P2O_EXTENSION_FIELDS) if timing_mode=="causal" else set()
     )
     if set(row)!=expected_fields:
         fail("run_one_p2m_case","contract","P2M_RAW_FIELD_SCHEMA_MISMATCH",
@@ -318,6 +341,25 @@ def run_one_p2m_case(*,scene,profile,loss,votes,temperature,
             "irreversible_task_reservations":result.reserved_pairs,
             "first_failure":asdict(first) if first is not None else None,
         }
+        if timing_mode=="causal":
+            audit.update({
+                "timing_mode":"causal",
+                "retry_timeout_ms":retry_timeout_ms,
+                "owner_request_window_ms":result.request_window_total_ms,
+                "owner_decision_window_ms":result.decision_window_total_ms,
+                "owner_last_retry_timeout_wait_ms":
+                    result.timeout_wait_total_ms,
+                "last_first_grant_arrival_ms":
+                    result.last_first_grant_arrival_ms,
+                "owner_protocol_finish_ms":result.finish_ms,
+                "control_send_events":[
+                    asdict(event) for event in result.events
+                ],
+                "control_delivery_observations":[
+                    asdict(obs) for obs in result.deliveries
+                    if obs.phase!="execution_announce"
+                ],
+            })
         if execution_announce_repetitions:
             audit.update({
                 "execution_announced_pairs":result.announced_executions,
