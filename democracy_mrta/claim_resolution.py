@@ -582,9 +582,11 @@ def transmit_p2m_owner_request(
     """Request -> deterministic task owner -> single receipt ACK.
 
     A requester retries only after a failed ACK round trip. An owner
-    counts a request as confirmed only if the REQUEST reached it AND
-    its receipt ACK physically reached the requester. A failed bid is
-    never inferred from the experiment's omniscient sender list.
+    considers a CLAIM whenever its REQUEST physically reached it,
+    irrespective of whether the receipt ACK reached the requester.
+    The ACK tells only the requester that the owner has seen its bid;
+    a later delivered GRANT/DENY also proves owner receipt. No owner
+    reads the ACK channel's hidden receiver observation to pick a winner.
     """
     if claim.task_id is None:
         raise ProtocolError(Diagnostic(
@@ -602,6 +604,7 @@ def transmit_p2m_owner_request(
     events=[]
     deliveries=[]
     clock=release_ms
+    owner_received=None
     for copy in range(max_attempts):
         sent=_unicast_event(
             phase="owner_request",sender_id=claim.robot_id,receiver_id=owner,
@@ -622,6 +625,9 @@ def transmit_p2m_owner_request(
             packet,claim_round=claim.claim_round,sender_id=claim.robot_id,
             tasks=tasks,robots=robots,tickets_per_task=claim.tickets_per_task,
         )
+        # This state belongs solely to the owner who received the wire;
+        # it MUST NOT depend on whether its later ACK reaches the robot.
+        owner_received=decoded
         ack=encode_p2l_ack_packet(
             claim_round=claim.claim_round,ack_sender_id=owner,
             claim_robot_id=claim.robot_id,
@@ -645,16 +651,22 @@ def transmit_p2m_owner_request(
                 ack,claim_round=claim.claim_round,
                 ack_sender_id=owner,claim_robot_id=claim.robot_id,
             )
-            return events,deliveries,decoded,clock,None
+            return events,deliveries,owner_received,clock,None
     diagnostic=Diagnostic(
         owner=OWNER,function="transmit_p2m_owner_request",
         category="time",code="P2M_REQUEST_ACK_LIMIT",
-        expected="task owner receipt and requester receipt ACK",
+        expected="bidder's receipt ACK after physically sent owner request",
         actual={"robot":claim.robot_id,"task":claim.task_id,
-                "attempts":max_attempts},
-        details="The robot is BLOCKED; no request is inferred delivered",
+                "attempts":max_attempts,
+                "owner_physically_received_request":owner_received is not None},
+        details=("No request reached the owner; robot must block"
+                 if owner_received is None else
+                 "Owner saw bid; bidder may still learn via owner GRANT/DENY"),
     )
-    return events,deliveries,None,clock,diagnostic
+    # If REQUEST arrived, owner MAY consider it; lost ACK is not an
+    # owner-side rejection. Candidate never changes task absent a
+    # physically received owner GRANT or DENY response.
+    return events,deliveries,owner_received,clock,diagnostic
 
 
 def transmit_p2m_owner_decision(
@@ -848,11 +860,14 @@ def coordinate_p2m_task_owners(
             )
             events.extend(sent)
             deliveries.extend(observed)
-            if error is not None:
-                blocked.add(robot)
-                if first_error is None: first_error=error
-            elif delivered is not None:
+            if delivered is not None:
+                # Owner reads ONLY actual REQUEST receipt, never hidden
+                # status of bidder's incoming owner ACK.
                 inbound.setdefault(task,[]).append(delivered)
+            else:
+                blocked.add(robot)
+            if error is not None and first_error is None:
+                first_error=error
         next_pending=set()
         for task,claims in sorted(inbound.items()):
             owner=p2m_task_owner_id(task_id=task,robots=robots)
