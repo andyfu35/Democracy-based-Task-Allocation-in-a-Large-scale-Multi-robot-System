@@ -2464,7 +2464,7 @@ def validate_p2k_local_scope(
     if (robots > 255 or tasks > 255
             or type(votes_per_voter) is not int or votes_per_voter > 1184
             or votes_per_voter < tasks or votes_per_voter % tasks
-            or policy not in ("cost_softmax", "optimized_kbest")
+            or policy not in ("cost_softmax", "optimized_kbest", "optimized_rank_square")
             or type(seed) is not int or seed < 0):
         raise ProtocolError(Diagnostic(
             owner="coordination", function="validate_p2k_local_scope",
