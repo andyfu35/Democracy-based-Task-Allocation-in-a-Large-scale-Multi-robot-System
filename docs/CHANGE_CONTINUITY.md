@@ -5389,3 +5389,30 @@ or valid simulated outcomes.
   source; no separate
   second owner or hidden
   baseline method was run.
+
+
+### 2026-11-03 — P2R first data-failure owner validation closeout
+Before native test execution, audited true
+claim_resolution.validate_p2r_announcement_scope
+for invalid local P2Q self-nominee robot/task IDs.
+Added explicit P2R-only contract checks that
+every source run.robot_claims element has an
+integer sender in [0,robots) and integer
+task in [0,tasks), rather than allowing a
+later indexing error or an invalid P2RI packet.
+This changes malformed-data diagnostics ONLY;
+genuine original P2Q generated claims and
+all physical/owner behavior remain unchanged.
+No new wrapper, state machine or legacy
+owner alteration. Existing first error is
+claim_resolution.validate_p2r_announcement_scope /
+contract/P2R_INVALID_ANNOUNCEMENT_SCOPE,
+with expected/actual as previously documented.
+Source commit:
+29410fa23ccc2b8015ac7c38f2a75740c5b78bbc.
+Next step remains ONLY P2R-focused Python
+tests and smoke, then the 40 new P2R cases
+on Mac; neither source readback nor
+commit is evidence those native tests pass.
+This continuity edit's exact SHA is its
+GitHub resulting commit.
