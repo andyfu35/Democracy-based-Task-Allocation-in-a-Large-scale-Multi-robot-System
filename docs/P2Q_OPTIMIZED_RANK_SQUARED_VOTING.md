@@ -174,11 +174,18 @@ Original physical owner democracy_mrta.coordination:
 New observational experiment
 experiments.run_p2q_rank_square_voting:
 - validate_p2q_axes: data/P2Q_INVALID_RANK_SQUARE_SCOPE.
+- validate_p2q_received_vote_matrices:
+  isolated contract/P2Q_INVALID_AUDIT_VIEW and
+  data/P2Q_NEGATIVE_OR_NONINTEGER_RECEIVED_VOTE
+  on original physically delivered audit counts.
 - analyze_p2q_vote_consensus:
-  contract/P2Q_INVALID_AUDIT_VIEW,
-  data/P2Q_NEGATIVE_OR_NONINTEGER_RECEIVED_VOTE,
-  contract/P2Q_INCONSISTENT_TIE_DENOMINATOR;
-  nonfatal safety/P2Q_LOCAL_EXECUTIONS_NOT_ONE_TO_ONE.
+  observer-only statistics of positive top-vote
+  ties and vote margins; contract/
+  P2Q_INCONSISTENT_TIE_DENOMINATOR.
+- diagnose_p2q_local_execution:
+  nonfatal safety/P2Q_LOCAL_EXECUTIONS_NOT_ONE_TO_ONE
+  when independent private matching self-claims
+  are duplicate or incomplete; cannot repair them.
 - run_p2q:
   state/P2Q_OUTPUT_ALREADY_EXISTS,
   contract/P2Q_SOURCE_AUDIT_MISSING,
