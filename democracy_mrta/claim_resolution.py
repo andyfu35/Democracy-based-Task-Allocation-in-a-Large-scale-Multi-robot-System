@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from fractions import Fraction
+import heapq
+import math
 import struct
 
 from .coordination import (
@@ -937,6 +939,375 @@ def select_p2m_local_request_task(
         own_received_vote_row=run.local_vote_views[robot_id][robot_id],
         own_cost_row=own_cost_row,
     )
+
+
+
+# P2O: temporal transport of the SAME P2M fixed-owner CLAIM and GRANT.
+# The message, ticket, winner, and reservation owners are unchanged.
+@dataclass(frozen=True)
+class P2OExchangeWindow:
+    events: tuple[CommunicationEvent, ...]
+    deliveries: tuple[DeliveryObservation, ...]
+    owner_received: frozenset[int]
+    robot_received: frozenset[int]
+    ack_confirmed: frozenset[int]
+    announced_executions: tuple[tuple[int, int], ...]
+    first_grant_arrivals: tuple[tuple[int, float], ...]
+    finish_ms: float
+    timeout_wait_ms: float
+
+
+def validate_p2o_timing_scope(
+    *, retry_timeout_ms: float, plans: tuple[tuple[P2LClaim, bool | None], ...],
+    phase: str, robots: int, max_attempts: int, start_ms: float,
+) -> None:
+    """Time + message-plan boundary, before any physical SEND is created."""
+    valid = (
+        phase in ("request", "decision")
+        and type(retry_timeout_ms) in (int, float)
+        and math.isfinite(retry_timeout_ms) and retry_timeout_ms > 0
+        and math.isfinite(start_ms) and start_ms >= 0
+        and type(max_attempts) is int and 1 <= max_attempts <= 128
+        and type(robots) is int and robots >= 1
+        and len({c.robot_id for c, _ in plans}) == len(plans)
+        and all(
+            c.task_id is not None and 0 <= c.robot_id < robots
+            and (granted is None if phase == "request"
+                 else type(granted) is bool)
+            for c, granted in plans
+        )
+    )
+    if not valid:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="validate_p2o_timing_scope",
+            category="time", code="P2O_INVALID_TEMPORAL_SCOPE",
+            expected="request/decision; finite positive timeout; unique "
+                     "candidate per task-owner round; valid 1..128 attempts",
+            actual={"phase":phase,"timeout_ms":retry_timeout_ms,
+                    "robots":robots,"attempts":max_attempts,
+                    "start_ms":start_ms,"claim_count":len(plans)},
+        ))
+
+
+def encode_p2o_exchange_payloads(
+    *, claim: P2LClaim, granted: bool | None,
+    robots: int, phase: str,
+) -> tuple[bytes, bytes]:
+    """Preserve P2M's original on-wire schemas, not another protocol."""
+    task=claim.task_id
+    if task is None:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="encode_p2o_exchange_payloads",
+            category="data",code="P2O_CANNOT_SEND_IDLE_CLAIM",
+            expected="concrete task",actual=claim,
+        ))
+    owner=p2m_task_owner_id(task_id=task,robots=robots)
+    if phase=="request":
+        return (encode_p2l_claim_packet(claim),
+                encode_p2l_ack_packet(
+                    claim_round=claim.claim_round,ack_sender_id=owner,
+                    claim_robot_id=claim.robot_id))
+    return (
+        encode_p2m_owner_decision(
+            round_id=claim.claim_round,owner_id=owner,
+            robot_id=claim.robot_id,task_id=task,granted=bool(granted),
+        ),
+        _OWNER_DECISION_ACK_WIRE.pack(
+            b"P2MA",claim.claim_round,claim.robot_id,task),
+    )
+
+
+def validate_p2o_received_payload(
+    *, claim: P2LClaim, payload: bytes, phase: str,
+    granted: bool | None, robots: int, tasks: int,
+) -> None:
+    """Only a physically delivered packet may authorize an owner/robot action."""
+    task=claim.task_id
+    if task is None:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="validate_p2o_received_payload",
+            category="data",code="P2O_IDLE_DELIVERY",
+            expected="concrete task",actual=claim,
+        ))
+    if phase=="request":
+        received=decode_p2l_claim_packet(
+            payload,claim_round=claim.claim_round,
+            sender_id=claim.robot_id,tasks=tasks,robots=robots,
+            tickets_per_task=claim.tickets_per_task,
+        )
+        if received!=claim:
+            raise ProtocolError(Diagnostic(
+                owner=OWNER,function="validate_p2o_received_payload",
+                category="contract",code="P2O_RECEIVED_CLAIM_CHANGED",
+                expected=claim,actual=received,
+            ))
+    else:
+        decoded=decode_p2m_owner_decision(
+            payload,round_id=claim.claim_round,
+            owner_id=p2m_task_owner_id(task_id=task,robots=robots),
+            robot_id=claim.robot_id,task_id=task,robots=robots,
+        )
+        if decoded!=granted:
+            raise ProtocolError(Diagnostic(
+                owner=OWNER,function="validate_p2o_received_payload",
+                category="contract",code="P2O_RECEIVED_GRANT_CHANGED",
+                expected=granted,actual=decoded,
+            ))
+
+
+def schedule_p2o_exchange_window(
+    *, plans: tuple[tuple[P2LClaim, bool | None], ...],
+    phase: str, robots: int, tasks: int, sampler, loss_sampler,
+    p_loss: float, max_attempts: int, retry_timeout_ms: float,
+    start_ms: float, announcement_repetitions: int,
+) -> P2OExchangeWindow:
+    """Shared-radio, causally ordered transport of ONE owner round phase.
+
+    At start_ms, all robots may independently start. The existing
+    WifiCausalTimingSampler serializes PHYSICAL media service but does
+    not serialize end-to-end waits. One (t, ordinal, kind, robot, copy)
+    priority queue schedules sender retry deadlines, actual packet
+    deliveries, ACK generation and first-delivered-GRANT announcements.
+
+    This function does NOT arbitrate task ownership, replan, retire
+    robots or consult any global Cost/Vote/locked-task state.
+    """
+    validate_p2o_timing_scope(
+        retry_timeout_ms=retry_timeout_ms,plans=plans,phase=phase,
+        robots=robots,max_attempts=max_attempts,start_ms=start_ms,
+    )
+    repeat_count=validate_p2n_announcement_repetitions(
+        announcement_repetitions,
+    )
+    by_robot={claim.robot_id:(claim,granted) for claim,granted in plans}
+    packets={
+        robot:encode_p2o_exchange_payloads(
+            claim=claim,granted=granted,robots=robots,phase=phase)
+        for robot,(claim,granted) in by_robot.items()
+    }
+    requests=frozenset(by_robot)
+    owner_received=set()
+    robot_received=set()
+    ack_confirmed=set()
+    announced=set()
+    announcements=[]
+    first_grants={}
+    events=[]
+    deliveries=[]
+    queue=[]
+    ordinal=0
+    finish=start_ms
+    timeout_wait=0.0
+    last_time=start_ms
+
+    def enqueue(at_ms: float, kind: str, robot: int, copy: int) -> None:
+        nonlocal ordinal
+        if not math.isfinite(at_ms) or at_ms<start_ms-1e-9:
+            raise ProtocolError(Diagnostic(
+                owner=OWNER,function="schedule_p2o_exchange_window",
+                category="time",code="P2O_NONCAUSAL_EVENT_TIME",
+                expected={"minimum_ms":start_ms},
+                actual={"at_ms":at_ms,"kind":kind,"robot":robot},
+            ))
+        heapq.heappush(queue,(at_ms,ordinal,kind,robot,copy))
+        ordinal+=1
+
+    for robot,(claim,granted) in sorted(by_robot.items()):
+        owner=p2m_task_owner_id(task_id=claim.task_id,robots=robots)
+        if owner==robot:
+            if phase=="request":
+                owner_received.add(robot)
+            else:
+                robot_received.add(robot)
+                if granted and repeat_count:
+                    first_grants[robot]=start_ms
+                    announced.add(robot)
+                    announcements.append((robot,claim.task_id))
+                    for copy in range(repeat_count):
+                        enqueue(start_ms,"announce",robot,copy)
+        else:
+            enqueue(start_ms,"send",robot,0)
+
+    while queue:
+        at_ms,_ord,kind,robot,copy=heapq.heappop(queue)
+        if at_ms+1e-9<last_time:
+            raise ProtocolError(Diagnostic(
+                owner=OWNER,function="schedule_p2o_exchange_window",
+                category="time",code="P2O_EVENT_ORDER_REVERSED",
+                expected=f">={last_time}",actual=at_ms,
+            ))
+        last_time=at_ms
+        claim,granted=by_robot[robot]
+        task=claim.task_id
+        owner=p2m_task_owner_id(task_id=task,robots=robots)
+        data_packet,ack_packet=packets[robot]
+        round_id=claim.claim_round+1
+        if kind=="send":
+            if robot in ack_confirmed:
+                continue
+            event=_unicast_event(
+                phase="owner_request" if phase=="request" else "owner_decision",
+                sender_id=robot if phase=="request" else owner,
+                receiver_id=owner if phase=="request" else robot,
+                send_time_ms=at_ms,payload_bytes=len(data_packet),
+                sampler=sampler,task_id=task,round_id=round_id,
+                transmission_index=copy,
+            )
+            events.append(event)
+            finish=max(finish,event.arrival_time_ms)
+            obs=_lossy_unicast_delivery(
+                event=event,loss_sampler=loss_sampler,p_loss=p_loss,
+                round_id=round_id,
+            )
+            deliveries.append(obs)
+            if obs.delivered:
+                enqueue(event.arrival_time_ms,"received_data",robot,copy)
+            if copy+1<max_attempts:
+                enqueue(at_ms+retry_timeout_ms,"send",robot,copy+1)
+            else:
+                # Last attempt must be allowed its ACK timeout before
+                # declaring a terminal missing-receipt condition.
+                enqueue(at_ms+retry_timeout_ms,"last_timeout",robot,copy)
+        elif kind=="received_data":
+            validate_p2o_received_payload(
+                claim=claim,payload=data_packet,phase=phase,
+                granted=granted,robots=robots,tasks=tasks,
+            )
+            if phase=="request":
+                owner_received.add(robot)
+            else:
+                if robot not in robot_received:
+                    robot_received.add(robot)
+                    if granted:
+                        first_grants[robot]=at_ms
+                        if repeat_count:
+                            announced.add(robot)
+                            announcements.append((robot,task))
+                            for attempt in range(repeat_count):
+                                enqueue(at_ms,"announce",robot,attempt)
+            # The receiver owns this ACK SEND. It cannot know whether
+            # the peer will actually receive it until a physical receipt.
+            enqueue(at_ms,"send_ack",robot,copy)
+        elif kind=="send_ack":
+            event=_unicast_event(
+                phase=("owner_request_ack" if phase=="request"
+                       else "owner_decision_ack"),
+                sender_id=owner if phase=="request" else robot,
+                receiver_id=robot if phase=="request" else owner,
+                send_time_ms=at_ms,payload_bytes=len(ack_packet),
+                sampler=sampler,task_id=task,round_id=round_id,
+                transmission_index=copy,
+            )
+            events.append(event)
+            finish=max(finish,event.arrival_time_ms)
+            obs=_lossy_unicast_delivery(
+                event=event,loss_sampler=loss_sampler,p_loss=p_loss,
+                round_id=round_id,
+            )
+            deliveries.append(obs)
+            if obs.delivered:
+                enqueue(event.arrival_time_ms,"received_ack",robot,copy)
+        elif kind=="received_ack":
+            if phase=="request":
+                validate_p2l_ack_packet(
+                    ack_packet,claim_round=claim.claim_round,
+                    ack_sender_id=owner,claim_robot_id=robot,
+                )
+            elif _OWNER_DECISION_ACK_WIRE.unpack(ack_packet)!=(
+                b"P2MA",claim.claim_round,robot,task):
+                raise ProtocolError(Diagnostic(
+                    owner=OWNER,function="schedule_p2o_exchange_window",
+                    category="contract",code="P2O_DECISION_ACK_INVALID",
+                    expected=("P2MA",claim.claim_round,robot,task),
+                    actual=_OWNER_DECISION_ACK_WIRE.unpack(ack_packet),
+                ))
+            ack_confirmed.add(robot)
+        elif kind=="announce":
+            wire=encode_p2n_execution_announcement(
+                claim_round=claim.claim_round,robot_id=robot,
+                task_id=task,robots=robots,
+            )
+            event=_broadcast_event(
+                phase="execution_announce",sender_id=robot,
+                task_id=task,round_id=round_id,
+                send_time_ms=at_ms,payload_bytes=len(wire),
+                sampler=sampler,transmission_index=copy,
+            )
+            events.append(event)
+            finish=max(finish,event.arrival_time_ms)
+            observed=_lossy_broadcast_deliveries(
+                event=event,num_robots=robots,loss_sampler=loss_sampler,
+                p_loss=p_loss,round_id=round_id,
+            )
+            deliveries.extend(observed)
+            for observation in observed:
+                if observation.delivered:
+                    decode_p2n_execution_announcement(
+                        wire,claim_round=claim.claim_round,
+                        sender_id=robot,task_id=task,
+                        robots=robots,tasks=tasks,
+                    )
+        elif kind=="last_timeout":
+            if robot not in ack_confirmed:
+                timeout_wait=max(timeout_wait,at_ms-start_ms)
+                finish=max(finish,at_ms)
+        else:
+            raise ProtocolError(Diagnostic(
+                owner=OWNER,function="schedule_p2o_exchange_window",
+                category="runtime",code="P2O_UNKNOWN_EVENT_KIND",
+                expected=("send","received_data","send_ack","received_ack",
+                          "announce","last_timeout"),
+                actual=kind,
+            ))
+    if (len(announced)!=len(announcements) or
+            any(robot not in robot_received for robot in announced) or
+            any(robot not in requests for robot in ack_confirmed)):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="schedule_p2o_exchange_window",
+            category="safety",code="P2O_UNAUTHORIZED_ANNOUNCEMENT",
+            expected="one announcement owner per first delivered GRANT",
+            actual={"announced":announcements,
+                    "received":sorted(robot_received),
+                    "confirmed":sorted(ack_confirmed)},
+        ))
+    return P2OExchangeWindow(
+        events=tuple(events),deliveries=tuple(deliveries),
+        owner_received=frozenset(owner_received),
+        robot_received=frozenset(robot_received),
+        ack_confirmed=frozenset(ack_confirmed),
+        announced_executions=tuple(announcements),
+        first_grant_arrivals=tuple(sorted(first_grants.items())),
+        finish_ms=finish,timeout_wait_ms=timeout_wait,
+    )
+
+
+def validate_p2o_announcement_receipts(
+    *, window: P2OExchangeWindow,
+    claims: tuple[tuple[P2LClaim,bool|None], ...],
+    robots: int, seen_executing: list[set[int]],
+) -> None:
+    """Apply ONLY physically delivered, original owner-authorized notices."""
+    expected={(claim.robot_id,claim.task_id)
+              for claim,granted in claims
+              if granted and claim.robot_id in window.robot_received}
+    if set(window.announced_executions)!=expected:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="validate_p2o_announcement_receipts",
+            category="safety",code="P2O_NOTICE_WITHOUT_DELIVERED_GRANT",
+            expected=tuple(sorted(expected)),
+            actual=window.announced_executions,
+        ))
+    for robot,task in window.announced_executions:
+        seen_executing[robot].add(task)
+    for obs in window.deliveries:
+        if obs.phase=="execution_announce" and obs.delivered:
+            if not 0<=obs.receiver_id<robots:
+                raise ProtocolError(Diagnostic(
+                    owner=OWNER,function="validate_p2o_announcement_receipts",
+                    category="contract",code="P2O_INVALID_NOTICE_RECEIVER",
+                    expected="0 <= receiver < robots",actual=obs.receiver_id,
+                ))
+            seen_executing[obs.receiver_id].add(obs.task_id)
 
 
 def coordinate_p2m_task_owners(
