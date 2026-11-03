@@ -213,7 +213,7 @@ def run_one_p2m_case(*,scene,profile,loss,votes,temperature,
         "vote":tuple(e for e in local.events if e.phase=="vote")}
     for phase in PHASES[3:]:
         stage[phase]=tuple(e for e in result.events if e.phase==phase)
-    if (any(e.phase not in stage for e in all_events)
+    if (any(e.phase not in (("task_announcement",)+PHASES[1:]) for e in all_events)
             or len(stage["cost"])!=robots or len(stage["vote"])!=robots
             or sum(len(v) for v in stage.values())!=len(all_events)):
         fail("run_one_p2m_case","contract","P2M_UNEXPECTED_NETWORK_PHASE",
