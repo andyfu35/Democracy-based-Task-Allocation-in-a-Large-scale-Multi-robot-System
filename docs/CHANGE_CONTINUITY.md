@@ -4724,3 +4724,239 @@ unchanged. Source test SHA
 bdf8337434d1b60d4c8b8162f8b6678050634766;
 this continuity edit's SHA is the next branch commit.
 Native execution and P2O-only smoke remain pending.
+
+
+## 2026-11-03 — P2Q opt-in optimize-then-rank-square vote, NO CLAIM
+
+### Motivation and precise one-concern scope
+User questioned why already transmitted Softmax votes were
+followed by CLAIM/ACK/GRANT, and proposed directly amplifying
+ranking gaps: FIRST locally optimize an assignment, THEN
+allocate integer votes proportionally to a squared function
+of candidate rank, to test whether removing ambiguous equal
+vote totals also removes cross-robot duplicate execution.
+
+Prior causal evidence: P2K under 30% physical Cost/Vote loss
+showed ~76.8% unique self-claim completion and different
+per-receiver matching, even with valid one-to-one matching
+INSIDE each private view. P2M/P2N/P2O removed duplicates
+by a separate task-owner arbitration stage, thereby hiding
+whether the original VOTING mechanism alone had improved.
+P2Q isolates exactly the voter-side preference weighting,
+not another ACK, networking, owner or state-machine change.
+The first preliminary experiment must execute ONLY new
+optimized_rank_square, no older method arms.
+
+### Required source reading
+In order: AGENTS.md -> docs/AI_CHANGE_PROTOCOL.md ->
+docs/CHANGE_CONTINUITY.md; subsystem canonical
+docs/P2K_CONSENSUS_FREE_LOCAL_VOTING.md and
+docs/EXPERIMENT_PROTOCOL.md (plus recent P2O scope);
+true owner democracy_mrta.optimizer with exact
+sample_p2k_task_balanced_votes function and candidate
+proposal sorting/visibility rules; exact original
+democracy_mrta.coordination.validate_p2k_local_scope,
+collect_p2k_local_vote_views,
+resolve_p2k_local_assignment and
+simulate_p2k_local_vote_epoch; existing experiment
+source experiments.run_p2k_consensus_free.run_one_p2k_case
+and analyze_p2k_local_claims. New branch
+experiment/p2q-optimized-rank-square-votes from
+experiment/p2o-causal-owner-timing.
+
+### Files, true named functions and responsibility movement
+- democracy_mrta/optimizer.py, true vote generation owner:
+  * compute_p2q_rank_squared_proposal_weights
+    returns proposal weights w_k=1/k^2, ranked by
+    each voter's ORIGINAL private visible-cost
+    Hungarian+seeded perturb-and-MAP proposals. It
+    validates nonempty finite sorted proposals;
+    contract/P2Q_INVALID_RANKED_PROPOSALS. These
+    are NOT certified exact global K-best matchings.
+  * apportion_p2q_task_tickets: per task allocate
+    exactly B/tasks integer uint8 robot-ID ticket
+    values from normalized proposal-rank support,
+    using deterministic largest remainder plus
+    lower robot ID fractional tie break;
+    data/P2Q_INVALID_TASK_WEIGHTS,
+    contract/P2Q_INVALID_REMAINDER_BUDGET and
+    P2Q_APPORTIONMENT_COUNT_MISMATCH.
+  * sample_p2k_task_balanced_votes: existing real
+    rank/probabilistic candidate owner, adds ONE
+    opt-in policy optimized_rank_square while
+    reusing EXACT same private visible Cost rows,
+    exact Hungarian first proposal, <=5 distinct
+    seeded approximate near-best proposals, original
+    task-balanced B1000->10 tickets/task,
+    unchanged P2KV wire encoding. In new mode,
+    support for robot r/task t is sum over
+    proposals assigning t to r of 1/(rank^2);
+    epsilon=0, so zero arbitrary softmax
+    exploration when at least one locally visible
+    proposal supports t. If none cover t because
+    too few Cost rows survived loss, use ONLY
+    the original visible Cost softmax fallback.
+    Integer rounding is deterministic; old
+    cost_softmax/optimized_kbest branches retain
+    their original stochastic sampling and values.
+- democracy_mrta/coordination.py:
+  validate_p2k_local_scope accepts the one new
+  policy literal only; original packet sizes,
+  per-recipient Bernoulli loss,
+  collect_p2k_local_vote_views and
+  resolve_p2k_local_assignment are UNCHANGED.
+  No second vote/state coordinator is created.
+- NEW experiments/run_p2q_rank_square_voting.py:
+  validate_p2q_axes owns data/P2Q_INVALID_RANK_SQUARE_SCOPE
+  strict B1000,K5,epsilon0 and one-method inputs.
+  analyze_p2q_vote_consensus owns completely OFFLINE
+  observer diagnosis, not local decision: for each
+  receiver and task inspect actual delivered
+  integer vote matrix; count positive-support
+  top-vote ties, zero-support tasks and top-two
+  ticket gaps separately from global self-claim
+  duplicates/missing. On partial/duplicate
+  completion, emit nonfatal structured first
+  safety/P2Q_LOCAL_EXECUTIONS_NOT_ONE_TO_ONE,
+  with original owner/function/category/code and
+  expected/actual. Other diagnostics:
+  contract/P2Q_INVALID_AUDIT_VIEW,
+  data/P2Q_NEGATIVE_OR_NONINTEGER_RECEIVED_VOTE,
+  contract/P2Q_INCONSISTENT_TIE_DENOMINATOR.
+  run_p2q invokes SAME original native
+  experiments.run_p2k_consensus_free.run_one_p2k_case
+  EXACTLY once per seed/loss using the one NEW
+  policy (not an extra old-arm rerun), with an
+  ephemeral actual source receiver matrix audit
+  used ONLY for analysis. Audit is saved only
+  first seed per loss. Other named functions
+  summarize_p2q_rows/save_p2q_evidence own
+  independent append-only 40 new-only results,
+  config, source Git SHA, scene SHA, original
+  full SEND byte ledger/receiver drop data,
+  full-valid-only Cost and Greedy gap, CSV,
+  JSONL and SHA256 manifest. Diagnostics:
+  state/P2Q_OUTPUT_ALREADY_EXISTS,
+  contract/P2Q_SOURCE_AUDIT_MISSING,
+  contract/P2Q_RAW_SCHEMA_OR_POLICY_MISMATCH.
+- NEW tests/test_p2q_rank_square_voting.py:
+  rank1:rank2:rank3=1:1/4:1/9;
+  exact integer Hamilton ticket split
+  for five distinct task candidates under B=10
+  is 7:2:1:0:0; determinism,
+  pure visible-robot constraint and
+  no invented hidden Cost; original Cost/Vote
+  per-receiver physical epoch only, no extra
+  CLAIM/Grant traffic; artificial no-top-tie
+  but global duplicate task example; artificial
+  actual top-vote tie example; strict new-only
+  CLI and incomplete cost blank.
+- docs/P2Q_OPTIMIZED_RANK_SQUARED_VOTING.md:
+  canonical new study, warnings and Mac runbook.
+- docs/P2K_CONSENSUS_FREE_LOCAL_VOTING.md:
+  additive opt-in canonical note; original
+  cost_softmax/optimized_kbest study unchanged.
+- docs/EXPERIMENT_PROTOCOL.md §68:
+  canonical global vote-only interpretation,
+  tie versus cross-robot conflict definitions.
+- docs/CHANGE_CONTINUITY.md:
+  this required purpose/files/functions/diagnostics
+  and commit SHA record.
+
+### Preserved behavior and deliberate change
+Preserved: original 100R/100T capacity1,
+1000 sender-paid votes per robot in ONE
+unchanged 1016B P2KV frame, exactly one
+Cost sender broadcast per robot, original
+paid model-reliable external TASK,
+independent per-recipient p_loss on real
+Cost/Vote frames, visible Costs only,
+P2K receiver's own positive-vote
+maximum-cardinality Hungarian matching
+and executor's OWN row only,
+no model oracle/correction, task capacity
+and actual attempted SEND bytes include drops.
+Historical P2K/P2L/P2M/P2N/P2O algorithms,
+on-wire protocols, default modes, tests,
+README and historical archived results are
+not modified by the opt-in experiment.
+
+Intentionally changed ONLY P2Q voter's
+proposal-to-ballot weighting:
+historical optimized_kbest cost-gap
+exponential with epsilon exploration
+and random integer tickets is replaced
+IN P2Q ONLY by proposal inverse squared
+ordinal rank, epsilon0, and deterministic
+integer largest remainder. Only P2Q
+experiment is run. Exact K5 distinct
+candidate proposals may be fewer; the
+rank1 locally best proposal is guaranteed
+only within the voter's ACTUALLY SEEN
+Cost rows, not global Cost. Entire task
+may be absent from all proposals when
+visible robots<tasks, then the original
+visible Cost softmax fallback is required.
+No second optimizer, CLAIM state machine,
+GRANT or reliable control is added.
+
+### Risk, non-guarantees and next action
+This is a HYPOTHESIS test. No mathematical
+proof that a discrete 10-vote/task count
+has zero ties; no proof that receiver-local
+unambiguous winner implies a common global
+winner. High Cost loss produces different
+local Hungarian assignments and some
+tasks not covered by K proposals, retaining
+fallback diffuse votes. Top-vote ties
+within tasks and cross-robot self-claims
+are different dimensions and MUST be
+separately reported. Near-opt proposals
+are only seeded perturb-and-MAP alternatives,
+NOT exact global K-best enumeration.
+No honest CLAIM/Grant means no guaranteed
+safe unique physical execution on all
+loss levels; partial and duplicate
+outcomes are genuine failed allocations.
+Real RF correlation, CPU Hungarian
+runtime and full WiFi MAC collision timing
+remain unmodeled; channel is the unchanged
+Rady 144Mbps hypothetical proxy.
+
+P2Q no legacy runners: test_p2q*.py
+only, 6-case smoke (PL0/30/90 x2 seeds),
+then only if green 40 new-only cases
+(PL0/30/50/90 x10 seeds); output
+per_seed_p2q.csv, summary_p2q.csv,
+audit_p2q.jsonl, run_config_p2q.json,
+manifest_p2q.json and full log into ZIP.
+GitHub commits are source evidence but
+NOT native Python test/smoke execution.
+First failure must report true owner/
+function/category/code and expected/
+actual/details; no phantom successful
+allocations or repair.
+After upload, compare with previous
+P2K/P2O HISTORICAL EVIDENCE only,
+without rerunning old arms; report
+full valid, unique, tie, cost, time, Bytes.
+
+### P2Q commit SHA provenance
+- true optimizer new policy and weighted
+  exact integer apportionment:
+  b0e4d4a4198f128db901aaedea211107bb3da971
+- native coordination allowed policy:
+  a52873faf1ed6fd1f01dd7d76b035aa2ecf4ce64
+- P2Q 40-case source + observer diagnostics:
+  5e7b4b510e1b4290f09ad9cbfc7b9faa2995879d
+- focused no-tie-vs-collision tests:
+  8b458ea76d67f78756e9735c5d3aa8f909a8e314
+- canonical P2Q and user runbook:
+  dac567de23bc19cc06fb0f6cd26c584579f8a408
+- original P2K additive policy note:
+  d7e6c837d82923470a3650a8f49d2dd074b07af9
+- global canonical §68:
+  e66e97fa2b5523abd175e09847acd3d785203200
+- this continuity record SHA is its
+  new Git commit; the final branch
+  HEAD is printed by git rev-parse HEAD.
