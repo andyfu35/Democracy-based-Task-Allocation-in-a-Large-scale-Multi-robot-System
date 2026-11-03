@@ -479,6 +479,11 @@ class P2MTaskOwnerResult:
     announced_executions: tuple[tuple[int, int], ...] = ()
     recipient_seen_executing_tasks: tuple[tuple[int, ...], ...] = ()
     avoided_announced_requests: int = 0
+    timing_mode: str = "serial"
+    request_window_total_ms: float = 0.0
+    decision_window_total_ms: float = 0.0
+    timeout_wait_total_ms: float = 0.0
+    last_first_grant_arrival_ms: float | None = None
 
     @property
     def sender_bytes(self) -> int:
@@ -1315,14 +1320,16 @@ def coordinate_p2m_task_owners(
     votes_per_voter: int, sampler, loss_sampler,
     p_loss: float, max_attempts: int = 24, max_rounds: int = 101,
     execution_announce_repetitions: int = 0,
+    timing_mode: str = "serial", retry_timeout_ms: float = 100.0,
 ) -> P2MTaskOwnerResult:
-    """Single fixed task-owner grant actor, with optional P2N advisory P2NX.
+    """ONE fixed-task-owner state machine; opt-in P2O transport chronology.
 
-    P2M default repetitions=0 is unchanged. P2N repetitions>0 adds
-    only post-GRANT physical EXECUTING broadcasts and receiver-local
-    known-task exclusion. Neither branch supplies global Cost/Vote
-    or reservation data to other robots. Synchronous known-roster
-    shared-radio model is not a crash-tolerant consensus proof.
+    P2M/P2N default serial timing and protocol behavior are preserved.
+    P2O timing_mode='causal' schedules original CLAIM, ACK, GRANT/DENY
+    and P2NX events by physical release/receipt time. Only the shared
+    radio service is serialized; remote receiver waits overlap.
+    Owner reservation, locally received Vote and execution safety are
+    all still enforced HERE, never in the time scheduler.
     """
     robots,tasks=validate_p2m_owner_scope(
         run=run,cost_matrix=cost_matrix,votes_per_voter=votes_per_voter,
@@ -1331,6 +1338,17 @@ def coordinate_p2m_task_owners(
     repetitions=validate_p2n_announcement_repetitions(
         execution_announce_repetitions,
     )
+    if timing_mode not in ("serial","causal"):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="coordinate_p2m_task_owners",
+            category="data",code="P2O_UNKNOWN_TIMING_MODE",
+            expected=("serial","causal"),actual=timing_mode,
+        ))
+    if timing_mode=="causal":
+        validate_p2o_timing_scope(
+            retry_timeout_ms=retry_timeout_ms,plans=(),phase="request",
+            robots=robots,max_attempts=max_attempts,start_ms=0.0,
+        )
     pending=set(range(robots))
     blocked=set()
     tried=[set() for _ in range(robots)]
@@ -1348,11 +1366,17 @@ def coordinate_p2m_task_owners(
     conflicts=0
     reassignments=0
     request_ack_timeouts=0
+    request_window_total=0.0
+    decision_window_total=0.0
+    timeout_wait_total=0.0
+    last_first_grant_arrival=None
     first_error=None
     for claim_round in range(max_rounds):
         if not pending or len(executed)==tasks:
             break
         inbound:dict[int,list[P2LClaim]]={}
+        causal_request_plans=[]
+        causal_decision_plans=[]
         rounds+=1
         for robot in sorted(pending):
             task=select_p2m_local_request_task(
@@ -1387,6 +1411,9 @@ def coordinate_p2m_task_owners(
                 run=run,robot_id=robot,task_id=task,
                 claim_round=claim_round,votes_per_voter=votes_per_voter,
             )
+            if timing_mode=="causal":
+                causal_request_plans.append((claim,None))
+                continue
             sent,observed,delivered,clock,error=transmit_p2m_owner_request(
                 claim=claim,robots=robots,tasks=tasks,
                 sampler=sampler,loss_sampler=loss_sampler,p_loss=p_loss,
@@ -1410,6 +1437,42 @@ def coordinate_p2m_task_owners(
                     # This is a nonfatal communication diagnostic, not
                     # a failed allocation once an owner reply arrives.
                     request_ack_timeouts+=1
+        if timing_mode=="causal":
+            request_start=clock
+            exchange=schedule_p2o_exchange_window(
+                plans=tuple(causal_request_plans),phase="request",
+                robots=robots,tasks=tasks,sampler=sampler,
+                loss_sampler=loss_sampler,p_loss=p_loss,
+                max_attempts=max_attempts,
+                retry_timeout_ms=retry_timeout_ms,start_ms=clock,
+                announcement_repetitions=0,
+            )
+            events.extend(exchange.events)
+            deliveries.extend(exchange.deliveries)
+            clock=exchange.finish_ms
+            request_window_total+=clock-request_start
+            timeout_wait_total+=exchange.timeout_wait_ms
+            for claim,_unused in causal_request_plans:
+                robot=claim.robot_id
+                if robot in exchange.owner_received:
+                    inbound.setdefault(claim.task_id,[]).append(claim)
+                    if (robot not in exchange.ack_confirmed
+                            and p2m_task_owner_id(
+                                task_id=claim.task_id,robots=robots)!=robot):
+                        request_ack_timeouts+=1
+                else:
+                    blocked.add(robot)
+                    if first_error is None:
+                        first_error=Diagnostic(
+                            owner=OWNER,
+                            function="schedule_p2o_exchange_window",
+                            category="time",code="P2O_REQUEST_NOT_DELIVERED",
+                            expected="owner physically receives CLAIM "
+                                     "within bounded retry window",
+                            actual={"robot":robot,"task":claim.task_id,
+                                    "attempts":max_attempts,
+                                    "retry_timeout_ms":retry_timeout_ms},
+                        )
         next_pending=set()
         for task,claims in sorted(inbound.items()):
             owner=p2m_task_owner_id(task_id=task,robots=robots)
@@ -1442,6 +1505,9 @@ def coordinate_p2m_task_owners(
             })
             for claim in claims:
                 granted=(claim.robot_id==winner)
+                if timing_mode=="causal":
+                    causal_decision_plans.append((claim,granted))
+                    continue
                 sent,observed,received,clock,error=transmit_p2m_owner_decision(
                     claim=claim,robots=robots,granted=granted,
                     sampler=sampler,loss_sampler=loss_sampler,p_loss=p_loss,
@@ -1482,6 +1548,57 @@ def coordinate_p2m_task_owners(
                 elif received:
                     tried[claim.robot_id].add(task)
                     next_pending.add(claim.robot_id)
+        if timing_mode=="causal":
+            decision_start=clock
+            exchange=schedule_p2o_exchange_window(
+                plans=tuple(causal_decision_plans),phase="decision",
+                robots=robots,tasks=tasks,sampler=sampler,
+                loss_sampler=loss_sampler,p_loss=p_loss,
+                max_attempts=max_attempts,
+                retry_timeout_ms=retry_timeout_ms,start_ms=clock,
+                announcement_repetitions=repetitions,
+            )
+            events.extend(exchange.events)
+            deliveries.extend(exchange.deliveries)
+            clock=exchange.finish_ms
+            decision_window_total+=clock-decision_start
+            timeout_wait_total+=exchange.timeout_wait_ms
+            validate_p2o_announcement_receipts(
+                window=exchange,claims=tuple(causal_decision_plans),
+                robots=robots,seen_executing=seen_executing,
+            )
+            announced_executions.extend(exchange.announced_executions)
+            for robot,arrival in exchange.first_grant_arrivals:
+                last_first_grant_arrival=max(
+                    last_first_grant_arrival or 0.0,arrival,
+                )
+            for claim,granted in causal_decision_plans:
+                robot=claim.robot_id
+                if robot not in exchange.robot_received:
+                    blocked.add(robot)
+                    if first_error is None:
+                        first_error=Diagnostic(
+                            owner=OWNER,function="schedule_p2o_exchange_window",
+                            category="time",code="P2O_OWNER_DECISION_NOT_DELIVERED",
+                            expected="robot physically receives owner GRANT/DENY "
+                                     "within bounded retry window",
+                            actual={"robot":robot,"task":claim.task_id,
+                                    "granted":granted,"attempts":max_attempts,
+                                    "retry_timeout_ms":retry_timeout_ms},
+                        )
+                elif granted:
+                    if robot in executed and executed[robot]!=claim.task_id:
+                        raise ProtocolError(Diagnostic(
+                            owner=OWNER,function="coordinate_p2m_task_owners",
+                            category="safety",code="P2M_ROBOT_DOUBLE_GRANT",
+                            expected="at most one owner GRANT per robot",
+                            actual={"robot":robot,"prior":executed[robot],
+                                    "new":claim.task_id},
+                        ))
+                    executed[robot]=claim.task_id
+                else:
+                    tried[robot].add(claim.task_id)
+                    next_pending.add(robot)
         pending=next_pending
         if not pending:
             break
@@ -1535,4 +1652,9 @@ def coordinate_p2m_task_owners(
             tuple(tuple(sorted(tasks)) for tasks in seen_executing)
             if repetitions else ()),
         avoided_announced_requests=avoided_announced_requests,
+        timing_mode=timing_mode,
+        request_window_total_ms=request_window_total,
+        decision_window_total_ms=decision_window_total,
+        timeout_wait_total_ms=timeout_wait_total,
+        last_first_grant_arrival_ms=last_first_grant_arrival,
     )
