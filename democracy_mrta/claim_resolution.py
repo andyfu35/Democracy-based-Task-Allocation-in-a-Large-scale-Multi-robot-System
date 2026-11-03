@@ -802,10 +802,11 @@ def encode_p2n_execution_announcement(
     Wire is tag, claim_round, actual executor, task ID, public owner ID.
     Announcement is advisory; it is NEVER authority to execute.
     """
-    if (type(claim_round) is not int or not 0 <= claim_round <= 0xffffffff
+    if (type(robots) is not int or not 1 <= robots <= 255
+            or type(claim_round) is not int
+            or not 0 <= claim_round <= 0xffffffff
             or type(robot_id) is not int or not 0 <= robot_id < robots
-            or type(task_id) is not int or not 0 <= task_id <= 255
-            or type(robots) is not int or not 1 <= robots <= 255):
+            or type(task_id) is not int or not 0 <= task_id <= 255):
         raise ProtocolError(Diagnostic(
             owner=OWNER, function="encode_p2n_execution_announcement",
             category="data", code="P2N_INVALID_EXECUTING_FIELDS",
@@ -944,15 +945,13 @@ def coordinate_p2m_task_owners(
     p_loss: float, max_attempts: int = 24, max_rounds: int = 101,
     execution_announce_repetitions: int = 0,
 ) -> P2MTaskOwnerResult:
-    """One authoritative owner per task, unicast-only CLAIM and decisions.
+    """Single fixed task-owner grant actor, with optional P2N advisory P2NX.
 
-    Same original P2K local Softmax Votes; owner(task) = task % robots.
-    Each owner sees ONLY confirmed request packets addressed to its task.
-    Robots see ONLY their own received decision/own Cost/Vote and local
-    rejected-task list; no global locked-task visibility, global vote
-    matrix, all-peer ACK, task Score broadcast or hidden recovery.
-    This is a synchronous known-roster experiment with serial radio
-    scheduling, not a proof of asynchronous crash tolerance.
+    P2M default repetitions=0 is unchanged. P2N repetitions>0 adds
+    only post-GRANT physical EXECUTING broadcasts and receiver-local
+    known-task exclusion. Neither branch supplies global Cost/Vote
+    or reservation data to other robots. Synchronous known-roster
+    shared-radio model is not a crash-tolerant consensus proof.
     """
     robots,tasks=validate_p2m_owner_scope(
         run=run,cost_matrix=cost_matrix,votes_per_voter=votes_per_voter,
@@ -1136,8 +1135,9 @@ def coordinate_p2m_task_owners(
         raise ProtocolError(Diagnostic(
             owner=OWNER,function="coordinate_p2m_task_owners",
             category="safety",code="P2M_INVALID_RESERVED_EXECUTION",
-            expected="each execution backed by unique task-owner reservation and "
-                     "physical grant delivery, only four owner unicast phases",
+            expected="each execution backed by a unique owner reservation and "
+                     "physically delivered GRANT; original four owner unicast "
+                     "phases plus optional three-copy P2NX only after GRANT",
             actual={"executed":pairs,"reserved":locked_pairs,
                     "blocked":sorted(blocked),
                     "phases":sorted({e.phase for e in events})},
