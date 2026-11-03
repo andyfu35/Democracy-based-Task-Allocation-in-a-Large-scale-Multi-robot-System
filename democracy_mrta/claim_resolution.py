@@ -468,6 +468,7 @@ class P2MTaskOwnerResult:
     rounds_executed: int
     conflicted_task_rounds: int
     reassignment_requests: int
+    request_receipt_ack_timeouts: int
     blocked_robot_ids: tuple[int, ...]
     owner_decisions: tuple[dict, ...]
     finish_ms: float
@@ -825,6 +826,7 @@ def coordinate_p2m_task_owners(
     rounds=0
     conflicts=0
     reassignments=0
+    request_ack_timeouts=0
     first_error=None
     for claim_round in range(max_rounds):
         if not pending or len(executed)==tasks:
@@ -866,8 +868,16 @@ def coordinate_p2m_task_owners(
                 inbound.setdefault(task,[]).append(delivered)
             else:
                 blocked.add(robot)
-            if error is not None and first_error is None:
-                first_error=error
+            if error is not None:
+                if delivered is None:
+                    if first_error is None:
+                        first_error=error
+                else:
+                    # ACK was missing at bidder, but the owner genuinely
+                    # received the request and can later confirm by GRANT.
+                    # This is a nonfatal communication diagnostic, not
+                    # a failed allocation once an owner reply arrives.
+                    request_ack_timeouts+=1
         next_pending=set()
         for task,claims in sorted(inbound.items()):
             owner=p2m_task_owner_id(task_id=task,robots=robots)
@@ -959,6 +969,7 @@ def coordinate_p2m_task_owners(
         events=tuple(events),deliveries=tuple(deliveries),
         rounds_executed=rounds,conflicted_task_rounds=conflicts,
         reassignment_requests=reassignments,
+        request_receipt_ack_timeouts=request_ack_timeouts,
         blocked_robot_ids=tuple(sorted(blocked)),
         owner_decisions=tuple(owner_decisions),
         finish_ms=clock,first_diagnostic=first_error,
