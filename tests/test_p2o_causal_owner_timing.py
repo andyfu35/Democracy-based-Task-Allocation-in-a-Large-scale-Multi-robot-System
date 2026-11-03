@@ -201,6 +201,23 @@ class P2OCausalOwnerTimingTests(unittest.TestCase):
         )
         self.assertGreaterEqual(result.request_receipt_ack_timeouts,1)
 
+    def test_every_private_known_task_is_supported_by_an_actual_notice(self):
+        result=self.run_owner()
+        announced=dict(result.announced_executions)
+        for robot,known in enumerate(result.recipient_seen_executing_tasks):
+            expected={
+                task for sender,task in result.announced_executions
+                if sender==robot
+            }
+            expected.update(
+                event.task_id for event in result.deliveries
+                if event.phase=="execution_announce" and event.delivered
+                and event.receiver_id==robot
+            )
+            self.assertEqual(set(known),expected)
+        self.assertEqual(len(result.announced_executions),
+                         len(result.executed_pairs))
+
     def test_retry_timeout_has_named_diagnostic(self):
         for value in (float("nan"),float("inf"),-1.0,0.0):
             with self.subTest(value=value):
