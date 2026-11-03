@@ -4012,3 +4012,170 @@ runbook audit description SHA b26442cc8f2cc485accc6a1592232b6223680763.
 The next continuity commit pins these edits in the same branch history.
 Local Python compilation, unit/smoke and 10-seed findings are still NOT
 claimed verified. Next action remains Mac test/smoke followed by 10 seeds.
+
+
+## 2026-11-03 — P2M fixed per-task owner only, no old-method experiment arms
+
+### User objective and specific evidence
+User reviewed uploaded p2l_claim_conflicts_10seed.zip and asked why
+one-Cost/one-1000-vote Softmax still produced duplicate tasks, then
+approved task-based unique adjudicators and requested all *future*
+experiments to run ONLY the new method, not old comparison arms.
+
+Verified CSV source evidence: 30% Cost/Vote loss, seed0, 100R/100T,
+1000 tickets, P2L local-only physically realized assignment claims
+contain 8 duplicated task IDs and 9 unassigned tasks. Example:
+T29 claimed by R59 & R90, T37 claimed by R27/R68/R87. The root
+cause is independent lossy P2KV delivery, V^(59)!=V^(90),
+and each robot uses only its OWN one-to-one local matching X^(r).
+The union of those distinct X^(r) is NOT a global one-to-one
+assignment. It is not an observed duplicate-ticket encoding error.
+The uploaded ZIP omits per-robot audit_p2l.jsonl, so exact individual
+receiver scores could not independently be reconstructed; P2M now
+stores per-candidate self-support and actual owner arbitration scores
+in its first-audit-seed JSONL.
+
+### Scope and reading order
+Followed AGENTS.md, docs/AI_CHANGE_PROTOCOL.md,
+docs/CHANGE_CONTINUITY.md, docs/P2L_SOFTMAX_CLAIM_CONFLICTS.md
+and docs/EXPERIMENT_PROTOCOL.md §64 before opening actual
+democracy_mrta.claim_resolution owner and its exact named P2L
+functions; read P2K local Vote/Cost source and experiment owner.
+New opt-in branch experiment/p2m-task-owner-arbitration from
+experiment/p2l-softmax-claim-conflicts. Changed only task ownership
+arbitration and one new single-method study. Historical P2L, P2K,
+P2J behaviors, original one-Cost/one-P2KV voter broadcast, packet
+encodings, Score/Commit, README figures and source raw evidence
+are unchanged. No hidden bypass wrapper or parallel retired
+membership state machine is installed.
+
+### New files and exact function boundaries
+- democracy_mrta.claim_resolution (existing real task-claim owner):
+  * P2MTaskOwnerResult immutable evidence, not a new global state
+    machine.
+  * p2m_task_owner_id owns public deterministic task modulo num_robots
+    arbiter mapping, independent of online votes.
+  * validate_p2m_owner_scope validates native P2K-only Cost/Vote
+    origin, capacity-one roles, ticket bounds and owner retry limits.
+  * encode_p2m_owner_decision/decode_p2m_owner_decision own 20B
+    P2MD on-wire schema and strict original owner/round/task identity.
+  * transmit_p2m_owner_request owns original 28B bidder->single
+    task owner P2LC unicast, receipt validation, real 16B P2AK
+    owner->bidder ACK and exact bounded original physical retries.
+    Unconfirmed claims NEVER reach owner arbitration.
+  * transmit_p2m_owner_decision owns owner's irrevocable winner
+    reservation before 20B bidder GRANT or DENY unicast; 16B
+    bidder->owner decision ACK; each attempted SEND is charged
+    regardless of delivery. Unreceived owner decisions never
+    authorize execution; reserved-but-not-executed tasks remain
+    blocked against duplicate grants.
+  * select_p2m_local_request_task owns each bidder's locally available
+    task choice from its OWN original received Vote row, OWN Cost row
+    and personally denied attempts, never a shared locked-task map.
+  * coordinate_p2m_task_owners owns bounded synchronous candidate
+    request windows, fixed-owner arbitration on genuinely confirmed
+    bidder-owned (votes,received_ballots,slots) CLAIMs, per-owner
+    irrevocable task reservations, per-robot delivered-grant
+    execution, rejection-only retries and first-failure diagnostics.
+    Reuses existing P2L CLAIM encoding and rational vote conflict
+    resolver without copying another matching or state machine.
+- experiments/run_p2m_task_owner.py:
+  * validate_p2m_axes, analyze_p2m_owner_result, run_one_p2m_case,
+    summarize_p2m_rows, save_p2m_evidence, run_p2m own the FRESH
+    one-method 1000-ticket 10-seed evidence, only original P2K
+    Cost/Vote owner and new P2M owner. No old arms executed.
+    OFFLINE initial collision count from same native Vote run is
+    only a diagnostic, not another method or another SEND.
+    App-sender attempted bytes/receiver loss/diagnostic and
+    partial-completion safety audits are explicit.
+- tests/test_p2m_task_owner.py:
+  * checks fixed owner identity, GRANT owner verification, a 3R/3T
+    real initial task collision resolving without any Score
+    synchronization, physical owner unicast-only phase and packet
+    accounting, 100% remote loss safe partial behavior,
+    no duplicate executor/robot, and only-new-method argument axes.
+- docs/P2M_TASK_OWNER_ARBITRATION.md:
+  * new canonical detailed wire/safety contract and Mac runbook.
+- docs/EXPERIMENT_PROTOCOL.md §65:
+  * new P2M canonical protocol.
+- docs/CHANGE_CONTINUITY.md:
+  * this mandatory bounded code-change continuity.
+
+### Intentionally changed behavior
+Instead of asking all 99 other robots to ACK each CLAIM, candidate
+contacts exactly the fixed owner of its task. The task owner picks
+a winner from only actually delivered and reciprocally confirmed
+unicast requests, comparing normalized own SUPPORT vote ratios,
+without global Vote or Cost revelation; it locks the task to
+at most one owner-approved robot forever. A missing REQUEST
+receipt ACK blocks the requester; missing GRANT blocks physical
+execution and leaves the task reserved to avoid double grant.
+A DENY delivered to the candidate permits another private
+local task choice, possibly a task already locked elsewhere:
+the correct owner will deny it. Protocol is intentionally safe
+under loss at the cost of possible incomplete allocation; it
+does not guarantee 100% at 90% loss or fault-tolerant liveness.
+
+P2KV at B=1000 and 100 tasks = one 1016B sender-paid physical
+Vote per voter; p_loss applies independently per recipient for
+Cost and Vote. P2M new claimant->owner unicast 28B, receipt ACK
+16B, owner reply 20B and decision ACK 16B, all independently
+lossy and sender charged. Self-owner requests/grants are local
+and do not invent a physical sender SEND. Owned REQUEST/GRANT
+messages never show the full Vote matrix, and public task owner
+mapping requires no leader election or global coordination.
+No all-peer Score, Commit, ideal-paid control or hidden fallback.
+No old P2K/P2L/P2J method arm is run in the P2M experiment.
+Paid model-reliable external TASK startup and synchronized
+bounded request windows remain explicit assumptions; Rady
+144Mbps modeled coordination time excludes CPU/real RF
+collision/async membership changes.
+
+### Error category, first failure and risks
+All errors retain owner/function/category/code/expected/actual/
+details; categories fixed to data/time/state/dependency/planning/
+safety/runtime/contract. First owner codes include:
+- claim_resolution.p2m_task_owner_id/data/P2M_INVALID_OWNER_MAP
+- claim_resolution.validate_p2m_owner_scope/contract/P2M_INVALID_OWNER_SCOPE
+- claim_resolution.transmit_p2m_owner_request/time/P2M_REQUEST_ACK_LIMIT
+- claim_resolution.decode_p2m_owner_decision/contract/
+  P2M_UNAUTHORISED_OWNER_DECISION
+- claim_resolution.transmit_p2m_owner_decision/time/
+  P2M_DECISION_DELIVERY_LIMIT
+- claim_resolution.coordinate_p2m_task_owners/safety/
+  P2M_INVALID_RESERVED_EXECUTION and P2M_ROBOT_DOUBLE_GRANT
+- claim_resolution.coordinate_p2m_task_owners/planning/
+  P2M_TASK_OWNER_ALLOCATION_INCOMPLETE
+- experiments.run_p2m_task_owner.analyze_p2m_owner_result/safety/
+  P2M_TASK_OWNER_DUPLICATE_EXECUTION
+- experiments.run_p2m_task_owner.run_one_p2m_case/contract/
+  P2M_SEND_LEDGER_MISMATCH
+Open risks: unknown real-world RF correlation and airtime,
+low-liveness at high loss/retry cap, reserved-but-unexecuted
+tasks, synthetic shared-medium owner transaction ordering,
+lack of asynchronous crash recovery/lease management,
+CPU planning time excluded, and unauthorized forged
+CLAIM prevention outside authenticated-in-model assumptions.
+No backfilling of actual vote Cost or success rates.
+
+### Verification status, next step and code SHA
+GitHub source written and read, but independently executing Python
+code from live repo is unavailable in this environment because
+the container cannot resolve github.com. Python compile, focused
+unit test, six-case smoke, 10-seed results remain NOT VERIFIED.
+User is to run ONLY the new P2M method (focused unit and 40-case
+10-seed grid: 100R100T B=1000 loss=0/30/50/90, 10 seeds),
+collect per_seed_p2m.csv, summary_p2m.csv, audit_p2m.jsonl,
+manifest/config/log. First complete traceback must be acted upon
+by its owner and diagnostic, not covered by outer wrapper.
+No legacy benchmark reruns or old-arm plotting are requested.
+
+- original P2M true owner SHA 46727effccda541892f951d1b9ec2181f7aadc6c
+- new P2M 40-case runner SHA ac4d9637b7b9f6bacea2101d9003322392183f31
+- task native label audit fix SHA d3fbbc5023f930ac27e8a58c3416a423caf5dc7b
+- pre-existing task reservation audit fix SHA a471eec31abac8a5a21ae0c55570218fa84a1f1e
+- focused only-new-method unit source SHA 5df26abf0dc6d95ca5f040c1813a4a61efefa3bf
+- P2M canonical/runbook SHA 55806031b63c712c4501b5fb297408aecc7e706c
+- protocol canonical §65 SHA 766cfc127ca2464443fae03cd50d1e3ebe11d351
+- continuity entry SHA follows in the next branch history commit;
+  user's local git rev-parse HEAD pins the actual source.
