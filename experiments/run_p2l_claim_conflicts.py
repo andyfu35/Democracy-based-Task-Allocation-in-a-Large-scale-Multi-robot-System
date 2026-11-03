@@ -363,6 +363,15 @@ def run_p2l_paired_seed(
                     "claim":len(claim_events),"claim_ack":len(ack_events)},
                 "claim_failure":row["claim_diagnostic"],
                 "local_assignment_per_robot":run.local_assignments,
+                "per_robot_own_received_vote_row":tuple(
+                    run.local_vote_views[r][r] for r in range(robots)),
+                "per_robot_received_vote_batch_count":tuple(
+                    sum(sum(row) for row in run.local_vote_views[r])//votes
+                    for r in range(robots)),
+                "certified_public_claims":(
+                    [asdict(record) for record in claim.public_claims]
+                    if claim is not None else []),
+                "first_claim_diagnostic_json":row["claim_diagnostic_json"],
             })
     return rows,audits
 
