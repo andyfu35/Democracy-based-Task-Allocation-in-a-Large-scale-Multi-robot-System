@@ -1563,11 +1563,12 @@ def coordinate_p2m_task_owners(
             clock=exchange.finish_ms
             decision_window_total+=clock-decision_start
             timeout_wait_total+=exchange.timeout_wait_ms
-            validate_p2o_announcement_receipts(
-                window=exchange,claims=tuple(causal_decision_plans),
-                robots=robots,seen_executing=seen_executing,
-            )
-            announced_executions.extend(exchange.announced_executions)
+            if repetitions:
+                validate_p2o_announcement_receipts(
+                    window=exchange,claims=tuple(causal_decision_plans),
+                    robots=robots,seen_executing=seen_executing,
+                )
+                announced_executions.extend(exchange.announced_executions)
             for robot,arrival in exchange.first_grant_arrivals:
                 last_first_grant_arrival=max(
                     last_first_grant_arrival or 0.0,arrival,
