@@ -502,6 +502,86 @@ def sample_probabilistic_pair_votes(
 
 
 
+
+def compute_p2q_rank_squared_proposal_weights(
+    proposals: tuple[tuple[float, tuple[tuple[int, int], ...]], ...],
+) -> tuple[float, ...]:
+    """Rank 1 receives 1, rank 2 receives 1/4, rank 3 receives 1/9.
+
+    These are existing locally visible K candidate assignments
+    sorted by cost and deterministic pair tie breaks, NOT exact K-best.
+    No hidden cost rows, global Vote matrix or control packets.
+    """
+    if not proposals or any(
+        not math.isfinite(cost) or (i and (cost,pairs)<proposals[i-1])
+        for i,(cost,pairs) in enumerate(proposals)
+    ):
+        raise ProtocolError(Diagnostic(
+            owner="optimizer",
+            function="compute_p2q_rank_squared_proposal_weights",
+            category="contract",code="P2Q_INVALID_RANKED_PROPOSALS",
+            expected="nonempty finite proposals sorted by (cost,pairs)",
+            actual=proposals,
+        ))
+    return tuple(1.0 / (rank * rank)
+                 for rank in range(1, len(proposals) + 1))
+
+
+def apportion_p2q_task_tickets(
+    *, visible_robots: tuple[int, ...], weights: tuple[float, ...],
+    tickets_per_task: int,
+) -> tuple[int, ...]:
+    """Largest-remainder vote allocation, integer tickets, ID tie break.
+
+    Each task sends exactly tickets_per_task one-byte candidate IDs on
+    the ORIGINAL P2KV wire. Discrete ballots can STILL tie in a
+    receiver's aggregated received votes; no uniqueness guarantee.
+    """
+    if (not visible_robots or len(visible_robots)!=len(weights)
+            or len(set(visible_robots))!=len(visible_robots)
+            or any(type(robot) is not int or not 0<=robot<=255
+                   for robot in visible_robots)
+            or type(tickets_per_task) is not int or tickets_per_task<=0
+            or any(not isinstance(weight,(int,float))
+                   or not math.isfinite(weight) or weight<0
+                   for weight in weights)
+            or sum(weights)<=0):
+        raise ProtocolError(Diagnostic(
+            owner="optimizer",function="apportion_p2q_task_tickets",
+            category="data",code="P2Q_INVALID_TASK_WEIGHTS",
+            expected="unique uint8 visible IDs; positive finite total "
+                     "weights; positive integer ticket budget",
+            actual={"robots":visible_robots,"weights":weights,
+                    "slots":tickets_per_task},
+        ))
+    total=sum(weights)
+    quotas=[tickets_per_task*float(weight)/total for weight in weights]
+    whole=[math.floor(q) for q in quotas]
+    remaining=tickets_per_task-sum(whole)
+    if not 0<=remaining<len(visible_robots)+1:
+        raise ProtocolError(Diagnostic(
+            owner="optimizer",function="apportion_p2q_task_tickets",
+            category="contract",code="P2Q_INVALID_REMAINDER_BUDGET",
+            expected="remaining tickets in [0, count of robot IDs]",
+            actual=remaining,
+        ))
+    order=sorted(
+        range(len(visible_robots)),
+        key=lambda i:(-(quotas[i]-whole[i]),visible_robots[i]),
+    )
+    for idx in order[:remaining]:
+        whole[idx]+=1
+    ballot=tuple(robot for robot,count in zip(visible_robots,whole)
+                 for _ in range(count))
+    if len(ballot)!=tickets_per_task:
+        raise ProtocolError(Diagnostic(
+            owner="optimizer",function="apportion_p2q_task_tickets",
+            category="contract",code="P2Q_APPORTIONMENT_COUNT_MISMATCH",
+            expected=tickets_per_task,actual=len(ballot),
+        ))
+    return ballot
+
+
 def sample_p2k_task_balanced_votes(
     *, cost_matrix: tuple[tuple[float, ...], ...],
     visible_robot_ids: frozenset[int] | set[int] | tuple[int, ...],
@@ -522,7 +602,7 @@ def sample_p2k_task_balanced_votes(
         cost_matrix, allow_tasks_exceed_robots=True,
     )
     rows = tuple(sorted(set(visible_robot_ids)))
-    if (policy not in ("cost_softmax", "optimized_kbest")
+    if (policy not in ("cost_softmax", "optimized_kbest", "optimized_rank_square")
             or type(votes_per_voter) is not int
             or votes_per_voter < num_tasks or votes_per_voter % num_tasks
             or votes_per_voter > 1184
@@ -539,7 +619,7 @@ def sample_p2k_task_balanced_votes(
         raise ProtocolError(Diagnostic(
             owner="optimizer", function="sample_p2k_task_balanced_votes",
             category="data", code="P2K_INVALID_LOCAL_VOTE_POLICY",
-            expected="known self-inclusive robot rows; valid cost_softmax/optimized_kbest; "
+            expected="known self-inclusive robot rows; valid cost_softmax/optimized_kbest/optimized_rank_square; "
                      "1..10 proposals, epsilon 0..1, positive tau, and task-divisible "
                      "votes up to 1184 in one compact packet",
             actual={"policy":policy,"tickets":votes_per_voter,"k":k,
@@ -553,7 +633,7 @@ def sample_p2k_task_balanced_votes(
     rng = random.Random(int.from_bytes(digest, "big"))
     local = tuple(tuple(float(x) for x in cost_matrix[r]) for r in rows)
     proposals: list[tuple[float, tuple[tuple[int, int], ...]]] = []
-    if policy == "optimized_kbest":
+    if policy in ("optimized_kbest", "optimized_rank_square"):
         distinct: dict[tuple[tuple[int, int], ...], float] = {}
         # First solution is exact optimal over locally visible rows. The
         # remaining distinct assignments use bounded seeded perturbations.
@@ -596,10 +676,16 @@ def sample_p2k_task_balanced_votes(
                 category="contract", code="P2K_INCOMPARABLE_PROPOSALS",
                 expected=cardinality, actual=[len(pairs) for _,pairs in proposals],
             ))
-        proposal_weights = [
-            math.exp(-max(0.0, cost - best) / (cardinality * temperature))
-            for cost, _pairs in proposals
-        ]
+        proposal_weights = (
+            list(compute_p2q_rank_squared_proposal_weights(
+                tuple(proposals),
+            ))
+            if policy == "optimized_rank_square"
+            else [
+                math.exp(-max(0.0, cost - best) / (cardinality * temperature))
+                for cost, _pairs in proposals
+            ]
+        )
     slots = votes_per_voter // num_tasks
     ballot: list[int] = []
     for task_id in range(num_tasks):
@@ -628,7 +714,14 @@ def sample_p2k_task_balanced_votes(
             # Falling back to *visible* task-cost probabilities retains
             # support without fabricating a missing candidate or Cost row.
             weights = [weight / base_total for weight in base]
-        ballot.extend(rng.choices(rows, weights=weights, k=slots))
+        if policy == "optimized_rank_square":
+            ballot.extend(apportion_p2q_task_tickets(
+                visible_robots=rows,
+                weights=tuple(weights),
+                tickets_per_task=slots,
+            ))
+        else:
+            ballot.extend(rng.choices(rows, weights=weights, k=slots))
     if len(ballot) != votes_per_voter:
         raise ProtocolError(Diagnostic(
             owner="optimizer", function="sample_p2k_task_balanced_votes",
