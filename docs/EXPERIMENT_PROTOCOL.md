@@ -2603,3 +2603,84 @@ first-GRANT arrivals, REQUEST/DECISION windows, timeouts,
 native modeled stop and manifest/scene SHA.
 Full canonical/runnable specification:
 docs/P2O_CAUSAL_OWNER_TIMING.md.
+
+
+## 68. P2Q optimized rank-squared 1000-ticket voting without CLAIM (2026-11-03)
+
+P2Q tests whether sharpening voter preferences after EACH
+voter's locally optimized task assignment, rather than
+transmitting CLAIM/GRANT requests, makes independent lossy
+receiver-local assignments converge to a unique full
+100R100T allocation. It changes ONLY the original
+optimizer.sample_p2k_task_balanced_votes opt-in policy
+optimized_rank_square; old P2K cost_softmax/optimized_kbest,
+P2M task-owner, P2N/P2O event, and old Figure 2 results
+are unmodified and NEVER re-run as an arm of this study.
+
+Original native source network: external TASK model reliable
+and sender-paid, one physically lossy Cost per robot and
+ONE original P2KV 1016B with exactly 1000 uint8 candidate
+tickets, exactly 10 per task, per-remote-receiver
+Bernoulli packet loss p at 0/30/50/90%. Count every
+physical sender SEND once, including receiver drops.
+No CLAIM, ACK, GRANT, DENY, Score, Commit, execution
+announcement, global Cost fallback or additional message.
+Original locally received positive-ticket maximum-cardinality
+Hungarian matching and own-claim-only execution hypothesis
+are unchanged. A robot NEVER sees another receiver's vote
+matrix, and the offline experiment cannot repair outcomes.
+
+Each voter uses only its genuinely visible Cost rows to
+compute the original exact local min-cost Hungarian plan
+and up to 4 other distinct seeded perturb-and-MAP
+feasible candidate plans. They are not exact K-best
+solutions. Rank K<=5 plans by their ORIGINAL cost and
+deterministic pairs and weight as w_k=1/k^2.
+Per task, sum w_k for each candidate robot assigned
+that task in the ranked plans, set epsilon=0 (no
+additional exploration), and use deterministic
+largest-remainder INTEGER apportionment across the
+visible robots to emit exactly 10 discrete tickets.
+For tasks none of the proposal plans cover because
+too few original Cost rows were received, use
+visible Cost-only softmax; never invent a hidden robot
+Cost, shared Score or unreceived vote.
+
+The P2Q science hypothesis is NOT "all tasks will
+have uniquely highest votes" by construction. Separately
+measure: (a) receiver/task top-vote tie rate among
+positive-support tasks, (b) top two received ticket
+margin, (c) independent global self-execution duplicate
+tasks, (d) zero-claim tasks, (e) true 100/100 full
+allocation, (f) full-valid-only Global Greedy
+cost gap, (g) sender Bytes/time and (h) per-robot
+local matching agreement. Even ZERO top-vote ties
+at every receiver is insufficient to guarantee
+cross-receiver one-to-one execution. Incomplete
+cases emit nonfatal first safety diagnostic
+P2Q_LOCAL_EXECUTIONS_NOT_ONE_TO_ONE; they do
+not silently force an oracle correction.
+
+Owner optimizer.compute_p2q_rank_squared_proposal_weights
+has contract/P2Q_INVALID_RANKED_PROPOSALS.
+Owner optimizer.apportion_p2q_task_tickets has
+data/P2Q_INVALID_TASK_WEIGHTS, contract/
+P2Q_INVALID_REMAINDER_BUDGET and
+P2Q_APPORTIONMENT_COUNT_MISMATCH. Original
+coordination.validate_p2k_local_scope only
+accepts the opt-in policy literal; existing
+Cost/Vote and receiver matching owners remain unchanged.
+New experiments.run_p2q_rank_square_voting
+only-new-method runner reuses native run_one_p2k_case
+ONCE per (seed,loss), derives tie diagnostics from the
+same resulting audit OFFLINE, records source Git SHA,
+scene SHA, full per-seed CSV, first-seed per-loss
+original receiver vote matrices, summary, config and
+SHA256 manifest. Target 10 seeds x4 losses = 40
+new-only runs, preceded by six-case 2-seed smoke and
+focused test_p2q*.py. CPU Hungarian runtime not
+included in Rady hypothetical shared 144Mbps
+communication time.
+
+Canonical owner/rule details and exact Mac runbook:
+docs/P2Q_OPTIMIZED_RANK_SQUARED_VOTING.md.
