@@ -5004,3 +5004,388 @@ full native Python execution; user must run
 the P2Q-only targeted tests and smoke first,
 then the 10-seed four-loss matrix if green.
 This continuity record SHA follows in the next commit.
+
+
+## 2026-11-03 — P2R one concern: announcement-first conflicting-intent safety COMMIT
+
+### User's request and reason for new concern
+User explicitly approved trying "initial broadcast INTENT; only
+conflicts coordinate" after P2Q results. P2Q's optimized
+rank^2 preferences made top-vote ties rare at 30% loss
+(~0.16%), but local per-receiver task matching still
+collided, with about 9.4 duplicate and 11.1 unassigned
+tasks (average over ten Seeds). Increasing rank separation
+alone cannot guarantee common one-to-one execution when
+Cost/Vote packet loss means every robot sees a different
+matrix. Previous P2M/P2O fixed-owner CLAIM/ACK/GRANT/ACK
+solved duplicate execution but included an entire
+second request handshake after voting. P2R keeps the
+voting method FIXED at P2Q and studies ONLY the
+announcement-driven conflict+minimal COMMIT concern.
+No historical P2Q/P2O/P2E/CBAA/CBBA arms are run again.
+
+### Mandated reading and existing true source ownership
+Read AGENTS.md, docs/AI_CHANGE_PROTOCOL.md, then
+docs/CHANGE_CONTINUITY.md, in that order; next canonical
+docs/P2Q_OPTIMIZED_RANK_SQUARED_VOTING.md,
+docs/P2K_CONSENSUS_FREE_LOCAL_VOTING.md,
+docs/P2M_TASK_OWNER_ARBITRATION.md,
+docs/P2O_CAUSAL_OWNER_TIMING.md and
+docs/EXPERIMENT_PROTOCOL.md §§65–68;
+then democracy_mrta.claim_resolution.py owner with
+exact functions make_p2l_claim,
+encode/decode_p2l_claim_packet,
+resolve_p2l_claim_conflicts,
+p2m_task_owner_id,
+encode/decode_p2m_owner_decision,
+select_p2m_local_request_task,
+transmit_p2n_execution_announcement,
+encode/decode_p2n_execution_announcement,
+existing coordinate_p2m_task_owners;
+the original physical network functions
+coordination._broadcast_event,
+_lossy_broadcast_deliveries,
+_unicast_event,_lossy_unicast_delivery,
+coordination.simulate_p2k_local_vote_epoch,
+original optimizer.sample_p2k_task_balanced_votes
+policy optimized_rank_square; existing
+experimental source task broadcast and Cost
+reconstruction from run_p2m_task_owner,
+run_p2k_consensus_free and run_p2q.
+
+New branch experiment/p2r-intent-conflict-commit
+is rooted in experiment/p2q-optimized-rank-square-votes.
+
+### One real owner, named function/diagnostic responsibilities
+Modified ONLY the original task-owner module
+democracy_mrta/claim_resolution.py for new
+communication+task-ownership behavior. Did NOT
+modify existing P2M/P2N/P2O coordinator functions,
+copy another Cost/Vote matcher, create a new
+global Score machine, inject hidden full-receipt
+state or bypass task-owner task reservations.
+P2R is a separate opt-in protocol using
+the SAME existing task-owner state owner and
+original normalized-support conflict ranking:
+- P2RAnnouncementResult immutable evidence;
+  no duplicated task matching or global
+  progress optimization state.
+- validate_p2r_announcement_scope:
+  data/contract input gate on original P2Q
+  private Cost/Vote and one-task capacity;
+  contract/P2R_INVALID_ANNOUNCEMENT_SCOPE.
+- encode_p2r_intent/decode_p2r_intent:
+  physically emitted 28B P2RI. REUSES
+  original validated P2LC support payload
+  fields but P2RI is a NEW tagged
+  announcement, not a transmitted CLAIM.
+  data/P2R_INVALID_INTENT_PACKET,
+  contract/P2R_WRONG_INTENT_TAG.
+- encode_p2r_challenge/decode_p2r_challenge:
+  16B advisory P2RH from an actual nominee
+  who personally saw a rival's INTENT;
+  no bystander blanket conflict traffic;
+  data/P2R_INVALID_CHALLENGE,
+  contract/P2R_CHALLENGE_IDENTITY_MISMATCH.
+- encode_p2r_owner_response/decode_p2r_owner_response:
+  original validated 20B owner-response
+  task/robot/round fields but distinct
+  P2RC (irrevocable authorized COMMIT) and
+  P2RD (DENY) tags, no ACK; physical sender
+  MUST equal owner(task)=task_id % robots,
+  data/P2R_INVALID_RESPONSE_PACKET,
+  contract/P2R_INVALID_RESPONSE_TAG,
+  safety/P2R_NOT_FIXED_OWNER,
+  contract/P2R_RESPONSE_FLAG_MISMATCH.
+- transmit_p2r_intent_window:
+  original broadcast physical SEND owner,
+  exactly three P2RI copies per pending
+  robot per round, every sender charge,
+  independent recipient-specific loss.
+  Only the actual receiving fixed owner
+  sees nominations for its task; each
+  individual contender has a separate
+  local heard-intent set. No global
+  Vote/cost/confirmation oracle.
+- transmit_p2r_conflict_challenges:
+  only a contestant observing at least
+  one rival on ITS same task sends ONE
+  physical 16B P2RH to task's fixed owner;
+  lost alerts do not magically arrive.
+- choose_p2r_owner_responses:
+  existing normalized-support rational
+  owner choice via resolve_p2l_claim_conflicts;
+  original smaller-ID tie breaks;
+  unique task reservation BEFORE
+  physically attempting P2RC;
+  if owner saw only one candidate but
+  physically received P2RH, defer ONCE
+  to allow genuine competing P2RI
+  to arrive next round. Cannot accept
+  forwarded unverified ballots as
+  a true contender; original global
+  Cost/Vote not available to owner.
+  contract/P2R_DUPLICATE_OWNER_INTENT,
+  contract/P2R_INVALID_OWNER_WINNER.
+- transmit_p2r_owner_responses:
+  three 20B P2RC to uniquely reserved
+  winner; three 20B P2RD only for
+  owner-seen losers or already locked
+  competing intents. Actual receiver
+  gets message if ANY independent copy
+  is physically delivered; no synthetic
+  receipt/ACK. safety/
+  P2R_CONFLICTING_OWNER_DECISIONS.
+- transmit_p2r_execution_announcements:
+  original validated 3x20B P2NX only
+  after genuine unique owner COMMIT;
+  remote known_executing cache only
+  from actual per-recipient receipt.
+- select_p2r_local_intent_task:
+  REUSES original local vote-support+Cost
+  candidate planner. A still-pending
+  robot cannot switch its own unresolved
+  P2RI to another task without true
+  P2RD or truly received P2NX:
+  otherwise two unrelated fixed task
+  owners might both irreversibly reserve
+  it under loss. This is the single
+  active-intent safety rule.
+- validate_p2r_unique_execution:
+  safety/P2R_UNAUTHORISED_EXECUTION
+  ensures one robot/task, every
+  physically committed execution has
+  true owner reservation, no unapproved
+  control phase.
+- coordinate_p2r_announced_intents:
+  ONE new protocol lifecycle in the
+  existing ownership owner, bounded
+  known-roster rounds. It does NOT copy
+  P2M CLAIM ACK state machine. It
+  composes only the separate named
+  physical/winner/local planning/safety
+  functions above. State/
+  P2R_STALE_DECISION_FOR_DIFFERENT_TASK,
+  safety/P2R_COMMIT_NOT_RESERVED.
+  Truthful incomplete final result:
+  time/P2R_COMMIT_NOT_DELIVERED or
+  planning/P2R_INCOMPLETE_AFTER_ROUNDS,
+  listing missing owner-received
+  tasks and reserved-but-unexecuted
+  tasks separately. No oracle repair.
+
+NEW experiments/run_p2r_intent_conflict_commit.py:
+- validate_p2r_axes owns the fixed
+  P2Q B1000,K5,epsilon0, PL, attempts,
+  and output scope; data/
+  P2R_INVALID_STUDY_AXIS.
+- run_one_p2r_case calls the ORIGINAL
+  paid TASK, local Cost source and
+  EXACT original simulate_p2k_local_vote_epoch
+  once with optimized_rank_square, then
+  the real P2R owner once. No old arms
+  and no duplicate vote computation.
+- validate_p2r_execution_evidence:
+  pure safety audit, checks one-to-one
+  reservations/executions and that every
+  per-robot known-executing task equals
+  its own COMMIT plus actual P2NX
+  delivered to THIS recipient only;
+  safety/P2R_INVALID_EXECUTION_EVIDENCE
+  and contract/P2R_PHANTOM_EXECUTION_NOTICE.
+- make_p2r_evidence_row:
+  validates original actual radio
+  send ledger across TASK + Cost/Vote
+  and P2R physical SENDs; every dropped
+  attempt is charged. Task original
+  physical phase is task_announcement
+  and is normalized to task in the
+  exported source CSV without
+  altering the actual wire phase.
+  contract/P2R_NATIVE_PHASE_MISMATCH
+  and P2R_ACTUAL_SEND_LEDGER_MISMATCH.
+- summarize_p2r_rows/save_p2r_evidence:
+  per-seed/summary/audit/config and
+  SHA256 manifest, first actual owner
+  failure fields, cost/gap ONLY on
+  full 100/100 safe task allocations.
+- run_p2r: no old methods, 4 losses
+  ×10 seeds =40 unique P2R cases,
+  state/P2R_OUTPUT_ALREADY_EXISTS,
+  contract/P2R_OUTPUT_SCHEMA_MISMATCH.
+
+NEW tests/test_p2r_intent_conflict_commit.py:
+- no-conflict no P2RH/P2RD, exactly
+  three P2RI and COMMIT per remote
+  winner; genuine EXECUTING only;
+  true native sender packet/Byte ledger.
+- duplicate candidate T1: genuine
+  P2RH, deterministic normalized vote
+  decision, winner-only P2RC, loser
+  P2RD then own-vote Task T0 replan,
+  unique 3/3 execution.
+- all remote P2RI dropped: no
+  owner INTENT/no fake COMMIT,
+  incomplete without duplicate.
+- COMMIT to executor R1 always dropped:
+  owner keeps reservation for R1
+  and NEVER announces R1 executing.
+- nonowner original P2RI is dropped
+  at owner only in round 1, but a
+  real rival heard by contestant
+  yields actual P2RH; owner defers
+  one round and arbitrates direct
+  subsequent intents.
+- all P2NX dropped: only a robot's
+  own COMMIT is in its local
+  occupied-task cache; spoofed
+  owner or old P2MD tag rejected.
+- strict P2R-only CLI and partial
+  allocation cost blank in summary.
+
+NEW docs/P2R_ANNOUNCEMENT_CONFLICT_COMMIT.md:
+canonical packet, owner, traffic,
+diagnostics, loss, first failures,
+Mac test/smoke/formal/ZIP runbook.
+docs/EXPERIMENT_PROTOCOL.md §69:
+global protocol canonical.
+docs/CHANGE_CONTINUITY.md: this
+mandatory purpose/functions/diagnostic
+contract/risks/SHA record.
+
+### Preservation vs intended new behavior
+Preserved EXACTLY P2Q normalized ranks
+1/k^2, K5 local visible Hungarian+
+approximate perturb-and-MAP, epsilon0,
+1000 uint8 ballots, original one
+sender Cost + Vote SEND per robot,
+per-recipient physical Bernoulli
+loss, original paid model-reliable
+TASK bootstrap, private receiver
+Hungarian self-assignment, P2KV
+1016B wire, Global Greedy OFFLINE
+reference only and P2Q baseline
+raw evidence. Preserved original
+P2M/P2N/P2O true owner functions,
+wire tags, safety checks and
+source study default modes.
+Existing experiments/figures never
+overwritten or rerun.
+Task owner still exclusive physical
+COMMIT authority, unlike tentative
+self-approval.
+
+Deliberately NEW only P2R:
+3x 28B P2RI tentative broadcast
+per pending robot/round; one 16B
+P2RH only when a rival contender
+physically observed by same-task
+nominee; owner defers ONCE upon
+physically delivered alert if it
+has only one directly received
+nominee; physically received
+P2RI-only normalized winner,
+irrevocable per-task reservation,
+3x 20B P2RC COMMIT to actual
+winner without ACK, 3x 20B P2RD
+DENY only to owner-received
+losers, 3x original P2NX only
+after actual COMMIT. A robot
+continues the SAME P2RI until
+it hears an actual P2RD, P2RC
+or valid P2NX for its task,
+then may retarget based solely
+on its own original P2Q local
+self vote support/Cost and
+personally rejected/known
+executing tasks. Synchronous
+known-roster stage windows are
+explicit and time is based
+on original hypothetical
+144Mbps shared radio, no fake
+instant delivery.
+
+### Open risks / tests / next steps
+P2R is NOT proof of true
+fully asynchronous reliable
+distributed consensus. 16B
+P2RH is advisory, not a
+cryptographically signed
+ballot or independent proof
+of valid missing competitor.
+A lossy rival INTENT may
+be completely unseen and
+a task owner can reserve
+a suboptimal first candidate;
+later better bidders cannot
+undo an irrevocable P2RC
+or a pending locked task.
+No all-peer ACK is present,
+so lost COMMIT can leave
+task reserved but unexecuted.
+Even 3 independent 20B
+COMMIT copies at PL90 have
+only 1-(.9)^3=27.1% chance
+of at least one delivery
+in one round; round retries
+may also drop. A fixed
+task owner may fail or go
+offline, and no new leader
+election/recovery is provided.
+CPU optimization/runtime
+is not measured. WiFi model
+is Rady + one shared radio
+timing proxy, not collision/
+interference ns-3 MAC.
+No high-loss 100% completion,
+best cost or superior time
+is claimed before true tests.
+
+Must run P2R-only compile,
+tests/test_p2r*.py, then
+2 Seeds xPL0/30/90 6-case
+smoke, then ONLY P2R 10
+seeds x PL0/30/50/90=40
+cases if green. Files:
+per_seed_p2r.csv,
+summary_p2r.csv,
+audit_p2r.jsonl,
+run_config_p2r.json,
+manifest_p2r.json,
+full log in ZIP. Upload
+on first failed testcase
+or all completed results;
+fix the TRUE owner and
+update canonical and
+continuity before any
+further architecture move.
+No GitHub-only push is
+evidence of a passing
+native Python compile/test
+or valid simulated outcomes.
+
+### Commit SHA provenance
+- true owner announcement+
+  challenge+immutable P2RC:
+  6e11aa4415e7e9d4e99f0f00aab4626cc56b2aea
+- new P2R-only live
+  Cost/Vote/physical study:
+  ba878ea13420732297178e1c8680ad9e82b001c5
+- original TASK phase
+  physical SEND-ledger repair:
+  ff14c663a12e21ac8e50f209cdbaa6e325f4b3cb
+- focused safety/loss/
+  conflicting-intent tests:
+  6135f13508f051a9cdb3bb744fae04933284576e
+- complete P2R canonical
+  and Mac runbook:
+  8b95d1b4d720efd1f3241c52f6606f92d0779d34
+- EXPERIMENT_PROTOCOL §69:
+  920585c95293db5dc06192fcea77d83c0bd195b1
+- this continuity write SHA is
+  the next Git commit,
+  final branch git rev-parse
+  must pin exact reproducible
+  source; no separate
+  second owner or hidden
+  baseline method was run.
