@@ -4227,3 +4227,38 @@ Relevant commits:
 - this continuity commit follows in Git history; next step remains
   compile/focused-unit/6-case smoke and then only new-method 10 seeds.
 No Python test completion is claimed without actual local output.
+
+
+### 2026-11-03 — P2M recovered outgoing ACK is not terminal failure
+After correcting task-owner visibility, one request receipt ACK may
+be lost while the task owner genuinely received the candidate's CLAIM.
+Its later GRANT/DENY can still reach the candidate and safely resolve
+that request. The authoritative owner actor now counts
+P2M_REQUEST_ACK_LIMIT with actually received original CLAIM as a
+nonterminal request_receipt_ack_timeouts event, not the allocation's
+first terminal error. If NO candidate CLAIM reached the owner, the
+robot remains blocked and the same code is the actual first time
+failure. The candidate never switches task without physically
+receiving DENY or executes without physically receiving GRANT.
+The exact error category/code and its expected/actual/details
+are not renamed. No Score/Commit/global-visibility changes.
+
+Changed owners/functions: existing
+claim_resolution.coordinate_p2m_task_owners (first-failure
+classification, immutable evidence count), immutable
+P2MTaskOwnerResult; experiments.run_p2m_task_owner
+analyze_p2m_owner_result / summarize_p2m_rows / run_one_p2m_case
+per-seed nonterminal ACK counter and summary, first-audit-seed
+diagnostics; tests/test_p2m_task_owner.py recovered ACK regression;
+canonical docs/P2M_TASK_OWNER_ARBITRATION.md and
+docs/EXPERIMENT_PROTOCOL.md §65.
+
+Relevant commits:
+- claim owner ACK recovery counter a4169f2449fbe3dd274d22acfd22e27edc9c5160
+- new-only experimental evidence count 06f9519340c09bd29c81e08b4e4fa22b677347ef
+- focused recovered ACK regression ca5dbb39b25a910ec6a8231e2ba8fafceedf5f4b
+- canonical P2M update 65d8e38f7cf8ec07e16a39c53b7759e00a250ffc
+- experiment canonical §65 update f3e38422feeeb5975724527c384c4ff5015e748c
+- this continuity SHA is the next branch commit.
+Remaining risk: independently verified Python compile/focused tests/smoke
+have NOT been executed. Only NEW P2M 10-seed experiment should run.
