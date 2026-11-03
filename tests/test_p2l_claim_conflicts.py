@@ -102,6 +102,8 @@ class P2LClaimTests(unittest.TestCase):
         self.assertTrue(all(e.phase=="claim" for e in result.events))
         self.assertEqual(len(result.events),4)
         self.assertEqual(result.sender_bytes,4*28)
+        self.assertEqual(len(result.public_claims),4)
+        self.assertEqual(result.public_claims[-1].task_id,1)
 
     def test_bounded_ack_charges_real_sender_bytes_and_ack_sends(self):
         result=coordinate_p2l_claims(
