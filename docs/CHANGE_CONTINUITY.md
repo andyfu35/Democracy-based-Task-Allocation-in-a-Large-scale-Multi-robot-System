@@ -4262,3 +4262,170 @@ Relevant commits:
 - this continuity SHA is the next branch commit.
 Remaining risk: independently verified Python compile/focused tests/smoke
 have NOT been executed. Only NEW P2M 10-seed experiment should run.
+
+
+## 2026-11-03 — P2N post-GRANT EXECUTING announcement (only new method)
+
+### User need / evidence / single scope
+After P2M 10-seed experiment, user observed task allocation Cost +1.58%
+at 30% and +1.63% at 50% relative to PL0, but too much delay from
+repeated requests against already reserved tasks. User approved
+announcement by the robot that truly acquired execution rights.
+This change only addresses post-GRANT visibility of already EXECUTING
+tasks and locally excluding those tasks on later candidate choice.
+No tuning of Softmax probabilities, vote count, assignment owner,
+task owner retry budget, network model, or historical outcomes.
+
+User specifically requests only NEW algorithm experiments going forward.
+P2N runs one new study, never P2M/P2K/P2L/P2J comparison arms.
+Branch experiment/p2n-execution-announcement rooted at latest
+experiment/p2m-task-owner-arbitration. The source-owner reading
+order was AGENTS.md -> docs/AI_CHANGE_PROTOCOL.md ->
+docs/CHANGE_CONTINUITY.md -> docs/P2M_TASK_OWNER_ARBITRATION.md ->
+docs/EXPERIMENT_PROTOCOL.md §65 -> exact P2M claim_resolution
+coordinate_p2m_task_owners, select_p2m_local_request_task, physical
+P2K broadcast/receipt functions and source experiment owner.
+
+### File and named function boundaries / responsibility
+- Existing true owner democracy_mrta/claim_resolution.py:
+  validate_p2n_announcement_repetitions isolates opt-in 0..5 parameter
+  data validation; encode_p2n_execution_announcement owns the 20B
+  tag/claim-round/executor/task/fixed-owner wire (P2NX);
+  decode_p2n_execution_announcement owns received tag/ID/round/owner
+  validation; transmit_p2n_execution_announcement owns exactly N
+  physical broadcasts per actually executing robot, sender charge
+  and per-remote-receiver deliveries with duplicated copies
+  deduplicated by task ID. select_p2m_local_request_task optionally
+  excludes only the recipient's personally delivered known-executing
+  tasks from its candidate ranking, in addition to personal DENYs.
+  coordinate_p2m_task_owners is still the ONLY task-owner arbitration
+  actor and one named execution/claim boundary. Its new optional
+  execution_announce_repetitions=0 defaults to original P2M behavior.
+  P2N calls with repetitions=3 and sends the three P2NX copies only
+  AFTER original owner's GRANT was physically delivered to the actual
+  robot. Task reservations, irrevocable grants and all original
+  acknowledgement / denial logic are unchanged. P2MTaskOwnerResult
+  adds immutable advisory evidence fields with default empty values:
+  announced_executions, recipient_seen_executing_tasks and
+  avoided_announced_requests. No new voting/retirement state machine.
+- Existing experimental source owner
+  experiments/run_p2m_task_owner.py run_one_p2m_case adds opt-in
+  execution_announce_repetitions and new phase/receiver SEND/Bytes
+  and per-robot audit evidence only when enabled. Original P2M
+  default emits the original exact field schema, original phases
+  and no announcements. Constants P2N_EXTENSION_FIELDS are scoped
+  to P2N opt-in, not old-method publication results.
+- NEW experiments/run_p2n_execution_announcement.py:
+  validate_p2n_axes / run_p2n / summarize_p2n_rows /
+  save_p2n_evidence own one single new-method 40-case 100R100T,
+  1000-ticket, 10-seed, PL0/30/50/90 experimental output with
+  receiver-level real P2NX observations, sender attempted Bytes
+  including dropped copies, avoided known-occupied requests,
+  owner request rounds/reassignments, full valid vs partial cost,
+  source SHA/scene hash and SHA256 audit manifest. No old arms.
+- NEW tests/test_p2n_execution_announcement.py:
+  20B on-wire and owner validation, source task owner unchanged,
+  3 copies only after physically delivered GRANT, strict
+  per-recipient received notice cache, true dropped copies cannot
+  magically inform robots, 3R/3T known occupied T2 skipped after
+  valid P2NX, no double grants/executions and only new-method CLI.
+- NEW docs/P2N_EXECUTION_ANNOUNCEMENT.md:
+  P2N canonical functional and runbook contract.
+- docs/EXPERIMENT_PROTOCOL.md §66:
+  updated global canonical contract.
+- docs/CHANGE_CONTINUITY.md:
+  this mandatory continuity record.
+
+### Deliberately changed vs preserved behavior
+P2N changes ONLY next-task preference for a robot which actually
+received a valid EXECUTING notice, never the fixed task owner's
+GRANT/DENY. Announcements are advisory, not task completion or task
+availability guarantee, nor a PSCR or reliable shared Score.
+Unknown tasks are still NOT assumed free; owner rejects occupied
+ones. A robot that didn't receive GRANT cannot announce/execute,
+even if the owner reserved the task. After GRANT, each executor
+physically sends 3x20B P2NX broadcast with independent Bernoulli
+loss per receiving robot and repeat index; receivers dedup notices.
+All physically attempted 3 copies count in sender Bytes even if
+they all drop. At full 100R100T execution, maximal new application
+sender payload is 100*3*20=6000 Bytes (6kB). Real RF overhead
+and correlated Wi-Fi MAC retransmission are not measured; existing
+Rady hypothetical serialized 144 Mbps shared medium remains.
+CPU optimizer planning time excluded. The TASK initial
+dissemination is still model-reliable and sender-paid as in P2M.
+P2M with announcement_repetitions=0, original P2K/P2L/P2J,
+original experimental results, original source ownership,
+global Greedy baseline evidence and README publication figures
+are explicitly preserved. P2N emits no other method arm.
+
+### Diagnostic contracts and first failure
+Categories fixed data/time/state/dependency/planning/safety/runtime/
+contract, each with exact owner/function/category/code and
+expected/actual/details where meaningful.
+- claim_resolution.validate_p2n_announcement_repetitions /
+  data/P2N_INVALID_ANNOUNCEMENT_REPETITIONS
+- claim_resolution.encode_p2n_execution_announcement /
+  data/P2N_INVALID_EXECUTING_FIELDS
+- claim_resolution.decode_p2n_execution_announcement /
+  data/P2N_BAD_EXECUTING_PACKET_SIZE or
+  contract/P2N_EXECUTING_IDENTITY_MISMATCH
+- claim_resolution.transmit_p2n_execution_announcement /
+  contract/P2N_CANNOT_SEND_ZERO_REPETITIONS
+- claim_resolution.coordinate_p2m_task_owners /
+  safety/P2M_INVALID_RESERVED_EXECUTION retains invariant that
+  every actual execution has a unique owner reservation and a
+  physically received GRANT; for P2N exactly three P2NX
+  attempts per actual executed task. Missing outgoing
+  announcement is never allowed to substitute for GRANT.
+- experiments.run_p2n_execution_announcement.validate_p2n_axes /
+  data/P2N_ANNOUNCEMENTS_REQUIRED
+- experiments.run_p2n_execution_announcement.run_p2n /
+  contract/P2N_MISSING_NATIVE_METRIC
+Native unchanged owner request/decision first-error codes remain
+P2M_REQUEST_ACK_LIMIT, P2M_DECISION_DELIVERY_LIMIT and
+P2M_TASK_OWNER_ALLOCATION_INCOMPLETE.
+
+### Open risks / validation / next step
+These broadcasts are simulated 20B application payloads;
+actual OFDMA/interference bursts, multi-recipient MAC,
+reliable broadcast, spoofing defense and real robot startup are
+not proven. 1-p^3 per receiver assumes independent repeat loss;
+at 90% loss it predicts only 27.1% any-copy receipt per
+receiver. The simulator's owner actor routes physical per-receiver
+observations to each distinct recipient cache, but this is still
+a synchronous known-roster shared-medium model. Incomplete
+GRANT delivery and irrevocable reservation can leave tasks
+unexecuted, and announcement cannot repair that; no 100%
+liveness claim. The 10-seed improvement is not asserted
+without native results.
+
+GitHub connector writes and readback are source verification,
+NOT Python compile/unittest/smoke execution; container cannot
+resolve github.com, so independent Python tests on full
+repo remain pending. Next Mac operator steps: Pull P2N branch,
+compile, focused tests/test_p2n*.py only (not old methods),
+run 2-seed PL0/30/90 smoke and then 10-seed PL0/30/50/90
+P2N-only formal, zip per-seed/summary/audit/manifest/config/log.
+Audit each successful or lost P2NX receipt and unique executor.
+Any failure: identify first owning named function/code, never
+add a wrapper to hide the issue.
+
+### Commit SHA within this concern
+- 20B P2NX wire / 3 repeated physical broadcasts:
+  9640611cf5e85b4f06a601449c74002bb4c43322
+- single true task owner P2N opt-in and received knowledge:
+  a7fb1e91066c7f9d25dcbb39ce3a116e2e1f4d3f
+- native source runner opt-in P2N ledger:
+  0b5635a9d2689b075ca3766260f090645fe60fa0
+- only P2N dedicated 40-case study:
+  5dbbd253f78ac4726587f55894f58077ba4cf2a9
+- focused P2N regressions:
+  b462477dee8cd36bf24944eaaa41e0c7db37019e
+- P2N canonical/runbook:
+  f8616b64191081799f6d173671a9bf210c195095
+- canonical EXPERIMENT_PROTOCOL §66:
+  139a105b6f3a5cde2c8b03344240db98aa5afb91
+- field validation and accurate P2N safety contract:
+  1e3ebd10798b21abcae9d1a755cbec21f2efab59
+- this continuity record is the next branch history commit;
+  the user's git rev-parse HEAD pins the final source.
