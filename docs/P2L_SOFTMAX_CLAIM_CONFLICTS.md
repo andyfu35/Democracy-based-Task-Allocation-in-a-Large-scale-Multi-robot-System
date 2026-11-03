@@ -191,7 +191,7 @@ After smoke passes, the requested 10-seed preliminary study:
     python3 -m experiments.run_p2l_claim_conflicts \
       --losses 0.00,0.30,0.50,0.90 --votes 1000 --seeds 10 \
       --channels bounded_ack,ideal_paid \
-      --max-claim-attempts 24 --max-claim-rounds 100 \
+      --max-claim-attempts 24 --max-claim-rounds 101 \
       --audit-seeds 1 --output-root "$P2L_ROOT" \
       2>&1 | tee "$P2L_ROOT.log"
 
