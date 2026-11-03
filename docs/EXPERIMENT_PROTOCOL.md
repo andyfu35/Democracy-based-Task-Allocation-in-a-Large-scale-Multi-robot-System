@@ -2236,3 +2236,58 @@ E0 guarantee applies ONLY when robots>=tasks, all robots can execute all tasks, 
 Owners/first diagnostics: `coordination.validate_probabilistic_batch_scope` enforces fallback only on the probabilistic one-shot path (`contract/P2J_V3_FALLBACK_REQUIRES_PROBABILISTIC_VOTE`); `coordination.validate_probability_score_view` validates allowed policy (`data/P2J_V3_UNKNOWN_COMPLETION_POLICY`); the new planning owner `complete_unassigned_score_matching` reports invalid supported pair, insufficient idle capacity, unused positive edge or incomplete postcondition under `contract`/`planning`. Native E9H only forwards mode and fallback trace; experiment owner `run_one_p2j_case` verifies paid physical Commits, assignment uniqueness, v2/v3 isolation and Cost provenance. Diagnostic fields are owner/function/category/code/expected/actual/details with fixed categories data/time/state/dependency/planning/safety/runtime/contract.
 
 Frozen matched comparison: 100R/100T capacity1; 100 Seeds; 0..90% Cost/Vote loss step10; three real original methods `one_batch_greedy` (one-shot Greedy), `probabilistic_global_margin` (unchanged v2), `probabilistic_complete_fallback` (new v3). Study `P2J_V3_DETERMINISTIC_FALLBACK_PAIRED`. Require focused/full unit tests, 18-case 0/30/90 smoke, 300-case PL30 100 Seeds, then 3,000-case formal in 30 groups. New raw fields include fallback count/IDs/realized Cost; successes use only fully committed task cost versus OFFLINE complete Global Greedy. Never impute costs on incomplete control/v2 cases. Preserve all historical P2J, P2I, READMEs and canonical sections 60-61. See `docs/P2J_V3_COMPLETION_FALLBACK.md` for exact Mac run commands. No v3 test/formal outcome is claimed until user-supplied native logs and hashes are checked.
+
+
+## 63. P2K consensus-free receiver-local voting hypothesis (2026-11-03)
+
+This new opt-in study is separate from P2J-v1/v2/v3 and retains every
+historical method, paper figure, Cost/Vote/Score/Commit owner, and result.
+Full design, formulas, run instructions and first-failure diagnostic owners:
+docs/P2K_CONSENSUS_FREE_LOCAL_VOTING.md.
+
+P2K tests whether 100 autonomous agents produce identical or highly similar
+capacity-one task decisions despite receiver-specific Cost/Vote loss, WITHOUT
+any model-reliable Score (PSCR), Commit, ACK/retry or online global repair.
+External TASK dissemination remains model-reliable and sender-paid as in P2J.
+Each sender transmits one independently lossy Cost row and one independently
+lossy task-balanced P2KV Vote packet; all attempted SEND application bytes
+are accounted regardless of lost receiver copies.
+
+P2KV uses a fixed 16B header plus one-byte candidate IDs in public task
+order; 100 tasks with 500 total tickets uses a 516B single SEND. For M tasks,
+B tickets must be divisible by M, with B/M tickets per task; max B=1184
+under a 1200B application packet limit. Original P2J PVOT <=255 tickets
+stays unchanged.
+
+Two matched P2K policies use identical receiver-loss, local decision,
+packet format, ticket counts and no-reliable-Score/Commit contract:
+(1) visible-Cost task Softmax; (2) up to K distinct local perturb-and-MAP
+maximum-cardinality assignments weighted by their average relative actual
+visible cost, projected into per-task candidate probabilities and mixed
+with epsilon=0.10 per-task visible-cost exploration. Candidate proposal
+enumeration is approximate, not guaranteed exact k-best.
+
+For each receiver r, V^(r) contains ONLY valid timely delivered P2KV
+records plus its own timely ballot; receiver r independently computes
+a positive-vote-only maximum-cardinality assignment, maximizes received
+ticket sum and deterministically ties by robot ID. Only robot r's own
+assignment row determines its physical claim. No PSCR or Commit, no global
+coordinator and no observer-corrected execution. Independently claimed
+tasks can collide or remain missing; both are first-class experiment outcomes.
+
+Offline summary distinguishes (a) tasks with at least one claimant,
+(b) tasks with exactly one claimant, (c) task duplication, (d) missing
+tasks, (e) all-task valid allocation, (f) modal local tentative-match
+agreement, (g) normalized Vote-view similarity, (h) actual attempted
+bytes / modeled stop ms. Full-information Greedy is OFFLINE reference
+only; assignment cost gap is defined exclusively when all physical
+claims are one-to-one complete. V3 remains labeled as historical
+reliable-Score/Commit evidence, NOT as an identical network-condition arm.
+
+Regression and smoke are mandatory before formal publication. Branch
+source edits are not proof that local Mac testing passed. Formal grid:
+100R100T capacity1; B=100/200/500/1000; Cost/Vote loss=0/30/50/70/90%;
+100 paired seeds; two no-consensus methods; 4000 real model cases,
+with only the first configured audit seeds retaining full per-robot
+vote matrices to control storage. No published completion guarantee
+under arbitrary packet loss is claimed.
