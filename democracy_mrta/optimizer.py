@@ -582,6 +582,61 @@ def apportion_p2q_task_tickets(
     return ballot
 
 
+
+def sample_p2s_adaptive_matching_votes(
+    *, cost_matrix: tuple[tuple[float, ...], ...],
+    visible_robot_ids: frozenset[int] | set[int] | tuple[int, ...],
+    voter_id: int, votes_per_voter: int,
+) -> tuple[int, ...]:
+    """Local maximum-cardinality min-cost matching plus visibility-based backup.
+
+    For each task: matching edge weight 1, cheapest visible Cost row backup
+    weight gamma = (total_robots - visible_count)/(total_robots - 1).
+    A task omitted by a partial matching gets the cheapest *visible* candidate.
+    Exactly B / tasks uint8 tickets per task; no global ground truth is read.
+    """
+    robots, tasks = validate_cost_matrix(cost_matrix)
+    visible = tuple(sorted(set(visible_robot_ids)))
+    if (not visible or voter_id not in visible or
+            any(type(r) is not int or not 0 <= r < robots for r in visible) or
+            type(votes_per_voter) is not int or votes_per_voter < tasks or
+            votes_per_voter % tasks or votes_per_voter > 1184 or robots > 255):
+        raise ProtocolError(Diagnostic(
+            owner="optimizer", function="sample_p2s_adaptive_matching_votes",
+            category="data", code="P2S_INVALID_VISIBLE_SCOPE",
+            expected="self-inclusive valid received rows; task-divisible B<=1184",
+            actual={"visible":visible,"self":voter_id,"B":votes_per_voter},
+        ))
+    local = tuple(tuple(float(cost_matrix[robot][t]) for t in range(tasks))
+                  for robot in visible)
+    local_rows, task_cols = linear_sum_assignment(local)
+    matched = {int(task): visible[int(local_row)]
+               for local_row, task in zip(local_rows, task_cols)}
+    gamma = (robots-len(visible))/max(1,robots-1)
+    slots = votes_per_voter//tasks
+    ticket_ids: list[int] = []
+    for task in range(tasks):
+        cheapest = min(visible, key=lambda robot: (cost_matrix[robot][task],robot))
+        # No matching proposal for this task is not treated as a zero ballot.
+        primary = matched.get(task)
+        support = {r: 0.0 for r in visible}
+        if primary is not None:
+            support[primary] += 1.0
+        support[cheapest] += gamma if primary is not None else 1.0
+        ticket_ids.extend(apportion_p2q_task_tickets(
+            visible_robots=visible,
+            weights=tuple(support[r] for r in visible),
+            tickets_per_task=slots,
+        ))
+    if len(ticket_ids) != votes_per_voter:
+        raise ProtocolError(Diagnostic(
+            owner="optimizer",function="sample_p2s_adaptive_matching_votes",
+            category="contract",code="P2S_TICKET_CARDINALITY_MISMATCH",
+            expected=votes_per_voter,actual=len(ticket_ids),
+        ))
+    return tuple(ticket_ids)
+
+
 def sample_p2k_task_balanced_votes(
     *, cost_matrix: tuple[tuple[float, ...], ...],
     visible_robot_ids: frozenset[int] | set[int] | tuple[int, ...],
@@ -602,7 +657,7 @@ def sample_p2k_task_balanced_votes(
         cost_matrix, allow_tasks_exceed_robots=True,
     )
     rows = tuple(sorted(set(visible_robot_ids)))
-    if (policy not in ("cost_softmax", "optimized_kbest", "optimized_rank_square")
+    if (policy not in ("cost_softmax", "optimized_kbest", "optimized_rank_square", "adaptive_local_matching")
             or type(votes_per_voter) is not int
             or votes_per_voter < num_tasks or votes_per_voter % num_tasks
             or votes_per_voter > 1184
@@ -626,6 +681,11 @@ def sample_p2k_task_balanced_votes(
                     "epsilon":epsilon,"temperature":temperature,"visible":rows,
                     "voter":voter_id,"tasks":num_tasks},
         ))
+    if policy == "adaptive_local_matching":
+        return sample_p2s_adaptive_matching_votes(
+            cost_matrix=cost_matrix, visible_robot_ids=rows,
+            voter_id=voter_id, votes_per_voter=votes_per_voter,
+        )
     digest = hashlib.sha256(
         f"P2K|{seed}|{round_id}|{voter_id}|{votes_per_voter}|"
         f"{policy}|{k}|{epsilon:.17g}|{temperature:.17g}".encode("ascii")
