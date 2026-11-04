@@ -192,7 +192,7 @@ def summarize_p2r_rows(rows):
 
 def make_p2r_evidence_row(
     *, scene,source_sha,loss,vote_run,task_trace,task_sampler,
-    coord_sampler,owner_result,
+    coord_sampler,owner_result,policy="optimized_rank_square",k=5,epsilon=0.0,
 ):
     """Same original Cost/Vote ledger plus ONLY real P2R physical SENDs."""
     validate_p2r_execution_evidence(
@@ -250,8 +250,8 @@ def make_p2r_evidence_row(
         "scene_sha256":scene_sha256(scene),
         "robots":robots,"tasks":tasks,
         "loss_percent":round(loss*100),
-        "votes_per_voter":1000,"policy":"optimized_rank_square",
-        "k":5,"epsilon":0.0,
+        "votes_per_voter":1000,"policy":policy,
+        "k":k,"epsilon":epsilon,
         "intent_repetitions":3,
         "decision_repetitions":3,
         "announcement_repetitions":3,
@@ -310,7 +310,8 @@ def make_p2r_evidence_row(
     return row
 
 
-def run_one_p2r_case(*,scene,profile,loss,source_sha,args,capture_audit):
+def run_one_p2r_case(*,scene,profile,loss,source_sha,args,capture_audit,
+                     local_policy="optimized_rank_square"):
     """One real P2Q source epoch and P2R ownership; no alternate arm."""
     task_sampler=create_e9g_sampler(
         profile=profile,seed=scene.seed,phy_rate_mbps=144.0,
@@ -340,7 +341,7 @@ def run_one_p2r_case(*,scene,profile,loss,source_sha,args,capture_audit):
         cost_matrix=costs,sampler=coord_sampler,
         loss_sampler=loss_sampler,p_loss=loss,
         phase_timeout_ms=guard,seed=scene.seed,votes_per_voter=1000,
-        policy="optimized_rank_square",k=5,epsilon=0.0,
+        policy=local_policy,k=args.k,epsilon=args.epsilon,
         temperature=args.temperature,
     )
     owner_result=coordinate_p2r_announced_intents(
@@ -355,7 +356,8 @@ def run_one_p2r_case(*,scene,profile,loss,source_sha,args,capture_audit):
         scene=scene,source_sha=source_sha,loss=loss,
         vote_run=vote_run,task_trace=task_trace,
         task_sampler=task_sampler,coord_sampler=coord_sampler,
-        owner_result=owner_result,
+        owner_result=owner_result,policy=local_policy,
+        k=args.k,epsilon=args.epsilon,
     )
     row.update({
         "intent_repetitions":args.intent_repetitions,
