@@ -1,5 +1,35 @@
 # Change Continuity
 
+## 2026-11-04 — P2S adaptive local matching ballot, native P2R transport unchanged
+
+**Branch:** `experiment/p2s-adaptive-local-matching-voting-20261104`.
+
+**Objective:** Replace only a new experimental local-vote generation arm, not the existing original P2Q/P2R methods, with visible-row maximum-cardinality minimum-cost local matching plus visibility-dependent per-task cheapest-observed backup. It is tested under original per-receiver lossy Cost/Vote and physical P2R owner-control communication, rather than prototype reliable pooled votes.
+
+**Files/functions:**
+- `democracy_mrta/optimizer.py::sample_p2s_adaptive_matching_votes` (new local ballot optimization); `sample_p2k_task_balanced_votes` (single named policy dispatch).
+- `democracy_mrta/coordination.py::validate_p2k_local_scope` (accept new policy; same original `simulate_p2k_local_vote_epoch` Cost/Vote transport).
+- `experiments/run_p2r_intent_conflict_commit.py::run_one_p2r_case`, `make_p2r_evidence_row` (optional policy metadata; original rank-square defaults unchanged).
+- new `experiments/run_p2s_adaptive_local_matching.py::validate_p2s_axes`, `validate_p2s_native_row`, `summarize_p2s`, `save_p2s`, `run_p2s` (new experiment evidence owner).
+- new `tests/test_p2s_adaptive_local_matching.py` (local voting test contracts).
+- new canonical experiment document `docs/P2S_ADAPTIVE_LOCAL_MATCHING.md`.
+- this continuity entry.
+
+**Responsibility movement:** none across existing owners. Optimizer alone produces votes from actually visible rows; Coordination alone owns lossy physical Cost/Vote receipts; ClaimResolution alone owns P2R conflicts, owner reservations and physically delivered COMMIT evidence; P2S experiment only validates and records outcomes. No duplicate task-owner state machine or fake full-cost fallback.
+
+**Intentionally preserved:** Original P2Q/P2R `optimized_rank_square` behavior, P2R INTENT/CHALLENGE/COMMIT/DENY/EXECUTING send/receive semantics and sender-byte ledger, own Cost-row visibility, exact original 1016-byte P2KV, task-first reliable bootstrap, 100R100T capacity1 and original Rady/144Mbps modeled timing. Historical evidence files/README charts untouched.
+
+**Intentionally changed:** P2S policy emits exactly B=1000 task-balanced tickets, favoring the locally optimal matching with per-task best-visible backup weight gamma=(N-|visible|)/(N-1); uncovered local tasks vote for cheapest visible candidate. At PL0 gamma=0 and Hungarian pairing is expected to reproduce full-info optimal assignment, not the different Global Greedy comparator.
+
+**Diagnostics:** First diagnostic owner/function/category/code; optimizer/sample_p2s_adaptive_matching_votes/data/P2S_INVALID_VISIBLE_SCOPE or contract/P2S_TICKET_CARDINALITY_MISMATCH; P2S experiment/validate_p2s_axes/data/P2S_INVALID_STUDY_AXES; validate_p2s_native_row/safety/P2S_DUPLICATE_EXECUTION, contract/P2S_POLICY_EVIDENCE_MISMATCH or contract/P2S_ZERO_LOSS_OPTIMAL_PARITY; run_p2s/state/P2S_OUTPUT_ALREADY_EXISTS or contract/P2S_EVIDENCE_SCHEMA_MISMATCH. Categories data/time/state/dependency/planning/safety/runtime/contract unchanged.
+
+**Validation:** Source committed; native Python tests and 100-seed experiment **NOT executed** in this GitHub-only edit context: container cannot resolve github.com and no clone of the P2R repo/verified Rady dataset is locally available. Therefore no native performance claim or smoke PASS. Prior 100R50T pooled-vote synthetic prototype is not P2S native evidence.
+
+**Risks and next step:** Run `python3 -m unittest discover -s tests -p 'test_p2s*.py' -v`, same P2R focused tests, then physical 2-seed smoke, then 100-seed x4 losses. Audit zero-loss true Hungarian parity, native 30% completion, full-case-only cost and physical sender bytes; compare only same-cohort P2R. P2R high-loss owner reservations may leave incomplete output. Shared packet-level drop model remains independent Bernoulli, not measured channel RF.
+
+**Implementation commits:** `174c3ee980c5bb60338fc7773aa26638bd9a6718`, `842d6b7679eed4b24569882554f553aa8cede786`, `8fcb39c208bda0935eb5a25d09ad1549474e5e3f`, `057f40a0116fc661216b4b3bb4a44d80b200b88f`, `899993e33856208501b3c0cbf1de5b45d088a715`, `4adfd43d9d91f4b0fbbd1ad400bbb8e7ce5272fd`. Continuity commit SHA: available in branch Git history.
+
+
 ## 2026-10-09 — Repository initialization
 
 ### Purpose
