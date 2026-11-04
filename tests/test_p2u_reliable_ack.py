@@ -5,6 +5,8 @@ from democracy_mrta.claim_resolution import (
     P2LClaim, P2TIntent, P2UStatus, P2U_OFFER, P2U_EXECUTED, P2U_IDLE,
     encode_p2u_status, decode_p2u_status, transmit_p2u_reliable_statuses,
     select_p2u_ready_peer_candidates, encode_p2u_ack,
+    encode_p2u_ack_bitmap, decode_p2u_ack_bitmap,
+    transmit_p2u_reliable_statuses_bitmap,
 )
 from democracy_mrta.network import WifiCausalTimingSampler
 
@@ -95,6 +97,70 @@ class P2UReliableTests(unittest.TestCase):
             [event.send_time_ms for event in events],
             [release for _,release in sampler.releases],
         )
+
+    def test_bitmap_ack_exact_wire_and_identity(self):
+        seen=frozenset({0,2,4})
+        packet=encode_p2u_ack_bitmap(
+            claim_round=4,receiver=2,robots=5,
+            received_sender_ids=seen,
+        )
+        self.assertEqual(len(packet),17)
+        self.assertEqual(
+            decode_p2u_ack_bitmap(
+                packet,claim_round=4,receiver=2,robots=5,
+            ),seen,
+        )
+        from democracy_mrta.diagnostics import ProtocolError
+        with self.assertRaises(ProtocolError):
+            decode_p2u_ack_bitmap(
+                packet,claim_round=4,receiver=1,robots=5,
+            )
+
+    def test_zero_loss_100_robots_emits_100_bitmap_ack_not_9900(self):
+        statuses=tuple(self.offer(i,i) for i in range(100))
+        sampler=StrictCausalSampler()
+        events,deliveries,views,end=transmit_p2u_reliable_statuses_bitmap(
+            statuses=statuses,robots=100,tasks=100,
+            votes_per_voter=1000,max_ack_retries=24,start_ms=0.0,
+            sampler=sampler,loss_sampler=NoLoss(),p_loss=0.0,
+        )
+        statuses_sent=[e for e in events if e.phase=="p2u_status"]
+        acks=[e for e in events if e.phase=="p2u_ack_bitmap"]
+        self.assertEqual(len(statuses_sent),100)
+        self.assertEqual(len(acks),100)
+        self.assertEqual({e.payload_bytes for e in statuses_sent},{40})
+        self.assertEqual({e.payload_bytes for e in acks},{29})
+        self.assertTrue(all(len(known)==100 for known in views.values()))
+        self.assertEqual(len(events),200)
+        self.assertEqual(sum(e.payload_bytes for e in events),6900)
+        self.assertEqual(len(sampler.releases),200)
+        self.assertGreater(end,0.0)
+
+    def test_bitmap_ack_lost_data_and_lost_bitmap_retries(self):
+        class SelectiveDrop:
+            def is_delivered(self,key,p_loss):
+                return not (
+                    ("broadcast|p2u_status|1|0|1|round=1" in key
+                     and "copy=1" not in key)
+                    or ("broadcast|p2u_ack_bitmap|0|1|-|round=1" in key
+                        and "copy=1" not in key)
+                )
+
+        statuses=tuple(self.offer(i,i) for i in range(3))
+        sampler=StrictCausalSampler()
+        events,receipts,views,end=transmit_p2u_reliable_statuses_bitmap(
+            statuses=statuses,robots=3,tasks=3,
+            votes_per_voter=30,max_ack_retries=5,start_ms=0.0,
+            sampler=sampler,loss_sampler=SelectiveDrop(),p_loss=0.3,
+        )
+        self.assertTrue(any(not d.delivered for d in receipts))
+        self.assertTrue(all(len(known)==3 for known in views.values()))
+        self.assertGreater(sum(e.phase=="p2u_status" for e in events),3)
+        self.assertTrue(any(e.transmission_index for e in events))
+        self.assertTrue(all(
+            events[i].send_time_ms<=events[i+1].send_time_ms
+            for i in range(len(events)-1)
+        ))
 
     def test_missing_roster_blocks_candidate_self_execution(self):
         a=self.offer(0,0).intent
