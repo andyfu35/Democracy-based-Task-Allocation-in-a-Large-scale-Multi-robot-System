@@ -26,6 +26,7 @@ from .protocol import validate_one_to_one_commits
 
 OWNER = "democracy_mrta.claim_resolution"
 CLAIM_WIRE = struct.Struct("<4sIIIIII")  # 28B
+P2V_COST_INTENT_WIRE = struct.Struct("<4sIIIIIId")  # 36B; new opt-in own cost
 ACK_WIRE = struct.Struct("<4sIII")       # 16B
 NO_TASK = 0xffffffff
 
@@ -38,6 +39,7 @@ class P2LClaim:
     support_votes: int
     received_ballots: int
     tickets_per_task: int
+    own_task_cost: float | None = None  # P2V opt-in sender's own scalar cost
 
 
 @dataclass(frozen=True)
@@ -1732,6 +1734,114 @@ def validate_p2r_announcement_scope(
     return robots,tasks
 
 
+
+
+def attach_p2v_local_cost(
+    *, claim: P2LClaim, own_cost_row: tuple[float, ...],
+) -> P2LClaim:
+    """Sender-only own Cost row, never the owner's hidden full matrix."""
+    task=claim.task_id
+    if (task is None or type(task) is not int
+            or not 0 <= task < len(own_cost_row)):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="attach_p2v_local_cost",
+            category="data",code="P2V_OWN_TASK_COST_UNAVAILABLE",
+            expected="real task in sender's own complete Cost row",
+            actual={"robot":claim.robot_id,"task":task,
+                    "row_length":len(own_cost_row)},
+        ))
+    value=float(own_cost_row[task])
+    if not math.isfinite(value) or value < 0:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="attach_p2v_local_cost",
+            category="data",code="P2V_INVALID_OWN_TASK_COST",
+            expected="finite nonnegative sender-only task Cost",actual=value,
+        ))
+    return P2LClaim(
+        claim.claim_round,claim.robot_id,task,claim.support_votes,
+        claim.received_ballots,claim.tickets_per_task,value,
+    )
+
+
+def encode_p2v_cost_intent(claim: P2LClaim) -> bytes:
+    """Own COST+vote support in a physically charged P2VI INTENT, 36 bytes."""
+    c=claim.own_task_cost
+    if (type(c) not in (int,float) or not math.isfinite(c) or c < 0
+            or claim.task_id is None):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="encode_p2v_cost_intent",
+            category="data",code="P2V_INVALID_COST_INTENT",
+            expected="validated candidate INTENT with own finite nonnegative cost",
+            actual={"robot":claim.robot_id,"task":claim.task_id,
+                    "cost":c},
+        ))
+    validated=encode_p2l_claim_packet(claim)
+    _tag,rnd,robot,task,votes,receipts,slots=CLAIM_WIRE.unpack(validated)
+    return P2V_COST_INTENT_WIRE.pack(
+        b"P2VI",rnd,robot,task,votes,receipts,slots,float(c),
+    )
+
+
+def decode_p2v_cost_intent(
+    packet: bytes, *, sender_id: int, claim_round: int,
+    robots: int, tasks: int, tickets_per_task: int,
+) -> P2LClaim:
+    """Validate actual received sender identity; preserve only advertised cost."""
+    if not isinstance(packet,bytes) or len(packet)!=P2V_COST_INTENT_WIRE.size:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="decode_p2v_cost_intent",
+            category="data",code="P2V_INVALID_COST_INTENT_LENGTH",
+            expected=P2V_COST_INTENT_WIRE.size,
+            actual=len(packet) if isinstance(packet,bytes)
+                   else type(packet).__name__,
+        ))
+    tag,rnd,robot,task,votes,receipts,slots,cost=(
+        P2V_COST_INTENT_WIRE.unpack(packet)
+    )
+    if tag!=b"P2VI" or not math.isfinite(cost) or cost<0:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="decode_p2v_cost_intent",
+            category="contract",code="P2V_COST_INTENT_CONTENT_INVALID",
+            expected="P2VI tag and sender finite nonnegative cost",
+            actual={"tag":tag,"cost":cost},
+        ))
+    base=decode_p2l_claim_packet(
+        CLAIM_WIRE.pack(b"P2LC",rnd,robot,task,votes,receipts,slots),
+        sender_id=sender_id,claim_round=claim_round,robots=robots,
+        tasks=tasks,tickets_per_task=tickets_per_task,
+    )
+    return P2LClaim(
+        base.claim_round,base.robot_id,base.task_id,
+        base.support_votes,base.received_ballots,
+        base.tickets_per_task,float(cost),
+    )
+
+
+def choose_p2v_cost_owner_winner(claims: tuple[P2LClaim, ...]) -> int:
+    """Task Owner selects lowest sender-advertised cost among actual receipts.
+
+    Same-cost tie: higher normalized vote support, then raw votes and
+    ballot count, then lower robot ID. Never access global hidden Cost.
+    """
+    if not claims or any(
+        type(c.own_task_cost) not in (int,float)
+        or not math.isfinite(c.own_task_cost) or c.own_task_cost < 0
+        for c in claims
+    ):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="choose_p2v_cost_owner_winner",
+            category="contract",code="P2V_MISSING_OWNER_RECEIVED_COST",
+            expected="one or more physically delivered cost-bearing P2VI claims",
+            actual=tuple((c.robot_id,c.own_task_cost) for c in claims),
+        ))
+    return min(claims,key=lambda c: (
+        c.own_task_cost,
+        -Fraction(c.support_votes,
+                  max(1,c.received_ballots*c.tickets_per_task)),
+        -c.support_votes,-c.received_ballots,c.robot_id,
+    )).robot_id
+
+
 def encode_p2r_intent(intent: P2LClaim) -> bytes:
     """Same validated local support fields as P2L but NEW 28B INTENT tag."""
     return b"P2RI"+encode_p2l_claim_packet(intent)[4:]
@@ -1856,9 +1966,10 @@ def transmit_p2r_intent_window(
     robots: int, tasks: int, votes_per_voter: int,
     repetitions: int, start_ms: float,
     sampler, loss_sampler, p_loss: float,
+    cost_intents: bool = False,
 ) -> tuple[list[CommunicationEvent],list[DeliveryObservation],
            dict[int,list[P2LClaim]],dict[int,set[int]],float]:
-    """Physical P2RI broadcasts; each receiver learns ONLY its receipts.
+    """Physical P2RI/P2VI broadcasts; each receiver learns ONLY its receipts.
 
     Return the task owner's own observed candidate set and each
     contender's locally observed other contenders, never global votes.
@@ -1876,7 +1987,8 @@ def transmit_p2r_intent_window(
     finish=start_ms
     for intent,copy in copies:
         task=intent.task_id
-        wire=encode_p2r_intent(intent)
+        wire=(encode_p2v_cost_intent(intent) if cost_intents
+              else encode_p2r_intent(intent))
         event=_broadcast_event(
             phase="p2r_intent",sender_id=intent.robot_id,
             task_id=task,round_id=intent.claim_round+1,
@@ -1900,7 +2012,8 @@ def transmit_p2r_intent_window(
         for obs in observed:
             if not obs.delivered:
                 continue
-            decoded=decode_p2r_intent(
+            decoded=(decode_p2v_cost_intent if cost_intents
+                     else decode_p2r_intent)(
                 wire,sender_id=intent.robot_id,
                 claim_round=intent.claim_round,robots=robots,
                 tasks=tasks,tickets_per_task=votes_per_voter//tasks,
@@ -1975,6 +2088,7 @@ def choose_p2r_owner_responses(
     owner_alerts: set[int], reserved: dict[int,int],
     previously_deferred: set[int], robots: int,
     claim_round: int,
+    owner_decision_policy: str = "support_first",
 ) -> tuple[list[tuple[int,int,bool]],list[dict],set[int],int]:
     """Only REAL owner-received INTENTs can compete and reserve a task.
 
@@ -2005,9 +2119,15 @@ def choose_p2r_owner_responses(
                     "status":"DEFER_CHALLENGE","received":[c.robot_id for c in claims],
                 })
                 continue
-            winners,losers,collided=resolve_p2l_claim_conflicts(
-                claims=tuple(claims),locked_tasks=frozenset(),
-            )
+            if owner_decision_policy=="cost_first":
+                chosen=choose_p2v_cost_owner_winner(tuple(claims))
+                winners=((chosen,task),)
+                losers=tuple(c.robot_id for c in claims if c.robot_id!=chosen)
+                collided=int(len(claims)>1)
+            else:
+                winners,losers,collided=resolve_p2l_claim_conflicts(
+                    claims=tuple(claims),locked_tasks=frozenset(),
+                )
             if len(winners)!=1 or winners[0][1]!=task:
                 raise ProtocolError(Diagnostic(
                     owner=OWNER,function="choose_p2r_owner_responses",
@@ -2031,6 +2151,12 @@ def choose_p2r_owner_responses(
                          "ballots":c.received_ballots}
                         for c in claims],
             "reserved_winner":winner,"previously_reserved":existing is not None,
+            "owner_decision_policy":owner_decision_policy,
+            "winning_advertised_cost":(
+                next((c.own_task_cost for c in claims
+                      if c.robot_id==winner),None)
+                if owner_decision_policy=="cost_first" else None
+            ),
         })
         for claim in claims:
             responses.append((claim.robot_id,task,claim.robot_id==winner))
@@ -2190,6 +2316,7 @@ def coordinate_p2r_announced_intents(
     votes_per_voter:int,sampler,loss_sampler,p_loss:float,
     max_rounds:int=101,intent_repetitions:int=3,
     decision_repetitions:int=3,announcement_repetitions:int=3,
+    owner_decision_policy:str="support_first",
 ) -> P2RAnnouncementResult:
     """ONE P2R task-ownership lifecycle in the existing real owner module.
 
@@ -2209,6 +2336,13 @@ def coordinate_p2r_announced_intents(
         decision_repetitions=decision_repetitions,
         announcement_repetitions=announcement_repetitions,
     )
+    if owner_decision_policy not in ("support_first","cost_first"):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER,function="coordinate_p2r_announced_intents",
+            category="data",code="P2V_INVALID_OWNER_POLICY",
+            expected="support_first or cost_first",
+            actual=owner_decision_policy,
+        ))
     pending=set(range(robots))
     tried=[set() for _ in range(robots)]
     active:dict[int,int]={}
@@ -2254,10 +2388,15 @@ def coordinate_p2r_announced_intents(
             if old_task is not None and old_task!=task:
                 retargets+=1
             active[robot]=task
-            round_intents.append(make_p2l_claim(
+            claim=make_p2l_claim(
                 run=run,robot_id=robot,task_id=task,
                 claim_round=claim_round,votes_per_voter=votes_per_voter,
-            ))
+            )
+            if owner_decision_policy=="cost_first":
+                claim=attach_p2v_local_cost(
+                    claim=claim,own_cost_row=cost_matrix[robot],
+                )
+            round_intents.append(claim)
         if not round_intents:
             break
         packet_events,packet_deliveries,by_owner,peer_seen,finish=(
@@ -2266,6 +2405,7 @@ def coordinate_p2r_announced_intents(
                 votes_per_voter=votes_per_voter,
                 repetitions=intent_repetitions,start_ms=finish,
                 sampler=sampler,loss_sampler=loss_sampler,p_loss=p_loss,
+                cost_intents=(owner_decision_policy=="cost_first"),
             )
         )
         events.extend(packet_events)
@@ -2286,6 +2426,7 @@ def coordinate_p2r_announced_intents(
                 owner_receipts=by_owner,owner_alerts=alerts,
                 reserved=reserved,previously_deferred=previously_deferred,
                 robots=robots,claim_round=claim_round,
+                owner_decision_policy=owner_decision_policy,
             )
         )
         decisions.extend(owner_decisions)
