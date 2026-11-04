@@ -107,6 +107,17 @@ class P2UReliableTests(unittest.TestCase):
         self.assertEqual(ready,())
         self.assertEqual(blocked,())
 
+    def test_executed_status_reaches_already_finished_receiver(self):
+        executed=P2UStatus(self.offer(0,0).intent,P2U_EXECUTED)
+        # Receiver 2 has finished its own task. Physical P2US receipts
+        # still update its local task-knowledge cache for the offline audit.
+        ready,blocked,offers,known=select_p2u_ready_peer_candidates(
+            intents=(),views={2:{0:executed}},robots=3,
+        )
+        self.assertEqual(ready,())
+        self.assertEqual(blocked,())
+        self.assertEqual(known[2],{0})
+
     def test_completed_status_prevents_later_reclaim(self):
         candidate=self.offer(1,0).intent
         done=P2UStatus(self.offer(0,0).intent,P2U_EXECUTED)
