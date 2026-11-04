@@ -23,7 +23,7 @@ class Loss:
         self.blind = blind_to_robot_one
 
     def is_delivered(self, key, p_loss):
-        if (self.blind and "broadcast|p2t_intent|1|0|round=1" in key):
+        if (self.blind and "broadcast|p2t_intent|1|0|0|round=1" in key):
             return False
         return True
 
