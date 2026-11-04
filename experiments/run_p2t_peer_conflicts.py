@@ -50,7 +50,7 @@ FIELDS = (
     "unique_completion_percent","distinct_coverage_percent",
     "full_valid_allocation","attempted_cost","actual_cost_if_valid",
     "global_greedy_cost","hungarian_cost",
-    "cost_gap_percent_if_valid","optimality_gap_percent_if_valid",
+    "optimality_gap_percent_if_valid","greedy_gap_percent_if_valid",
     "rounds_executed","locally_observed_conflicts","yielded_candidates",
     "retargeted_intents","sender_sends","sender_bytes",
     "task_sends","task_bytes","cost_sends","cost_bytes",
@@ -71,8 +71,8 @@ SUMMARY_FIELDS = (
     "mean_retargeted_intents","mean_sender_bytes",
     "mean_intent_bytes","mean_execution_notice_bytes",
     "mean_native_stop_ms","valid_cost_samples",
-    "mean_valid_actual_cost","mean_valid_greedy_gap_percent",
-    "mean_valid_optimality_gap_percent",
+    "mean_valid_actual_cost","mean_valid_optimality_gap_percent",
+    "mean_valid_greedy_gap_percent",
 )
 
 
@@ -193,7 +193,7 @@ def audit_p2t_case(*, scene, peer, votes, task_trace,
         "full_valid_allocation":full,"attempted_cost":attempted_cost,
         "actual_cost_if_valid":attempted_cost if full else "",
         "global_greedy_cost":greedy,"hungarian_cost":optimal,
-        "cost_gap_percent_if_valid":100*(attempted_cost/greedy-1) if full else "",
+        "greedy_gap_percent_if_valid":100*(attempted_cost/greedy-1) if full else "",
         "optimality_gap_percent_if_valid":100*(attempted_cost/optimal-1)
                                           if full else "",
         "rounds_executed":peer.rounds_executed,
@@ -258,10 +258,10 @@ def summarize_p2t(rows):
             "valid_cost_samples":len(valid),
             "mean_valid_actual_cost":mean(valid,"actual_cost_if_valid")
                                       if valid else "",
-            "mean_valid_greedy_gap_percent":mean(valid,"cost_gap_percent_if_valid")
-                                           if valid else "",
             "mean_valid_optimality_gap_percent":mean(
                 valid,"optimality_gap_percent_if_valid") if valid else "",
+            "mean_valid_greedy_gap_percent":mean(valid,"greedy_gap_percent_if_valid")
+                                           if valid else "",
         })
     return result
 
@@ -385,7 +385,7 @@ def run_p2t(args):
         json.dumps(config,indent=2,ensure_ascii=False),encoding="utf-8",
     )
     rows=[]
-    with (root/"per_seed_p2t.csv").open("x",newline="",encoding="utf-8") as raw, \\
+    with (root/"per_seed_p2t.csv").open("x",newline="",encoding="utf-8") as raw, \
          (root/"audit_p2t.jsonl").open("x",encoding="utf-8") as audit_file:
         writer=csv.DictWriter(raw,fieldnames=FIELDS,extrasaction="raise")
         writer.writeheader()
@@ -401,7 +401,7 @@ def run_p2t(args):
                 rows.append(row)
                 if audit is not None:
                     audit_file.write(json.dumps(
-                        audit,ensure_ascii=False,separators=(",",":"))+"\\n")
+                        audit,ensure_ascii=False,separators=(",",":"))+"\n")
                     audit_file.flush()
                 print(
                     f"P2T loss={loss}% seed={seed} "
