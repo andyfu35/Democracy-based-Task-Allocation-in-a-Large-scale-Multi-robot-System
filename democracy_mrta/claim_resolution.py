@@ -3123,14 +3123,18 @@ def select_p2u_ready_peer_candidates(
     blocked=[]
     local_offers={}
     local_executing={}
+    # Every receiver, including a robot already finished, learns only the
+    # EXECUTED statuses it actually received. The evidence auditor uses
+    # precisely the same physical-receipt contract.
+    for receiver, seen in views.items():
+        for status in seen.values():
+            if status.mode == P2U_EXECUTED:
+                local_executing.setdefault(receiver,set()).add(
+                    status.intent.claim.task_id
+                )
     for intent in intents:
         robot=intent.claim.robot_id
         seen=views.get(robot,{})
-        for status in seen.values():
-            if status.mode == P2U_EXECUTED:
-                local_executing.setdefault(robot,set()).add(
-                    status.intent.claim.task_id
-                )
         if len(seen)!=robots or set(seen)!=set(range(robots)):
             continue
         occupied=local_executing.get(robot,set())
