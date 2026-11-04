@@ -186,3 +186,44 @@ python3 -m experiments.run_p2t_peer_conflicts \
 
 
 **P2U receiver-cache clarification (same protocol):** `select_p2u_ready_peer_candidates` records a physically delivered `EXECUTED` status for *every receiver*, even if the receiver is already finished and is not a current candidate. Eligibility checks remain restricted to current candidates, and all decisions still require their full N/N current-round roster. The experiment's execution-knowledge audit uses this identical actual-receipt rule, so it cannot invent or drop knowledge at a non-candidate receiver. A dedicated regression verifies this cache consistency.
+
+
+## P2U Bitmap ACK optimization — separate optional experimental transport
+
+**Reason for change:** In the first real P2U native smoke, 100R/100T with guaranteed all-roster status + individual unicast ACKs required 341.863/342.346s even with PL0; 30% needed 2064.102/3568.536s and 50% needed 3670.169/5124.797s. This is **modeled coordination time, not CPU compute time nor real RF measurement**. At PL0, O(N²) individual ACKs (N*(N-1)=9,900 for N=100) dominate the serialized Rady/144Mbps timing, not Hungarian planning.
+
+**Preserve original as a named baseline:** `--reliable-announcements --ack-mode unicast` is the original 16-byte P2UA per-receiver ACK model, still the default mode. P2S/P2T and P2R behaviors are unaffected. Do **not** silently re-label any previously gathered P2U unicast evidence as Bitmap. The new mode is `--reliable-announcements --ack-mode bitmap`.
+
+**Only the ACK transport changes:**
+- Data still uses the same honest 40B P2US OFFER/EXECUTED/IDLE broadcast, with original `_lossy_broadcast_deliveries` independent per-receiver Bernoulli loss. The receiver's own local status is self-known.
+- Each receiver `r` accumulates `H_r={i: P2US_i	ext{ was physically received by }r}cup{r}`.
+- Instead of N-1 separate unicast P2UA, **each robot broadcasts one cumulative ACK bitmap P2UB per retry window**. Header `<4sIII>` is 16B containing literal `P2UB`, current round, physical sender (the receiver acknowledging), and total N. Payload is `ceil(N/8)` bytes, little-endian bitset `H_r`; thus **29B at N=100**. The packet's sending identity, round, roster N, length, self bit and out-of-range bits are checked.
+- Every physical P2UB broadcast is charged as one application sender-SEND even if all other peers drop it. Each recipient's P2UB delivery is independently sampled with the exact original Bernoulli model and recorded. A sending robot `i` marks recipient `r` confirmed **only when P2UB_r was actually received by i AND bit i is set**; a bit in a lost P2UB is never used.
+- A P2US sender whose every known recipient has acknowledged its status may cease retransmitting. Unconfirmed senders send the original P2US again in the next window (to all peers physically, even if only some ACKs are pending). Duplicates are harmless: the same sender/round status simply replaces its prior identical local entry. One P2UB is sent by **every** roster robot each active retry window; no hidden aggregation node, centralized arbiter, MAC reliability or free shared bitsets.
+- Even if P2UB confirmation is lost, the receiver may have actually received P2US; **only the receiver's actual local view determines its N/N decision gate**. Thus missing ACKs may cause redundant physical transmissions but cannot fabricate an unknown status.
+- Every `_broadcast_event` starts at current `finish` from prior physical SEND, and `finish` advances with modeled arrival. Strict `WifiCausalTimingSampler.sample_packet_ms / time / E9G_NONCAUSAL_PACKET_RELEASE` remains active and unmodified.
+- Finite `--max-ack-retries` 1..256 still bounds communication; PL>0 does not guarantee liveness, and missing N/N status means HOLD, not execution.
+
+**0%-loss wire expectation for a 100-robot single status round (P2U sub-protocol only):**
+- Original P2U: 100 P2US (4,000B) + 100*99=9,900 P2UA (158,400B) = 10,000 SENDs / **162,400B**.
+- P2U Bitmap: 100 P2US (4,000B) + 100 P2UB (100*29=2,900B) = **200 SENDs / 6,900B**.
+This omits the shared TASK, Cost, Vote and P2TE transmissions, and is a deterministic protocol count, NOT a claim of measured model time. At PL>0, *every retransmission and dropped sender-SEND remains billed*; completion/cost must be re-measured.
+
+**Responsible names:** `claim_resolution.encode_p2u_ack_bitmap` (`data/P2U_INVALID_BITMAP_ACK`), `decode_p2u_ack_bitmap` (`data/P2U_ACK_BITMAP_SIZE_INVALID`, `contract/P2U_ACK_BITMAP_IDENTITY_MISMATCH`), `transmit_p2u_reliable_statuses_bitmap` (physical sender-pay radio events and actual receiver-only status/ACK evidence), and the existing `coordinate_p2t_peer_conflicts` mode dispatch (`data/P2U_INVALID_ACK_MODE`). Experiment owner `validate_p2t_axes` validates `--ack-mode`, `audit_p2t_case` counts actual `p2u_ack_bitmap` packets/Bytes/receiver drops, and `run_p2t` identifies a distinct `_BITMAP_ACK` study suffix; original `p2u_ack` counts are zero in bitmap mode, never relabeled as new traffic. Strict Network time owner is unchanged.
+
+**Cost and completion evaluation:** report full safe task completion, actual duplicates/missing, all physical application SEND/Bytes, modeled coordination time, and `100*(C_alloc/C_Hungarian_opt -1)` **only when all 100 tasks are uniquely attempted**. 0% optimality parity test remains. Do not compare partial-cost totals as improved optimization.
+
+**Validation:**
+```bash
+python3 -m unittest discover -s tests -p 'test_p2u*.py' -v
+python3 -m unittest discover -s tests -p 'test_p2t*.py' -v
+python3 -m unittest discover -s tests -p 'test_p2s*.py' -v
+python3 -m unittest discover -s tests -p 'test_p2r*.py' -v
+P2U_FAST="results/p2u_bitmap_smoke_$(date +%Y%m%d_%H%M%S)"
+python3 -m experiments.run_p2t_peer_conflicts \
+  --reliable-announcements --ack-mode bitmap --max-ack-retries 24 \
+  --losses 0.00,0.30,0.50 --seeds 2 --robots 100 --tasks 100 \
+  --max-rounds 20 --output-root "$P2U_FAST"
+```
+
+**Status:** Source and tests committed on GitHub; this container cannot run the complete repo checkout with the original Rady profile. Native P2U Bitmap performance and results are pending local smoke validation. No observed time reduction, completion guarantees or ACK superiority are claimed before direct native data.
