@@ -50,6 +50,11 @@ P2U_FIELDS = (
     "p2u_status_receiver_drops","p2u_ack_receiver_drops",
 )
 P2U_SUMMARY_FIELDS = ("mean_p2u_status_bytes","mean_p2u_ack_bytes")
+P2U_BITMAP_FIELDS = (
+    "ack_mode","p2u_ack_bitmap_sends","p2u_ack_bitmap_bytes",
+    "p2u_ack_bitmap_receiver_drops",
+)
+P2U_BITMAP_SUMMARY_FIELDS = ("mean_p2u_ack_bitmap_bytes",)
 FIELDS = (
     "source_sha","scene_sha256","seed","robots","tasks","loss_percent",
     "votes_per_voter","policy","intent_repetitions","announcement_repetitions",
@@ -94,6 +99,9 @@ def fail(function, category, code, *, expected=None, actual=None, details=""):
 def validate_p2t_axes(args):
     """Bound the cohort without modifying frozen P2S/P2R runner defaults."""
     losses, votes = validate_p2k_config(args)
+    if (args.reliable_announcements and args.ack_mode not in ("unicast","bitmap")):
+        fail("validate_p2t_axes","data","P2U_INVALID_ACK_MODE",
+             expected="unicast or bitmap",actual=args.ack_mode)
     if (args.reliable_announcements
             and (type(args.max_ack_retries) is not int
                  or not 1 <= args.max_ack_retries <= 256)):
@@ -158,7 +166,10 @@ def audit_p2t_case(*, scene, peer, votes, task_trace,
              actual=peer.recipient_seen_executing_tasks)
     events = tuple(task_trace.events) + votes.events + peer.events
     deliveries = votes.deliveries + peer.deliveries
-    active_phases = P2U_PHASES if args.reliable_announcements else PHASES
+    active_phases = (
+        P2U_PHASES + (("p2u_ack_bitmap",) if args.ack_mode=="bitmap" else ())
+        if args.reliable_announcements else PHASES
+    )
     counts = {phase: {"sends":0,"bytes":0} for phase in active_phases}
     for event in events:
         phase = "task" if event.phase == "task_announcement" else event.phase
@@ -253,6 +264,9 @@ def audit_p2t_case(*, scene, peer, votes, task_trace,
         row[phase+"_bytes"]=counts[phase]["bytes"]
     for phase in ("cost","vote","p2t_intent","p2t_execution") + (
         ("p2u_status","p2u_ack") if args.reliable_announcements else ()
+    ) + (
+        ("p2u_ack_bitmap",) if args.reliable_announcements
+                               and args.ack_mode=="bitmap" else ()
     ):
         row[phase+"_receiver_drops"]=sum(
             1 for receipt in deliveries
@@ -261,7 +275,14 @@ def audit_p2t_case(*, scene, peer, votes, task_trace,
     if args.reliable_announcements:
         row["reliable_announcements"]=1
         row["max_ack_retries"]=args.max_ack_retries
-    fields=FIELDS+(P2U_FIELDS if args.reliable_announcements else ())
+    if args.reliable_announcements and args.ack_mode=="bitmap":
+        row["ack_mode"]="bitmap"
+        row["p2u_ack_sends"]=0
+        row["p2u_ack_bytes"]=0
+        row["p2u_ack_receiver_drops"]=0
+    fields=(FIELDS+(P2U_FIELDS if args.reliable_announcements else ())
+            +(P2U_BITMAP_FIELDS if args.reliable_announcements
+                                   and args.ack_mode=="bitmap" else ()))
     if set(row) != set(fields):
         fail("audit_p2t_case","contract","P2T_ROW_SCHEMA_MISMATCH",
              expected=sorted(fields),actual=sorted(row))
@@ -310,13 +331,18 @@ def summarize_p2t(rows):
             summary["mean_intent_bytes"]=mean(batch,"p2u_status_bytes")
             summary["mean_p2u_status_bytes"]=mean(batch,"p2u_status_bytes")
             summary["mean_p2u_ack_bytes"]=mean(batch,"p2u_ack_bytes")
+            if batch[0].get("ack_mode")=="bitmap":
+                summary["mean_p2u_ack_bitmap_bytes"]=mean(
+                    batch,"p2u_ack_bitmap_bytes"
+                )
         result.append(summary)
     return result
 
 
 def save_p2t_evidence(*,root,rows,audits,config):
-    fields=SUMMARY_FIELDS+(
-        P2U_SUMMARY_FIELDS if config.get("reliable_announcements") else ()
+    fields=(SUMMARY_FIELDS+
+        (P2U_SUMMARY_FIELDS if config.get("reliable_announcements") else ())+
+        (P2U_BITMAP_SUMMARY_FIELDS if config.get("ack_mode")=="bitmap" else ())
     )
     with (root/"summary_p2t.csv").open("x",newline="",encoding="utf-8") as f:
         writer=csv.DictWriter(f,fieldnames=fields,extrasaction="raise")
@@ -376,6 +402,7 @@ def run_one_p2t_case(*,scene,profile,loss,source_sha,args,capture_audit):
         announcement_repetitions=args.announcement_repetitions,
         reliable_announcements=args.reliable_announcements,
         max_ack_retries=args.max_ack_retries,
+        ack_mode=args.ack_mode,
     )
     row=audit_p2t_case(
         scene=scene,peer=peer,votes=votes,task_trace=task_trace,
@@ -437,9 +464,14 @@ def run_p2t(args):
         config["study"]=STUDY+"_RELIABLE_P2U_ACK"
         config["reliable_announcements"]=True
         config["max_ack_retries"]=args.max_ack_retries
+        config["ack_mode"]=args.ack_mode
+        if args.ack_mode=="bitmap":
+            config["study"]+="_BITMAP_ACK"
         config["protocol"]=(
             "P2U 40B P2US all-roster OFFER/EXECUTED/IDLE; "
-            "16B P2UA ACK and sender-paid bounded causal retries; "
+            ("16B P2UA unicasts" if args.ack_mode=="unicast"
+             else "16+ceil(N/8)B P2UB bitmap ACK broadcasts")+
+            " and sender-paid bounded causal retries; "
             "each candidate must personally receive full roster "
             "before peer comparison; 16B attempted P2TE, no fixed owner."
         )
@@ -450,8 +482,10 @@ def run_p2t(args):
     rows=[]
     with (root/"per_seed_p2t.csv").open("x",newline="",encoding="utf-8") as raw, \
          (root/"audit_p2t.jsonl").open("x",encoding="utf-8") as audit_file:
-        active_fields=FIELDS+(
-            P2U_FIELDS if args.reliable_announcements else ()
+        active_fields=(FIELDS+
+            (P2U_FIELDS if args.reliable_announcements else ())+
+            (P2U_BITMAP_FIELDS if args.reliable_announcements
+                                 and args.ack_mode=="bitmap" else ())
         )
         writer=csv.DictWriter(raw,fieldnames=active_fields,extrasaction="raise")
         writer.writeheader()
@@ -497,6 +531,7 @@ def parse_args(argv=None):
     parser.add_argument("--max-rounds",type=int,default=101)
     parser.add_argument("--reliable-announcements",action="store_true")
     parser.add_argument("--max-ack-retries",type=int,default=24)
+    parser.add_argument("--ack-mode",choices=("unicast","bitmap"),default="unicast")
     parser.add_argument("--intent-repetitions",type=int,default=3)
     parser.add_argument("--announcement-repetitions",type=int,default=3)
     parser.add_argument("--audit-seeds",type=int,default=1)
