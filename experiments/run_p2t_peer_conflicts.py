@@ -131,12 +131,7 @@ def audit_p2t_case(*, scene, peer, votes, task_trace,
         counts[phase]["sends"] += 1
         counts[phase]["bytes"] += event.payload_bytes
     if (counts["cost"]["sends"] != robots or
-            counts["vote"]["sends"] != robots or
-            counts["p2t_intent"]["sends"] !=
-            args.intent_repetitions * (len(peer.events) and
-               counts["p2t_intent"]["sends"] // args.intent_repetitions)):
-        # The last relation is replaced by the explicit modulus below;
-        # it never enables an unbilled sender.
+            counts["vote"]["sends"] != robots):
         fail("audit_p2t_case","contract","P2T_COST_VOTE_SEND_MISMATCH",
              expected={"cost":robots,"vote":robots},
              actual={k:v["sends"] for k,v in counts.items()})
@@ -161,7 +156,7 @@ def audit_p2t_case(*, scene, peer, votes, task_trace,
                      task_ledger["application_sender_bytes"]+
                      coord_ledger["application_sender_bytes"]))
     if (peer.duplicate_task_count + peer.unassigned_task_count
-            + peer.unique_task_count > tasks):
+            + peer.unique_task_count != tasks):
         fail("audit_p2t_case","contract","P2T_COVERAGE_COUNT_INVALID",
              expected=tasks,actual=(peer.unique_task_count,
                                     peer.duplicate_task_count,
