@@ -311,7 +311,8 @@ def make_p2r_evidence_row(
 
 
 def run_one_p2r_case(*,scene,profile,loss,source_sha,args,capture_audit,
-                     local_policy="optimized_rank_square"):
+                     local_policy="optimized_rank_square",
+                     owner_decision_policy="support_first"):
     """One real P2Q source epoch and P2R ownership; no alternate arm."""
     task_sampler=create_e9g_sampler(
         profile=profile,seed=scene.seed,phy_rate_mbps=144.0,
@@ -351,6 +352,7 @@ def run_one_p2r_case(*,scene,profile,loss,source_sha,args,capture_audit,
         intent_repetitions=args.intent_repetitions,
         decision_repetitions=args.decision_repetitions,
         announcement_repetitions=args.announcement_repetitions,
+        owner_decision_policy=owner_decision_policy,
     )
     row=make_p2r_evidence_row(
         scene=scene,source_sha=source_sha,loss=loss,
@@ -377,6 +379,7 @@ def run_one_p2r_case(*,scene,profile,loss,source_sha,args,capture_audit,
             "per_robot_local_assignment":vote_run.local_assignments,
             "per_robot_received_vote_matrices":vote_run.local_vote_views,
             "owner_decisions":owner_result.decisions,
+            "owner_decision_policy":owner_decision_policy,
             "owner_reserved_pairs":owner_result.reserved_pairs,
             "actual_granted_execution_pairs":owner_result.executed_pairs,
             "per_receiver_actual_execution_knowledge":
