@@ -267,20 +267,10 @@ def summarize_p2t(rows):
 
 
 def save_p2t_evidence(*,root,rows,audits,config):
-    with (root/"per_seed_p2t.csv").open("x",newline="",encoding="utf-8") as f:
-        writer=csv.DictWriter(f,fieldnames=FIELDS,extrasaction="raise")
-        writer.writeheader()
-        writer.writerows(rows)
     with (root/"summary_p2t.csv").open("x",newline="",encoding="utf-8") as f:
         writer=csv.DictWriter(f,fieldnames=SUMMARY_FIELDS,extrasaction="raise")
         writer.writeheader()
         writer.writerows(summarize_p2t(rows))
-    with (root/"audit_p2t.jsonl").open("x",encoding="utf-8") as f:
-        for audit in audits:
-            f.write(json.dumps(audit,ensure_ascii=False,separators=(",",":"))+"\n")
-    (root/"run_config_p2t.json").write_text(
-        json.dumps(config,indent=2,ensure_ascii=False),encoding="utf-8",
-    )
     items=[root/name for name in (
         "per_seed_p2t.csv","summary_p2t.csv","audit_p2t.jsonl","run_config_p2t.json",
     )]
@@ -390,30 +380,40 @@ def run_p2t(args):
                     "simultaneous peer acts are exposed as collisions",
         "audit_seeds":args.audit_seeds,
     }
-    rows=[]
-    audits=[]
-    for loss in losses:
-        for seed in range(args.first_seed,args.first_seed+args.seeds):
-            scene=generate_e0_scenario(seed,args.robots,args.tasks)
-            row,audit=run_one_p2t_case(
-                scene=scene,profile=profile,loss=loss/100,source_sha=source_sha,
-                args=args,capture_audit=seed<args.first_seed+args.audit_seeds,
-            )
-            rows.append(row)
-            if audit is not None:
-                audits.append(audit)
-            print(
-                f"P2T loss={loss}% seed={seed} "
-                f"unique={row['unique_task_count']}/{args.tasks} "
-                f"duplicate_tasks={row['duplicate_task_count']} "
-                f"missing={row['unassigned_task_count']} "
-                f"safe_full={row['full_valid_allocation']} "
-                f"bytes={row['sender_bytes']} "
-                f"stop_s={row['native_stop_ms']/1000:.3f}",
-                flush=True,
-            )
     root.mkdir(parents=True)
-    save_p2t_evidence(root=root,rows=rows,audits=audits,config=config)
+    (root/"run_config_p2t.json").write_text(
+        json.dumps(config,indent=2,ensure_ascii=False),encoding="utf-8",
+    )
+    rows=[]
+    with (root/"per_seed_p2t.csv").open("x",newline="",encoding="utf-8") as raw, \\
+         (root/"audit_p2t.jsonl").open("x",encoding="utf-8") as audit_file:
+        writer=csv.DictWriter(raw,fieldnames=FIELDS,extrasaction="raise")
+        writer.writeheader()
+        for loss in losses:
+            for seed in range(args.first_seed,args.first_seed+args.seeds):
+                scene=generate_e0_scenario(seed,args.robots,args.tasks)
+                row,audit=run_one_p2t_case(
+                    scene=scene,profile=profile,loss=loss/100,source_sha=source_sha,
+                    args=args,capture_audit=seed<args.first_seed+args.audit_seeds,
+                )
+                writer.writerow(row)
+                raw.flush()
+                rows.append(row)
+                if audit is not None:
+                    audit_file.write(json.dumps(
+                        audit,ensure_ascii=False,separators=(",",":"))+"\\n")
+                    audit_file.flush()
+                print(
+                    f"P2T loss={loss}% seed={seed} "
+                    f"unique={row['unique_task_count']}/{args.tasks} "
+                    f"duplicate_tasks={row['duplicate_task_count']} "
+                    f"missing={row['unassigned_task_count']} "
+                    f"safe_full={row['full_valid_allocation']} "
+                    f"bytes={row['sender_bytes']} "
+                    f"stop_s={row['native_stop_ms']/1000:.3f}",
+                    flush=True,
+                )
+    save_p2t_evidence(root=root,rows=rows,audits=[],config=config)
     print(f"P2T_COMPLETE cases={len(rows)} root={root}",flush=True)
 
 
