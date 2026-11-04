@@ -2390,3 +2390,463 @@ def coordinate_p2r_announced_intents(
         ),
         finish_ms=finish,first_diagnostic=first_diagnostic,
     )
+
+
+# P2T: peer-only experiment.  This is intentionally NOT a P2R task-owner
+# grant/deny protocol.  It simulates direct peer choice and audits unsafe
+# collisions instead of secretly obtaining a global winner.
+
+P2T_INTENT_WIRE = struct.Struct("<4sIIIIIId")  # 36B: P2L support plus own cost
+P2T_EXECUTION_WIRE = struct.Struct("<4sIII")  # 16B: round, sender, task
+
+
+@dataclass(frozen=True)
+class P2TIntent:
+    claim: P2LClaim
+    own_cost: float
+
+
+@dataclass(frozen=True)
+class P2TPeerResult:
+    """Tentative peer actions, NOT authenticated real-robot execution grants."""
+
+    attempted_pairs: tuple[tuple[int, int], ...]
+    events: tuple[CommunicationEvent, ...]
+    deliveries: tuple[DeliveryObservation, ...]
+    rounds_executed: int
+    locally_observed_conflicts: int
+    yielded_candidates: int
+    retargeted_intents: int
+    initial_candidate_count: int
+    unique_task_count: int
+    duplicate_task_count: int
+    unassigned_task_count: int
+    recipient_seen_executing_tasks: tuple[tuple[int, ...], ...]
+    finish_ms: float
+    first_diagnostic: Diagnostic | None = None
+
+    @property
+    def sender_bytes(self) -> int:
+        return sum(event.payload_bytes for event in self.events)
+
+
+def validate_p2t_peer_scope(
+    *, run: P2KLocalVoteResult, cost_matrix: tuple[tuple[float, ...], ...],
+    votes_per_voter: int, p_loss: float, max_rounds: int,
+    intent_repetitions: int, announcement_repetitions: int,
+) -> tuple[int, int]:
+    """The Cost/Vote source is native; a P2T peer cannot read unknown rows."""
+    robots, tasks = validate_cost_matrix(cost_matrix)
+    validate_packet_loss_probability(p_loss)
+    if (not 1 <= tasks <= robots <= 255
+            or type(votes_per_voter) is not int
+            or not tasks <= votes_per_voter <= 1184
+            or votes_per_voter % tasks
+            or type(max_rounds) is not int or not 1 <= max_rounds <= 255
+            or type(intent_repetitions) is not int
+            or not 1 <= intent_repetitions <= 5
+            or type(announcement_repetitions) is not int
+            or not 1 <= announcement_repetitions <= 5
+            or len(run.local_vote_views) != robots
+            or len(run.local_assignments) != robots
+            or len(run.cost_visible_rows) != robots
+            or any(len(view) != robots or
+                   any(len(row) != tasks for row in view)
+                   for view in run.local_vote_views)
+            or any(event.phase not in ("cost", "vote") for event in run.events)
+            or len({robot for robot, _ in run.robot_claims}) != len(run.robot_claims)
+            or any(type(robot) is not int or not 0 <= robot < robots
+                   or type(task) is not int or not 0 <= task < tasks
+                   for robot, task in run.robot_claims)):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="validate_p2t_peer_scope",
+            category="contract", code="P2T_INVALID_PEER_SCOPE",
+            expected="native Cost/Vote-only per-receiver views, capacity one, "
+                     "1..5 intent/execution copies, 1..255 rounds",
+            actual={"robots":robots, "tasks":tasks,
+                    "votes":votes_per_voter, "rounds":max_rounds,
+                    "intent_copies":intent_repetitions,
+                    "execution_copies":announcement_repetitions},
+        ))
+    return robots, tasks
+
+
+def encode_p2t_peer_intent(intent: P2TIntent) -> bytes:
+    """Send own rational vote support AND own task cost, never peer Cost rows."""
+    claim = intent.claim
+    validated = encode_p2l_claim_packet(claim)
+    if (type(intent.own_cost) not in (float, int)
+            or not math.isfinite(intent.own_cost) or intent.own_cost < 0
+            or claim.task_id is None):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="encode_p2t_peer_intent",
+            category="data", code="P2T_INVALID_OWN_COST",
+            expected="finite nonnegative own task cost and non-idle claim",
+            actual={"claim":repr(claim), "cost":intent.own_cost},
+        ))
+    _tag, rnd, robot, task, votes, receipts, slots = CLAIM_WIRE.unpack(validated)
+    return P2T_INTENT_WIRE.pack(
+        b"P2TI", rnd, robot, task, votes, receipts, slots, intent.own_cost,
+    )
+
+
+def decode_p2t_peer_intent(
+    wire: bytes, *, sender_id: int, claim_round: int,
+    robots: int, tasks: int, tickets_per_task: int,
+) -> P2TIntent:
+    if not isinstance(wire, bytes) or len(wire) != P2T_INTENT_WIRE.size:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="decode_p2t_peer_intent",
+            category="data", code="P2T_INTENT_SIZE_INVALID",
+            expected=P2T_INTENT_WIRE.size,
+            actual=len(wire) if isinstance(wire, bytes) else type(wire).__name__,
+        ))
+    tag, rnd, robot, task, votes, receipts, slots, own_cost = (
+        P2T_INTENT_WIRE.unpack(wire)
+    )
+    if tag != b"P2TI" or not math.isfinite(own_cost) or own_cost < 0:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="decode_p2t_peer_intent",
+            category="contract", code="P2T_INTENT_TAG_OR_COST_INVALID",
+            expected="P2TI, finite own cost >= 0",
+            actual={"tag":tag, "own_cost":own_cost},
+        ))
+    claim = decode_p2l_claim_packet(
+        CLAIM_WIRE.pack(b"P2LC", rnd, robot, task, votes, receipts, slots),
+        claim_round=claim_round, sender_id=sender_id,
+        robots=robots, tasks=tasks, tickets_per_task=tickets_per_task,
+    )
+    if claim.task_id is None:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="decode_p2t_peer_intent",
+            category="contract", code="P2T_IDLE_INTENT_ON_WIRE",
+            expected="actual selected task", actual=None,
+        ))
+    return P2TIntent(claim=claim, own_cost=own_cost)
+
+
+def transmit_p2t_peer_intents(
+    *, intents: tuple[P2TIntent, ...], robots: int, tasks: int,
+    votes_per_voter: int, repetitions: int, start_ms: float,
+    sampler, loss_sampler, p_loss: float,
+) -> tuple[list[CommunicationEvent], list[DeliveryObservation],
+           dict[int, dict[int, P2TIntent]], float]:
+    """Real per-recipient physical P2TI broadcasts; no fixed task owner.
+
+    Every sender knows its own payload for free, but other offers are
+    available ONLY after their P2TI is physically received.
+    """
+    events: list[CommunicationEvent] = []
+    deliveries: list[DeliveryObservation] = []
+    received: dict[int, dict[int, P2TIntent]] = {
+        intent.claim.robot_id: {intent.claim.robot_id: intent}
+        for intent in intents
+    }
+    finish = start_ms
+    for intent in sorted(intents, key=lambda x: x.claim.robot_id):
+        claim = intent.claim
+        wire = encode_p2t_peer_intent(intent)
+        for copy in range(repetitions):
+            event = _broadcast_event(
+                phase="p2t_intent", sender_id=claim.robot_id,
+                task_id=claim.task_id, round_id=claim.claim_round + 1,
+                send_time_ms=start_ms, payload_bytes=len(wire),
+                sampler=sampler, transmission_index=copy,
+            )
+            events.append(event)
+            finish = max(finish, event.arrival_time_ms)
+            observed = _lossy_broadcast_deliveries(
+                event=event, num_robots=robots, loss_sampler=loss_sampler,
+                p_loss=p_loss, round_id=claim.claim_round + 1,
+            )
+            deliveries.extend(observed)
+            for observation in observed:
+                if observation.delivered:
+                    decoded = decode_p2t_peer_intent(
+                        wire, sender_id=claim.robot_id,
+                        claim_round=claim.claim_round, robots=robots,
+                        tasks=tasks, tickets_per_task=votes_per_voter // tasks,
+                    )
+                    received.setdefault(observation.receiver_id, {})[
+                        claim.robot_id
+                    ] = decoded
+    return events, deliveries, received, finish
+
+
+def choose_p2t_peer_winners(
+    *, intents: tuple[P2TIntent, ...],
+    locally_received: dict[int, dict[int, P2TIntent]],
+) -> tuple[tuple[P2TIntent, ...], tuple[P2TIntent, ...], int]:
+    """Each actual candidate compares only same-task P2TI it received.
+
+    Higher normalized local vote support wins; tied ratios use raw vote,
+    lower OWN task cost, then lower robot ID.  No shared oracle table.
+    """
+    winners: list[P2TIntent] = []
+    losers: list[P2TIntent] = []
+    conflicts = 0
+
+    def rank(intent: P2TIntent) -> tuple:
+        claim = intent.claim
+        return (
+            Fraction(claim.support_votes,
+                     max(1, claim.received_ballots * claim.tickets_per_task)),
+            claim.support_votes, -intent.own_cost, -claim.robot_id,
+        )
+
+    for intent in sorted(intents, key=lambda x: x.claim.robot_id):
+        claim = intent.claim
+        received = locally_received.get(claim.robot_id, {})
+        if received.get(claim.robot_id) != intent:
+            raise ProtocolError(Diagnostic(
+                owner=OWNER, function="choose_p2t_peer_winners",
+                category="state", code="P2T_OWN_INTENT_NOT_VISIBLE",
+                expected=repr(intent),
+                actual=repr(received.get(claim.robot_id)),
+            ))
+        contenders = tuple(candidate for candidate in received.values()
+                           if candidate.claim.task_id == claim.task_id)
+        if len(contenders) > 1:
+            conflicts += 1
+        best = max(contenders, key=rank)
+        (winners if best.claim.robot_id == claim.robot_id else losers).append(intent)
+    return tuple(winners), tuple(losers), conflicts
+
+
+def encode_p2t_execution_notice(*, claim_round: int, robot_id: int,
+                                task_id: int) -> bytes:
+    if (type(claim_round) is not int or not 0 <= claim_round <= 0xffffffff
+            or type(robot_id) is not int or not 0 <= robot_id <= 255
+            or type(task_id) is not int or not 0 <= task_id <= 255):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="encode_p2t_execution_notice",
+            category="data", code="P2T_INVALID_EXECUTION_NOTICE",
+            expected="uint32 round, uint8 robot/task IDs",
+            actual=(claim_round, robot_id, task_id),
+        ))
+    return P2T_EXECUTION_WIRE.pack(
+        b"P2TE", claim_round, robot_id, task_id,
+    )
+
+
+def decode_p2t_execution_notice(
+    wire: bytes, *, sender_id: int, claim_round: int,
+    robots: int, tasks: int,
+) -> int:
+    if not isinstance(wire, bytes) or len(wire) != P2T_EXECUTION_WIRE.size:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="decode_p2t_execution_notice",
+            category="data", code="P2T_EXEC_NOTICE_SIZE_INVALID",
+            expected=P2T_EXECUTION_WIRE.size,
+            actual=len(wire) if isinstance(wire, bytes) else type(wire).__name__,
+        ))
+    tag, rnd, robot, task = P2T_EXECUTION_WIRE.unpack(wire)
+    if (tag != b"P2TE" or rnd != claim_round or robot != sender_id
+            or not 0 <= robot < robots or not 0 <= task < tasks):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="decode_p2t_execution_notice",
+            category="contract", code="P2T_EXEC_NOTICE_IDENTITY_MISMATCH",
+            expected={"tag":"P2TE","round":claim_round,"sender":sender_id},
+            actual={"tag":tag,"round":rnd,"robot":robot,"task":task},
+        ))
+    return task
+
+
+def transmit_p2t_execution_notices(
+    *, attempted: tuple[tuple[int, int], ...], claim_round: int,
+    robots: int, tasks: int, repetitions: int, start_ms: float,
+    sampler, loss_sampler, p_loss: float,
+) -> tuple[list[CommunicationEvent], list[DeliveryObservation],
+           dict[int, set[int]], float]:
+    """P2TE is a statement of *attempted* execution, not a safety grant."""
+    events: list[CommunicationEvent] = []
+    deliveries: list[DeliveryObservation] = []
+    observed: dict[int, set[int]] = {}
+    finish = start_ms
+    for robot, task in sorted(attempted):
+        wire = encode_p2t_execution_notice(
+            claim_round=claim_round, robot_id=robot, task_id=task,
+        )
+        observed.setdefault(robot, set()).add(task)
+        for copy in range(repetitions):
+            event = _broadcast_event(
+                phase="p2t_execution", sender_id=robot, task_id=task,
+                round_id=claim_round + 1, send_time_ms=start_ms,
+                payload_bytes=len(wire), sampler=sampler,
+                transmission_index=copy,
+            )
+            events.append(event)
+            finish = max(finish, event.arrival_time_ms)
+            delivered_to = _lossy_broadcast_deliveries(
+                event=event, num_robots=robots, loss_sampler=loss_sampler,
+                p_loss=p_loss, round_id=claim_round + 1,
+            )
+            deliveries.extend(delivered_to)
+            for receipt in delivered_to:
+                if receipt.delivered:
+                    decoded_task = decode_p2t_execution_notice(
+                        wire, sender_id=robot, claim_round=claim_round,
+                        robots=robots, tasks=tasks,
+                    )
+                    observed.setdefault(receipt.receiver_id, set()).add(
+                        decoded_task
+                    )
+    return events, deliveries, observed, finish
+
+
+def validate_p2t_attempts(
+    *, attempts: tuple[tuple[int, int], ...], robots: int, tasks: int,
+) -> tuple[int, int, int, Diagnostic | None]:
+    """Offline audit only. Duplicate attempts are EXPOSED, never repaired."""
+    if (len({robot for robot, _ in attempts}) != len(attempts)
+            or any(type(robot) is not int or not 0 <= robot < robots
+                   or type(task) is not int or not 0 <= task < tasks
+                   for robot, task in attempts)):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="validate_p2t_attempts",
+            category="safety", code="P2T_ROBOT_CAPACITY_VIOLATION",
+            expected="each robot attempts <= 1 valid task", actual=attempts,
+        ))
+    counts = [0] * tasks
+    for _robot, task in attempts:
+        counts[task] += 1
+    unique = sum(count == 1 for count in counts)
+    duplicates = sum(count > 1 for count in counts)
+    unassigned = sum(count == 0 for count in counts)
+    diagnostic = None
+    if duplicates:
+        diagnostic = Diagnostic(
+            owner=OWNER, function="validate_p2t_attempts",
+            category="safety", code="P2T_UNOBSERVED_PEER_COLLISION",
+            expected="at most one peer attempts each task",
+            actual={"duplicate_tasks":duplicates,"unassigned":unassigned},
+            details="Different receiver-local P2TI sets permitted multiple winners.",
+        )
+    elif unassigned:
+        diagnostic = Diagnostic(
+            owner=OWNER, function="validate_p2t_attempts",
+            category="planning", code="P2T_INCOMPLETE_PEER_COVERAGE",
+            expected={"uniquely_covered_tasks":tasks},
+            actual={"unique":unique,"unassigned":unassigned},
+        )
+    return unique, duplicates, unassigned, diagnostic
+
+
+def coordinate_p2t_peer_conflicts(
+    *, run: P2KLocalVoteResult, cost_matrix: tuple[tuple[float, ...], ...],
+    votes_per_voter: int, sampler, loss_sampler, p_loss: float,
+    max_rounds: int = 101, intent_repetitions: int = 3,
+    announcement_repetitions: int = 3,
+) -> P2TPeerResult:
+    """Direct peer-only intent -> compare -> yield/act -> broadcast.
+
+    There is NO fixed task owner and NO P2RC/P2RD/ACK/GRANT. Each robot
+    chooses from its own Vote/Cost and observed P2TI/P2TE ONLY.
+    Tentative acts are simulated; collisions are reported rather than hidden.
+    """
+    robots, tasks = validate_p2t_peer_scope(
+        run=run, cost_matrix=cost_matrix,
+        votes_per_voter=votes_per_voter, p_loss=p_loss,
+        max_rounds=max_rounds, intent_repetitions=intent_repetitions,
+        announcement_repetitions=announcement_repetitions,
+    )
+    pending = set(range(robots))
+    rejected = [set() for _ in range(robots)]
+    locally_executing = [set() for _ in range(robots)]
+    last_task: dict[int, int] = {}
+    attempts: dict[int, int] = {}  # observer ledger, never used for local choice
+    events: list[CommunicationEvent] = []
+    deliveries: list[DeliveryObservation] = []
+    finish = max(run.decision_time_ms,
+                 max((event.arrival_time_ms for event in run.events), default=0.0))
+    conflicts = 0
+    yielded = 0
+    retargeted = 0
+    initial_candidates = 0
+    rounds = 0
+    for claim_round in range(max_rounds):
+        if not pending:
+            break
+        intents: list[P2TIntent] = []
+        for robot in sorted(pending):
+            task = select_p2m_local_request_task(
+                run=run, robot_id=robot, own_cost_row=cost_matrix[robot],
+                tried_tasks=frozenset(rejected[robot]),
+                first_attempt=claim_round == 0,
+                known_executing_tasks=frozenset(locally_executing[robot]),
+            )
+            if task is None:
+                pending.discard(robot)
+                continue
+            if robot in last_task and last_task[robot] != task:
+                retargeted += 1
+            last_task[robot] = task
+            claim = make_p2l_claim(
+                run=run, robot_id=robot, task_id=task,
+                claim_round=claim_round, votes_per_voter=votes_per_voter,
+            )
+            intents.append(P2TIntent(claim=claim,
+                                     own_cost=float(cost_matrix[robot][task])))
+        if not intents:
+            break
+        rounds += 1
+        if claim_round == 0:
+            initial_candidates = len(intents)
+        sent, received, local_intents, finish = transmit_p2t_peer_intents(
+            intents=tuple(intents), robots=robots, tasks=tasks,
+            votes_per_voter=votes_per_voter, repetitions=intent_repetitions,
+            start_ms=finish, sampler=sampler, loss_sampler=loss_sampler,
+            p_loss=p_loss,
+        )
+        events.extend(sent)
+        deliveries.extend(received)
+        winners, losers, observed_conflicts = choose_p2t_peer_winners(
+            intents=tuple(intents), locally_received=local_intents,
+        )
+        conflicts += observed_conflicts
+        yielded += len(losers)
+        for intent in losers:
+            rejected[intent.claim.robot_id].add(intent.claim.task_id)
+        acted = []
+        for intent in winners:
+            robot = intent.claim.robot_id
+            task = intent.claim.task_id
+            if robot not in pending:
+                raise ProtocolError(Diagnostic(
+                    owner=OWNER, function="coordinate_p2t_peer_conflicts",
+                    category="state", code="P2T_ROBOT_REACTED_TWICE",
+                    expected="new pending robot", actual=robot,
+                ))
+            pending.remove(robot)
+            attempts[robot] = task
+            acted.append((robot, task))
+        sent_exec, received_exec, seen_exec, finish = (
+            transmit_p2t_execution_notices(
+                attempted=tuple(acted), claim_round=claim_round,
+                robots=robots, tasks=tasks,
+                repetitions=announcement_repetitions,
+                start_ms=finish, sampler=sampler, loss_sampler=loss_sampler,
+                p_loss=p_loss,
+            )
+        )
+        events.extend(sent_exec)
+        deliveries.extend(received_exec)
+        for robot, tasks_seen in seen_exec.items():
+            locally_executing[robot].update(tasks_seen)
+    attempted = tuple(sorted(attempts.items(), key=lambda pair: (pair[1],pair[0])))
+    unique, duplicates, unassigned, first_failure = validate_p2t_attempts(
+        attempts=attempted, robots=robots, tasks=tasks,
+    )
+    return P2TPeerResult(
+        attempted_pairs=attempted,
+        events=tuple(events), deliveries=tuple(deliveries),
+        rounds_executed=rounds, locally_observed_conflicts=conflicts,
+        yielded_candidates=yielded, retargeted_intents=retargeted,
+        initial_candidate_count=initial_candidates,
+        unique_task_count=unique, duplicate_task_count=duplicates,
+        unassigned_task_count=unassigned,
+        recipient_seen_executing_tasks=tuple(
+            tuple(sorted(known)) for known in locally_executing
+        ),
+        finish_ms=finish, first_diagnostic=first_failure,
+    )
