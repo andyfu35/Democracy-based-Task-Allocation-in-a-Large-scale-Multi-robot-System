@@ -1,5 +1,22 @@
 # Change Continuity
 
+## 2026-11-04 — P2T regression fixture: physical broadcast loss key correction
+
+**Purpose:** User's local `test_hidden_peer_conflict_is_exposed_not_oracle_corrected` failed because its scripted packet-loss key omitted the task segment. The physical transport's actual per-recipient key is `broadcast|p2t_intent|sender|receiver|task|round=N[|copy=M]`. The old fixture matched no packet and therefore let R0 hear R1, so the expected unobserved collision never occurred.
+
+**File / one owner/function:** `tests/test_p2t_peer_conflicts.py::Loss.is_delivered` now blocks R1 -> R0 for T0 in round 1 using the complete `broadcast|p2t_intent|1|0|0|round=1` key; all three physical copies are blocked for this recipient. No production module/function and no network loss behavior changed.
+
+**Preserved:** `claim_resolution.coordinate_p2t_peer_conflicts`, `transmit_p2t_peer_intents`, original Cost/Vote, ranked peer winner selection, real sender-byte accounting, 400-case P2T results, and original tests' intended safety assertion. No new owner or state machine.
+
+**Diagnostic boundary:** test fixture's first error is test-only false-negative injection, not `P2T` runtime allocation. The intended runtime diagnostic remains `democracy_mrta.claim_resolution.validate_p2t_attempts / safety / P2T_UNOBSERVED_PEER_COLLISION` when two locally self-winning contenders attempt the same task.
+
+**Validation:** This change was made via GitHub connector after inspecting user's trace; focused Python tests were not executed in a repo checkout in this environment, and should be rerun on Mac. **No claim of test PASS before user executes it.**
+
+**Risk/next:** local P2U experimental branch created before this commit has no installed reliable-ACK changes; merge updated P2T branch into it, then apply/download the separately supplied P2U candidate patch and run its focused tests. Historical P2T experiment evidence does not change.
+
+**Commit SHA:** regression correction `6eb686c4b57e58b06148d1fa3269d00903be0215`. This continuity edit's SHA is available from this entry's Git history.
+
+
 ## 2026-11-04 — P2T direct-peer announced conflicts WITHOUT fixed Task Owner
 
 **Purpose:** Per user request, experiment whether robots can publish the intended task after P2S optimized Cost/Vote, directly compare only genuinely observed competing peers, allow locally defeated robots to retarget, and skip the fixed P2R task-owner COMMIT/DENY path. **Primary cost-quality denominator deliberately changed to complete-information Hungarian global optimum** (not Global Greedy). This is an isolated new opt-in protocol, NOT a replacement of the safety-proven P2R baseline.
