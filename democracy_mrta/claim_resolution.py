@@ -2738,6 +2738,7 @@ def coordinate_p2t_peer_conflicts(
     max_rounds: int = 101, intent_repetitions: int = 3,
     announcement_repetitions: int = 3,
     reliable_announcements: bool = False, max_ack_retries: int = 24,
+    ack_mode: str = "unicast",
 ) -> P2TPeerResult:
     """Direct peer-only intent -> compare -> yield/act -> broadcast.
 
@@ -2805,13 +2806,21 @@ def coordinate_p2t_peer_conflicts(
                 claim_round=claim_round, cost_matrix=cost_matrix,
                 votes_per_voter=votes_per_voter,
             )
-            sent, received, status_views, finish = (
-                transmit_p2u_reliable_statuses(
-                    statuses=statuses, robots=robots, tasks=tasks,
-                    votes_per_voter=votes_per_voter,
-                    max_ack_retries=max_ack_retries, start_ms=finish,
-                    sampler=sampler, loss_sampler=loss_sampler, p_loss=p_loss,
-                )
+            if ack_mode not in ("unicast", "bitmap"):
+                raise ProtocolError(Diagnostic(
+                    owner=OWNER, function="coordinate_p2t_peer_conflicts",
+                    category="data", code="P2U_INVALID_ACK_MODE",
+                    expected="unicast or bitmap", actual=ack_mode,
+                ))
+            reliable_owner = (
+                transmit_p2u_reliable_statuses_bitmap
+                if ack_mode == "bitmap" else transmit_p2u_reliable_statuses
+            )
+            sent, received, status_views, finish = reliable_owner(
+                statuses=statuses, robots=robots, tasks=tasks,
+                votes_per_voter=votes_per_voter,
+                max_ack_retries=max_ack_retries, start_ms=finish,
+                sampler=sampler, loss_sampler=loss_sampler, p_loss=p_loss,
             )
             ready, occupied_losers, local_intents, known_executing = (
                 select_p2u_ready_peer_candidates(
@@ -3147,3 +3156,159 @@ def select_p2u_ready_peer_candidates(
             if status.mode == P2U_OFFER
         }
     return tuple(ready),tuple(blocked),local_offers,local_executing
+
+
+# P2U compressed ACK variant: opt-in alternative to O(N^2) unicast ACKs.
+# Original P2U unicast transport is preserved for paired comparisons.
+P2U_ACK_BITMAP_HEADER = struct.Struct("<4sIII")
+
+
+def encode_p2u_ack_bitmap(
+    *, claim_round: int, receiver: int, robots: int,
+    received_sender_ids: frozenset[int] | set[int],
+) -> bytes:
+    """One cumulative N-bit actual-receipt bitmap, published by the receiver."""
+    if (type(claim_round) is not int or claim_round < 0
+            or type(receiver) is not int or not 0 <= receiver < robots
+            or type(robots) is not int or not 1 <= robots <= 255
+            or not isinstance(received_sender_ids,(set,frozenset))
+            or any(type(sender) is not int or not 0 <= sender < robots
+                   for sender in received_sender_ids)
+            or receiver not in received_sender_ids):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="encode_p2u_ack_bitmap",
+            category="data", code="P2U_INVALID_BITMAP_ACK",
+            expected="valid round, sender roster, self-inclusive actual receipts",
+            actual={"round":claim_round,"receiver":receiver,
+                    "robots":robots,"seen":repr(received_sender_ids)},
+        ))
+    bits = sum(1 << sender for sender in received_sender_ids)
+    return (P2U_ACK_BITMAP_HEADER.pack(
+        b"P2UB", claim_round, receiver, robots,
+    ) + bits.to_bytes((robots+7)//8,"little"))
+
+
+def decode_p2u_ack_bitmap(
+    packet: bytes, *, claim_round: int, receiver: int,
+    robots: int,
+) -> frozenset[int]:
+    """Reject malformed, stale, forged or out-of-roster bitmap acknowledgments."""
+    expected_len=P2U_ACK_BITMAP_HEADER.size+(robots+7)//8
+    if (not isinstance(packet,bytes) or len(packet)!=expected_len
+            or type(robots) is not int or not 1 <= robots <= 255):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="decode_p2u_ack_bitmap",
+            category="data", code="P2U_ACK_BITMAP_SIZE_INVALID",
+            expected=expected_len,
+            actual=len(packet) if isinstance(packet,bytes)
+                   else type(packet).__name__,
+        ))
+    tag, rnd, origin, roster = P2U_ACK_BITMAP_HEADER.unpack(
+        packet[:P2U_ACK_BITMAP_HEADER.size]
+    )
+    bits=int.from_bytes(packet[P2U_ACK_BITMAP_HEADER.size:],"little")
+    if (tag!=b"P2UB" or rnd!=claim_round or origin!=receiver
+            or roster!=robots or bits >> robots
+            or not(bits & (1<<receiver))):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="decode_p2u_ack_bitmap",
+            category="contract", code="P2U_ACK_BITMAP_IDENTITY_MISMATCH",
+            expected={"tag":"P2UB","round":claim_round,
+                      "receiver":receiver,"robots":robots,
+                      "self_bit":True},
+            actual={"tag":tag,"round":rnd,"receiver":origin,
+                    "robots":roster,"bitset":bits},
+        ))
+    return frozenset(i for i in range(robots) if bits & (1<<i))
+
+
+def transmit_p2u_reliable_statuses_bitmap(
+    *, statuses: tuple[P2UStatus,...], robots: int, tasks: int,
+    votes_per_voter: int, max_ack_retries: int, start_ms: float,
+    sampler, loss_sampler, p_loss: float,
+) -> tuple[list[CommunicationEvent],list[DeliveryObservation],
+           dict[int,dict[int,P2UStatus]],float]:
+    """Real sender-paid P2US and batched P2UB ACK broadcasts.
+
+    Each sender still retries until a physical ACK *received by sender*
+    confirms every peer's genuine P2US receipt. One receiver emits exactly
+    one cumulative 16+ceil(N/8)-byte ACK bitmap per retry window, rather than
+    up to N-1 ACK unicasts. Every recorded SEND has causal serial timing.
+    Neither loss nor missing acknowledgment is silently waived.
+    """
+    validate_p2u_ack_scope(
+        robots=robots,statuses=statuses,max_ack_retries=max_ack_retries,
+    )
+    roster={status.intent.claim.robot_id:status for status in statuses}
+    known={receiver:{receiver:roster[receiver]} for receiver in roster}
+    confirmed={sender:{sender} for sender in roster}
+    events: list[CommunicationEvent]=[]
+    deliveries: list[DeliveryObservation]=[]
+    finish=start_ms
+    status_round=statuses[0].intent.claim.claim_round+1
+    for window in range(max_ack_retries):
+        if all(len(confirmed[sender])==robots for sender in roster):
+            break
+        # One physical P2US broadcast per still-unconfirmed sender.
+        # Deliver to every actual receiver, not merely those whose ACK
+        # was missing; duplicate delivery is harmless and visible.
+        for sender in sorted(roster):
+            if len(confirmed[sender])==robots:
+                continue
+            status=roster[sender]
+            claim=status.intent.claim
+            wire=encode_p2u_status(status)
+            event=_broadcast_event(
+                phase="p2u_status",sender_id=sender,task_id=claim.task_id,
+                round_id=status_round,send_time_ms=finish,
+                payload_bytes=len(wire),sampler=sampler,
+                transmission_index=window,
+            )
+            events.append(event)
+            finish=max(finish,event.arrival_time_ms)
+            observations=_lossy_broadcast_deliveries(
+                event=event,num_robots=robots,loss_sampler=loss_sampler,
+                p_loss=p_loss,round_id=status_round,
+            )
+            deliveries.extend(observations)
+            for obs in observations:
+                if obs.delivered:
+                    decoded=decode_p2u_status(
+                        wire,sender_id=sender,
+                        claim_round=claim.claim_round,
+                        robots=robots,tasks=tasks,
+                        tickets_per_task=votes_per_voter//tasks,
+                    )
+                    known[obs.receiver_id][sender]=decoded
+        # ACK phase is a separate causal window: each receiver announces
+        # exactly the sender rows it *physically* has.
+        for receiver in range(robots):
+            ack_wire=encode_p2u_ack_bitmap(
+                claim_round=status_round,receiver=receiver,robots=robots,
+                received_sender_ids=frozenset(known[receiver]),
+            )
+            ack_event=_broadcast_event(
+                phase="p2u_ack_bitmap",sender_id=receiver,task_id=None,
+                round_id=status_round,send_time_ms=finish,
+                payload_bytes=len(ack_wire),sampler=sampler,
+                transmission_index=window,
+            )
+            events.append(ack_event)
+            finish=max(finish,ack_event.arrival_time_ms)
+            observations=_lossy_broadcast_deliveries(
+                event=ack_event,num_robots=robots,loss_sampler=loss_sampler,
+                p_loss=p_loss,round_id=status_round,
+            )
+            deliveries.extend(observations)
+            for obs in observations:
+                if not obs.delivered:
+                    continue
+                confirmed_by_receiver=decode_p2u_ack_bitmap(
+                    ack_wire,claim_round=status_round,
+                    receiver=receiver,robots=robots,
+                )
+                # Each sender learns only if its own receiving radio
+                # physically got this bitmap, AND its bit is set.
+                if obs.receiver_id in confirmed_by_receiver:
+                    confirmed[obs.receiver_id].add(receiver)
+    return events,deliveries,known,finish
