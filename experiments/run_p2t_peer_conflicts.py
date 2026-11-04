@@ -42,6 +42,14 @@ POLICY = "adaptive_local_matching"
 PHASES = (
     "task", "cost", "vote", "p2t_intent", "p2t_execution",
 )
+P2U_PHASES = PHASES + ("p2u_status", "p2u_ack")
+P2U_FIELDS = (
+    "reliable_announcements","max_ack_retries",
+    "p2u_status_sends","p2u_status_bytes",
+    "p2u_ack_sends","p2u_ack_bytes",
+    "p2u_status_receiver_drops","p2u_ack_receiver_drops",
+)
+P2U_SUMMARY_FIELDS = ("mean_p2u_status_bytes","mean_p2u_ack_bytes")
 FIELDS = (
     "source_sha","scene_sha256","seed","robots","tasks","loss_percent",
     "votes_per_voter","policy","intent_repetitions","announcement_repetitions",
@@ -86,6 +94,12 @@ def fail(function, category, code, *, expected=None, actual=None, details=""):
 def validate_p2t_axes(args):
     """Bound the cohort without modifying frozen P2S/P2R runner defaults."""
     losses, votes = validate_p2k_config(args)
+    if (args.reliable_announcements
+            and (type(args.max_ack_retries) is not int
+                 or not 1 <= args.max_ack_retries <= 256)):
+        fail("validate_p2t_axes","data","P2U_INVALID_ACK_RETRIES",
+             expected="1..256 finite ACK retry windows",
+             actual=args.max_ack_retries)
     if (votes != (1000,) or args.k != 1 or args.epsilon != 0.0
             or type(args.max_rounds) is not int or not 1 <= args.max_rounds <= 255
             or type(args.intent_repetitions) is not int
@@ -96,6 +110,24 @@ def validate_p2t_axes(args):
              expected="B1000, k1, epsilon0, bounded rounds, 1..5 copies",
              actual=vars(args))
     return losses
+
+
+def audit_p2u_delivered_execution_status(
+    *, peer, attempts: tuple[tuple[int,int],...],
+    expected_cache: list[set[int]],
+) -> None:
+    """Add only actually received later-round EXECUTED status knowledge."""
+    sender_round = {
+        event.sender_id:event.round_id for event in peer.events
+        if event.phase == "p2t_execution"
+    }
+    attempted = dict(attempts)
+    for receipt in peer.deliveries:
+        if (receipt.phase == "p2u_status" and receipt.delivered
+                and receipt.sender_id in sender_round
+                and receipt.round_id > sender_round[receipt.sender_id]
+                and receipt.task_id == attempted[receipt.sender_id]):
+            expected_cache[receipt.receiver_id].add(receipt.task_id)
 
 
 def audit_p2t_case(*, scene, peer, votes, task_trace,
@@ -115,6 +147,10 @@ def audit_p2t_case(*, scene, peer, votes, task_trace,
     for receipt in peer.deliveries:
         if receipt.phase == "p2t_execution" and receipt.delivered:
             expected_cache[receipt.receiver_id].add(receipt.task_id)
+    if args.reliable_announcements:
+        audit_p2u_delivered_execution_status(
+            peer=peer,attempts=attempts,expected_cache=expected_cache,
+        )
     if (tuple(tuple(sorted(tasks_seen)) for tasks_seen in expected_cache)
             != peer.recipient_seen_executing_tasks):
         fail("audit_p2t_case","contract","P2T_PHANTOM_EXECUTION_KNOWLEDGE",
@@ -122,12 +158,13 @@ def audit_p2t_case(*, scene, peer, votes, task_trace,
              actual=peer.recipient_seen_executing_tasks)
     events = tuple(task_trace.events) + votes.events + peer.events
     deliveries = votes.deliveries + peer.deliveries
-    counts = {phase: {"sends":0,"bytes":0} for phase in PHASES}
+    active_phases = P2U_PHASES if args.reliable_announcements else PHASES
+    counts = {phase: {"sends":0,"bytes":0} for phase in active_phases}
     for event in events:
         phase = "task" if event.phase == "task_announcement" else event.phase
         if phase not in counts:
             fail("audit_p2t_case","contract","P2T_UNEXPECTED_WIRE_PHASE",
-                 expected=PHASES,actual=phase)
+                 expected=active_phases,actual=phase)
         counts[phase]["sends"] += 1
         counts[phase]["bytes"] += event.payload_bytes
     if (counts["cost"]["sends"] != robots or
@@ -211,17 +248,23 @@ def audit_p2t_case(*, scene, peer, votes, task_trace,
                           separators=(",",":")) if first else "",
         "attempted_pairs_json":json.dumps(attempts,separators=(",",":")),
     }
-    for phase in PHASES:
+    for phase in active_phases:
         row[phase+"_sends"]=counts[phase]["sends"]
         row[phase+"_bytes"]=counts[phase]["bytes"]
-    for phase in ("cost","vote","p2t_intent","p2t_execution"):
+    for phase in ("cost","vote","p2t_intent","p2t_execution") + (
+        ("p2u_status","p2u_ack") if args.reliable_announcements else ()
+    ):
         row[phase+"_receiver_drops"]=sum(
             1 for receipt in deliveries
             if receipt.phase==phase and not receipt.delivered
         )
-    if set(row) != set(FIELDS):
+    if args.reliable_announcements:
+        row["reliable_announcements"]=1
+        row["max_ack_retries"]=args.max_ack_retries
+    fields=FIELDS+(P2U_FIELDS if args.reliable_announcements else ())
+    if set(row) != set(fields):
         fail("audit_p2t_case","contract","P2T_ROW_SCHEMA_MISMATCH",
-             expected=sorted(FIELDS),actual=sorted(row))
+             expected=sorted(fields),actual=sorted(row))
     return row
 
 
@@ -234,7 +277,7 @@ def summarize_p2t(rows):
     result=[]
     for loss,batch in sorted(by_loss.items()):
         valid=[row for row in batch if row["full_valid_allocation"]]
-        result.append({
+        summary={
             "loss_percent":loss,"seeds":len(batch),
             "full_valid_count":len(valid),
             "full_valid_percent":100*len(valid)/len(batch),
@@ -262,20 +305,28 @@ def summarize_p2t(rows):
                 valid,"optimality_gap_percent_if_valid") if valid else "",
             "mean_valid_greedy_gap_percent":mean(valid,"greedy_gap_percent_if_valid")
                                            if valid else "",
-        })
+        }
+        if batch[0].get("reliable_announcements"):
+            summary["mean_intent_bytes"]=mean(batch,"p2u_status_bytes")
+            summary["mean_p2u_status_bytes"]=mean(batch,"p2u_status_bytes")
+            summary["mean_p2u_ack_bytes"]=mean(batch,"p2u_ack_bytes")
+        result.append(summary)
     return result
 
 
 def save_p2t_evidence(*,root,rows,audits,config):
+    fields=SUMMARY_FIELDS+(
+        P2U_SUMMARY_FIELDS if config.get("reliable_announcements") else ()
+    )
     with (root/"summary_p2t.csv").open("x",newline="",encoding="utf-8") as f:
-        writer=csv.DictWriter(f,fieldnames=SUMMARY_FIELDS,extrasaction="raise")
+        writer=csv.DictWriter(f,fieldnames=fields,extrasaction="raise")
         writer.writeheader()
         writer.writerows(summarize_p2t(rows))
     items=[root/name for name in (
         "per_seed_p2t.csv","summary_p2t.csv","audit_p2t.jsonl","run_config_p2t.json",
     )]
     manifest={
-        "study":STUDY,"source_sha":config["source_sha"],
+        "study":config["study"],"source_sha":config["source_sha"],
         "created_utc":datetime.now(timezone.utc).isoformat(),
         "python":sys.version,"platform":platform.platform(),
         "cases":len(rows),"sha256":{p.name:sha256_file(p) for p in items},
@@ -323,6 +374,8 @@ def run_one_p2t_case(*,scene,profile,loss,source_sha,args,capture_audit):
         p_loss=loss,max_rounds=args.max_rounds,
         intent_repetitions=args.intent_repetitions,
         announcement_repetitions=args.announcement_repetitions,
+        reliable_announcements=args.reliable_announcements,
+        max_ack_retries=args.max_ack_retries,
     )
     row=audit_p2t_case(
         scene=scene,peer=peer,votes=votes,task_trace=task_trace,
@@ -380,6 +433,16 @@ def run_p2t(args):
                     "simultaneous peer acts are exposed as collisions",
         "audit_seeds":args.audit_seeds,
     }
+    if args.reliable_announcements:
+        config["study"]=STUDY+"_RELIABLE_P2U_ACK"
+        config["reliable_announcements"]=True
+        config["max_ack_retries"]=args.max_ack_retries
+        config["protocol"]=(
+            "P2U 40B P2US all-roster OFFER/EXECUTED/IDLE; "
+            "16B P2UA ACK and sender-paid bounded causal retries; "
+            "each candidate must personally receive full roster "
+            "before peer comparison; 16B attempted P2TE, no fixed owner."
+        )
     root.mkdir(parents=True)
     (root/"run_config_p2t.json").write_text(
         json.dumps(config,indent=2,ensure_ascii=False),encoding="utf-8",
@@ -387,7 +450,10 @@ def run_p2t(args):
     rows=[]
     with (root/"per_seed_p2t.csv").open("x",newline="",encoding="utf-8") as raw, \
          (root/"audit_p2t.jsonl").open("x",encoding="utf-8") as audit_file:
-        writer=csv.DictWriter(raw,fieldnames=FIELDS,extrasaction="raise")
+        active_fields=FIELDS+(
+            P2U_FIELDS if args.reliable_announcements else ()
+        )
+        writer=csv.DictWriter(raw,fieldnames=active_fields,extrasaction="raise")
         writer.writeheader()
         for loss in losses:
             for seed in range(args.first_seed,args.first_seed+args.seeds):
@@ -429,6 +495,8 @@ def parse_args(argv=None):
     parser.add_argument("--epsilon",type=float,default=0.0)
     parser.add_argument("--temperature",type=float,default=5.0)
     parser.add_argument("--max-rounds",type=int,default=101)
+    parser.add_argument("--reliable-announcements",action="store_true")
+    parser.add_argument("--max-ack-retries",type=int,default=24)
     parser.add_argument("--intent-repetitions",type=int,default=3)
     parser.add_argument("--announcement-repetitions",type=int,default=3)
     parser.add_argument("--audit-seeds",type=int,default=1)
