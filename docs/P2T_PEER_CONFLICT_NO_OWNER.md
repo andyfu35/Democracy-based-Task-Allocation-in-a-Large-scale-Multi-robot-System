@@ -122,3 +122,64 @@ zip -j "$HOME/Downloads/p2t_peer_conflicts_100seed.zip" \
 ```
 
 **Acceptance conditions:** PL0 100/100 exact Hungarian parity; all attempted SENDs (including dropped) physically billed; no hidden full-cost repair; report independent unique/duplicate/missing and objective gap to Hungarian; no P2R owner/commit control messages in P2T; no claim that tests passed until local run completes.
+
+
+## P2U — Optional reliable all-roster announcements with paid ACK and causal timing
+
+**Branch:** `experiment/p2u-peer-ack-reliable-announcement-20261104`. P2T is unchanged unless `--reliable-announcements` is enabled. P2S adaptive-local-matching Cost/Vote and legacy P2R fixed Task Owner are untouched.
+
+### Contract and bounded liveness
+
+For each decision round `q`, every **known** robot (including already attempted or currently idle robots) sends exactly one logical status:
+- `P2US` **40 bytes**, `(tag, round, robot, task or NO_TASK, self_support, ballots_received, tickets_per_task, mode, own_cost)`;
+- mode `OFFER / EXECUTED / IDLE`; each sender supplies **its own** candidate Cost and status, never another robot's hidden Cost;
+- a receiver sends a physical `P2UA` **16-byte** ACK for each actual P2US delivery; both successful and dropped SEND/ACK attempts count toward sender Bytes;
+- at most `max_ack_retries` (1..256) windows are attempted. A sender stops retransmitting to peers whose ACK actually arrived. A receiver de-duplicates repeated statuses from the same sender in the same round.
+
+**Safety boundary:** A robot with an OFFER may elect itself or yield ONLY if it has physically received `N/N` same-round statuses from the entire fixed known roster, including its own. If missing even one, it holds its tentative task without attempting execution. If a later received `EXECUTED` status advertises an already attempted task, an OFFER for that task is rejected and locally retargeted. The winner rule is the unchanged P2T rational normalized-vote support, raw support, lower own announced cost, smaller ID. There is no fixed per-task owner, P2RC, P2RD or free global consensus.
+
+This is a conservative **known-roster synchronous** trial, not a crash-tolerant distributed consensus proof. With nonzero packet loss and finite retries, no unconditional delivery or completion guarantee exists. Even at 0% loss the ACK overhead is O(N²) unicast sends per round.
+
+### Causal radio service: first failed owner / function / code
+
+The user's first native P2U smoke originally stopped at:
+`network.WifiCausalTimingSampler.sample_packet_ms / time / E9G_NONCAUSAL_PACKET_RELEASE`.
+
+The root owner was `claim_resolution.transmit_p2u_reliable_statuses` incorrectly sending later broadcasts and ACKs at an earlier *batch* release timestamp after preceding ACKs had already entered the single shared-medium queue. The correct owner solution is:
+- schedule **each** next sender broadcast at the current `finish`, not a stale per-attempt `release`;
+- after actually receiving P2US, schedule the next ACK at `max(finish, status_arrival)` and update `finish` with its actual modeled arrival;
+- preserve the strict original `WifiCausalTimingSampler.sample_packet_ms` time guard; **do not suppress E9G diagnostics**.
+
+The owner and diagnostic boundaries remain:
+- `claim_resolution.validate_p2u_ack_scope/data/P2U_INVALID_RELIABLE_ROSTER`;
+- `claim_resolution.encode_p2u_status/data/P2U_INVALID_STATUS_FIELDS`;
+- `claim_resolution.decode_p2u_status/data/P2U_STATUS_SIZE_INVALID` or `contract/P2U_STATUS_TAG_INVALID`;
+- `claim_resolution.validate_p2u_ack_receipt/contract/P2U_ACK_CONTENT_MISMATCH`;
+- `network.WifiCausalTimingSampler.sample_packet_ms/time/E9G_NONCAUSAL_PACKET_RELEASE` must not occur for valid P2U event order;
+- `claim_resolution.validate_p2t_attempts/safety/P2T_UNOBSERVED_PEER_COLLISION` remains the real offline collision alarm, never an oracle repair.
+
+### Evidence and acceptance
+
+Original baseline fields are preserved without the flag; P2U adds `reliable_announcements`, `max_ack_retries`, physical `p2u_status_*`, `p2u_ack_*` SEND/Bytes/drop columns and conditional summaries. An offline auditor may add executed task knowledge only from an actually received **later-round** P2US EXECUTED status after a physically attempted P2TE, not from a same-round OFFER. All attempted physical Cost/Vote/Status/ACK/P2TE transmissions (including drops) are charged. Experiment manifest must label the P2U opt-in study.
+
+**Primary cost metric** remains `optimality_gap_percent_if_valid=100*(C_P2U/C_Hungarian_optimal-1)`, only when all tasks are uniquely attempted with zero collisions. Do not assign a cost-quality gap to incomplete or duplicate allocations. Overall completion rate, duplicates, missing tasks, ACK bytes and modeled coordination time must be shown separately.
+
+### Mac local validation
+
+The remote branch is the source of truth; **no downloadable patch is required**. Execute compile + `test_p2u*.py`, `test_p2t*.py`, `test_p2s*.py`, `test_p2r*.py` first, then 2 seeds x 0/30/50% smoke:
+
+```bash
+python3 -m compileall -q democracy_mrta experiments tests
+python3 -m unittest discover -s tests -p 'test_p2u*.py' -v
+python3 -m unittest discover -s tests -p 'test_p2t*.py' -v
+python3 -m unittest discover -s tests -p 'test_p2s*.py' -v
+python3 -m unittest discover -s tests -p 'test_p2r*.py' -v
+P2U_SMOKE="results/p2u_ack_smoke_$(date +%Y%m%d_%H%M%S)"
+python3 -m experiments.run_p2t_peer_conflicts \
+  --reliable-announcements --max-ack-retries 24 \
+  --losses 0.00,0.30,0.50 --seeds 2 \
+  --robots 100 --tasks 100 --max-rounds 20 \
+  --output-root "$P2U_SMOKE"
+```
+
+100-seed formal evidence remains pending real native test and smoke verification, including genuine Rady profile; no performance claims before that.
