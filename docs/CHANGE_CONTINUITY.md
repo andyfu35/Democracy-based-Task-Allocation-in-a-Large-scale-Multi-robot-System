@@ -1,5 +1,22 @@
 # Change Continuity
 
+## 2026-11-04 — P2U physical EXECUTED receipt cache consistent for all receivers
+
+**Purpose / observed risk:** During direct GitHub P2U integration audit, identified a mismatch between `experiments.run_p2t_peer_conflicts.audit_p2u_delivered_execution_status` (which rightly counts each physically received later-round EXECUTED P2US even for robots already done) and `claim_resolution.select_p2u_ready_peer_candidates` (which previously populated the cache for only current OFFER candidates). After correcting E9G causal time, this discrepancy could falsely report contract/P2T_PHANTOM_EXECUTION_KNOWLEDGE. This is an evidence-consistency fix, not a change to task allocation criteria.
+
+**Owner / named function:** `democracy_mrta/claim_resolution.py::select_p2u_ready_peer_candidates` now processes physically received EXECUTED statuses for all receiver IDs into local executing knowledge before restricting full-roster OFFER eligibility to actual current intents. No hidden global task state is queried. `tests/test_p2u_reliable_ack.py::test_executed_status_reaches_already_finished_receiver` asserts an already completed peer learns a genuine status. Canonical `docs/P2T_PEER_CONFLICT_NO_OWNER.md` clarifies the receiver cache. This continuity entry records the contract.
+
+**Preserved:** P2S local Hungarian, P2T default behavior, P2U sender physical packets, retry/ACK causality, N/N full-roster decision gate, ranking, attempted P2TE, recorded Bytes, `audit_p2u_delivered_execution_status` offline checks and all other owners. No new wrapper or task state machine; no oracle evidence.
+
+**Intentionally changed:** P2U local EXECUTED cache now includes actual receipts at non-pending receivers. This makes the protocol's recipient state consistent with the existing actual-receipt safety audit; OFFER eligibility remains unchanged.
+
+**Diagnostic:** `experiments.run_p2t_peer_conflicts.audit_p2t_case / contract / P2T_PHANTOM_EXECUTION_KNOWLEDGE` remains first real mismatch boundary, with expected and actual task lists. Original `claim_resolution.validate_p2t_attempts / safety / P2T_UNOBSERVED_PEER_COLLISION` and `network.WifiCausalTimingSampler.sample_packet_ms / time / E9G_NONCAUSAL_PACKET_RELEASE` remain active. Categories data/time/state/dependency/planning/safety/runtime/contract untouched.
+
+**Validation and risks:** A new isolated regression is committed, but the GitHub-only environment has no full local MRTA checkout or Rady profile to run native simulation. Native tests/smoke and safe 100-seed completion remain pending user Mac verification. Preserve on-Mac uncommitted patch modifications using path-limited stash when switching to pushed P2U branch.
+
+**Commit SHA:** `f1755e761ef310ac879591259225faf15093ed67` (true owner); `b059ec24ad1ecc52042e40ef47e7419f8c7f9d8c` (regression); `858335edcb961c89daf06ddea9e837afddfb73fd` (canonical). This continuity edit commit is the next GitHub branch commit.
+
+
 ## 2026-11-04 — P2U reliable all-roster peer announcement moved to GitHub owner; causal radio regression repaired
 
 **Purpose:** User explicitly requested code already applied locally through a patch be integrated and pushed directly to GitHub instead of distributing another ZIP. Native Mac 2-seed P2U smoke first failed at `network.WifiCausalTimingSampler.sample_packet_ms / time / E9G_NONCAUSAL_PACKET_RELEASE` because the original P2U status/ACK emitter submitted later physical SENDs with an older release time. Repair only `claim_resolution.transmit_p2u_reliable_statuses` (true packet scheduling owner), NOT the strict Network time check, while making all-roster P2US/P2UA implementation an opt-in branch.
