@@ -183,3 +183,6 @@ python3 -m experiments.run_p2t_peer_conflicts \
 ```
 
 100-seed formal evidence remains pending real native test and smoke verification, including genuine Rady profile; no performance claims before that.
+
+
+**P2U receiver-cache clarification (same protocol):** `select_p2u_ready_peer_candidates` records a physically delivered `EXECUTED` status for *every receiver*, even if the receiver is already finished and is not a current candidate. Eligibility checks remain restricted to current candidates, and all decisions still require their full N/N current-round roster. The experiment's execution-knowledge audit uses this identical actual-receipt rule, so it cannot invent or drop knowledge at a non-candidate receiver. A dedicated regression verifies this cache consistency.
