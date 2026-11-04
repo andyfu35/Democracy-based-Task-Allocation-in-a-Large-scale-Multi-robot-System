@@ -468,7 +468,7 @@ def run_p2t(args):
         if args.ack_mode=="bitmap":
             config["study"]+="_BITMAP_ACK"
         config["protocol"]=(
-            "P2U 40B P2US all-roster OFFER/EXECUTED/IDLE; "
+            "P2U 40B P2US all-roster OFFER/EXECUTED/IDLE; " +
             ("16B P2UA unicasts" if args.ack_mode=="unicast"
              else "16+ceil(N/8)B P2UB bitmap ACK broadcasts")+
             " and sender-paid bounded causal retries; "
