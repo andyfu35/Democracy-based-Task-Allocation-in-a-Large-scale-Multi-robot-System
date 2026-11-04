@@ -2737,6 +2737,7 @@ def coordinate_p2t_peer_conflicts(
     votes_per_voter: int, sampler, loss_sampler, p_loss: float,
     max_rounds: int = 101, intent_repetitions: int = 3,
     announcement_repetitions: int = 3,
+    reliable_announcements: bool = False, max_ack_retries: int = 24,
 ) -> P2TPeerResult:
     """Direct peer-only intent -> compare -> yield/act -> broadcast.
 
@@ -2769,12 +2770,18 @@ def coordinate_p2t_peer_conflicts(
             break
         intents: list[P2TIntent] = []
         for robot in sorted(pending):
-            task = select_p2m_local_request_task(
-                run=run, robot_id=robot, own_cost_row=cost_matrix[robot],
-                tried_tasks=frozenset(rejected[robot]),
-                first_attempt=claim_round == 0,
-                known_executing_tasks=frozenset(locally_executing[robot]),
-            )
+            held = last_task.get(robot)
+            if (reliable_announcements and held is not None
+                    and held not in rejected[robot]
+                    and held not in locally_executing[robot]):
+                task = held
+            else:
+                task = select_p2m_local_request_task(
+                    run=run, robot_id=robot, own_cost_row=cost_matrix[robot],
+                    tried_tasks=frozenset(rejected[robot]),
+                    first_attempt=claim_round == 0,
+                    known_executing_tasks=frozenset(locally_executing[robot]),
+                )
             if task is None:
                 pending.discard(robot)
                 continue
@@ -2792,17 +2799,45 @@ def coordinate_p2t_peer_conflicts(
         rounds += 1
         if claim_round == 0:
             initial_candidates = len(intents)
-        sent, received, local_intents, finish = transmit_p2t_peer_intents(
-            intents=tuple(intents), robots=robots, tasks=tasks,
-            votes_per_voter=votes_per_voter, repetitions=intent_repetitions,
-            start_ms=finish, sampler=sampler, loss_sampler=loss_sampler,
-            p_loss=p_loss,
-        )
+        if reliable_announcements:
+            statuses = build_p2u_round_statuses(
+                run=run, intents=tuple(intents), attempts=attempts,
+                claim_round=claim_round, cost_matrix=cost_matrix,
+                votes_per_voter=votes_per_voter,
+            )
+            sent, received, status_views, finish = (
+                transmit_p2u_reliable_statuses(
+                    statuses=statuses, robots=robots, tasks=tasks,
+                    votes_per_voter=votes_per_voter,
+                    max_ack_retries=max_ack_retries, start_ms=finish,
+                    sampler=sampler, loss_sampler=loss_sampler, p_loss=p_loss,
+                )
+            )
+            ready, occupied_losers, local_intents, known_executing = (
+                select_p2u_ready_peer_candidates(
+                    intents=tuple(intents), views=status_views, robots=robots,
+                )
+            )
+            for robot, known in known_executing.items():
+                locally_executing[robot].update(known)
+            winners, rejected_losers, observed_conflicts = (
+                choose_p2t_peer_winners(
+                    intents=ready, locally_received=local_intents,
+                )
+            )
+            losers = tuple(rejected_losers) + tuple(occupied_losers)
+        else:
+            sent, received, local_intents, finish = transmit_p2t_peer_intents(
+                intents=tuple(intents), robots=robots, tasks=tasks,
+                votes_per_voter=votes_per_voter, repetitions=intent_repetitions,
+                start_ms=finish, sampler=sampler, loss_sampler=loss_sampler,
+                p_loss=p_loss,
+            )
+            winners, losers, observed_conflicts = choose_p2t_peer_winners(
+                intents=tuple(intents), locally_received=local_intents,
+            )
         events.extend(sent)
         deliveries.extend(received)
-        winners, losers, observed_conflicts = choose_p2t_peer_winners(
-            intents=tuple(intents), locally_received=local_intents,
-        )
         conflicts += observed_conflicts
         yielded += len(losers)
         for intent in losers:
@@ -2850,3 +2885,261 @@ def coordinate_p2t_peer_conflicts(
         ),
         finish_ms=finish, first_diagnostic=first_failure,
     )
+
+
+# P2U: optional reliable all-roster peer announcements. Transport and
+# receipt ownership stays in claim_resolution, not a global task owner.
+P2U_STATUS_WIRE = struct.Struct("<4sIIIIIIId")  # 40 bytes
+P2U_ACK_WIRE = struct.Struct("<4sIII")          # 16 bytes
+P2U_OFFER, P2U_EXECUTED, P2U_IDLE = 0, 1, 2
+
+
+@dataclass(frozen=True)
+class P2UStatus:
+    intent: P2TIntent
+    mode: int
+
+
+def validate_p2u_ack_scope(
+    *, robots: int, statuses: tuple[P2UStatus, ...], max_ack_retries: int,
+) -> None:
+    """One announced OFFER/EXECUTED/IDLE per known robot in each epoch."""
+    senders = tuple(s.intent.claim.robot_id for s in statuses)
+    if (not 1 <= robots <= 255 or type(max_ack_retries) is not int
+            or not 1 <= max_ack_retries <= 256 or len(senders) != robots
+            or set(senders) != set(range(robots))
+            or len(set(senders)) != robots
+            or any(s.mode not in (P2U_OFFER,P2U_EXECUTED,P2U_IDLE)
+                   for s in statuses)):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="validate_p2u_ack_scope",
+            category="data", code="P2U_INVALID_RELIABLE_ROSTER",
+            expected="one status per roster robot and 1..256 retry windows",
+            actual={"robots":robots, "senders":senders,
+                    "max_ack_retries":max_ack_retries},
+        ))
+
+
+def encode_p2u_status(status: P2UStatus) -> bytes:
+    """Encode sender's OWN cost and round status, not hidden peer data."""
+    claim = status.intent.claim
+    _tag, rnd, robot, task, support, received, slots = CLAIM_WIRE.unpack(
+        encode_p2l_claim_packet(claim)
+    )
+    cost = status.intent.own_cost
+    if (status.mode not in (P2U_OFFER, P2U_EXECUTED, P2U_IDLE)
+            or type(cost) not in (int,float) or not math.isfinite(cost)
+            or cost < 0
+            or (status.mode == P2U_IDLE) != (claim.task_id is None)
+            or (status.mode == P2U_IDLE and cost != 0)):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="encode_p2u_status",
+            category="data", code="P2U_INVALID_STATUS_FIELDS",
+            expected="OFFER/EXECUTED with task and own cost, or IDLE None+0",
+            actual=repr(status),
+        ))
+    return P2U_STATUS_WIRE.pack(
+        b"P2US", rnd, robot, task, support, received, slots,
+        status.mode, float(cost),
+    )
+
+
+def decode_p2u_status(
+    packet: bytes, *, sender_id: int, claim_round: int,
+    robots: int, tasks: int, tickets_per_task: int,
+) -> P2UStatus:
+    """Validate physically received sender/round/task identity."""
+    if not isinstance(packet, bytes) or len(packet) != P2U_STATUS_WIRE.size:
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="decode_p2u_status", category="data",
+            code="P2U_STATUS_SIZE_INVALID", expected=P2U_STATUS_WIRE.size,
+            actual=len(packet) if isinstance(packet,bytes)
+                   else type(packet).__name__,
+        ))
+    tag, rnd, robot, task, votes, received, slots, mode, cost = (
+        P2U_STATUS_WIRE.unpack(packet)
+    )
+    if tag != b"P2US":
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="decode_p2u_status", category="contract",
+            code="P2U_STATUS_TAG_INVALID", expected="P2US", actual=tag,
+        ))
+    claim = decode_p2l_claim_packet(
+        CLAIM_WIRE.pack(b"P2LC",rnd,robot,task,votes,received,slots),
+        claim_round=claim_round,sender_id=sender_id,
+        robots=robots,tasks=tasks,tickets_per_task=tickets_per_task,
+    )
+    result = P2UStatus(P2TIntent(claim,cost),mode)
+    encode_p2u_status(result)
+    return result
+
+
+def encode_p2u_ack(*, claim_round: int, receiver: int, sender: int) -> bytes:
+    if (type(claim_round) is not int or claim_round < 0
+            or not 0 <= receiver <= 255 or not 0 <= sender <= 255):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="encode_p2u_ack",category="data",
+            code="P2U_INVALID_ACK_IDENTITY",
+            expected="valid nonnegative round and robot IDs",
+            actual=(claim_round,receiver,sender),
+        ))
+    return P2U_ACK_WIRE.pack(b"P2UA",claim_round,receiver,sender)
+
+
+def validate_p2u_ack_receipt(
+    wire: bytes, *, claim_round: int, receiver: int, sender: int,
+) -> None:
+    if wire != encode_p2u_ack(
+        claim_round=claim_round,receiver=receiver,sender=sender,
+    ):
+        raise ProtocolError(Diagnostic(
+            owner=OWNER, function="validate_p2u_ack_receipt",
+            category="contract", code="P2U_ACK_CONTENT_MISMATCH",
+            expected=(claim_round,receiver,sender),actual=wire,
+        ))
+
+
+def transmit_p2u_reliable_statuses(
+    *, statuses: tuple[P2UStatus, ...], robots: int, tasks: int,
+    votes_per_voter: int, max_ack_retries: int, start_ms: float,
+    sampler, loss_sampler, p_loss: float,
+) -> tuple[list[CommunicationEvent],list[DeliveryObservation],
+           dict[int,dict[int,P2UStatus]],float]:
+    """Sender-paid P2US broadcasts and per-receiver ACKs; causally scheduled.
+
+    One broadcast packet per sender/retry is billed even when some receivers
+    drop it. Each physically received P2US triggers a separately billed
+    unicast ACK, which can also drop. Local views grow ONLY on actual receipt.
+    All releases are >= preceding modeled packet releases to preserve the
+    shared-medium WifiCausalTimingSampler's time contract.
+    """
+    validate_p2u_ack_scope(
+        robots=robots,statuses=statuses,max_ack_retries=max_ack_retries,
+    )
+    roster = {status.intent.claim.robot_id:status for status in statuses}
+    confirmed = {sender:{sender} for sender in roster}
+    observed: dict[int,dict[int,P2UStatus]] = {
+        sender:{sender:status} for sender,status in roster.items()
+    }
+    events: list[CommunicationEvent] = []
+    deliveries: list[DeliveryObservation] = []
+    finish = start_ms
+    for attempt in range(max_ack_retries):
+        if all(len(confirmed[sender]) == robots for sender in roster):
+            break
+        for sender in sorted(roster):
+            pending = tuple(sorted(set(range(robots)) - confirmed[sender]))
+            if not pending:
+                continue
+            status = roster[sender]
+            claim = status.intent.claim
+            wire = encode_p2u_status(status)
+            event = _broadcast_event(
+                phase="p2u_status",sender_id=sender,task_id=claim.task_id,
+                round_id=claim.claim_round + 1,
+                send_time_ms=finish,payload_bytes=len(wire),
+                sampler=sampler,transmission_index=attempt,
+            )
+            events.append(event)
+            finish=max(finish,event.arrival_time_ms)
+            receipts=_lossy_broadcast_deliveries(
+                event=event,num_robots=robots,receiver_ids=pending,
+                loss_sampler=loss_sampler,p_loss=p_loss,
+                round_id=claim.claim_round+1,
+            )
+            deliveries.extend(receipts)
+            for receipt in receipts:
+                if not receipt.delivered:
+                    continue
+                peer=receipt.receiver_id
+                decoded=decode_p2u_status(
+                    wire,sender_id=sender,claim_round=claim.claim_round,
+                    robots=robots,tasks=tasks,
+                    tickets_per_task=votes_per_voter//tasks,
+                )
+                observed.setdefault(peer,{})[sender]=decoded
+                ack_wire=encode_p2u_ack(
+                    claim_round=claim.claim_round,receiver=peer,sender=sender,
+                )
+                ack_round=(claim.claim_round+1)*(max_ack_retries+1)+attempt
+                ack_event=_unicast_event(
+                    phase="p2u_ack",sender_id=peer,receiver_id=sender,
+                    round_id=ack_round,task_id=None,
+                    send_time_ms=max(finish,event.arrival_time_ms),
+                    payload_bytes=len(ack_wire),sampler=sampler,
+                )
+                events.append(ack_event)
+                finish=max(finish,ack_event.arrival_time_ms)
+                ack_receipt=_lossy_unicast_delivery(
+                    event=ack_event,loss_sampler=loss_sampler,
+                    p_loss=p_loss,round_id=ack_round,
+                )
+                deliveries.append(ack_receipt)
+                if ack_receipt.delivered:
+                    validate_p2u_ack_receipt(
+                        ack_wire,claim_round=claim.claim_round,
+                        receiver=peer,sender=sender,
+                    )
+                    confirmed[sender].add(peer)
+    return events,deliveries,observed,finish
+
+
+def build_p2u_round_statuses(
+    *, run: P2KLocalVoteResult, intents: tuple[P2TIntent,...],
+    attempts: dict[int,int], claim_round: int,
+    cost_matrix: tuple[tuple[float,...],...], votes_per_voter: int,
+) -> tuple[P2UStatus,...]:
+    """Public sender-local OFFER, previously attempted EXECUTED, or IDLE."""
+    robots=len(cost_matrix)
+    slots=votes_per_voter//len(cost_matrix[0])
+    current={intent.claim.robot_id:intent for intent in intents}
+    statuses=[]
+    for sender in range(robots):
+        if sender in current:
+            statuses.append(P2UStatus(current[sender],P2U_OFFER))
+        elif sender in attempts:
+            task=attempts[sender]
+            claim=make_p2l_claim(
+                run=run,robot_id=sender,task_id=task,
+                claim_round=claim_round,votes_per_voter=votes_per_voter,
+            )
+            statuses.append(P2UStatus(
+                P2TIntent(claim,float(cost_matrix[sender][task])),
+                P2U_EXECUTED,
+            ))
+        else:
+            claim=P2LClaim(claim_round,sender,None,0,0,slots)
+            statuses.append(P2UStatus(P2TIntent(claim,0.0),P2U_IDLE))
+    return tuple(statuses)
+
+
+def select_p2u_ready_peer_candidates(
+    *, intents: tuple[P2TIntent,...],
+    views: dict[int,dict[int,P2UStatus]], robots: int,
+) -> tuple[tuple[P2TIntent,...],tuple[P2TIntent,...],
+           dict[int,dict[int,P2TIntent]],dict[int,set[int]]]:
+    """All N genuine round statuses must be visible before a local decision."""
+    ready=[]
+    blocked=[]
+    local_offers={}
+    local_executing={}
+    for intent in intents:
+        robot=intent.claim.robot_id
+        seen=views.get(robot,{})
+        for status in seen.values():
+            if status.mode == P2U_EXECUTED:
+                local_executing.setdefault(robot,set()).add(
+                    status.intent.claim.task_id
+                )
+        if len(seen)!=robots or set(seen)!=set(range(robots)):
+            continue
+        occupied=local_executing.get(robot,set())
+        if intent.claim.task_id in occupied:
+            blocked.append(intent)
+            continue
+        ready.append(intent)
+        local_offers[robot]={
+            sender:status.intent for sender,status in seen.items()
+            if status.mode == P2U_OFFER
+        }
+    return tuple(ready),tuple(blocked),local_offers,local_executing
